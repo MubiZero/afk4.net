@@ -72,10 +72,9 @@ const staffUsers: StaffUserDto[] = [{
 } as never];
 
 describe('StaffRolesDestination', () => {
-  it('renders the ManagementScreen title and subtitle', () => {
+  it('renders the section title', () => {
     wrap(<StaffRolesDestination backend={null} session={session([])} currencyCode="TJS" staffUsers={[]} />);
     expect(screen.getByRole('heading', { name: 'Сотрудники и роли' })).toBeTruthy();
-    expect(screen.getByText('Сотрудники, роли и доступ')).toBeTruthy();
   });
 
   it('renders a staff row with login, role and status columns', () => {
@@ -364,7 +363,7 @@ describe('StaffRolesDestination', () => {
         onStaffUsersChange={onStaffUsersChange}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Из сети' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Сотрудник из сети' }));
 
     expect(await screen.findByText('Работает: Филиал Север')).toBeTruthy();
     expect(screen.getByText('Без филиала — войти ему некуда')).toBeTruthy();
@@ -386,7 +385,7 @@ describe('StaffRolesDestination', () => {
         staffUsers={staffUsers}
       />
     );
-    expect(screen.queryByRole('button', { name: 'Из сети' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ Сотрудник из сети' })).toBeNull();
     fireEvent.click(screen.getByText('Марина Сидорова'));
     expect(screen.queryByRole('button', { name: 'Снять с филиала' })).toBeNull();
   });

@@ -79,9 +79,9 @@ export function parseCheckoutAmount(value: string): number | null {
   return Number.isFinite(major) ? majorToMinor(major) : null;
 }
 
-/** Format minor units as a fixed 2-decimal major string for an input field. */
+/** Сумма для поля ввода — как её пишет человек и как её показывает <Money>: «54,5», а не «54.50». */
 export function formatCheckoutAmount(minorUnits: number): string {
-  return minorToMajor(minorUnits).toFixed(2);
+  return String(minorToMajor(minorUnits)).replace('.', ',');
 }
 
 /** "Наиграно" label from billed seconds, e.g. 5400 → "1ч 30м". */

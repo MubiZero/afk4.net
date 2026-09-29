@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
-import { KeyRound, Pencil, Power, PowerOff, UserMinus, UserPlus, Users } from 'lucide-react';
-import { ManagementScreen } from '../ManagementScreen';
+import { KeyRound, Pencil, Power, PowerOff, UserMinus, Users } from 'lucide-react';
+import { ManagementScreen, ScreenAction } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
 import { MgmtDrawer } from '../kit/MgmtDrawer';
 import type { RowAction } from '../kit/types';
@@ -22,7 +22,7 @@ import {
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import type { StaffUserDto } from '../../operatorApiClients';
-import { useBlockedReason } from '@afk4/ui/react';
+import { Button, useBlockedReason } from '@afk4/ui/react';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
 import { SkeletonTable } from '../../LoadingSkeleton';
 import { StaffFromNetworkModal } from './StaffFromNetworkModal';
@@ -407,12 +407,11 @@ export function StaffRolesDestination({
   return (
     <ManagementScreen
       title={t('op.management.dest.staff')}
-      subtitle={t('op.management.dest.staff.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
       skeleton={
         <div className="mgmt-master-detail">
-          <SkeletonTable gridTemplate={STAFF_GRID} rowActions={canManageBranchStaff} toolbar={{ action: canInviteStaff }} />
+          <SkeletonTable gridTemplate={STAFF_GRID} rowActions={canManageBranchStaff} />
         </div>
       }
       failure={failure}
@@ -441,22 +440,23 @@ export function StaffRolesDestination({
           selectedKey={selectedStaffUserId}
           onSelectRow={(staffUser) => setSelectedStaffUserId(readString(staffUser, 'staffUserId'))}
           rowActions={rowActions}
-          toolbar={{
-            title: t('op.settings.staff.title'),
-            secondary: canMoveStaff
-              ? { label: t('op.management.staff.network.cta'), icon: <UserPlus size={14} aria-hidden="true" />, onClick: () => setNetworkOpen(true) }
-              : undefined,
-            primary: canInviteStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
-          }}
           empty={{
             icon: <Users size={22} aria-hidden="true" />,
             title: t('op.management.staff.staffEmpty.title'),
             description: t('op.management.staff.staffEmpty.description'),
-            next: canInviteStaff
-              ? { kind: 'action', label: t('op.management.staff.addStaffCta'), onClick: openInvite }
-              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+            next: canInviteStaff ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
+        {(canMoveStaff || canInviteStaff) && (
+          <ScreenAction>
+            {canMoveStaff && (
+              <Button onClick={() => setNetworkOpen(true)}>
+                {t('op.management.staff.network.cta')}
+              </Button>
+            )}
+            {canInviteStaff && <Button variant="primary" onClick={openInvite}>{t('op.management.staff.addStaffCta')}</Button>}
+          </ScreenAction>
+        )}
 
         {selectedStaffUser && (
           <MgmtDrawer

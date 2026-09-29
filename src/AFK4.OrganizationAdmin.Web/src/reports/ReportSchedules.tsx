@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type JSX } from 'react';
+import { ReportScreen } from './ReportRangeControls';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
-import { ManagementScreen } from '../management/ManagementScreen';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { EmptyState } from '../operatorPrimitives';
 import type { ReportScheduleDto } from '../api/clients/reports';
@@ -122,10 +122,7 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
   }
 
   return (
-    <ManagementScreen
-      title={t('op.reports.schedule.title')}
-      subtitle={t('op.reports.schedule.subtitle')}
-      contentWidth="form"
+    <ReportScreen narrow
       state={state}
       skeleton={
         <>
@@ -136,6 +133,9 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
       failure={error}
       onRetry={() => void load()}
     >
+      {/* Откуда берётся письмо — одной строкой над формой: заголовка «Отчёты на почту» внутри
+          больше нет, это имя вкладки. */}
+      <p className="mgmt-drawer-hint">{t('op.reports.schedule.subtitle')}</p>
       <div className="mgmt-form">
         <label>
           {t('op.reports.schedule.reportLabel')}
@@ -203,6 +203,6 @@ export function ReportSchedules({ backend }: { backend: OperatorBackendContext |
           ))}
         </ul>
       )}
-    </ManagementScreen>
+    </ReportScreen>
   );
 }

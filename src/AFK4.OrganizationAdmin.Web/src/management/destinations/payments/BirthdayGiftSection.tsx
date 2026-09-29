@@ -1,6 +1,7 @@
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { LoadFailureState } from '../../../operatorPrimitives';
-import { DeferredSkeleton, SkeletonControl } from '../../../LoadingSkeleton';
+import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SetupFieldsSkeleton, SetupRuleSkeleton } from '../../kit/SetupSection';
 import type { BirthdayGiftSettingsController } from './useBirthdayGiftSettings';
 
@@ -27,7 +28,6 @@ export function BirthdayGiftSection({ controller: c, currencyCode, hasBackend }:
         <SetupRuleSkeleton hint={t('op.birthdayGift.enabledHint')} />
         <div className="payset-divider" />
         <SetupFieldsSkeleton hints={[t('op.birthdayGift.amountHint'), t('op.birthdayGift.recentVisitHint')]} />
-        <div className="payset-foot"><SkeletonControl width="10rem" /></div>
       </DeferredSkeleton>
     );
   }
@@ -58,7 +58,7 @@ export function BirthdayGiftSection({ controller: c, currencyCode, hasBackend }:
 
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="birthday-gift-amount">{`${t('op.birthdayGift.amount')}, ${currencyCode}`}</label>
+          <label htmlFor="birthday-gift-amount">{`${t('op.birthdayGift.amount')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="birthday-gift-amount"
@@ -84,17 +84,6 @@ export function BirthdayGiftSection({ controller: c, currencyCode, hasBackend }:
           </div>
           <p className="payset-field-hint">{t('op.birthdayGift.recentVisitHint')}</p>
         </div>
-      </div>
-
-      <div className="payset-foot">
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          disabled={c.disabled || !c.dirty}
-          onClick={() => void c.save()}
-        >
-          {t('op.birthdayGift.save')}
-        </button>
       </div>
     </>
   );

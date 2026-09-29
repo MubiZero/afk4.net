@@ -469,7 +469,7 @@ describe('BackendPosWorkspace', () => {
     await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/pos/sales/sale-1'));
     expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
     expect(screen.getAllByText('Cola')).toHaveLength(2);
-    expect(screen.getByRole('textbox', { name: 'Получено' })).toHaveValue('100.00');
+    expect(screen.getByRole('textbox', { name: 'Получено' })).toHaveValue('100');
     expect(await screen.findByText('Данные продажи изменились. Проверьте корзину и повторите оплату.')).toBeInTheDocument();
   });
 

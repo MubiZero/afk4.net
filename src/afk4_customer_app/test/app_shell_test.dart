@@ -128,7 +128,7 @@ void main() {
     expect(find.text('Причина: Подобрал чужой кошелёк'), findsOneWidget);
 
     // Деньги при этом видно: они остаются деньгами человека.
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -144,7 +144,7 @@ void main() {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -152,13 +152,13 @@ void main() {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Кошелёк'));
+    await tester.tap(find.text('Баланс'));
     await tester.pumpAndSettle();
     expect(find.text('PC-07'), findsOneWidget);
 
     await tester.tap(find.text('Главная'));
     await tester.pumpAndSettle();
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -168,13 +168,13 @@ void main() {
     await tester.pumpWidget(harness(http));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Кошелёк'));
+    await tester.tap(find.text('Баланс'));
     await tester.pumpAndSettle();
     final afterFirstVisit = http.paths.where((path) => path == '/api/me/visits').length;
 
     await tester.tap(find.text('Главная'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Кошелёк'));
+    await tester.tap(find.text('Баланс'));
     await tester.pumpAndSettle();
 
     expect(http.paths.where((path) => path == '/api/me/visits').length, afterFirstVisit);
@@ -186,7 +186,7 @@ void main() {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Баланс кошелька'));
+    await tester.tap(find.text('Доступно'));
     await tester.pumpAndSettle();
 
     expect(find.text('Визиты'), findsOneWidget);
@@ -199,7 +199,7 @@ void main() {
     await tester.pumpWidget(harness(_serve(features: '{"features":["online_topup"]}')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Кошелёк'));
+    await tester.tap(find.text('Баланс'));
     await tester.pumpAndSettle();
 
     expect(find.text('Визиты'), findsOneWidget);
@@ -214,11 +214,18 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('клуб без онлайн-броней не показывает раздел броней', (tester) async {
+  // Раздел не исчезает: раньше вкладка стояла, пока возможности не пришли, и пропадала под
+  // пальцем, сдвигая соседей. У клуба без онлайн-броней раздел остаётся — без кнопки
+  // «Забронировать» и со строкой о том, где бронируют.
+  testWidgets('клуб без онлайн-броней оставляет раздел, но без кнопки брони', (tester) async {
     await tester.pumpWidget(harness(_serve(features: '{"features":["online_topup"]}')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Брони'), findsNothing);
+    expect(find.text('Брони'), findsOneWidget);
+    await tester.tap(find.text('Брони'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('не принимает брони из приложения'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -274,7 +281,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Здесь вы ещё не играли'), findsOneWidget);
-    expect(find.text('Баланс кошелька'), findsNothing);
+    expect(find.text('Доступно'), findsNothing);
     expect(find.text('Не удалось загрузить данные. Проверьте соединение.'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -294,7 +301,7 @@ void main() {
     await tester.pumpWidget(harness(_serve(), me: _me()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     expect(find.text('Здесь вы ещё не играли'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });

@@ -13,6 +13,11 @@ export const STOCK_TAB_PERMISSIONS: Record<StockTab, readonly string[]> = {
   inventory: [permissionNames.manageInventoryStock],
 };
 
+// Количество со знаком — настоящим минусом, как у денег: «−2», а не «-2».
+export function signedCount(value: number): string {
+  return value > 0 ? `+${value}` : value < 0 ? `\u2212${-value}` : '0';
+}
+
 export function visibleStockTabs(session: OperatorAuthSession | null): StockTab[] {
   return STOCK_TAB_ORDER.filter((tab) => hasAnyPermission(session, STOCK_TAB_PERMISSIONS[tab]));
 }

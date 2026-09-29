@@ -10,6 +10,20 @@ import { createSessionStartSelection } from './session/SessionStartForm';
 
 const originalFetch = globalThis.fetch;
 
+// Карточка брони — инспектор кита (<aside>, подписан именем клиента или «Новая бронь»), а не
+// диалог: она не модальная и не перекрывает ленту. Поэтому ищется по своему классу.
+const bookingCard = () => {
+  const card = document.querySelector<HTMLElement>('.booking-inspector');
+  if (!card) throw new Error('карточки брони нет');
+  return card;
+};
+const findBookingCard = () => waitFor(bookingCard);
+// Опасное и редкое карточки («Не приехал», «Отменить бронь») живёт в «⋯».
+const chooseCardMenuItem = (name: string) => {
+  fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Действия с бронью' }));
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+};
+
 afterEach(() => {
   cleanup();
   globalThis.fetch = originalFetch;
@@ -92,14 +106,14 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
 
     // Старый закрытый draft A@10:00 с заполненным гостевым контактом.
     fireEvent.click(tracks[0], { clientX: 1000 });
-    const oldDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    const oldDrawer = await findBookingCard();
     fireEvent.change(within(oldDrawer).getByRole('combobox', { name: 'Поиск клиентов' }), { target: { value: 'Старый клиент' } });
     fireEvent.change(within(oldDrawer).getByRole('textbox', { name: 'Телефон' }), { target: { value: '93 111 22 33' } });
-    fireEvent.click(within(oldDrawer).getByRole('button', { name: 'Отмена' }));
+    fireEvent.click(within(oldDrawer).getByRole('button', { name: 'Закрыть' }));
 
     // Ctrl-click B@15:00 вне create должен начать заново, не продолжить закрытый draft.
     fireEvent.click(tracks[1], { clientX: 1500, ctrlKey: true });
-    const freshDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    const freshDrawer = await findBookingCard();
     const chips = freshDrawer.querySelectorAll('.booking-seat-chip');
     expect(chips).toHaveLength(1);
     expect(chips[0]).toHaveTextContent('PC-02');
@@ -156,7 +170,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       </I18nProvider>
     );
 
-    const details = await screen.findByRole('dialog', { name: 'Бронь' });
+    const details = await findBookingCard();
     await waitFor(() => expect(within(details).getByText('Далер Назаров')).toBeInTheDocument());
     expect(requestedDays).toContain(day);
   });
@@ -254,19 +268,19 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: /Guest stale/ }));
-    const details = await screen.findByRole('dialog', { name: 'Бронь' });
+    const details = await findBookingCard();
     fireEvent.click(within(details).getByRole('button', { name: 'Принять' }));
 
     await waitFor(() => expect(confirmBodies[0]).toEqual({ organizationId: 'org-1', expectedVersion: 7 }));
     await waitFor(() => expect(reservationReads).toBe(2));
-    const refreshedDetails = screen.getByRole('dialog', { name: 'Бронь' });
+    const refreshedDetails = bookingCard();
     fireEvent.click(within(refreshedDetails).getByRole('button', { name: 'Принять' }));
 
     await waitFor(() => expect(confirmBodies[1]).toEqual({ organizationId: 'org-1', expectedVersion: 8 }));
     await waitFor(() => expect(reservationReads).toBe(3));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(reservationReads).toBe(3);
-    expect(screen.getByRole('dialog', { name: 'Бронь' })).toBeInTheDocument();
+    expect(bookingCard()).toBeInTheDocument();
   });
 
   it('starts a confirmed reservation once, opens its authoritative seat, and refreshes reservations', async () => {
@@ -316,9 +330,9 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={backend} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
 
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
-    const startDialog = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
-    fireEvent.click(within(startDialog).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
+    const startDialog = screen.getByRole('dialog', { name: 'Посадить за ПК' });
+    fireEvent.click(within(startDialog).getByRole('button', { name: 'Посадить за ПК' }));
 
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(startCalls).toHaveLength(1);
@@ -347,26 +361,26 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
 
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
-    let modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
+    let modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
+    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(bodies).toHaveLength(1));
-    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Посадить за ПК' })).toBeInTheDocument());
 
-    modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
     expect(within(modal).getByRole('button', { name: /2 ч/ })).toBeDisabled();
     expect(within(modal).getAllByRole('button', { name: 'Отмена' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.pointerDown(modal.parentElement!);
-    expect(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Посадить за ПК' })).toBeInTheDocument();
 
-    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(bodies).toHaveLength(2));
     expect(bodies[1]).toEqual(bodies[0]);
 
     fireEvent.click(within(modal).getByRole('button', { name: 'Новая попытка' }));
     fireEvent.click(within(modal).getByRole('button', { name: /2 ч/ }));
-    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(bodies).toHaveLength(3);
     expect(bodies[2].idempotencyKey).not.toBe(bodies[0].idempotencyKey);
@@ -391,13 +405,13 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(bodies).toHaveLength(1));
-    const modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    const modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
     expect(within(modal).getByRole('button', { name: /2 ч/ })).toBeDisabled();
     expect(within(modal).getAllByRole('button', { name: 'Отмена' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
-    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toEqual(bodies[0]);
@@ -421,8 +435,8 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(starts).toBe(1);
   });
@@ -449,11 +463,11 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     const onOpenSeat = mock(() => {});
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(reads).toBeGreaterThan(1));
-    const modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    const modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
+    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(bodies[0]).toMatchObject({ expectedVersion: 3 });
     expect(bodies[1]).toMatchObject({ expectedVersion: 4 });
@@ -501,7 +515,7 @@ describe('BackendBookingWorkspace no-show', () => {
     });
 
     fireEvent.click(await screen.findByRole('button', { name: /Не приехавший гость/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Не приехал' }));
+    chooseCardMenuItem('Не приехал');
     fireEvent.click(screen.getByRole('button', { name: 'Отметить неявку' }));
 
     await waitFor(() => expect(calls).toHaveLength(1));
@@ -531,7 +545,7 @@ describe('BackendBookingWorkspace no-show', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: /Не приехавший гость/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Пришёл' }));
+    fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Пришёл' }));
 
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject({ expectedVersion: 3 });
@@ -546,7 +560,7 @@ describe('BackendBookingWorkspace no-show', () => {
     });
 
     fireEvent.click(await screen.findByRole('button', { name: /Не приехавший гость/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Не приехал' }));
+    chooseCardMenuItem('Не приехал');
     fireEvent.click(screen.getByRole('button', { name: 'Отметить неявку' }));
 
     expect(await screen.findByText(/Ничего не удерживали/)).toBeInTheDocument();

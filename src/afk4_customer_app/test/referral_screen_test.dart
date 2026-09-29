@@ -78,7 +78,7 @@ void main() {
     await tester.pumpWidget(harness(_serve(_referralJson())));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('пополняет кошелёк'), findsOneWidget);
+    expect(find.textContaining('пополняет баланс'), findsOneWidget);
   });
 
   testWidgets('клуб без программы честно говорит об этом вместо кода', (tester) async {

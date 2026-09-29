@@ -6,7 +6,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import { useSubscriptions } from './useSubscriptions';
 import {
@@ -15,7 +15,7 @@ import {
 } from './billingModel';
 
 export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const state = useSubscriptions(client);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
@@ -75,7 +75,7 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
                     {SUBSCRIPTION_STATUS_LABEL[subscription.status] !== undefined ? t(SUBSCRIPTION_STATUS_LABEL[subscription.status]) : subscription.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="pc-num">{formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}</TableCell>
+                <TableCell className="pc-num">{formatMoney(subscription.amountMinorUnits, subscription.currencyCode)}</TableCell>
                 <TableCell>{INTERVAL_LABEL[subscription.billingInterval] !== undefined ? t(INTERVAL_LABEL[subscription.billingInterval]) : subscription.billingInterval}</TableCell>
                 <TableCell>{formatDate(subscription.currentPeriodEndUtc)}</TableCell>
               </TableRow>

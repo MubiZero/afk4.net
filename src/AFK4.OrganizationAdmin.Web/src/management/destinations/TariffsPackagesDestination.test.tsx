@@ -35,7 +35,7 @@ const packageOptions: PackageOptionDto[] = [{
 } as never];
 
 describe('TariffsPackagesDestination', () => {
-  it('renders the ManagementScreen title and subtitle at full content width', () => {
+  it('renders the section title at full content width', () => {
     const { container } = wrap(
       <TariffsPackagesDestination
         backend={null}
@@ -47,7 +47,6 @@ describe('TariffsPackagesDestination', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Тарифы и пакеты' })).toBeTruthy();
-    expect(screen.getByText('Тарифы и пакеты времени')).toBeTruthy();
     expect(container.querySelector('.management-content--full')).toBeTruthy();
   });
 

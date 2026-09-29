@@ -86,3 +86,21 @@ export function formatLocal(value: string): string {
 export function fullPhoneDigits(value: string): string {
   return `992${localPhoneDigits(value)}`;
 }
+
+/**
+ * Телефон для чтения: «+992 93 738 00 70». Сервер хранит цифры подряд («+992930000010»), и так
+ * их и показывали — двенадцать цифр без пробелов не прочесть и не продиктовать. Номер другой
+ * страны или неполный показывается как пришёл: группировать его по нашей маске — исказить.
+ */
+export function displayPhone(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  return digits.length === 12 && digits.startsWith('992') ? `+992 ${formatLocal(digits)}` : value;
+}
+
+/**
+ * Шестизначный код — «418 207»: так его читают вслух и переписывают с экрана без ошибок. Код
+ * первого входа, код посадки за ПК — одинаково во всех приложениях.
+ */
+export function groupCode(code: string): string {
+  return /^\d{6}$/.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+}

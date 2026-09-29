@@ -240,20 +240,19 @@ describe('client segments (stable ids — survive locale change)', () => {
 });
 
 describe('buildClientOverview (сводка по базе для шапки)', () => {
-  it('counts clients and sums positive deposits and debts', () => {
+  it('sums positive balances and debts', () => {
     const overview = buildClientOverview([
       client({ balanceMinorUnits: 45000, debtMinorUnits: 0 }),
       client({ balanceMinorUnits: 12000, debtMinorUnits: 0 }),
       client({ balanceMinorUnits: 0, debtMinorUnits: 3500 })
     ]);
-    expect(overview.count).toBe(3);
-    expect(overview.depositMinorUnits).toBe(57000);
+    expect(overview.balanceMinorUnits).toBe(57000);
     expect(overview.debtMinorUnits).toBe(3500);
   });
 
-  it('ignores negative balances in the deposit sum and returns zeros for an empty base', () => {
-    expect(buildClientOverview([client({ balanceMinorUnits: -500, debtMinorUnits: 0 })]).depositMinorUnits).toBe(0);
-    expect(buildClientOverview([])).toEqual({ count: 0, depositMinorUnits: 0, debtMinorUnits: 0 });
+  it('ignores negative balances in the balance sum and returns zeros for an empty base', () => {
+    expect(buildClientOverview([client({ balanceMinorUnits: -500, debtMinorUnits: 0 })]).balanceMinorUnits).toBe(0);
+    expect(buildClientOverview([])).toEqual({ balanceMinorUnits: 0, debtMinorUnits: 0 });
   });
 });
 

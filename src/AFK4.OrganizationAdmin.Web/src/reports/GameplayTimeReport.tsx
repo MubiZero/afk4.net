@@ -1,6 +1,5 @@
 import { useState, type JSX } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { ManagementScreen } from '../management/ManagementScreen';
 import { MgmtTable } from '../management/kit/MgmtTable';
 import { downloadTextFile, formatMinorUnits } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
@@ -8,7 +7,7 @@ import { PartialLoadFailure } from '../operatorPrimitives';
 import type { FloorMapDto } from '../operatorApiClients';
 import type { GameplayTimeReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { ReportBody, ReportFiguresSkeleton, ReportRangeControls } from './ReportRangeControls';
+import { ReportBody, ReportFiguresSkeleton, ReportRangeControls, ReportScreen } from './ReportRangeControls';
 import { SkeletonTable } from '../LoadingSkeleton';
 import { todayReportRange, toReportInstantQuery, type ReportDateRange } from './reportRange';
 import { createDetailReportClients } from './reportClient';
@@ -68,10 +67,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
   const hours = (seconds: number) => formatNumber(Math.round(seconds / 360) / 10);
 
   return (
-    <ManagementScreen
-      title={t('op.reports.gameplay.title')}
-      subtitle={t('op.reports.gameplay.subtitle')}
-      contentWidth="full"
+    <ReportScreen
       state={state}
       skeleton={
         <>
@@ -122,7 +118,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
             : null}
         </ReportBody>
       ) : null}
-    </ManagementScreen>
+    </ReportScreen>
   );
 }
 

@@ -11,7 +11,7 @@ export type OrganizationTab =
   | 'features'
   | 'offboarding';
 
-export type BillingTab = 'plans' | 'subscriptions' | 'invoices' | 'analytics';
+export type BillingTab = 'today' | 'plans' | 'subscriptions' | 'invoices' | 'analytics';
 
 export type AdsTab = 'campaigns' | 'advertisers' | 'report' | 'complaints';
 
@@ -34,7 +34,7 @@ export type PlatformRoute =
 const ORGANIZATION_TABS = new Set<OrganizationTab>([
   'clubs', 'invoices', 'limits', 'updates', 'access', 'history', 'dynamics', 'features', 'offboarding'
 ]);
-const BILLING_TABS = new Set<BillingTab>(['plans', 'subscriptions', 'invoices', 'analytics']);
+const BILLING_TABS = new Set<BillingTab>(['today', 'plans', 'subscriptions', 'invoices', 'analytics']);
 const ADS_TABS = new Set<AdsTab>(['campaigns', 'advertisers', 'report', 'complaints']);
 const PULSE_VIEWS = new Set<PulseView>(['now', 'all', 'debt']);
 
@@ -71,7 +71,7 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
       kind: 'billing',
       tab: requestedTab !== null && BILLING_TABS.has(requestedTab as BillingTab)
         ? requestedTab as BillingTab
-        : 'plans'
+        : 'today'
     };
   }
   if (path === '/admin/updates') return { kind: 'updates' };
@@ -102,7 +102,7 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
     case 'organization':
       return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'clubs' ? '' : `?tab=${route.tab}`}`;
     case 'organizationNew': return '/admin/organizations/new';
-    case 'billing': return `/admin/money${route.tab === 'plans' ? '' : `?tab=${route.tab}`}`;
+    case 'billing': return `/admin/money${route.tab === 'today' ? '' : `?tab=${route.tab}`}`;
     case 'updates': return '/admin/updates';
     case 'audit': {
       const query = new URLSearchParams();

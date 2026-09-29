@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { MessageKey } from '@afk4/i18n';
+import { useI18n, type MessageKey } from '@afk4/i18n';
+import { Tabs } from '@afk4/ui/react';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import { StockHeader } from './StockHeader';
-import { StockTabBar } from './StockTabBar';
 import { StockLevelsWorkspace } from './StockLevelsWorkspace';
 import { ReceivingWorkspace } from './ReceivingWorkspace';
 import { JournalWorkspace } from './JournalWorkspace';
@@ -17,7 +17,7 @@ const TAB_LABELS: Record<StockTab, MessageKey> = {
   inventory: 'op.stock.tab.inventory',
 };
 
-// Раздел «Склад» — шапка-якорь с метриками + вкладки + активное содержимое.
+// Раздел «Склад» — шапка раздела (название, стоимость, вкладки) + активное содержимое.
 //
 // Вкладки держим ЖИВЫМИ (lazy keep-alive): открытая вкладка монтируется один раз и дальше прячется
 // через `hidden`, а не размонтируется. Иначе каждое переключение перезагружало каталог и тело
@@ -33,6 +33,7 @@ export function StockWorkspace({
   backend: OperatorBackendContext | null;
   session: OperatorAuthSession | null;
 }) {
+  const { t } = useI18n();
   const visible = visibleStockTabs(session);
   const firstTab = visible[0] ?? 'levels';
   const [activeTab, setActiveTab] = useState<StockTab>(firstTab);
@@ -40,7 +41,7 @@ export function StockWorkspace({
   const [receivePreload, setReceivePreload] = useState<{ productId: string } | null>(null);
   const [stockNonce, setStockNonce] = useState(0);
   const bumpStock = () => setStockNonce((n) => n + 1);
-  const tabs = visible.map((id) => ({ id, labelKey: TAB_LABELS[id] }));
+  const tabs = visible.map((id) => ({ value: id, label: t(TAB_LABELS[id]) }));
 
   const selectTab = (id: StockTab) => {
     setMounted((prev) => (prev.includes(id) ? prev : [...prev, id]));
@@ -98,8 +99,13 @@ export function StockWorkspace({
 
   return (
     <main className="workspace-screen stock-screen">
-      <StockHeader backend={backend} currencyCode={currencyCode} session={session} stockNonce={stockNonce} />
-      {tabs.length > 1 && <StockTabBar tabs={tabs} activeTab={activeTab} onSelect={selectTab} />}
+      <StockHeader
+        backend={backend}
+        currencyCode={currencyCode}
+        session={session}
+        stockNonce={stockNonce}
+        tabs={tabs.length > 1 ? <Tabs items={tabs} value={activeTab} onChange={selectTab} label={t('op.stock.title')} /> : undefined}
+      />
       <div className="cash-tab-content">
         {visible
           .filter((id) => mounted.includes(id))

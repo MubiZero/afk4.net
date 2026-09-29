@@ -306,8 +306,8 @@ export function CashReceiptsLedger({
     <section className="cash-receipts-terminal">
       <CashMetricStrip ariaLabel={t('op.cash.receipts.metricsAria')} items={[
         { label: t('op.pos.strip.sales'), value: rows.length },
-        { label: t('op.cash.receipts.gross'), value: <Money minorUnits={report?.grossSalesTotal.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'positive' },
-        { label: t('op.pos.strip.refunds'), value: <Money minorUnits={report?.refundsTotal.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'danger' }
+        { label: t('op.cash.receipts.gross'), value: <Money minorUnits={report?.grossSalesTotal.minorUnits ?? 0} currencyCode={currencyCode} /> },
+        { label: t('op.pos.strip.refunds'), value: <Money minorUnits={report?.refundsTotal.minorUnits ?? 0} currencyCode={currencyCode} /> }
       ]} />
       <CashTerminalSplit
           inspectorLabel={t('op.cash.inspector.aria')}

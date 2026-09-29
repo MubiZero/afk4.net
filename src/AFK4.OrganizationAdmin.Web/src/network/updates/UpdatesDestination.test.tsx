@@ -91,13 +91,14 @@ describe('UpdatesDestination', () => {
     expect((screen.getByLabelText('До') as HTMLInputElement).value).toBe('05:00');
   });
 
+  // Окно сохраняет общая плашка экрана — своей кнопки «Сохранить время» в карточке больше нет.
   it('сохраняет новое окно и шлёт время с секундами', async () => {
     const client = makeClient();
     renderUpdates(client);
     const from = await screen.findByLabelText('С');
 
     fireEvent.change(from, { target: { value: '02:00' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить время' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(client.updatePreference).toHaveBeenCalledWith('branch-1', {
       organizationId: 'org-1',
@@ -113,7 +114,7 @@ describe('UpdatesDestination', () => {
 
     fireEvent.change(from, { target: { value: '05:00' } });
 
-    expect(screen.getByRole('button', { name: 'Сохранить время' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled();
     expect(screen.getByText('Начало и конец должны отличаться.')).toBeInTheDocument();
   });
 

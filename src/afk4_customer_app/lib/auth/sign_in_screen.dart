@@ -6,6 +6,8 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/organization.dart';
 import '../theme/brand_mark.dart';
+import '../shell/group_header.dart';
+import '../theme/space.dart';
 
 /// Вход в приложение: номер телефона и код из SMS.
 ///
@@ -173,18 +175,18 @@ class _SignInScreenState extends State<SignInScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Space.s6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
+              const SizedBox(height: Space.s3),
               const Align(alignment: Alignment.centerLeft, child: BrandMark()),
               const SizedBox(height: 40),
               Text(
                 _step == _Step.profile ? l.customerSigninNameTitle : l.customerSigninTitle,
                 style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: Space.s1),
               Text(
                 _step == _Step.profile ? l.customerSigninNameHint : widget.organization.name,
                 style: _step == _Step.profile
@@ -192,10 +194,10 @@ class _SignInScreenState extends State<SignInScreen> {
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant)
                     : theme.textTheme.headlineLarge,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: Space.s8),
               ..._fields(l, theme),
               if (_notice != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
                 Text(
                   _notice!,
                   style: theme.textTheme.bodySmall
@@ -203,15 +205,15 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
               ],
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
                 Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: Space.s6),
               ..._actions(l),
               // Из шага знакомства менять клуб некуда: человек уже вошёл, и его ждёт
               // приложение, а не второй выбор заведения.
               if (_step != _Step.profile) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: Space.s2),
                 TextButton(
                   onPressed: _busy ? null : widget.onChangeClub,
                   child: Text(l.customerClubPickerChange),
@@ -227,12 +229,10 @@ class _SignInScreenState extends State<SignInScreen> {
   /// Язык интерфейса. Выбранный применяется сразу, не дожидаясь конца входа: человек называет
   /// его как раз затем, чтобы читать приложение на нём.
   Widget _languagePicker(L l) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l.customerSigninLangTitle, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
+        GroupHeader(l.customerSigninLangTitle),
         SegmentedButton<String>(
           segments: [
             ButtonSegment(value: 'ru', label: Text(l.customerProfileLangRu)),
@@ -261,12 +261,12 @@ class _SignInScreenState extends State<SignInScreen> {
               decoration: InputDecoration(labelText: l.customerSigninPhone),
               onSubmitted: (_) => _requestCode(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
             Text(
               l.customerSigninIntro,
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: Space.s5),
             // Язык предлагался только на третьем шаге, после кода из SMS: таджикоязычный игрок
             // с русским телефоном читал первые два экрана не на своём языке — и это первое, что
             // он видел в приложении.
@@ -278,7 +278,7 @@ class _SignInScreenState extends State<SignInScreen> {
               enabled: false,
               decoration: InputDecoration(labelText: l.customerSigninPhone),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
             TextField(
               controller: _code,
               enabled: !_busy,
@@ -299,7 +299,7 @@ class _SignInScreenState extends State<SignInScreen> {
               decoration: InputDecoration(labelText: l.customerSigninName),
               onSubmitted: (_) => _submitProfile(),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: Space.s5),
             _languagePicker(l),
           ],
       };
@@ -316,7 +316,7 @@ class _SignInScreenState extends State<SignInScreen> {
               onPressed: _busy ? null : _submitCode,
               child: Text(_busy ? l.customerSigninSubmitting : l.customerSigninSubmit),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.s2),
             TextButton(
               onPressed: _busy || _resendIn > 0 ? null : _requestCode,
               child: Text(

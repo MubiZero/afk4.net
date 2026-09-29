@@ -169,7 +169,7 @@ export function BarTab({
           </ul>
         )
       ) : failed ? (
-        <div className="offers__failed" role="alert">
+        <div className="banner banner--danger offers__failed" role="alert">
           <p>{t('playerShell.bar.loadFailed')}</p>
           <button type="button" className="btn btn--ghost" onClick={() => void loadCatalog()}>{t('playerShell.chooseTime.retry')}</button>
         </div>
@@ -179,7 +179,7 @@ export function BarTab({
         </ul>
       )}
 
-      {error ? <p className="bar__error" role="alert">{t(error)}</p> : null}
+      {error ? <p className="banner banner--danger" role="alert">{t(error)}</p> : null}
       {catalog && catalog.length > 0 ? (
         <footer className="bar__action">
           <button type="button" className="btn btn--primary" disabled={totalMinor === 0 || placing} onClick={() => void place()}>

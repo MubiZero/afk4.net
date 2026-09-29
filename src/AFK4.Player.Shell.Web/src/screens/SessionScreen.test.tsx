@@ -30,6 +30,9 @@ function api(path: string, method: string) {
   if (path.endsWith('/extend-offers')) return { status: 200, body: devExtendOffers(Date.now()) };
   if (path.endsWith('/end-quote')) return { status: 200, body: { billedMinutes: 35, refund: { currencyCode: 'TJS', minorUnits: 1_000 }, packageMinutesReturned: 0 } };
   if (path.endsWith('/end') && method === 'POST') return { status: 200, body: endResult };
+  if (path === '/api/me/dashboard') {
+    return { status: 200, body: { walletBalance: { currencyCode: 'TJS', minorUnits: 4_500 }, heldBalance: { currencyCode: 'TJS', minorUnits: 0 }, debtBalance: { currencyCode: 'TJS', minorUnits: 0 }, activeSession: null } };
+  }
   return { status: 200, body: {} };
 }
 
@@ -74,6 +77,29 @@ describe('экран сессии', () => {
     expect(screen.getByTestId('countdown')).toBeInTheDocument();
   });
 
+  // Колонка — одним столбцом одинаковых кнопок: главная «Продлить», остальные обводкой, «Выйти»
+  // последним пунктом, а не подчёркнутой ссылкой под «Позвать администратора».
+  it('все действия колонки — одной ширины, главная одна', () => {
+    renderSession({ auth: owner });
+
+    const names = ['Продлить', 'Встать раньше', 'Позвать администратора', 'Выйти'];
+    const buttons = names.map((name) => screen.getByRole('button', { name }));
+    expect(buttons.every((button) => button.className.includes('btn--wide'))).toBe(true);
+    expect(buttons.filter((button) => button.className.includes('btn--primary')).map((button) => button.textContent)).toEqual(['Продлить']);
+  });
+
+  // Сколько денег осталось — рядом со временем: раньше баланс был виден только в листе продления.
+  it('владелец видит свой баланс в колонке, гость стойки — нет', async () => {
+    const { unmount } = renderSession({ auth: owner });
+    expect(await screen.findByText('Баланс')).toBeInTheDocument();
+    expect(screen.getByText(/^45/)).toBeInTheDocument();
+    unmount();
+
+    renderSession({ kind: 'guest' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByText('Баланс')).toBeNull();
+  });
+
   it('гостю стойки денежных кнопок нет — продлевает администратор', () => {
     renderSession({ kind: 'guest' });
 
@@ -85,7 +111,7 @@ describe('экран сессии', () => {
   it('стойка посадила сюда чужую сессию, пока другой был вошедшим, — ему «Выйти», а не мёртвое «Войти»', () => {
     renderSession({ auth: { signedIn: true, displayName: 'Другой', playerAccountId: '00000000-0000-4000-8000-000000000099' } });
 
-    expect(screen.getByText('Эта сессия на счёте другого игрока. Выйдите, чтобы он вошёл сам.')).toBeInTheDocument();
+    expect(screen.getByText('Эта сессия — другого игрока. Выйдите, чтобы он вошёл сам.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Войти' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Продлить' })).toBeNull();
@@ -127,7 +153,7 @@ describe('экран сессии', () => {
     renderSession({ auth: owner, onEnded });
 
     fireEvent.click(screen.getByRole('button', { name: 'Встать раньше' }));
-    expect(await screen.findByText(/Вернём на счёт 10/)).toBeInTheDocument();
+    expect(await screen.findByText(/Вернём на баланс 10/)).toBeInTheDocument();
     expect(calls.some((call) => call.method === 'POST')).toBe(false);
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Встать и освободить ПК' })));
@@ -139,7 +165,7 @@ describe('экран сессии', () => {
     renderSession({ auth: owner });
 
     fireEvent.click(screen.getByRole('button', { name: 'Встать раньше' }));
-    await screen.findByText(/Вернём на счёт/);
+    await screen.findByText(/Вернём на баланс/);
     fireEvent.click(screen.getByRole('button', { name: 'Играть дальше' }));
 
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -165,7 +191,7 @@ describe('экран сессии', () => {
     serve((path, method) => path.endsWith('/api/me/shop/orders') ? { status: 200, body: [order] } : api(path, method));
     renderSession({ auth: owner });
 
-    const status = await screen.findByText('Администратор несёт заказ');
+    const status = await screen.findByText('Стойка приняла заказ — скоро принесут');
     expect(screen.getByRole('tab', { name: 'Игры' })).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.click(status);

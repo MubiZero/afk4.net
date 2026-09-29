@@ -1,5 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { Lock } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { PanelModal } from '../PanelModal';
 import { formatMoney, parseNonNegativeMoneyInputMinorUnits } from '../operatorHelpers';
 import { Money } from '../operatorPrimitives';
@@ -140,14 +141,12 @@ export function CloseShiftModal({
           </p>
         ) : null}
         <p className="cash-close-impact">{t('op.cash.close.impact')}</p>
-        <button
-          type="submit"
-          className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block ui-btn--danger cash-primary-action danger"
-          disabled={busy || blocked}
-        >
+        {/* Закрытую смену не открыть заново — кнопка опасная, а не главная заливкой. */}
+        <Button type="submit" variant="danger" size="lg" block disabled={busy || blocked}>
           <Lock size={15} aria-hidden="true" />
           {t('op.cash.close.submit')}
-        </button>
+        </Button>
+        <Button variant="ghost" block disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
       </form>
     </PanelModal>
   );

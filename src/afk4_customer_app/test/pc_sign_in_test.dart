@@ -75,7 +75,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Код не подошёл'), findsOneWidget);
-    expect(find.text('Попробовать ещё раз'), findsOneWidget);
+    expect(find.text('Повторить'), findsOneWidget);
   });
 
   testWidgets('ПК сверх тарифа клуба — говорит словами, а не общей ошибкой', (tester) async {
@@ -110,14 +110,64 @@ void main() {
 
     expect(find.textContaining('Нет связи'), findsOneWidget);
 
-    await tester.tap(find.text('Попробовать ещё раз'));
+    await tester.tap(find.text('Повторить'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '482913');
-    await tester.tap(find.text('Войти на ПК'));
+    await tester.tap(find.text('Дальше'));
     await tester.pumpAndSettle();
 
     expect(find.text('Вы вошли на ПК 07'), findsOneWidget);
     expect(http.bodies, hasLength(2));
     expect(http.bodies[1]['idempotencyKey'], http.bodies[0]['idempotencyKey']);
+  });
+
+  // Одна дверь вместо двух: код с монитора ведёт к тарифу на телефоне, когда телефону есть из
+  // чего выбрать — зал известен и QR этого же клуба.
+  testWidgets('код своего клуба при известном зале ведёт к выбору тарифа', (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/branches/b1/seats' => (
+              jsonEncode([
+                {'seatId': 's1', 'seatName': 'ПК 07', 'zoneName': 'Зал', 'isAvailable': true}
+              ]),
+              200
+            ),
+          _ => ('[]', 200),
+        });
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: PcSignInScreen(api: _api(http), enableCamera: false, branchId: 'b1'),
+    ));
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.tap(find.text('Дальше'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Начать игру'), findsWidgets);
+    expect(http.paths, isNot(contains('/api/me/devices/sign-in-claims')));
+  });
+
+  // Зал неизвестен — на телефоне не из чего выбрать тариф, и ПК просто впускает игрока.
+  testWidgets('без зала код сразу впускает на ПК', (tester) async {
+    final http = FakeHttpClient((_) => (
+          jsonEncode({
+            'claimId': 'c1',
+            'status': 'redeemed',
+            'expiresAtUtc': '2030-01-01T00:00:00Z',
+            'seatLabel': 'ПК 07',
+          }),
+          200
+        ));
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: PcSignInScreen(api: _api(http), enableCamera: false),
+    ));
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.tap(find.text('Дальше'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Вы вошли на ПК 07'), findsOneWidget);
   });
 }

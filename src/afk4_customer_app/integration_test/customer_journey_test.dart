@@ -100,7 +100,7 @@ void main() {
     expect(backend.log, contains('GET /api/me'));
     // Кошелька на экране нет, и нулей вместо него тоже: в клубе, который игрока не знает,
     // нулевой баланс был бы обещанием счёта, которого не существует.
-    expect(find.text('Баланс кошелька'), findsNothing);
+    expect(find.text('Доступно'), findsNothing);
 
     // 4. Бронь. Раздел появился, потому что клуб принимает онлайн-брони.
     await tester.tap(find.text('Брони'));
@@ -154,11 +154,11 @@ void main() {
     // который игрок собрался. До брони клубу нечего было о нём рассказать.
     await tester.tap(find.text('Главная'));
     await tester.pumpAndSettle();
-    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Доступно'), findsOneWidget);
     // Разделитель разрядов у `intl` неразрывный — сумма ищется по хвосту, а не целиком.
     expect(find.textContaining('200,50 с.'), findsOneWidget);
     // Третье число кошелька: остаток уже без него, и без строки непонятно, куда оно делось.
-    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+    expect(find.textContaining('Удержано под бронь'), findsOneWidget);
     expect(find.text(FakeBackend.somoniName), findsOneWidget);
     expect(backend.log, contains('GET /api/me/dashboard'));
 

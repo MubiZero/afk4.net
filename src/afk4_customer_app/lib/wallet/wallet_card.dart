@@ -8,6 +8,9 @@ import '../money/money.dart';
 import '../theme/app_theme.dart';
 import '../phone/verify_phone_gate.dart';
 import 'top_up_sheet.dart';
+import '../shell/app_sheet.dart';
+import '../shell/actions.dart';
+import '../theme/space.dart';
 
 /// Деньги игрока одним блоком: сколько на кошельке, есть ли долг и что с пополнением.
 ///
@@ -156,11 +159,9 @@ class _WalletCardState extends State<WalletCard> {
 
   Future<void> _openTopUp() async {
     final l = L.of(context);
-    final outcome = await showModalBottomSheet<TopUpOutcome>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => TopUpSheet(
+    final outcome = await showAppSheet<TopUpOutcome>(
+      context,
+      (_) => TopUpSheet(
         api: widget.api,
         currencyCode: widget.walletBalance.currencyCode,
         intents: _intents,
@@ -206,7 +207,7 @@ class _WalletCardState extends State<WalletCard> {
         boxShadow: dark ? AppTheme.accentGlow(accent.withValues(alpha: 0.35)) : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Space.s5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -214,7 +215,7 @@ class _WalletCardState extends State<WalletCard> {
               children: [
                 Icon(Icons.account_balance_wallet_outlined,
                     size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
+                const SizedBox(width: Space.s2),
                 Text(
                   l.customerDashboardBalance,
                   style: theme.textTheme.labelLarge
@@ -222,7 +223,7 @@ class _WalletCardState extends State<WalletCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Space.s3),
             Text(
               formatMoney(widget.walletBalance.minorUnits, widget.walletBalance.currencyCode,
                   locale: locale),
@@ -231,7 +232,7 @@ class _WalletCardState extends State<WalletCard> {
             // Придержанное показывается, только когда оно есть: строка «придержано 0» на
             // главной — шум. Когда есть, объясняет, почему остаток меньше ожидаемого.
             if (widget.heldBalance.minorUnits > 0) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: Space.s1),
               Text(
                 '${l.customerWalletHeld}: '
                 '${formatMoney(widget.heldBalance.minorUnits, widget.heldBalance.currencyCode, locale: locale)}',
@@ -248,7 +249,7 @@ class _WalletCardState extends State<WalletCard> {
             // Гасится он на кассе, поэтому карточка отправляет к стойке, а не обещает, что
             // пополнение кошелька его закроет — оно не закрывает.
             if (widget.debtBalance.minorUnits > 0) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: Space.s1),
               Text(
                 '${l.customerDashboardDebt}: '
                 '${formatMoney(widget.debtBalance.minorUnits, widget.debtBalance.currencyCode, locale: locale)}',
@@ -261,20 +262,20 @@ class _WalletCardState extends State<WalletCard> {
               ),
               // Деньги на кошельке есть, а долг закрыть было нечем: надпись отправляла на стойку
               // клуба, хотя платить можно было отсюда.
-              if (_canPayDebt)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton(
-                    onPressed: _payingDebt ? null : _payDebt,
-                    child: Text(l.customerWalletDebtPay(
-                      formatMoney(_debtPaymentMinorUnits, widget.debtBalance.currencyCode,
-                          locale: locale),
-                    )),
+              if (_canPayDebt) ...[
+                const SizedBox(height: Space.s3),
+                SecondaryButton(
+                  action: AppAction(
+                    l.customerWalletDebtPay(
+                      formatMoney(_debtPaymentMinorUnits, widget.debtBalance.currencyCode, locale: locale),
+                    ),
+                    _payingDebt ? null : _payDebt,
                   ),
                 ),
+              ],
             ],
             if (awaiting != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: Space.s2),
               Text(
                 l.customerWalletPendingHint(
                   formatMoney(awaiting.amountMinorUnits, awaiting.currencyCode, locale: locale),
@@ -284,25 +285,17 @@ class _WalletCardState extends State<WalletCard> {
               ),
               // Передумать было нельзя: заявка висела сутки и отвечала «да» на вопрос «я же
               // пополнял», пока её не признавали просроченной.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: _cancellingIntent ? null : () => _cancelIntent(awaiting),
-                  child: Text(l.customerWalletPendingCancel),
+              TertiaryButton(
+                action: AppAction(
+                  l.customerWalletPendingCancel,
+                  _cancellingIntent ? null : () => _cancelIntent(awaiting),
                 ),
               ),
             ],
             if (_topUpEnabled) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.s4),
               if (widget.phoneVerified)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    onPressed: _openTopUp,
-                    icon: const Icon(Icons.add, size: 20),
-                    label: Text(l.customerWalletTopUp),
-                  ),
-                )
+                PrimaryButton(action: AppAction(l.customerWalletTopUp, _openTopUp, icon: Icons.add))
               else
                 // Гейт перестал быть тупиком: раньше он отправлял к администратору клуба,
                 // у которого возможности подтвердить номер тоже не было.

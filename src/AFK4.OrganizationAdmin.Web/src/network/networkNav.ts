@@ -10,7 +10,6 @@ export type NetworkDestinationId = 'branches' | 'billing' | 'ads' | 'install' | 
 export interface NetworkDestination {
   id: NetworkDestinationId;
   labelKey: MessageKey;
-  subtitleKey: MessageKey;
   Icon: LucideIcon;
   permissions: readonly string[]; // visible if the session has ANY of these
 }
@@ -19,14 +18,12 @@ export const networkDestinations: readonly NetworkDestination[] = [
   {
     id: 'branches',
     labelKey: 'op.network.dest.branches',
-    subtitleKey: 'op.network.dest.branches.subtitle',
     Icon: Building2,
     permissions: [permissionNames.viewBranches]
   },
   {
     id: 'billing',
     labelKey: 'op.network.dest.billing',
-    subtitleKey: 'op.network.dest.billing.subtitle',
     Icon: CreditCard,
     permissions: [permissionNames.viewSubscription]
   },
@@ -35,21 +32,18 @@ export const networkDestinations: readonly NetworkDestination[] = [
     // видит подписку, — реклама идёт от бесплатного тарифа.
     id: 'ads',
     labelKey: 'op.network.dest.ads',
-    subtitleKey: 'op.network.dest.ads.subtitle',
     Icon: Megaphone,
     permissions: [permissionNames.viewPlatformAds]
   },
   {
     id: 'install',
     labelKey: 'op.network.dest.install',
-    subtitleKey: 'op.network.dest.install.subtitle',
     Icon: MonitorDown,
     permissions: [permissionNames.installDevice]
   },
   {
     id: 'updates',
     labelKey: 'op.network.dest.updates',
-    subtitleKey: 'op.network.dest.updates.subtitle',
     Icon: RefreshCw,
     // Гейт по праву НАСТРОЙКИ филиала, а не по «видеть статус обновления»: последнее есть почти у
     // всех сменных ролей, и раздел «Сеть» (владельческий) открылся бы кассовым ролям целиком.
@@ -60,7 +54,6 @@ export const networkDestinations: readonly NetworkDestination[] = [
   {
     id: 'journal',
     labelKey: 'op.network.dest.journal',
-    subtitleKey: 'op.network.dest.journal.subtitle',
     Icon: ScrollText,
     permissions: [permissionNames.viewOrganizationAudit]
   }

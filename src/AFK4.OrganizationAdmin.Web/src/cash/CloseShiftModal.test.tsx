@@ -67,10 +67,10 @@ describe('CloseShiftModal', () => {
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 
-  it('при counted="0" расхождение = 0 − 115 = −115 с. (formatMoney даёт «-115 с.»)', () => {
+  it('при counted="0" расхождение = 0 − 115 = −115 с. (с настоящим минусом, не дефисом)', () => {
     renderModal({ counted: '0' });
-    // -11500 minor TJS → '-115 с.' (ASCII дефис, без дробной части)
-    expect(screen.getByText('-115 с.')).toBeInTheDocument();
+    // -11500 minor TJS → '−115 с.' (минус U+2212, без дробной части)
+    expect(screen.getByText('−115 с.')).toBeInTheDocument();
   });
 
   /**

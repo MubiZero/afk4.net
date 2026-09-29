@@ -98,6 +98,9 @@ export function MediaUpload({ value, onChange, purpose, branchId, backend, disab
         </div>
       )}
 
+      {/* Все кнопки второстепенные: главная у формы с картинкой — «Сохранить», а заливка на
+          «Загрузить изображение» давала экрану клуба две главные. «Удалить» убирает картинку из
+          формы до сохранения — это отменяемо, поэтому не красным. */}
       <div className="media-upload-actions">
         {uploading ? (
           <button type="button" className="ui-btn ui-btn--sm" disabled>
@@ -110,7 +113,7 @@ export function MediaUpload({ value, onChange, purpose, branchId, backend, disab
             </button>
             <button
               type="button"
-              className="ui-btn ui-btn--sm ui-btn--danger"
+              className="ui-btn ui-btn--sm"
               onClick={handleRemove}
               disabled={disabled}
             >
@@ -118,7 +121,7 @@ export function MediaUpload({ value, onChange, purpose, branchId, backend, disab
             </button>
           </>
         ) : (
-          <button type="button" className="ui-btn ui-btn--sm ui-btn--primary" onClick={openPicker} disabled={disabled}>
+          <button type="button" className="ui-btn ui-btn--sm" onClick={openPicker} disabled={disabled}>
             {t('op.media.upload.cta')}
           </button>
         )}

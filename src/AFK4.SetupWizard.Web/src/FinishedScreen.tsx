@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardEnrollResult, WizardRole, WizardSeat, WizardShellOutcome } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
-import { KioskStatusRow } from './Kiosk';
+import { KioskStatusRow, RebootButton } from './Kiosk';
+import { WizardStepLayout } from './WizardStepLayout';
 
 interface FinishedScreenProps {
   result: WizardEnrollResult;
@@ -41,7 +42,11 @@ export function FinishedScreen({
   onClose,
 }: FinishedScreenProps) {
   const { t } = useI18n();
+  // Киоск живёт здесь, а не в своей строке: от него зависит, какая кнопка на экране главная.
+  const [kiosk, setKiosk] = useState(result.shell.kiosk);
+  const [rebootFailed, setRebootFailed] = useState(false);
   const isPending = result.enrollmentState.toLowerCase() === 'pending';
+  const kioskReady = kiosk?.status === 'ready';
   const roleLabel = result.role === 'gaming_pc'
     ? t('setup.wizard.role.gamingPc.title')
     : t('setup.wizard.role.managerWorkstation.title');
@@ -49,78 +54,73 @@ export function FinishedScreen({
   const channelLabel = CHANNEL_LABEL_KEYS[result.updateChannel.toLowerCase()];
   const channelText = channelLabel ? t(channelLabel) : result.updateChannel;
 
+  // Что осталось сделать руками — одним списком по порядку. Раньше это были две плашки с разными
+  // голосами: зелёная звала «Перезагрузить сейчас», жёлтая ниже — сначала подтвердить ПК в Панели,
+  // и перезагрузка до подтверждения ничего бы не дала.
+  const nextSteps: string[] = [];
+  if (isPending) nextSteps.push(t('setup.wizard.finished.next.confirm'));
+  if (kioskReady) nextSteps.push(t('setup.wizard.finished.next.reboot'));
+  else if (isPending) nextSteps.push(t('setup.wizard.finished.next.restart'));
+
   return (
-    <section className="wizard-screen">
-      <div className="wizard-finished">
-        <div className="wizard-finished-hero">
-          {/* Бейдж только для успеха — зелёная галка совпадает со смыслом «готово».
-              Для pending кругляш с часами противоречил надписи внизу, поэтому его нет. */}
-          {!isPending && (
-            <span className="wizard-finished-badge" aria-hidden>
-              <CheckCircle2 size={32} />
-            </span>
-          )}
-          <span className="wizard-eyebrow">
-            {t('setup.wizard.common.step')} {stepNumber} · {t('setup.wizard.finished.done')}
-          </span>
-          <h1>
-            {isPending
-              ? t('setup.wizard.finished.pending.title')
-              : t('setup.wizard.finished.ok.title')}
-          </h1>
-          <p>
-            {isPending
-              ? t('setup.wizard.finished.pending.body')
-              : t('setup.wizard.finished.ok.body')}
-          </p>
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      title={isPending ? t('setup.wizard.finished.pending.title') : t('setup.wizard.finished.ok.title')}
+      subtitle={isPending ? t('setup.wizard.finished.pending.body') : t('setup.wizard.finished.ok.body')}
+      // Главная одна. Киоск без перезагрузки не заработает, поэтому главная — перезагрузка, а
+      // закрыть мастер можно и без неё, тихой ссылкой.
+      skip={kioskReady ? { label: t('setup.wizard.finished.closeWithoutReboot'), onClick: onClose } : null}
+      primary={kioskReady ? (
+        <RebootButton reboot={reboot} onFailed={() => setRebootFailed(true)} />
+      ) : (
+        <Button variant="primary" onClick={onClose}>{t('setup.wizard.finished.close')}</Button>
+      )}
+    >
+      <dl className="wizard-summary">
+        <div>
+          <dt>{t('setup.wizard.finished.summary.branch')}</dt>
+          <dd>{branchName}</dd>
         </div>
-
-        <dl className="wizard-finished-summary">
-          <div>
-            <dt>{t('setup.wizard.finished.summary.branch')}</dt>
-            <dd>{branchName}</dd>
-          </div>
-          <div>
-            <dt>{t('setup.wizard.finished.summary.role')}</dt>
-            <dd>{roleLabel}</dd>
-          </div>
-          {selectedSeat && (
-            <div>
-              <dt>{t('setup.wizard.finished.summary.seat')}</dt>
-              <dd>{selectedSeat.zoneName}</dd>
-            </div>
-          )}
-          <div>
-            <dt>{t('setup.wizard.finished.summary.name')}</dt>
-            <dd>{result.displayName}</dd>
-          </div>
-          <div>
-            <dt>{t('setup.wizard.finished.summary.channel')}</dt>
-            <dd>{channelText}</dd>
-          </div>
-        </dl>
-
-        {result.shell.status !== 'skipped' && (
-          <ShellStatusRow initial={result.shell} role={result.role} provisionShell={provisionShell} />
-        )}
-
-        {result.shell.kiosk && (
-          <KioskStatusRow initial={result.shell.kiosk} role={result.role} provisionShell={provisionShell} reboot={reboot} />
-        )}
-
-        {isPending && (
-          <div className="wizard-pending-note" role="status">
-            {t('setup.wizard.finished.pendingNote')}
-          </div>
-        )}
-
-        <div className="wizard-actions is-end">
-          <button type="button" className="ui-btn ui-btn--primary wizard-finished-close" onClick={onClose}>
-            <span>{t('setup.wizard.finished.close')}</span>
-          </button>
+        <div>
+          <dt>{t('setup.wizard.finished.summary.role')}</dt>
+          <dd>{roleLabel}</dd>
         </div>
-      </div>
-    </section>
+        {/* Место — зал и имя места на карте («Общий зал · ПК-5»): по одному залу ПК в нём не найти. */}
+        {selectedSeat && (
+          <div>
+            <dt>{t('setup.wizard.finished.summary.seat')}</dt>
+            <dd>{selectedSeat.zoneName} · {selectedSeat.pcName}</dd>
+          </div>
+        )}
+        <div>
+          <dt>{t('setup.wizard.finished.summary.name')}</dt>
+          <dd>{result.displayName}</dd>
+        </div>
+        <div>
+          <dt>{t('setup.wizard.finished.summary.channel')}</dt>
+          <dd>{channelText}</dd>
+        </div>
+      </dl>
+
+      {result.shell.status !== 'skipped' && (
+        <ShellStatusRow initial={result.shell} role={result.role} provisionShell={provisionShell} />
+      )}
+
+      {kiosk?.status === 'failed' && (
+        <KioskStatusRow outcome={kiosk} role={result.role} provisionShell={provisionShell} onOutcome={setKiosk} />
+      )}
+
+      {nextSteps.length > 0 && (
+        <div className="wizard-next" role="status">
+          <strong>{t('setup.wizard.finished.next.title')}</strong>
+          <ol>
+            {nextSteps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </div>
+      )}
+
+      {rebootFailed ? <p className="ui-alert" role="alert">{t('setup.wizard.kiosk.rebootFailed')}</p> : null}
+    </WizardStepLayout>
   );
 }
 

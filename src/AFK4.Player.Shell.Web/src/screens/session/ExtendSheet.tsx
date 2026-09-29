@@ -107,7 +107,7 @@ export function ExtendSheet({ baseUrl, sessionId, onClose, onExtended }: ExtendS
           )}
         </>
       ) : failed ? (
-        <div className="offers__failed" role="alert">
+        <div className="banner banner--danger offers__failed" role="alert">
           <p>{t('playerShell.chooseTime.loadFailed')}</p>
           <button type="button" className="btn btn--ghost" onClick={() => void load()}>{t('playerShell.chooseTime.retry')}</button>
         </div>
@@ -117,7 +117,7 @@ export function ExtendSheet({ baseUrl, sessionId, onClose, onExtended }: ExtendS
         </div>
       )}
 
-      {error ? <p className="sheet__error" role="alert">{t(error)}</p> : null}
+      {error ? <p className="banner banner--danger" role="alert">{t(error)}</p> : null}
       {!unavailable ? (
         <footer className="sheet__actions">
           <button type="button" className="btn btn--primary" disabled={!choice || sending} onClick={() => void extend()}>

@@ -11,11 +11,11 @@ import type { OperatorBackendContext } from '../../operatorTypes';
 import { presetRange, type DateRange } from './dateRange';
 import { OrgAuditFilters, type AuditDraft } from './OrgAuditFilters';
 import { useOrgAudit, type OrgAuditClient } from './useOrgAudit';
-import { toAuditRows } from './orgAuditModel';
+import { journalDate, toAuditRows } from './orgAuditModel';
 import type { OrgAuditQuery } from '../../api/clients/orgAudit';
 
 const DEFAULT_LIMIT = 100;
-const GRID = '1.2fr 1fr 1.4fr 1.2fr 0.8fr 0.8fr 1.4fr';
+const GRID = '1fr 1fr 1.6fr 1fr 0.8fr 0.8fr 1fr';
 
 function buildQuery(range: DateRange, draft: AuditDraft): OrgAuditQuery {
   const q: OrgAuditQuery = { fromUtc: range.fromUtc, toUtc: range.toUtc, limit: DEFAULT_LIMIT };
@@ -29,7 +29,7 @@ function buildQuery(range: DateRange, draft: AuditDraft): OrgAuditQuery {
 // экране — единственное место, где такие записи вообще видны оператору (branch-scoped
 // audit.ts client никогда их не вернёт). Read-only, без пагинации (курсор — вне объёма, см. бриф).
 export function JournalDestination({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {
-  const { t, formatDate } = useI18n();
+  const { t, locale } = useI18n();
   const [range, setRange] = useState<DateRange>(() => presetRange('today', new Date()));
   const [query, setQuery] = useState<OrgAuditQuery>(() =>
     buildQuery(presetRange('today', new Date()), { action: '', outcome: 'all', targetType: '' })
@@ -58,7 +58,9 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
   };
 
   const records = state.status === 'ready' ? state.data : [];
-  const rows = state.status === 'ready' ? toAuditRows(records, { formatDate }, t('op.network.journal.actor.system')) : [];
+  const rows = state.status === 'ready'
+    ? toAuditRows(records, { formatDate: (iso) => journalDate(iso, locale), t }, t('op.network.journal.actor.system'))
+    : [];
 
   // Выгружается ровно то, что на экране: тот же фильтр, тот же лимит. Отдельного серверного
   // экспорта у org-аудита нет, а поддержке нужен файл, а не скриншот.
@@ -77,7 +79,6 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
   return (
     <ManagementScreen
       title={t('op.network.dest.journal')}
-      subtitle={t('op.network.dest.journal.subtitle')}
       contentWidth="full"
       state={screenState}
       skeleton={<div className="network-journal"><SkeletonTable gridTemplate={GRID} /></div>}
@@ -118,13 +119,21 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
             <div className="ctable-body">
               {rows.map((row) => (
                 <div key={row.id} className="ctable-row" style={{ gridTemplateColumns: GRID }}>
-                  <span>{row.date}</span>
+                  <span className="ui-num">{row.date}</span>
                   <span>{row.actor}</span>
-                  <span className="network-journal-action">{row.action}</span>
-                  <span>{row.target}</span>
-                  <span className={`ui-chip ui-chip--status ${row.outcomeTone}`}>{row.outcome}</span>
+                  {/* Незнакомый словарю код — мелко и как код: честнее, чем придуманное название. */}
+                  <span className={row.actionIsCode ? 'ui-code network-journal-code' : undefined}>{row.action}</span>
+                  <span className={row.targetIsCode ? 'ui-code network-journal-code' : undefined}>{row.target}</span>
+                  <span><span className={`ui-chip ui-chip--xs ui-chip--status ${row.outcomeTone}`}>{row.outcome}</span></span>
                   <span>{row.source}</span>
-                  <span className="network-journal-details" title={row.details}>{row.details}</span>
+                  <span>
+                    {row.details === null ? '—' : (
+                      <details className="network-journal-details">
+                        <summary>{t('op.network.journal.details.open')}</summary>
+                        <pre className="ui-code">{row.details}</pre>
+                      </details>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>

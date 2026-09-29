@@ -16,7 +16,6 @@ import '../events/events_screen.dart';
 import '../friends/friends_screen.dart';
 import '../packages/packages_screen.dart';
 import '../play/pc_sign_in_screen.dart';
-import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
 import '../push/push_notification.dart';
 import '../referral/referral_screen.dart';
@@ -32,6 +31,10 @@ import '../shell/load_failure.dart';
 import 'extend_session_sheet.dart';
 import 'live_session_card.dart';
 import 'quick_actions.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
+import '../shell/actions.dart';
+import '../wallet/top_up_sheet.dart';
 
 /// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
 ///
@@ -53,8 +56,13 @@ class DashboardScreen extends StatefulWidget {
     this.onOpenPushDestination,
     this.onPhoneVerified,
     this.pinSet,
+    this.onPlaceNamed,
     this.clock = DateTime.now,
   });
+
+  /// Зал игрока стал известен из профиля — оболочке пора подписать им шапки остальных
+  /// разделов, а не только главной.
+  final ValueChanged<String>? onPlaceNamed;
 
   final PlayerApiClient api;
   final String displayName;
@@ -151,6 +159,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// узнать, в какое ты вошёл, можно было только через профиль.
   String? _branchName;
 
+  /// Название конкретного зала, если оно известно, иначе название сети: игрок должен видеть,
+  /// куда он пришёл, а не только чьё приложение открыл. Им подписаны и шапки экранов клуба.
+  String get _place => _branchName ?? widget.organization.name;
+
   /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем.
   PendingClubReviewDto? _pendingReview;
 
@@ -221,6 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _branchId = profile.homeBranchId;
         _branchName = profile.homeBranchName;
       });
+      if (profile.homeBranchName case final name?) widget.onPlaceNamed?.call(name);
       await _loadPackagesAvailability();
       await _loadReferralAvailability();
       await _loadEventsAvailability();
@@ -280,11 +293,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// игрок может, а вот навязчивость он запомнит.
   Future<void> _rateVisit(PendingClubReviewDto visit) async {
     final l = L.of(context);
-    final sent = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => ReviewSheet(api: widget.api, visit: visit),
+    final sent = await showAppSheet<bool>(
+      context,
+      (_) => ReviewSheet(api: widget.api, visit: visit),
     );
     if (!mounted) return;
 
@@ -326,30 +337,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool get _loyaltyEnabled => widget.features == null || widget.features!.contains(PlatformFeatureNames.loyalty);
 
-  Future<void> _signInOnPc() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => PcSignInScreen(api: widget.api)),
-    );
-    if (mounted) await _refresh();
-  }
-
-  Future<void> _startSession() async {
+  /// Одна дверь «Сесть за ПК»: код с монитора, дальше тариф на телефоне или вход на самом ПК.
+  Future<void> _sitDown() async {
     final l = L.of(context);
-    final branchId = _branchId;
-    if (branchId == null) return;
-
     final seatName = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) =>
-            StartSessionScreen(api: widget.api, branchId: branchId, pinSet: widget.pinSet),
+        builder: (_) => PcSignInScreen(api: widget.api, branchId: _branchId, pinSet: widget.pinSet),
       ),
     );
-    if (seatName == null || !mounted) return;
-
+    if (!mounted) return;
     // Куда садиться — единственное, что игроку сейчас нужно знать: он стоит посреди зала.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.customerPlayStarted(seatName))),
-    );
+    if (seatName != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.customerPlayStarted(seatName))),
+      );
+    }
     await _refresh();
   }
 
@@ -366,7 +368,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (branchId == null) return;
     final bought = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => PackagesScreen(api: widget.api, branchId: branchId, clock: widget.clock),
+        builder: (_) => PackagesScreen(
+          api: widget.api,
+          branchId: branchId,
+          clock: widget.clock,
+          place: _place, placeLogoUrl: widget.organization.logoUrl,
+        ),
       ),
     );
     if (bought == true) await _refresh();
@@ -379,7 +386,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (branchId == null) return;
     final walletChanged = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EventsScreen(api: widget.api, branchId: branchId, clock: widget.clock),
+        builder: (_) => EventsScreen(
+          api: widget.api,
+          branchId: branchId,
+          clock: widget.clock,
+          place: _place, placeLogoUrl: widget.organization.logoUrl,
+        ),
       ),
     );
     if (walletChanged == true) await _refresh();
@@ -396,13 +408,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _openReferral() {
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api)),
+      MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api, place: _place, placeLogoUrl: widget.organization.logoUrl)),
     );
   }
 
   void _openLoyalty() {
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api)),
+      MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api, place: _place, placeLogoUrl: widget.organization.logoUrl)),
     );
   }
 
@@ -411,6 +423,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(
         builder: (_) => ShopScreen(
           api: widget.api,
+          place: _place,
+          placeLogoUrl: widget.organization.logoUrl,
           sessionActive: _data?.activeSession != null,
         ),
       ),
@@ -424,17 +438,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// гадать, списались деньги или нет.
   Future<void> _extend(ActiveSessionDto session) async {
     final l = L.of(context);
-    final minutes = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
+    final minutes = await showAppSheet<int>(
+      context,
+      (_) => ExtendSessionSheet(
+        api: widget.api,
+        sessionId: session.sessionId,
+        onTopUp: _canTopUpHere ? () => unawaited(_topUp(session.currencyCode)) : null,
+      ),
     );
     if (minutes == null || !mounted) return;
 
     unawaited(HapticFeedback.lightImpact());
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(l.customerSessionExtendDone(extendDurationLabel(l, minutes))),
+    ));
+    await _refresh();
+  }
+
+  /// Пополнить прямо отсюда можно, когда клуб принимает онлайн и номер подтверждён — те же
+  /// условия, что у кнопки в разделе баланса.
+  bool get _canTopUpHere =>
+      widget.phoneVerified &&
+      (widget.features == null || widget.features!.contains(PlatformFeatureNames.onlineTopUp));
+
+  /// Пополнение из листа продления: тот же лист, что в разделе баланса.
+  Future<void> _topUp(String currencyCode) async {
+    final l = L.of(context);
+    final outcome = await showAppSheet<TopUpOutcome>(
+      context,
+      (_) => TopUpSheet(api: widget.api, currencyCode: currencyCode, intents: const []),
+    );
+    if (outcome == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(outcome == TopUpOutcome.paid ? l.customerWalletPaid : l.customerWalletSent),
     ));
     await _refresh();
   }
@@ -511,9 +547,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: l.customerActionsBook,
             onOpen: widget.onOpenReservations!,
           ),
-        // Меню открыто всегда: цены смотрят и до игры, а плитка, появляющаяся только при
-        // сессии, выглядит как пропавшая. Что заказ несут за ПК, объясняет сам экран.
-        if (_shopEnabled)
+        // Меню смотрят и до игры — тогда оно плиткой. Во время сессии «Заказать еду» уже стоит в
+        // её карточке, и вторая такая же дверь ниже только отнимала место у остальных.
+        if (_shopEnabled && data.activeSession == null)
           QuickAction(
             icon: Icons.local_cafe_outlined,
             label: l.customerActionsOrder,
@@ -574,7 +610,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // сообщало, а вместе они читались как сжатый в комок заголовок.
       // Название конкретного зала, если оно известно, иначе название сети: игрок должен
       // видеть, куда он пришёл, а не только чьё приложение открыл.
-      place: _branchName ?? widget.organization.name,
+      place: _place,
       placeLogoUrl: widget.organization.logoUrl,
       title: widget.displayName,
       // Колокольчик в шапке главной, а не отдельный раздел внизу: уведомления читают по поводу,
@@ -599,7 +635,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               if (_stale && data != null) ...[
                 const _StaleBanner(),
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
               ],
               // В клубе, где счёта ещё нет, спрашивать нечего: ни денег, ни сессии, ни
               // новостей — сервер отвечает на них только своим игрокам.
@@ -616,7 +652,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   debt: data.debtBalance,
                   onOpen: widget.onOpenWallet,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s3),
                 // Спросить об ушедшем вечере уместно, только пока он свежий, — и до новостей
                 // клуба: это разговор с игроком, а не объявление для него.
                 if (_pendingReview != null && data.activeSession == null) ...[
@@ -625,7 +661,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onRate: () => _rateVisit(_pendingReview!),
                     onDismiss: () => setState(() => _pendingReview = null),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.s3),
                 ],
                 // Идущая сессия — то, ради чего экран открывают посреди игры. Когда её нет,
                 // на её месте стоит приглашение сесть: пустое место сообщало бы только об
@@ -642,15 +678,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     clock: widget.clock,
                   )
                 else
-                  _StartPlayingCard(
-                    // Сесть можно, только когда известен филиал: места у клуба свои.
-                    onPlay: _branchId == null ? null : _startSession,
-                    onSignInOnPc: _signInOnPc,
-                  ),
-                const SizedBox(height: 16),
-                QuickActions(actions: _actions(l, data)),
+                  _StartPlayingCard(onPlay: _sitDown),
+                const SizedBox(height: Space.s4),
+                QuickActions(actions: _actions(l, data), moreLabel: l.customerActionsMore),
                 // Новости внизу: акция клуба важна, но не важнее идущей сессии и денег.
-                const SizedBox(height: 24),
+                const SizedBox(height: Space.s6),
                 NewsSection(api: widget.api),
               ],
             ],
@@ -669,13 +701,13 @@ class _DashboardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => const Column(
         children: [
           SkeletonBox(height: 72),
-          SizedBox(height: 12),
+          SizedBox(height: Space.s3),
           SkeletonBox(height: 168, radius: 24),
-          SizedBox(height: 16),
+          SizedBox(height: Space.s4),
           Row(
             children: [
               Expanded(child: SkeletonBox(height: 88)),
-              SizedBox(width: 12),
+              SizedBox(width: Space.s3),
               Expanded(child: SkeletonBox(height: 88)),
             ],
           ),
@@ -710,7 +742,7 @@ class _BalanceStrip extends StatelessWidget {
     return Pressable(
       onPressed: onOpen,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppTheme.radiusControl),
           border: Border.all(color: theme.colorScheme.outline),
@@ -720,7 +752,7 @@ class _BalanceStrip extends StatelessWidget {
           children: [
             Icon(Icons.account_balance_wallet_outlined,
                 size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
+            const SizedBox(width: Space.s3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,7 +805,7 @@ class _StaleBanner extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
@@ -781,7 +813,7 @@ class _StaleBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(Icons.cloud_off_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
+          const SizedBox(width: Space.s2),
           Expanded(
             child: Text(
               l.customerOfflineStale,
@@ -794,21 +826,16 @@ class _StaleBanner extends StatelessWidget {
   }
 }
 
-/// Пустое состояние с выходом: раньше здесь была серая надпись и никакого следующего шага.
+/// Сессии нет — и одна дверь, чтобы она началась.
 ///
-/// Намерение здесь одно — сесть за ПК сейчас: выбрать место или войти на ПК по QR с монитора.
-/// Бронь живёт плиткой ниже: два разных призыва подряд заставляют выбирать вместо того, чтобы
-/// делать, а игрок в зале пришёл играть сейчас.
+/// Намерение здесь одно — сесть за ПК сейчас. Бронь живёт плиткой ниже: два разных призыва
+/// подряд заставляют выбирать вместо того, чтобы делать, а игрок в зале пришёл играть сейчас.
+/// Раньше и здесь было две двери — «Сесть за ПК» и «Войти на ПК по QR», — и обе начинались одним
+/// и тем же кодом с монитора.
 class _StartPlayingCard extends StatelessWidget {
-  const _StartPlayingCard({required this.onPlay, required this.onSignInOnPc});
+  const _StartPlayingCard({required this.onPlay});
 
-  /// Войти на ПК по QR с монитора: игрок стоит у свободного ПК, и набирать номер с ПИН-кодом на
-  /// клавиатуре зала ему незачем.
-  final VoidCallback onSignInOnPc;
-
-  /// Сесть за свободный ПК прямо сейчас. Это главное действие пустого состояния: игрок,
-  /// открывший приложение в клубе, хочет играть, а не бронировать на завтра.
-  final VoidCallback? onPlay;
+  final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -817,7 +844,7 @@ class _StartPlayingCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+        padding: const EdgeInsets.all(Space.s5),
         child: Column(
           children: [
             Container(
@@ -828,52 +855,23 @@ class _StartPlayingCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: theme.colorScheme.primary.withValues(alpha: 0.12),
               ),
-              child:
-                  Icon(Icons.sports_esports_outlined, color: theme.colorScheme.primary, size: 28),
+              child: Icon(Icons.sports_esports_outlined, color: theme.colorScheme.primary, size: 28),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: Space.s3),
             Text(
               l.customerDashboardNoSession,
-              style:
-                  theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
             ),
-            // Кнопки нет — сказать, почему. Молча исчезнувшее действие читается как поломка
-            // приложения, хотя причина внешняя: клуб не назвал зал или места ещё не заведены.
-            if (onPlay == null) ...[
-              const SizedBox(height: 8),
-              Text(
-                l.customerPlayUnavailable,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-            if (onPlay != null) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onPlay,
-                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                  label: Text(l.customerPlayStart),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l.customerPlayStartHint,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onSignInOnPc,
-                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                label: Text(l.customerPcSignInEntry),
-              ),
+            const SizedBox(height: Space.s1),
+            Text(
+              l.customerPlayStartHint,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: Space.s4),
+            PrimaryButton(
+              action: AppAction(l.customerPlayStart, onPlay, icon: Icons.qr_code_scanner_rounded),
             ),
           ],
         ),

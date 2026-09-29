@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Loader2, UserPlus } from 'lucide-react';
+import { ArrowRight, Loader2, UserPlus } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import type { WizardStaffInvited } from './wizardApi';
 import { wizardErrorMessage } from './wizardErrors';
-import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
+import { WizardStepLayout } from './WizardStepLayout';
+import { localPhoneDigits, formatLocal, fullPhoneDigits, groupCode } from '@afk4/formatting';
 
 // Владельца в списке нет: он и так есть — это тот, кто сейчас ставит клуб.
 const ROLES: { name: string; labelKey: MessageKey }[] = [
@@ -86,15 +88,22 @@ export function StaffScreen({
   }
 
   return (
-    <section className="wizard-screen is-narrow">
-      <div className="wizard-screen-head">
-        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
-          <h1>{t('setup.wizard.staff.title')}</h1>
-        </div>
-        <p>{t('setup.wizard.staff.subtitle')}</p>
-      </div>
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      context={`${ownerName} · ${branchName}`}
+      title={t('setup.wizard.staff.title')}
+      subtitle={t('setup.wizard.staff.subtitle')}
+      onBack={() => onBack(draft)}
+      // Пока на шаге ничего не сделано, уйти с него — «Пропустить», тихой ссылкой: главное
+      // действие здесь — кнопка в форме. Сделали — главной становится «Дальше».
+      skip={invited.length > 0 ? null : { label: t('setup.wizard.staff.skip'), onClick: () => onContinue(draft), disabled: sending }}
+      primary={invited.length > 0 ? (
+        <Button variant="primary" onClick={() => onContinue(draft)} disabled={sending}>
+          {t('setup.wizard.staff.next')}
+          <ArrowRight size={16} aria-hidden />
+        </Button>
+      ) : undefined}
+    >
 
       {/* Форма — ради Enter: человек набрал номер и жмёт Enter, как на входе и на экране
           устройства. Поля вне формы Enter молча проглатывали. «Дальше» в форму не входит: Enter
@@ -161,8 +170,8 @@ export function StaffScreen({
               <span>
                 {staff.displayName} · {t(`roles.${staff.roleName}` as MessageKey)}
               </span>
-              {/* Код показываем здесь же: SMS может не дойти, а человек стоит рядом. */}
-              <code className="wizard-staff-code">{staff.code}</code>
+              {/* Код показываем здесь же: человек стоит рядом. Тройками — его читают вслух. */}
+              <code className="wizard-staff-code ui-code">{groupCode(staff.code)}</code>
               <span className="wizard-staff-expiry">
                 {t('setup.wizard.staff.expires', { time: formatDate(staff.expiresAtUtc) })}
               </span>
@@ -171,21 +180,6 @@ export function StaffScreen({
         </ul>
       ) : null}
 
-      <div className="wizard-actions">
-        <button type="button" className="ui-btn" onClick={() => onBack(draft)}>
-          <ArrowLeft size={16} aria-hidden />
-          {t('setup.wizard.common.back')}
-        </button>
-        <button
-          type="button"
-          className={invited.length > 0 ? 'ui-btn ui-btn--primary' : 'ui-btn'}
-          onClick={() => onContinue(draft)}
-          disabled={sending}
-        >
-          <ArrowRight size={16} aria-hidden />
-          {invited.length > 0 ? t('setup.wizard.staff.next') : t('setup.wizard.staff.skip')}
-        </button>
-      </div>
-    </section>
+    </WizardStepLayout>
   );
 }

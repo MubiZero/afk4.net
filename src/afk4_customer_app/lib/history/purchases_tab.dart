@@ -7,12 +7,17 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import 'cursor_list.dart';
 import 'cursor_list_view.dart';
+import '../theme/space.dart';
 
 /// Покупки в баре: когда, что и на сколько.
 class PurchasesTab extends StatefulWidget {
-  const PurchasesTab({super.key, required this.api});
+  const PurchasesTab({super.key, required this.api, this.onRefresh});
 
   final PlayerApiClient api;
+
+  /// Что ещё перечитать тем же жестом «потянуть вниз» — остаток над списком. Раньше жест
+  /// обновлял только сам список, а цифра баланса над ним оставалась прежней.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<PurchasesTab> createState() => _PurchasesTabState();
@@ -33,9 +38,11 @@ class _PurchasesTabState extends State<PurchasesTab> {
     final l = L.of(context);
     return CursorListView<PlayerPurchaseDto>(
       controller: _list,
+      onRefresh: widget.onRefresh,
       loadingLabel: l.a11yLoadingPurchases,
       errorText: l.customerHistoryPurchasesError,
       emptyText: l.customerHistoryNoPurchases,
+      emptyIcon: Icons.local_cafe_outlined,
       itemBuilder: (context, purchase) => _PurchaseCard(purchase: purchase),
     );
   }
@@ -54,7 +61,7 @@ class _PurchaseCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Space.s4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -71,7 +78,7 @@ class _PurchaseCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.s2),
             for (final line in purchase.lines)
               Text('${line.productName} × ${line.quantity}', style: theme.textTheme.bodyMedium),
           ],

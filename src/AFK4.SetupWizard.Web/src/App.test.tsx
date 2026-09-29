@@ -54,7 +54,7 @@ const saveBranding = mock(async () => ({ saved: true }));
 const inviteStaff = mock(async (_branchId: string, displayName: string, _phone: string, roleName: string) => ({
   displayName,
   roleName,
-  code: '483920',
+  code: '483 920',
   expiresAtUtc: '2026-09-23T10:00:00Z',
 }));
 const createSeats = mock(async (_branchId: string, _zoneId: string, prefix: string, count: number) => ({
@@ -94,7 +94,7 @@ async function signIn() {
 
 function chooseRole(name: RegExp) {
   fireEvent.click(screen.getByRole('radio', { name }));
-  fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 }
 
 describe('App · поток мастера', () => {
@@ -110,7 +110,7 @@ describe('App · поток мастера', () => {
   it('с единственным филиалом сразу спрашивает роль', async () => {
     await signIn();
 
-    expect(await screen.findByText('Для кого это устройство?')).toBeInTheDocument();
+    expect(await screen.findByText('Для чего этот ПК?')).toBeInTheDocument();
     expect(screen.queryByText('Выберите филиал')).toBeNull();
   });
 
@@ -126,25 +126,25 @@ describe('App · поток мастера', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Южный/ }));
 
-    expect(await screen.findByText('Для кого это устройство?')).toBeInTheDocument();
+    expect(await screen.findByText('Для чего этот ПК?')).toBeInTheDocument();
   });
 
   // На игровом ПК ставят железо, а не настраивают клуб: четыре экрана настройки там не нужны.
   it('на игровом ПК ведёт от роли прямо к устройству', async () => {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
 
     chooseRole(/Игровой ПК/);
 
-    expect(await screen.findByRole('button', { name: 'Зарегистрировать' })).toBeInTheDocument();
-    expect(screen.queryByText('Игровое место')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Подключить ПК' })).toBeInTheDocument();
+    expect(screen.queryByText('Игровой ПК в зале')).toBeInTheDocument();
   });
 
   it('на рабочем месте управляющего в новом клубе начинает с оформления', async () => {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
 
-    chooseRole(/Админ \/ кассир/);
+    chooseRole(/Администратор/);
 
     expect(await screen.findByText('Как выглядит клуб')).toBeInTheDocument();
   });
@@ -154,20 +154,20 @@ describe('App · поток мастера', () => {
   it('в настроенном клубе настройку не переспрашивает', async () => {
     discovery = { ownerName: 'Владелец', branches: [configuredBranch], brandingConfigured: true };
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
 
-    chooseRole(/Админ \/ кассир/);
+    chooseRole(/Администратор/);
 
-    expect(await screen.findByRole('button', { name: 'Зарегистрировать' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Подключить ПК' })).toBeInTheDocument();
   });
 
   // Степпер показывает шаги именно этого прогона: на игровом ПК их четыре, а не девять.
   it('степпер считает шаги того прогона, который идёт', async () => {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
 
     chooseRole(/Игровой ПК/);
-    await screen.findByRole('button', { name: 'Зарегистрировать' });
+    await screen.findByRole('button', { name: 'Подключить ПК' });
 
     const stepper = screen.getByRole('list', { name: 'Прогресс настройки' });
     expect(stepper.querySelectorAll('li')).toHaveLength(4);
@@ -177,13 +177,13 @@ describe('App · поток мастера', () => {
   // возвращаемся к роли, а не к пропущенному экрану тарифа.
   it('«Назад» с устройства возвращает к роли, минуя пропущенные шаги', async () => {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
     chooseRole(/Игровой ПК/);
-    await screen.findByRole('button', { name: 'Зарегистрировать' });
+    await screen.findByRole('button', { name: 'Подключить ПК' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Назад' }));
 
-    expect(await screen.findByText('Для кого это устройство?')).toBeInTheDocument();
+    expect(await screen.findByText('Для чего этот ПК?')).toBeInTheDocument();
   });
 });
 
@@ -203,8 +203,8 @@ describe('App · «Назад» не теряет введённое', () => {
 
   async function toBranding() {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
-    chooseRole(/Админ \/ кассир/);
+    await screen.findByText('Для чего этот ПК?');
+    chooseRole(/Администратор/);
     await screen.findByText('Как выглядит клуб');
   }
 
@@ -247,8 +247,8 @@ describe('App · «Назад» не теряет введённое', () => {
     await toStaff();
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Фарид' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '901234567' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
-    await screen.findByText('483920');
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+    await screen.findByText('483 920');
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Нигора' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Дальше/ }));
@@ -256,7 +256,7 @@ describe('App · «Назад» не теряет введённое', () => {
     back();
 
     await screen.findByText('Кто будет работать в клубе');
-    expect(screen.getByText('483920')).toBeInTheDocument();
+    expect(screen.getByText('483 920')).toBeInTheDocument();
     expect(screen.getByText(/Фарид/)).toBeInTheDocument();
     expect(screen.getByLabelText('Имя')).toHaveValue('Нигора');
     expect(screen.getByRole('button', { name: /Дальше/ })).toBeInTheDocument();
@@ -290,7 +290,7 @@ describe('App · «Назад» не теряет введённое', () => {
     await screen.findByText(/Тариф «Дневной» создан/);
 
     fireEvent.click(screen.getByRole('button', { name: /Дальше/ }));
-    await screen.findByRole('button', { name: 'Зарегистрировать' });
+    await screen.findByRole('button', { name: 'Подключить ПК' });
     back();
 
     await screen.findByText('Почём час игры');
@@ -299,22 +299,22 @@ describe('App · «Назад» не теряет введённое', () => {
     expect(screen.getByText(/Тариф «Дневной» создан/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Дальше/ }));
-    await screen.findByRole('button', { name: 'Зарегистрировать' });
+    await screen.findByRole('button', { name: 'Подключить ПК' });
     expect(createTariff).toHaveBeenCalledTimes(1);
   });
 
   it('устройство: имя ПК переживает шаг назад и обратно', async () => {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
     chooseRole(/Игровой ПК/);
-    await screen.findByRole('button', { name: 'Зарегистрировать' });
+    await screen.findByRole('button', { name: 'Подключить ПК' });
     fireEvent.change(screen.getByLabelText('Имя ПК'), { target: { value: 'ПК-12' } });
 
     back();
-    await screen.findByText('Для кого это устройство?');
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    await screen.findByText('Для чего этот ПК?');
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 
-    await screen.findByRole('button', { name: 'Зарегистрировать' });
+    await screen.findByRole('button', { name: 'Подключить ПК' });
     expect(screen.getByLabelText('Имя ПК')).toHaveValue('ПК-12');
   });
 
@@ -322,7 +322,7 @@ describe('App · «Назад» не теряет введённое', () => {
   // свой, а ПИН набирает заново.
   it('вход: номер возвращается, ПИН-код — нет', async () => {
     await signIn();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
 
     back();
 
@@ -341,29 +341,29 @@ describe('App · «Назад» не теряет введённое', () => {
     };
     await signIn();
     fireEvent.click(await screen.findByRole('button', { name: /Центральный/ }));
-    await screen.findByText('Для кого это устройство?');
-    chooseRole(/Админ \/ кассир/);
+    await screen.findByText('Для чего этот ПК?');
+    chooseRole(/Администратор/);
     await screen.findByText('Как выглядит клуб');
     fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }));
     await screen.findByText('Кто будет работать в клубе');
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Фарид' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '901234567' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
-    await screen.findByText('483920');
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+    await screen.findByText('483 920');
 
     back();
     await screen.findByText('Как выглядит клуб');
     back();
-    await screen.findByText('Для кого это устройство?');
+    await screen.findByText('Для чего этот ПК?');
     back();
     fireEvent.click(await screen.findByRole('button', { name: /Южный/ }));
-    await screen.findByText('Для кого это устройство?');
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    await screen.findByText('Для чего этот ПК?');
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     await screen.findByText('Как выглядит клуб');
     fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }));
 
     await screen.findByText('Кто будет работать в клубе');
-    expect(screen.queryByText('483920')).toBeNull();
+    expect(screen.queryByText('483 920')).toBeNull();
     expect(screen.getByLabelText('Имя')).toHaveValue('');
   });
 });

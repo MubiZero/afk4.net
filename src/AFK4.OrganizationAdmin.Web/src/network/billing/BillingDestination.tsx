@@ -73,7 +73,6 @@ export function BillingDestination({
   return (
     <ManagementScreen
       title={t('op.network.dest.billing')}
-      subtitle={t('op.network.dest.billing.subtitle')}
       contentWidth="full"
       state={screenState}
       skeleton={

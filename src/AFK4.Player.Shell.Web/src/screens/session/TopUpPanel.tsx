@@ -24,10 +24,13 @@ type Stage =
 export function TopUpPanel({
   baseUrl,
   onPaid,
+  onDone,
   pollMs = BANK_POLL_MS
 }: {
   baseUrl: string;
   onPaid?: () => void;
+  /** «Готово» после оплаты — вернуться к играм. Без него кнопки нет: уходить некуда. */
+  onDone?: () => void;
   /** Как часто спрашивать банк; тесты не ждут по три секунды на вопрос. */
   pollMs?: number;
 }) {
@@ -128,7 +131,11 @@ export function TopUpPanel({
         <CheckCircle2 className="top-up__done-icon" aria-hidden="true" />
         <p className="top-up__done">{t('playerShell.topUp.paid', { amount: money(stage.minorUnits) })}</p>
         {balance ? <p className="top-up__note">{t('playerShell.chooseTime.balance', { amount: money(balance.minorUnits) })}</p> : null}
-        <button type="button" className="btn btn--ghost" onClick={() => setStage({ kind: 'choose' })}>{t('playerShell.topUp.again')}</button>
+        {/* Дело сделано — главная «Готово» возвращает к играм; пополнить ещё раз можно обводкой. */}
+        <div className="top-up__done-actions">
+          <button type="button" className="btn btn--ghost" onClick={() => setStage({ kind: 'choose' })}>{t('playerShell.topUp.again')}</button>
+          {onDone ? <button type="button" className="btn btn--primary" onClick={onDone}>{t('playerShell.topUp.done')}</button> : null}
+        </div>
       </div>
     );
   }
@@ -186,8 +193,8 @@ export function TopUpPanel({
           }}
         />
       </label>
-      {customInvalid ? <p className="top-up__problem" role="alert">{t('playerShell.topUp.invalidAmount')}</p> : null}
-      {problem ? <p className="top-up__problem" role="alert">{t(problem)}</p> : null}
+      {customInvalid ? <p className="banner banner--danger" role="alert">{t('playerShell.topUp.invalidAmount')}</p> : null}
+      {problem ? <p className="banner banner--danger" role="alert">{t(problem)}</p> : null}
       <div className="top-up__action">
         <button type="button" className="btn btn--primary" disabled={!amountMinor || stage.kind !== 'choose'} onClick={() => void start()}>
           {stage.kind === 'creating'

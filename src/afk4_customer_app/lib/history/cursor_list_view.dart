@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../shell/load_failure.dart';
 import 'cursor_list.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
 
 /// Список с подгрузкой: одинаково ведёт себя у визитов и покупок — загрузка, ошибка с
 /// повтором, пустота и кнопка «показать ещё».
@@ -13,8 +16,13 @@ class CursorListView<T> extends StatelessWidget {
     required this.loadingLabel,
     required this.errorText,
     required this.emptyText,
+    this.emptyIcon = Icons.history,
     required this.itemBuilder,
+    this.onRefresh,
   });
+
+  /// Что перечитать вместе со списком, когда его тянут вниз.
+  final Future<void> Function()? onRefresh;
 
   final CursorListController<T> controller;
 
@@ -22,24 +30,18 @@ class CursorListView<T> extends StatelessWidget {
   final String loadingLabel;
   final String errorText;
   final String emptyText;
+  final IconData emptyIcon;
   final Widget Function(BuildContext context, T item) itemBuilder;
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final theme = Theme.of(context);
 
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
         if (controller.status == CursorListStatus.loading) {
-          return Semantics(
-            label: loadingLabel,
-            child: const Center(child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            )),
-          );
+          return ListSkeleton(label: loadingLabel);
         }
 
         if (controller.status == CursorListStatus.failed) {
@@ -51,21 +53,11 @@ class CursorListView<T> extends StatelessWidget {
         // Потянуть вниз обновляет список: жест, выученный на главной, должен работать и
         // здесь. Пустой список тоже тянется — иначе обновить его нечем.
         return RefreshIndicator(
-          onRefresh: controller.load,
+          onRefresh: () => Future.wait([controller.load(), ?onRefresh?.call()]),
           child: controller.items.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(
-                        emptyText,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ),
-                  ],
+                  children: [EmptyState(icon: emptyIcon, title: emptyText)],
                 )
               : _items(context, l),
         );
@@ -81,10 +73,10 @@ class CursorListView<T> extends StatelessWidget {
     final showFooter = controller.hasMore;
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: controller.items.length + (showFooter ? 1 : 0),
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: Space.s3),
       itemBuilder: (context, index) {
         if (index == controller.items.length) {
           if (controller.moreFailed) {
@@ -100,7 +92,7 @@ class CursorListView<T> extends StatelessWidget {
           }
           return const Center(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(Space.s4),
               child: CircularProgressIndicator(),
             ),
           );

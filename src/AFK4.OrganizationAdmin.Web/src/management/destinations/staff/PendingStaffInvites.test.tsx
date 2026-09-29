@@ -91,7 +91,9 @@ describe('PendingStaffInvites', () => {
     stored = [invite()];
     const { container } = renderList();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Отозвать' }));
+    // Отзыв — в «⋯» строки: на виду одно частое действие, «Новый код».
+    fireEvent.click(await screen.findByRole('button', { name: 'Действия' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Отозвать' }));
 
     await waitFor(() => expect(revokeStaffInvite).toHaveBeenCalledWith('b1', 'i1'));
     await waitFor(() => expect(container.querySelector('.staff-pending')).toBeNull());

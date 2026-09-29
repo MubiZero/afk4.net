@@ -9,6 +9,7 @@ import { useBlockedReason } from '@afk4/ui/react';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
+import { formatMoney } from '@afk4/money';
 import { majorToMinor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
@@ -29,7 +30,7 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
   onClose: () => void;
   onCreated: (invoice: Invoice) => void;
 }) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const { toast } = useToast();
   const [kind, setKind] = useState<string>('one_off');
   const [amount, setAmount] = useState('');
@@ -44,7 +45,7 @@ export function ManualInvoiceDialog({ client, organizationId, currencyCode, onCl
   // Пустое поле видно и так, а «0» или «сто» выглядят заполненными — их и называем.
   const amountBlocked = useBlockedReason(amount.trim() !== '' && !amountValid ? t('platform.organization.invoiceDialog.blocked.amount') : null);
   const isCredit = kind === 'credit';
-  const formattedAmount = amountValid && currencyCode !== null ? formatCurrency(amountValue, currencyCode) : null;
+  const formattedAmount = amountValid && currencyCode !== null ? formatMoney(majorToMinor(amountValue), currencyCode) : null;
   const amountHint = isCredit
     ? [formattedAmount, t('platform.organization.invoiceDialog.amountCreditHint')].filter(part => part !== null).join(' · ')
     : formattedAmount ?? undefined;

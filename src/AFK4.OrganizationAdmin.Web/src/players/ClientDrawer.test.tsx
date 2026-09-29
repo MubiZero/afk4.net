@@ -62,6 +62,10 @@ const baseProps: DrawerProps = {
 const renderDrawer = (over: Partial<DrawerProps> = {}) =>
   render(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} {...over} /></I18nProvider>);
 
+// Строка фактов инспектора по подписи — или null, если такой строки нет.
+const fact = (label: string) =>
+  [...document.querySelectorAll('.ui-facts-row')].find((row) => row.querySelector('dt')?.textContent === label) ?? null;
+
 describe('ClientDrawer', () => {
   it('renders the client name and phone', () => {
     renderDrawer();
@@ -79,49 +83,40 @@ describe('ClientDrawer', () => {
     expect(screen.queryByText('Из приложения')).toBeNull();
   });
 
-  it('shows an .ok context pill while a session is live', () => {
-    renderDrawer({ liveContext: { session: { seatName: 'PC-01', untilLabel: '11:20' }, nextBooking: null } });
-    const pill = document.querySelector('.status-pill.ok');
-    expect(pill).not.toBeNull();
-    expect(pill).toHaveTextContent('PC-01');
-    expect(screen.getByText('Нет брони')).toBeInTheDocument();
+  // Где играет и ближайшая бронь — строки фактов, и только когда они есть: «Не играет» и
+  // «Нет брони» у каждого второго клиента были шумом.
+  it('shows where the client plays and the next booking as facts', () => {
+    renderDrawer({ liveContext: { session: { seatName: 'PC-01', untilLabel: '11:20' }, nextBooking: { timeLabel: '19:00', seatName: 'VIP-03' } } });
+    expect(fact('Сейчас')).toHaveTextContent('PC-01 · до 11:20');
+    expect(fact('Ближайшая бронь')).toHaveTextContent('19:00 · VIP-03');
   });
 
-  it('shows a .neutral context pill for an upcoming booking', () => {
-    renderDrawer({ liveContext: { session: null, nextBooking: { timeLabel: '19:00', seatName: 'VIP-03' } } });
-    expect(screen.getByText('Не играет')).toBeInTheDocument();
-    const pills = document.querySelectorAll('.status-pill.neutral');
-    expect([...pills].some((pill) => pill.textContent?.includes('VIP-03'))).toBe(true);
-  });
-
-  it('shows explicit placeholders when there is neither a session nor a booking', () => {
+  it('draws no placeholders when there is neither a session nor a booking', () => {
     renderDrawer();
-    expect(document.querySelector('.drawer-context')).not.toBeNull();
-    expect(screen.getByText('Не играет')).toBeInTheDocument();
-    expect(screen.getByText('Нет брони')).toBeInTheDocument();
+    expect(fact('Сейчас')).toBeNull();
+    expect(fact('Ближайшая бронь')).toBeNull();
+    expect(screen.queryByText('Не играет')).toBeNull();
   });
 
-  it('renders the wallet balance', () => {
+  it('renders the balance as the one big figure', () => {
     renderDrawer({ balanceMinorUnits: 45000 });
-    expect(document.querySelector('.wallet-balance')).toHaveTextContent('450 с.');
+    expect(document.querySelector('.ui-inspector-figure')).toHaveTextContent('Баланс450 с.');
   });
 
-  it('shows what is held for bookings only when something is actually held', () => {
+  it('shows what is held for bookings as a fact, only when something is held', () => {
     const { rerender } = renderDrawer({ heldMinorUnits: 0 });
-    expect(document.querySelector('.wallet-held')).toBeNull();
+    expect(fact('Придержано под бронь')).toBeNull();
     rerender(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} heldMinorUnits={12000} /></I18nProvider>);
-    const held = document.querySelector('.wallet-held');
-    expect(held).toHaveTextContent('Придержано под бронь');
-    expect(held).toHaveTextContent('120 с.');
+    expect(fact('Придержано под бронь')).toHaveTextContent('120 с.');
     // Остаток не пересчитываем: холд из него уже вычтен сервером.
-    expect(document.querySelector('.wallet-balance')).toHaveTextContent('450 с.');
+    expect(document.querySelector('.ui-inspector-figure')).toHaveTextContent('450 с.');
   });
 
-  it('shows the debt callout only when the client has debt', () => {
+  it('shows the debt as a fact only when the client has debt', () => {
     const { rerender } = renderDrawer({ debtMinorUnits: 0 });
-    expect(document.querySelector('.wallet-debt')).toBeNull();
+    expect(fact('Долг')).toBeNull();
     rerender(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} debtMinorUnits={28000} /></I18nProvider>);
-    expect(document.querySelector('.wallet-debt')).toHaveTextContent('280 с.');
+    expect(fact('Долг')).toHaveTextContent('280 с.');
   });
 
   it('shows inactive lifecycle together with debt, offers activation and hides money actions', () => {
@@ -131,11 +126,34 @@ describe('ClientDrawer', () => {
     });
 
     expect(screen.getByText('Неактивен')).toBeInTheDocument();
-    expect(document.querySelector('.wallet-debt')).toHaveTextContent('280 с.');
+    expect(fact('Долг')).toHaveTextContent('280 с.');
     fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
     expect(screen.getByRole('menuitem', { name: 'Активировать' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Пополнить/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Списать долг' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Оплатить долг' })).toBeNull();
+  });
+
+  // Нет права — нет кнопки: серая «Пополнить» с приписанной причиной была шестой строкой колонки.
+  it('draws no top-up form and no DushanbeCity without the top-up right', () => {
+    renderDrawer({ canTopUp: false });
+    expect(screen.queryByLabelText('Сумма пополнения')).toBeNull();
+    expect(screen.queryByRole('button', { name: /DushanbeCity/ })).toBeNull();
+  });
+
+  it('seats at a PC from a visible button, and not someone who is already playing', () => {
+    const onStartSession = mock(() => {});
+    const { rerender } = renderDrawer({ canStartSession: true, onStartSession });
+    fireEvent.click(screen.getByRole('button', { name: 'Посадить за ПК' }));
+    expect(onStartSession).toHaveBeenCalled();
+    rerender(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} canStartSession liveContext={{ session: { seatName: 'PC-01', untilLabel: null }, nextBooking: null }} /></I18nProvider>);
+    expect(screen.queryByRole('button', { name: 'Посадить за ПК' })).toBeNull();
+  });
+
+  it('keeps manual correction in «⋯» only', () => {
+    renderDrawer({ canCorrect: true });
+    expect(screen.queryByRole('button', { name: /корректировк/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    expect(screen.getByRole('menuitem', { name: /Ручная корректировка/ })).toBeInTheDocument();
   });
 
   it('fires onTopUp from the top-up form', () => {
@@ -145,11 +163,19 @@ describe('ClientDrawer', () => {
     expect(onTopUp).toHaveBeenCalled();
   });
 
-  it('shows «Списать долг» when the client has debt and fires onOpenPayDebt', () => {
+  // Это оплата долга, а не списание: кнопка называет, что происходит с деньгами.
+  it('shows «Оплатить долг» when the client has debt and fires onOpenPayDebt', () => {
     const onOpenPayDebt = mock(() => {});
     renderDrawer({ debtMinorUnits: 28000, onOpenPayDebt });
-    fireEvent.click(screen.getByRole('button', { name: 'Списать долг' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Оплатить долг' }));
     expect(onOpenPayDebt).toHaveBeenCalled();
+  });
+
+  it('fires onOpenDcTopUp from the DushanbeCity button', () => {
+    const onOpenDcTopUp = mock(() => {});
+    renderDrawer({ onOpenDcTopUp });
+    fireEvent.click(screen.getByRole('button', { name: 'Перевод DushanbeCity' }));
+    expect(onOpenDcTopUp).toHaveBeenCalled();
   });
 
   it('renders exactly the limited number of recent entries, not the full list', () => {

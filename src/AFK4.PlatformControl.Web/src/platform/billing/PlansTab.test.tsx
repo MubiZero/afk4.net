@@ -42,8 +42,9 @@ describe('PlansTab', () => {
   it('называет состояние тарифа словом', async () => {
     setup([plan(), plan({ planCode: 'pro', name: 'Профи', isActive: false })]);
 
-    await screen.findByText('Активен');
     await screen.findByText('Скрыт');
+    // Обычное состояние чипом не отмечается — только отклонение.
+    expect(screen.queryByText('Активен')).toBeNull();
   });
 
   it('создаёт тариф тем, что ввели в форме', async () => {
@@ -91,7 +92,7 @@ describe('PlansTab', () => {
   it('пустой каталог зовёт завести первый тариф', async () => {
     setup([]);
 
-    await screen.findByText('Тарифов пока нет. Без тарифа организации не назначить подписку.');
+    await screen.findByText('Тарифов пока нет. Без тарифа клубу не назначить подписку.');
     fireEvent.click(screen.getByRole('button', { name: 'Завести первый тариф' }));
 
     expect(await screen.findByLabelText('Код тарифа')).toBeInTheDocument();

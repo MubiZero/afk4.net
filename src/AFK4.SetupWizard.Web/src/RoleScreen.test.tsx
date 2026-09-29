@@ -30,8 +30,8 @@ describe('RoleScreen', () => {
   it('отдаёт наверх выбранную роль', () => {
     const { onContinue } = renderScreen();
 
-    fireEvent.click(screen.getByRole('radio', { name: /Админ \/ кассир/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Администратор/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 
     expect(onContinue.mock.calls[0]![0]).toBe('manager_workstation');
   });
@@ -39,7 +39,7 @@ describe('RoleScreen', () => {
   it('без выбора продолжает с ролью по умолчанию', () => {
     const { onContinue } = renderScreen('manager_workstation');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 
     expect(onContinue.mock.calls[0]![0]).toBe('manager_workstation');
   });
@@ -49,7 +49,7 @@ describe('RoleScreen', () => {
     const { onContinue } = renderScreen('gaming_pc');
 
     fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 
     expect(onContinue.mock.calls[0]![0]).toBe('manager_workstation');
   });
@@ -57,7 +57,7 @@ describe('RoleScreen', () => {
   it('показывает выбранную роль как отмеченную', () => {
     renderScreen('manager_workstation');
 
-    expect(screen.getByRole('radio', { name: /Админ \/ кассир/ }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('radio', { name: /Администратор/ }).getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('radio', { name: /Игровой ПК/ }).getAttribute('aria-checked')).toBe('false');
   });
 

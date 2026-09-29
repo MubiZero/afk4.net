@@ -105,7 +105,7 @@ export function SignInPanel({ state, onClose }: SignInPanelProps) {
             onChange={(event) => setPin(keepPinDigits(event.target.value))}
           />
         </div>
-        {error ? <p className="sign-in__error" role="alert">{t(error)}</p> : null}
+        {error ? <p className="banner banner--danger" role="alert">{t(error)}</p> : null}
         <button type="submit" className="btn btn--primary btn--wide" disabled={!ready}>
           {submitting ? t('playerShell.signIn.submitting') : t('playerShell.signIn.submit')}
         </button>

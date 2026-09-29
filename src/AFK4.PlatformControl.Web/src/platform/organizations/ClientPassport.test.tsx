@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, mock } from 'bun:test';
 
 // Без уборки паспорта предыдущего теста в документе оказывается несколько карточек сразу, и
@@ -48,7 +48,6 @@ function client(): ClientPassportClients {
       }),
       updateSubscription: mock()
     },
-    invoices: { generateInvoice: mock() },
     organizationOwnerInvites: {
       listOrganizationOwnerInvites: mock().mockResolvedValue([
         { organizationOwnerInviteId: 'i1', organizationId: 'o1', branchId: 'b1', codeSuffix: '1234', status: 'accepted', ownerUserName: 'owner@orion.tj', ownerDisplayName: 'Alice Owner', expiresAtUtc: '2026-02-01T00:00:00Z', acceptedAtUtc: '2026-01-05T00:00:00Z', revokedAtUtc: null, revokedReason: null, createdAtUtc: '2026-01-01T00:00:00Z' }
@@ -90,8 +89,10 @@ function setup(access: OrganizationPageAccess = fullAccess, orgOverrides: Partia
 
 it('shows the name, plan, price, next invoice, owner and update channel', async () => {
   setup();
-  // Заголовок h1 принадлежит экрану, паспорт повторяет имя как якорь личности, а не как второй заголовок.
-  expect(screen.getByText('Orion Gaming')).toBeVisible();
+  // Имя клуба — заголовок страницы; паспорт его не повторяет и озаглавлен «О клубе» (решение
+  // владельца 29.09: имя клуба на экране один раз).
+  expect(screen.getByRole('heading', { name: 'О клубе' })).toBeVisible();
+  expect(screen.queryByText('Orion Gaming')).toBeNull();
   expect(screen.getByText('Growth')).toBeVisible();
   expect(screen.getByText('Стабильный')).toBeVisible();
   await waitFor(() => expect(screen.getByText(/1.?500/u)).toBeVisible());
@@ -246,21 +247,44 @@ it('hides billing and organization-management levers without the matching rights
     canManageOffboarding: false
   });
   expect(screen.queryByRole('button', { name: 'Изменить подписку' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Выставить счёт' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Отсрочка' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Править профиль' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Приостановить' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Передать' })).not.toBeInTheDocument();
+  // Меню «⋯» без единого доступного пункта не рисуется вовсе.
+  expect(screen.queryByRole('button', { name: 'Ещё действия с клубом' })).not.toBeInTheDocument();
 });
 
 it('shows billing and organization-management levers with the matching rights', () => {
   setup();
   expect(screen.getByRole('button', { name: 'Изменить подписку' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Выставить счёт' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Отсрочка' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Править профиль' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Приостановить' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Передать' })).toBeVisible();
+  // Счёт выставляют на вкладке «Счета»: в паспорте второй такой кнопки нет.
+  expect(screen.queryByRole('button', { name: 'Выставить счёт' })).toBeNull();
+  // Редкое и опасное — в «⋯», а не кнопками во всю ширину.
+  expect(screen.queryByRole('button', { name: 'Приостановить' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с клубом' }));
+  expect(screen.getByRole('menuitem', { name: 'Передать владельцу' })).toBeVisible();
+  expect(screen.getByRole('menuitem', { name: 'Приостановить' })).toBeVisible();
+  expect(screen.getByRole('menuitem', { name: 'Начать уход' })).toBeVisible();
+});
+
+it('меняет статус клуба из меню паспорта: приостановить и начать уход', async () => {
+  const c = setup();
+  const updateStatus = mock().mockResolvedValue(organization({ status: 'deletion_pending' }));
+  c.organizations.updateStatus = updateStatus as never;
+  fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с клубом' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Начать уход' }));
+  expect(screen.getByText('Начать уход клуба?')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Закрывается' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Применить' }));
+  await waitFor(() => expect(updateStatus).toHaveBeenCalledWith('o1', 'deletion_pending', 'Закрывается'));
+});
+
+it('приостановленный клуб возвращают в работу из того же меню', () => {
+  setup(fullAccess, { status: 'suspended' });
+  fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с клубом' }));
+  expect(screen.getByRole('menuitem', { name: 'Вернуть в работу' })).toBeVisible();
+  expect(screen.queryByRole('menuitem', { name: 'Приостановить' })).toBeNull();
 });
 
 // Раньше сбой любого из трёх фоновых запросов гасился пустым catch: цена и дата счёта висели
@@ -278,7 +302,7 @@ it('несостоявшуюся загрузку сведений видно с
   );
 
   await waitFor(() => expect(screen.getAllByText('Не удалось узнать').length).toBeGreaterThan(0));
-  expect(screen.getByText('Часть сведений о клиенте не загрузилась.')).toBeVisible();
+  expect(screen.getByText('Часть сведений о клубе не загрузилась.')).toBeVisible();
   const edit = screen.getByRole('button', { name: 'Изменить подписку' });
   expect(edit).toBeDisabled();
   // Полоса сверху говорит «что-то не загрузилось», а какая из кнопок из-за этого серая — нет.
@@ -313,15 +337,16 @@ it('владелец, которого не удалось узнать, не в
 // только на счета нельзя менять подписку, с правом только на лимиты — приостанавливать клуб.
 it('shows each passport lever by the exact right the server checks', async () => {
   setup({ ...fullAccess, canManageSubscriptions: false, canManageStatus: false });
-  expect(await screen.findByRole('button', { name: 'Выставить счёт' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Править профиль' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Изменить подписку' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Отсрочка' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Приостановить' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с клубом' }));
+  expect(screen.getByRole('menuitem', { name: 'Передать владельцу' })).toBeVisible();
+  expect(screen.queryByRole('menuitem', { name: 'Приостановить' })).toBeNull();
 });
 
 it('offers subscription and grace without the invoice right', async () => {
   setup({ ...fullAccess, canManageInvoices: false });
   expect(await screen.findByRole('button', { name: 'Изменить подписку' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Отсрочка' })).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Выставить счёт' })).toBeNull();
 });

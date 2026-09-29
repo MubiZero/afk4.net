@@ -30,10 +30,10 @@ function serve(options: { online?: boolean; intentStatus?: number; intentQr?: st
   }) as unknown as typeof fetch;
 }
 
-function renderPanel(onPaid = mock(() => {})) {
+function renderPanel(onPaid = mock(() => {}), onDone?: () => void) {
   render(
     <ShellI18nProvider initialLocale="ru">
-      <TopUpPanel baseUrl="https://api.example.test/" onPaid={onPaid} pollMs={10} />
+      <TopUpPanel baseUrl="https://api.example.test/" onPaid={onPaid} onDone={onDone} pollMs={10} />
     </ShellI18nProvider>
   );
   return onPaid;
@@ -72,8 +72,25 @@ describe('пополнение по QR', () => {
       method: 'eskhata'
     });
 
-    expect(await screen.findByText(/Счёт пополнен на 50/)).toBeInTheDocument();
+    expect(await screen.findByText(/Баланс пополнен на 50/)).toBeInTheDocument();
     expect(onPaid).toHaveBeenCalledTimes(1);
+  });
+
+  // Дело сделано — главная «Готово» уводит к играм; «Пополнить ещё» — второстепенная.
+  it('после оплаты главная — «Готово»', async () => {
+    serve();
+    bankAnswers = ['paid'];
+    const onDone = mock(() => {});
+    renderPanel(undefined, onDone);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^50/ }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /Получить QR на 50/ })));
+    const done = await screen.findByRole('button', { name: 'Готово' });
+
+    expect(done.className).toContain('btn--primary');
+    expect(screen.getByRole('button', { name: 'Пополнить ещё' }).className).not.toContain('btn--primary');
+    fireEvent.click(done);
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 
   it('банк не провёл — сказано, деньги не списаны, можно выбрать снова', async () => {

@@ -33,8 +33,6 @@ export const INVITE_STATUS_LABEL: Record<string, MessageKey> = {
   expired: 'platform.organization.invites.status.expired'
 };
 
-export const STATUS_OPTIONS = ['active', 'suspended', 'deletion_pending'] as const;
-
 /**
  * Приглашение можно отправить ещё раз: ждёт ответа, срок ещё не вышел и есть куда слать. Сервер
  * сам «истёк» не проставляет — статус переходит в него только при попытке принять приглашение по

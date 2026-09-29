@@ -90,7 +90,7 @@ describe('validateCheckoutPayments', () => {
     const result = validateCheckoutPayments([{ method: 'wallet', amountText: '22.50' }], 2250, 1000, t);
     expect(result.canSubmit).toBe(false);
     expect(result.walletWithinBalance).toBe(false);
-    expect(result.error).toContain('депозита');
+    expect(result.error).toContain('баланса');
   });
 
   it('flags a malformed amount', () => {
@@ -130,7 +130,8 @@ describe('buildCheckoutPayments', () => {
 
 describe('initialCheckoutDrafts', () => {
   it('pre-fills one cash row with the whole grand total', () => {
-    expect(initialCheckoutDrafts(2250)).toEqual([{ method: 'cash', amountText: '22.50' }]);
+    // Поле — тем же знаком дроби, что и сумма рядом: «22,5», а не «22.50».
+    expect(initialCheckoutDrafts(2250)).toEqual([{ method: 'cash', amountText: '22,5' }]);
   });
 
   it('leaves the row blank for a zero bill', () => {

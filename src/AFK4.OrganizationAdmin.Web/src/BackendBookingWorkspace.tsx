@@ -37,7 +37,6 @@ function roundToQuarter(date: Date): Date {
   next.setMinutes(Math.round(next.getMinutes() / 15) * 15, 0, 0);
   return next;
 }
-import { StateFlag } from './operatorPrimitives';
 import { ViewOnlyNotice } from './management/ViewOnlyNotice';
 import { useDeferredFlag } from './useDeferredFlag';
 import { useFeedbackToasts } from './useFeedbackToasts';
@@ -60,7 +59,8 @@ import { useReputation } from './players/useReputation';
 import type { SeatSummary } from './operatorData';
 import { formatDateParts } from '@afk4/formatting';
 import { PanelModal } from './PanelModal';
-import { useBlockedReason } from '@afk4/ui/react';
+import { Button, Num, SectionHeader, useBlockedReason } from '@afk4/ui/react';
+import { Plus } from 'lucide-react';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
 
 /** Просьба о запуске без ключа: ключ даёт общий `retryKeys` по самой просьбе. */
@@ -779,14 +779,17 @@ export function BackendBookingWorkspace({
 
   return (
     <main className="workspace-screen booking-screen">
-      <section className="booking-header">
-        <h1><strong className="booking-header-name">{t('op.booking.title')}</strong> · <span className="booking-header-tagline">{t('op.booking.tagline')}</span></h1>
-        <div className="booking-header-metrics">
-          <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
-          <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
-          <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} tone={requestCount > 0 ? 'warning' : undefined} />
-        </div>
-      </section>
+      <SectionHeader
+        title={t('op.booking.title')}
+        counts={[
+          { label: t('op.booking.strip.busy'), value: <Num>{activeSeats.length}</Num> },
+          { label: t('op.booking.strip.free'), value: <Num>{readySeats.length}</Num> },
+          { label: t('op.booking.strip.requests'), value: <Num>{requestCount}</Num>, tone: requestCount > 0 ? 'warning' : undefined }
+        ]}
+        action={canManageReservations ? (
+          <Button variant="primary" onClick={openCreateDrawer}><Plus size={14} aria-hidden="true" />{t('op.booking.createBtn')}</Button>
+        ) : undefined}
+      />
 
       {/* Брони открываются по праву смотреть их, а ведёт их другое право: у бухгалтера серые все
           кнопки ленты и карточки. Одна строка вместо подписи под каждой. */}
@@ -809,7 +812,6 @@ export function BackendBookingWorkspace({
         requests={requests}
         busy={reservationBusy}
         canManage={canManageReservations}
-        onCreate={openCreateDrawer}
         onAccept={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
         onClarify={(item) => openDetailDrawer(item.reservationId)}
       />

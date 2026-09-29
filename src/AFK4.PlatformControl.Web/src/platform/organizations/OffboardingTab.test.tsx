@@ -50,7 +50,7 @@ describe('OffboardingTab', () => {
     await screen.findByText('leaving-club');
 
     await userEvent.click(screen.getByRole('button', { name: 'Стереть данные' }));
-    const field = await screen.findByLabelText('Короткое имя организации');
+    const field = await screen.findByLabelText('Короткий адрес клуба');
 
     // Пока имя не набрано, подтверждение недоступно: кнопка «да, я уверен» здесь недостаточна.
     const confirm = screen.getAllByRole('button', { name: 'Стереть данные' }).at(-1)!;
@@ -126,7 +126,7 @@ describe('OffboardingTab', () => {
     await screen.findByText('leaving-club');
 
     await userEvent.click(screen.getByRole('button', { name: 'Стереть данные' }));
-    await userEvent.type(await screen.findByLabelText('Короткое имя организации'), 'wrong');
+    await userEvent.type(await screen.findByLabelText('Короткий адрес клуба'), 'wrong');
     await userEvent.click(screen.getAllByRole('button', { name: 'Стереть данные' }).at(-1)!);
 
     const toast = await screen.findByRole('status');

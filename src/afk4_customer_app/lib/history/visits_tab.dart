@@ -8,12 +8,17 @@ import '../money/money.dart';
 import 'cursor_list.dart';
 import 'cursor_list_view.dart';
 import 'receipt_screen.dart';
+import '../theme/space.dart';
 
 /// Визиты игрока — где сидел, сколько пробыл, сколько заплатил.
 class VisitsTab extends StatefulWidget {
-  const VisitsTab({super.key, required this.api, this.clock = DateTime.now});
+  const VisitsTab({super.key, required this.api, this.clock = DateTime.now, this.onRefresh});
 
   final PlayerApiClient api;
+
+  /// Что ещё перечитать тем же жестом «потянуть вниз» — остаток над списком. Раньше жест
+  /// обновлял только сам список, а цифра баланса над ним оставалась прежней.
+  final Future<void> Function()? onRefresh;
   final DateTime Function() clock;
 
   @override
@@ -35,9 +40,11 @@ class _VisitsTabState extends State<VisitsTab> {
     final l = L.of(context);
     return CursorListView<PlayerVisitDto>(
       controller: _list,
+      onRefresh: widget.onRefresh,
       loadingLabel: l.a11yLoadingVisits,
       errorText: l.customerHistoryLoadError,
       emptyText: l.customerHistoryNoVisits,
+      emptyIcon: Icons.sports_esports_outlined,
       itemBuilder: (context, visit) => _VisitCard(
         visit: visit,
         now: widget.clock(),
@@ -68,7 +75,7 @@ class _VisitCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Space.s4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -82,7 +89,7 @@ class _VisitCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               '${formatDateTime(l, visit.startedAtUtc, locale, now: now)} · '
               '${formatVisitDuration(l, visit.startedAtUtc, visit.endedAtUtc, now: now)}',

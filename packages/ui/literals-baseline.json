@@ -45,15 +45,15 @@
     "radius": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/06-map-grid.css": {
-    "font-size": 72,
-    "radius": 33,
-    "spacing": 90,
+    "font-size": 59,
+    "radius": 26,
+    "spacing": 65,
     "hex": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/07-map-sidepanel.css": {
-    "font-size": 15,
-    "radius": 10,
-    "spacing": 15
+    "font-size": 3,
+    "radius": 2,
+    "spacing": 6
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/08-map-modals.css": {
     "font-size": 11,
@@ -66,20 +66,18 @@
     "spacing": 22
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/10-booking.css": {
-    "font-size": 58,
-    "radius": 34,
-    "spacing": 78
+    "font-size": 43,
+    "radius": 26,
+    "spacing": 47
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/11-pos.css": {
-    "font-size": 8,
-    "mono": 13
+    "font-size": 8
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/12-players.css": {
-    "font-size": 40,
-    "radius": 10,
-    "spacing": 37,
-    "hex": 1,
-    "mono": 9
+    "font-size": 28,
+    "radius": 4,
+    "spacing": 20,
+    "hex": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/13-payments.css": {
     "font-size": 20,
@@ -87,9 +85,9 @@
     "spacing": 26
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/15-settings.css": {
-    "font-size": 28,
-    "radius": 15,
-    "spacing": 28
+    "font-size": 27,
+    "radius": 13,
+    "spacing": 25
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/16-workspace-primitives.css": {
     "font-size": 19,
@@ -101,10 +99,9 @@
     "spacing": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/18-review.css": {
-    "font-size": 13,
-    "radius": 4,
-    "spacing": 1,
-    "mono": 5
+    "font-size": 12,
+    "radius": 1,
+    "spacing": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/19-account-panel.css": {
     "font-size": 10,
@@ -114,20 +111,18 @@
   "src/AFK4.OrganizationAdmin.Web/src/styles/20-overlays.css": {
     "font-size": 7,
     "radius": 4,
-    "spacing": 11,
+    "spacing": 10,
     "hex": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/21-cash.css": {
-    "font-size": 72,
-    "radius": 6,
-    "spacing": 6,
-    "hex": 1,
-    "mono": 29
+    "font-size": 61,
+    "radius": 4,
+    "spacing": 4
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/22-stock.css": {
     "font-size": 38,
     "spacing": 22,
-    "mono": 19
+    "mono": 5
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/23-management-crud.css": {
     "font-size": 8,
@@ -140,15 +135,15 @@
     "mono": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/25-network.css": {
-    "font-size": 51,
+    "font-size": 44,
     "radius": 3,
-    "spacing": 8,
-    "mono": 3
+    "spacing": 5,
+    "mono": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/26-reports.css": {
-    "font-size": 11,
+    "font-size": 10,
     "radius": 9,
-    "spacing": 16
+    "spacing": 13
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/27-support-mode.css": {
     "font-size": 4
@@ -169,9 +164,8 @@
     "spacing": 3
   },
   "src/AFK4.PlatformControl.Web/src/styles/11-organization.css": {
-    "font-size": 7,
-    "radius": 1,
-    "spacing": 6
+    "font-size": 3,
+    "spacing": 2
   },
   "src/AFK4.PlatformControl.Web/src/styles/12-money.css": {
     "font-size": 9,
@@ -180,7 +174,7 @@
   "src/AFK4.PlatformControl.Web/src/styles/13-forms.css": {
     "font-size": 12,
     "spacing": 5,
-    "mono": 3
+    "mono": 2
   },
   "src/AFK4.PlatformControl.Web/src/styles/14-games.css": {
     "spacing": 1
@@ -195,7 +189,7 @@
   },
   "src/AFK4.SetupWizard.Web/src/styles/wizard.css": {
     "radius": 2,
-    "spacing": 20,
+    "spacing": 16,
     "hex": 2
   }
 }

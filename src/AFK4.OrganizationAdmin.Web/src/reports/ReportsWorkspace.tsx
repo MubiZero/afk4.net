@@ -1,5 +1,6 @@
 import { useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { SectionHeader, Tabs } from '@afk4/ui/react';
 import { EmptyState } from '../operatorPrimitives';
 import type { OperatorBackendContext, WorkspaceId } from '../operatorTypes';
 import { RevenueReport } from './RevenueReport';
@@ -21,7 +22,12 @@ export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
   const [active, setActive] = useState<ReportsDestinationId>('summary');
 
   if (destinations.length === 0) {
-    return <section className="workspace-screen"><EmptyState title={t('op.reports.noAccess')} next={{ kind: 'denied', hint: t('op.error.accessHint') }} /></section>;
+    return (
+      <section className="workspace-screen reports-workspace">
+        <SectionHeader title={t('op.shell.navGroup.reports')} />
+        <EmptyState title={t('op.reports.noAccess')} next={{ kind: 'denied', hint: t('op.error.accessHint') }} />
+      </section>
+    );
   }
 
   const current = destinations.some((destination) => destination.id === active) ? active : destinations[0].id;
@@ -37,24 +43,22 @@ export function ReportsWorkspace({ backend, currencyCode, onNavigate }: {
             ? <ReportSchedules backend={backend} />
             : <RevenueReport backend={backend} currencyCode={currencyCode} />;
 
+  // Шапка раздела — как у Кассы и Склада: «Отчёты» и вкладки; имя отчёта — выбранная вкладка, и
+  // внутри оно больше не повторяется заголовком с подписью.
   return (
-    <section className="reports-workspace">
-      <div className="reports-tabs" role="tablist" aria-label={t('op.shell.navGroup.reports')}>
-        {destinations.map((destination) => (
-          <button
-            id={`reports-tab-${destination.id}`}
-            key={destination.id}
-            type="button"
-            role="tab"
-            aria-selected={destination.id === current}
-            aria-controls={`reports-panel-${destination.id}`}
-            onClick={() => setActive(destination.id)}
-          >
-            {t(destination.labelKey)}
-          </button>
-        ))}
-      </div>
-      <div id={`reports-panel-${current}`} role="tabpanel" aria-labelledby={`reports-tab-${current}`}>
+    <section className="workspace-screen reports-workspace">
+      <SectionHeader
+        title={t('op.shell.navGroup.reports')}
+        tabs={destinations.length > 1 ? (
+          <Tabs
+            label={t('op.shell.navGroup.reports')}
+            value={current}
+            onChange={setActive}
+            items={destinations.map((destination) => ({ value: destination.id, label: t(destination.labelKey) }))}
+          />
+        ) : undefined}
+      />
+      <div className="reports-panel" role="tabpanel" aria-label={t(destinations.find((destination) => destination.id === current)!.labelKey)}>
         {panel}
       </div>
     </section>

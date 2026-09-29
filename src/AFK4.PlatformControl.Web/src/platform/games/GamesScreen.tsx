@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -74,29 +75,30 @@ export function GamesScreen({ client }: { client: Client }) {
     }
   }
 
+  const createNew = () => open({ catalogGameId: null, form: emptyGameForm() });
+  const pageHead = { title: t('nav.platform.games'), actions: <Button onClick={createNew}>{t('platform.games.create')}</Button> };
+
   if (state.status === 'error') {
-    return <ErrorState title={t('platform.games.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />;
+    return <Page {...pageHead}><ErrorState title={t('platform.games.error.load')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} /></Page>;
   }
   if (state.status === 'loading') {
     return (
-      <Loading>
-        <SkeletonCard action>
-          <p className="mgmt-drawer-hint">{t('platform.games.description')}</p>
-          <SkeletonTable columns={6} />
-        </SkeletonCard>
-      </Loading>
+      <Page {...pageHead}>
+        <Loading>
+          <SkeletonCard>
+            <p className="mgmt-drawer-hint">{t('platform.games.description')}</p>
+            <SkeletonTable columns={6} />
+          </SkeletonCard>
+        </Loading>
+      </Page>
     );
   }
 
   const games = state.data;
-  const createNew = () => open({ catalogGameId: null, form: emptyGameForm() });
 
   return (
+    <Page {...pageHead}>
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.games.title')}</CardTitle>
-        <Button onClick={createNew}>{t('platform.games.create')}</Button>
-      </CardHeader>
       <CardContent>
         <p className="mgmt-drawer-hint">{t('platform.games.description')}</p>
 
@@ -165,6 +167,7 @@ export function GamesScreen({ client }: { client: Client }) {
         )}
       </CardContent>
     </Card>
+    </Page>
   );
 }
 

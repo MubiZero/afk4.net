@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, mock } from 'bun:test';
-import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ClientsTable } from './ClientsTable';
 import type { PlayerClientItem } from '../operatorHelpers';
@@ -28,7 +28,6 @@ const renderTable = (over: Partial<Parameters<typeof ClientsTable>[0]> = {}) => 
   const onSearchChange = mock(() => {});
   const onSelectSegment = mock(() => {});
   const onSelectClient = mock(() => {});
-  const onNewClient = mock(() => {});
   const { container } = render(
     <I18nProvider initialLocale="ru">
       <ClientsTable
@@ -44,7 +43,6 @@ const renderTable = (over: Partial<Parameters<typeof ClientsTable>[0]> = {}) => 
         canCreatePlayer
         liveContextByClient={new Map<string, ClientLiveContext>()}
         nowMs={NOW}
-        onNewClient={onNewClient}
         onSearchChange={onSearchChange}
         onSelectSegment={onSelectSegment}
         onSelectClient={onSelectClient}
@@ -52,7 +50,7 @@ const renderTable = (over: Partial<Parameters<typeof ClientsTable>[0]> = {}) => 
       />
     </I18nProvider>
   );
-  return { onSearchChange, onSelectSegment, onSelectClient, onNewClient, container };
+  return { onSearchChange, onSelectSegment, onSelectClient, container };
 };
 
 describe('ClientsTable', () => {
@@ -160,11 +158,12 @@ describe('ClientsTable', () => {
   // завести клиента; поиск или отбор ничего не нашёл — снять их. Путать их значит звать
   // кассира заводить клиента, который уже есть.
   describe('empty list names the next step', () => {
-    it('no clients at all: the empty state opens the new-client dialog', () => {
-      const { onNewClient, container } = renderTable({ clients: [] });
-      const empty = container.querySelector('.empty-state') as HTMLElement;
-      fireEvent.click(within(empty).getByRole('button', { name: /Новый клиент/ }));
-      expect(onNewClient).toHaveBeenCalledTimes(1);
+    // «Новый клиент» теперь одна главная кнопка в шапке раздела: вторая такая же посреди пустого
+    // списка была бы второй главной на экране.
+    it('no clients at all: the empty state points at the header button instead of repeating it', () => {
+      const { container } = renderTable({ clients: [] });
+      expect(screen.getByText('Клиентов пока нет')).toBeInTheDocument();
+      expect(container.querySelector('.empty-state button')).toBeNull();
     });
 
     it('no right to add clients: no button, and it says who adds them', () => {
@@ -186,10 +185,5 @@ describe('ClientsTable', () => {
       expect(screen.getByText('Подключитесь к серверу, чтобы загрузить клиентов.')).toBeInTheDocument();
       expect(container.querySelector('.empty-state button')).toBeNull();
     });
-  });
-
-  it('hides the "Новый клиент" button when canCreatePlayer is false', () => {
-    renderTable({ canCreatePlayer: false });
-    expect(screen.queryByRole('button', { name: /Новый клиент/ })).toBeNull();
   });
 });

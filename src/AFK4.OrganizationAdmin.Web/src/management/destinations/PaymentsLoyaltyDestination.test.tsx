@@ -70,15 +70,35 @@ afterEach(() => {
 afterAll(() => { mock.restore(); mock.module('../../operatorHelpers', () => actual); });
 
 describe('PaymentsLoyaltyDestination (одна страница, без табов)', () => {
-  // Одна связная страница: обе зоны стопкой, без таб-стрипа и без глобального save-бара
-  // ManagementScreen (каждая зона сохраняется своей кнопкой).
-  it('renders both zones with no tab strip and no shared save bar', async () => {
+  // Одна связная страница: обе зоны стопкой, без таб-стрипа, и одна плашка сохранения на экран
+  // (решение владельца 29.09) вместо трёх кнопок «Сохранить» под кэшбэком, приглашением и подарком.
+  it('renders both zones with no tab strip and a single save bar', async () => {
     const { container } = view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
 
     expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
     expect(await screen.findByLabelText(/кэшбек с пополнений/i)).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
+    expect(container.querySelectorAll('.management-save-bar')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Сохранить' })).toHaveLength(1);
+  });
+
+  // Шлюзам нечего сохранять плашкой: их реквизиты — отдельная форма за «Настроить».
+  it('shows no save bar when only the gateways are on screen', () => {
+    const { container } = view([permissionNames.managePaymentGateways]);
     expect(container.querySelector('.management-save-bar')).toBeNull();
+  });
+
+  it('one save writes every changed section, and only those', async () => {
+    view([permissionNames.manageLoyaltySettings]);
+    fireEvent.click(await screen.findByLabelText(/кэшбек с пополнений/i));
+    fireEvent.click(await screen.findByLabelText('Приглашение друзей'));
+    fireEvent.change(screen.getByLabelText(/^Другу/), { target: { value: '10' } });
+    referralUpdate.mockClear();
+    birthdayGiftUpdate.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(loyaltyUpdate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(referralUpdate).toHaveBeenCalledWith(expect.objectContaining({ enabled: true })));
+    expect(birthdayGiftUpdate).not.toHaveBeenCalled();
   });
 
   it('shows only the payment-methods zone for gateways-only permission', () => {
@@ -95,7 +115,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     expect(screen.queryByRole('tab')).toBeNull();
   });
 
-  it('keeps the loyalty section save button disabled until something changes', async () => {
+  it('keeps the save bar disabled until something changes', async () => {
     view([permissionNames.manageLoyaltySettings]);
     await screen.findByLabelText(/кэшбек с пополнений/i);
     const saveButton = screen.getByRole('button', { name: 'Сохранить' });
@@ -104,7 +124,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     expect(saveButton).toBeEnabled();
   });
 
-  it('saves loyalty percents in basis points from its own section button', async () => {
+  it('saves loyalty percents in basis points from the screen save bar', async () => {
     view([permissionNames.manageLoyaltySettings]);
     const toggle = await screen.findByLabelText(/кэшбек с пополнений/i);
     fireEvent.click(toggle);

@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney, majorToMinor } from '@afk4/money';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import type { OrganizationSubscription, SubscriptionPlan } from '@/api/types';
@@ -40,7 +40,7 @@ interface Props {
 }
 
 export function SubscriptionDialog({ client, plansClient, organizationId, subscription, onClose, onUpdated }: Props) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const { toast } = useToast();
   const [form, setForm] = useState(() => subscriptionToForm(subscription));
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -152,7 +152,7 @@ export function SubscriptionDialog({ client, plansClient, organizationId, subscr
         <Field
           label={t('platform.organization.subscriptionDialog.amount')}
           htmlFor="subscription-amount"
-          hint={problem === null ? formatCurrency(Number.parseFloat(form.amount.replace(',', '.')), subscription.currencyCode) : undefined}
+          hint={problem === null ? formatMoney(majorToMinor(Number.parseFloat(form.amount.replace(',', '.'))), subscription.currencyCode) : undefined}
         >
           <Input
             id="subscription-amount"
@@ -231,7 +231,7 @@ export function SubscriptionDialog({ client, plansClient, organizationId, subscr
             {t('platform.organization.subscriptionForm.discountCurrent', {
               value: subscription.discountPercent !== null
                 ? `${subscription.discountPercent}%`
-                : formatCurrency(minorToMajor(subscription.discountAmountMinorUnits ?? 0), subscription.currencyCode)
+                : formatMoney(subscription.discountAmountMinorUnits ?? 0, subscription.currencyCode)
             })}
           </p>
         ) : null}

@@ -35,9 +35,10 @@ describe('StaffScreen', () => {
 
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: ' Дилшод ' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992 90 000-00-00' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
-    await waitFor(() => expect(screen.getByText('123456')).toBeTruthy());
+    // Код тройками — его читают вслух человеку рядом.
+    await waitFor(() => expect(screen.getByText('123 456')).toBeTruthy());
     // Номер уезжает нормализованным, как и на входе в мастер: сервер не должен разбирать
     // пробелы и дефисы, которые набрал человек.
     expect(invite).toHaveBeenCalledWith('Дилшод', '992900000000', 'operator');
@@ -49,7 +50,7 @@ describe('StaffScreen', () => {
     const invite = mock();
     renderScreen({ invite });
 
-    const button = screen.getByRole('button', { name: 'Пригласить' });
+    const button = screen.getByRole('button', { name: 'Добавить' });
     fireEvent.click(button);
 
     expect(invite).not.toHaveBeenCalled();
@@ -67,7 +68,7 @@ describe('StaffScreen', () => {
     fireEvent.blur(screen.getByLabelText('Телефон'));
 
     expect(screen.getByText(/девять цифр/i)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Пригласить' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Добавить' }) as HTMLButtonElement).disabled).toBe(true);
     expect(invite).not.toHaveBeenCalled();
   });
 
@@ -85,9 +86,9 @@ describe('StaffScreen', () => {
 
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992900000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
-    await waitFor(() => expect(screen.getByText(/Не удалось пригласить/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Не удалось добавить сотрудника/)).toBeTruthy());
     expect((screen.getByLabelText('Имя') as HTMLInputElement).value).toBe('Дилшод');
   });
 
@@ -101,10 +102,10 @@ describe('StaffScreen', () => {
 
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992900000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
     await waitFor(() => expect(screen.getByText(/уже принадлежит сотруднику клуба/)).toBeTruthy());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
     await waitFor(() => expect(screen.getByText(/приглашение уходит SMS/)).toBeTruthy());
   });
 
@@ -118,7 +119,7 @@ describe('StaffScreen', () => {
 
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '+992900000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
     await waitFor(() => expect(screen.getByText(/Тариф клуба не позволяет/)).toBeTruthy());
   });
@@ -181,19 +182,20 @@ describe('StaffScreen · главное действие', () => {
       .map((button) => button.textContent ?? '');
   }
 
-  it('пока никого нет, главное — «Пригласить», а не «Пропустить»', () => {
+  it('пока никого нет, главное — «Добавить», а не «Пропустить»', () => {
     renderScreen({ invite: mock() });
 
-    expect(primaryButtons()).toEqual(['Пригласить']);
+    expect(primaryButtons()).toEqual(['Добавить']);
   });
 
   it('после приглашения главное — «Дальше»', async () => {
     renderScreen({ invite: mock().mockResolvedValue(INVITE) });
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Дилшод' } });
     fireEvent.change(screen.getByLabelText('Телефон'), { target: { value: '900000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
-    await waitFor(() => expect(screen.getByText('123456')).toBeTruthy());
+    // Код тройками — его читают вслух человеку рядом.
+    await waitFor(() => expect(screen.getByText('123 456')).toBeTruthy());
     expect(primaryButtons()).toEqual(['Дальше']);
   });
 });

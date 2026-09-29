@@ -25,8 +25,11 @@ enum AppSection { home, reservations, wallet, profile }
 
 /// Оболочка вошедшего игрока: разделы внизу, содержимое сверху.
 ///
-/// Раздел «Брони» появляется, только если клуб принимает онлайн-брони: вкладка, ведущая в
-/// невозможное действие, хуже её отсутствия.
+/// Разделы всегда одни и те же — четыре. Раньше «Брони» появлялись, только если клуб принимает
+/// онлайн-брони, и пока список возможностей не пришёл, вкладка стояла, а потом исчезала: панель
+/// перестраивалась под пальцем, и «Баланс» уезжал на место «Броней». Теперь у клуба без
+/// онлайн-броней раздел остаётся — с уже сделанными бронями и строкой о том, что новую делают
+/// на стойке, — а не пропадает.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
@@ -88,6 +91,11 @@ class _AppShellState extends State<AppShell> {
   /// Номер подтвердили прямо сейчас. Сессия в памяти этого ещё не знает, а входить заново
   /// ради открывшихся возможностей — плохая цена за подтверждение.
   bool _phoneVerifiedNow = false;
+
+  /// Чем подписаны шапки разделов клуба: название зала из профиля, пока его нет — сети. Раньше
+  /// клуб был виден только на Главной, и в Бронях или Кошельке нельзя было понять, чьи это брони
+  /// и деньги, — а у игрока их может быть в нескольких клубах.
+  String? _placeName;
 
   /// Зал, который игрок назвал для первого действия в этом клубе. Помнит оболочка, а не лист:
   /// зал нужен и брони, и пополнению, а спрашивать одно и то же дважды — цена ни за что.
@@ -163,7 +171,7 @@ class _AppShellState extends State<AppShell> {
       case PushDestination.home:
         _open(AppSection.home);
       case PushDestination.reservations:
-        if (_enabled('online_booking')) _open(AppSection.reservations);
+        _open(AppSection.reservations);
       case PushDestination.wallet:
         _open(AppSection.wallet);
       case PushDestination.shop:
@@ -246,6 +254,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final l = L.of(context);
     final booking = _enabled('online_booking');
+    final place = _placeName ?? widget.organization.name;
 
     final sections = <(AppSection, Widget screen, NavigationDestination tab)>[
       (
@@ -267,6 +276,9 @@ class _AppShellState extends State<AppShell> {
           openNotificationsRequest: _openNotificationsRequest,
           onOpenPushDestination: _openPushDestination,
           pinSet: widget.me?.person.pinSet,
+          onPlaceNamed: (name) {
+            if (name != _placeName) setState(() => _placeName = name);
+          },
           clock: widget.clock,
         ),
         NavigationDestination(
@@ -275,10 +287,10 @@ class _AppShellState extends State<AppShell> {
           label: l.customerNavDashboard,
         ),
       ),
-      if (booking)
-        (
+      (
           AppSection.reservations,
           ReservationsScreen(
+            bookingEnabled: booking,
             api: widget.api,
             phoneVerified: _phoneVerified,
             accountOpen: _accountOpen,
@@ -286,6 +298,8 @@ class _AppShellState extends State<AppShell> {
             onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
             onAccountOpened: widget.onAccountOpened,
             active: _section == AppSection.reservations,
+            place: place,
+            placeLogoUrl: widget.organization.logoUrl,
             clock: widget.clock,
           ),
           NavigationDestination(
@@ -306,6 +320,8 @@ class _AppShellState extends State<AppShell> {
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           onAccountOpened: widget.onAccountOpened,
           active: _section == AppSection.wallet,
+          place: place,
+          placeLogoUrl: widget.organization.logoUrl,
           clock: widget.clock,
         ),
         NavigationDestination(

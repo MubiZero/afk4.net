@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PartialFailure } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
-import { useBlockedReason } from '@afk4/ui/react';
+import { Inspector, Money, useBlockedReason, type Fact, type RowAction } from '@afk4/ui/react';
 import { describeApiError } from '@/api/describeApiError';
-import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
 import type { DebtApi } from '@/api/platformClients/debt';
-import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -28,15 +25,15 @@ import { OwnerTransferDialog } from './OwnerTransferDialog';
 
 type OrganizationsClient = Pick<OrganizationsApi, 'updateProfile' | 'updateStatus' | 'updateUpdateChannel' | 'transferOwner'>;
 type SubscriptionsClient = Pick<SubscriptionsApi, 'getSubscription' | 'updateSubscription'>;
-type InvoicesClient = Pick<InvoicesApi, 'generateInvoice'>;
 type OwnerInvitesClient = Pick<OrganizationOwnerInvitesApi, 'listOrganizationOwnerInvites'>;
 type DebtClient = Pick<DebtApi, 'listDebt'>;
 type PlansClient = Pick<PlansApi, 'listPlans'>;
 
+// Счёт по подписке выставляется на вкладке «Счета», рядом со списком счетов: раньше та же кнопка
+// стояла и здесь, и человек не знал, какая из двух настоящая.
 export interface ClientPassportClients {
   organizations: OrganizationsClient;
   subscriptions: SubscriptionsClient;
-  invoices: InvoicesClient;
   organizationOwnerInvites: OwnerInvitesClient;
   debt: DebtClient;
   plans: PlansClient;
@@ -50,16 +47,15 @@ interface Props {
 }
 
 type DialogKind = 'profile' | 'subscription' | 'grace' | 'ownerTransfer' | null;
+type StatusTarget = 'active' | 'suspended' | 'deletion_pending';
 
 export function ClientPassport({ client, organization, access, onUpdated }: Props) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
 
   const [openDialog, setOpenDialog] = useState<DialogKind>(null);
-  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<StatusTarget | null>(null);
   const [statusPending, setStatusPending] = useState(false);
-  const [invoicePending, setInvoicePending] = useState(false);
-  const attempt = useAttemptKey();
   const [tick, setTick] = useState(0);
 
   // Три запроса паспорта независимы, и падение одного не должно стирать остальные: цена со
@@ -107,7 +103,6 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
     subscriptionPart.status === 'failed' ? t('platform.organization.passport.blocked.subscriptionNotLoaded') : null);
 
   const cities = Array.from(new Set(organization.branches.map(branch => branch.city)));
-  const nextStatus = organization.status === 'active' ? 'suspended' : 'active';
   const isPastDue = organization.subscriptionStatus === 'past_due';
   // Отсрочка не откатывает уже случившийся past_due (§7/§8) — это законное состояние, а не сбой,
   // и держать тревожный чип рядом со спокойным «Отсрочка до …» ломает инвариант «клуб под
@@ -115,12 +110,27 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   // при неизвестном статусе долга безопаснее оставить чип как есть.
   const isUnderActiveGrace = debtStatus === 'ready' && debtRow !== null && debtRow.graceUntilUtc !== null;
 
+  // Статус клуба меняется только здесь (решение владельца 29.09: статус — в паспорте). Работающий
+  // клуб можно приостановить или начать его уход; приостановленный и уходящий — вернуть в работу.
+  const statusActions: { status: StatusTarget; label: string; danger: boolean }[] = !access.canManageStatus ? [] : organization.status === 'active'
+    ? [
+      { status: 'suspended', label: t('platform.organization.passport.action.suspend'), danger: true },
+      { status: 'deletion_pending', label: t('platform.organization.passport.action.startOffboarding'), danger: true }
+    ]
+    : [
+      { status: 'active', label: t('platform.organization.passport.action.activate'), danger: false },
+      ...(organization.status === 'suspended'
+        ? [{ status: 'deletion_pending' as const, label: t('platform.organization.passport.action.startOffboarding'), danger: true }]
+        : [])
+    ];
+
   async function applyStatus(reason: string) {
+    if (statusTarget === null) return;
     setStatusPending(true);
     try {
-      const next = await client.organizations.updateStatus(organization.organizationId, nextStatus, reason);
+      const next = await client.organizations.updateStatus(organization.organizationId, statusTarget, reason);
       onUpdated(next);
-      setStatusConfirmOpen(false);
+      setStatusTarget(null);
       toast({ title: t('platform.organization.passport.statusUpdated'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
@@ -129,153 +139,121 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
     }
   }
 
-  async function generateInvoice() {
-    setInvoicePending(true);
-    try {
-      await client.invoices.generateInvoice(
-        organization.organizationId,
-        attempt.forSubject({ action: 'generate', organizationId: organization.organizationId }));
-      attempt.done();
-      toast({ title: t('platform.organization.passport.invoiceGenerated'), variant: 'success' });
-    } catch (cause) {
-      toast({ title: describeApiError(cause, t), variant: 'error' });
-    } finally {
-      setInvoicePending(false);
-    }
-  }
+  // Редкое и опасное — в «⋯»: передача владельцу и смена статуса. Раньше это были ещё три кнопки
+  // во всю ширину под главной, и «Приостановить» красным стояло вплотную к «Передать».
+  const menuActions: RowAction[] = [
+    ...(access.canTransferOwner
+      ? [{ id: 'ownerTransfer', label: t('platform.organization.passport.action.transferOwner'), onSelect: () => setOpenDialog('ownerTransfer') }]
+      : []),
+    ...statusActions.map(action => ({ id: `status-${action.status}`, label: action.label, danger: action.danger, onSelect: () => setStatusTarget(action.status) }))
+  ];
 
+  const secondary = [
+    access.canManageSubscriptions ? (
+      <Button key="grace" variant="outline" size="sm" onClick={() => setOpenDialog('grace')}>
+        {t('platform.organization.passport.action.paymentGrace')}
+      </Button>
+    ) : null,
+    access.canManageProfile ? (
+      <Button key="profile" variant="outline" size="sm" onClick={() => setOpenDialog('profile')}>
+        {t('platform.organization.passport.action.editProfile')}
+      </Button>
+    ) : null
+  ].filter(node => node !== null);
+
+  const priceValue = subscriptionPart.status === 'loading' ? <Skeleton className="pc-skel-value" />
+    : subscription === null ? t('platform.organization.passport.unknownValue')
+    : <Money minorUnits={subscription.amountMinorUnits} currencyCode={subscription.currencyCode} />;
+  const nextInvoiceHint = subscription === null ? undefined
+    : subscription.nextInvoiceUtc !== null
+      ? t('platform.organization.passport.nextInvoiceOn', { date: formatDate(subscription.nextInvoiceUtc) })
+      : t('platform.organization.passport.noNextInvoice');
+
+  const facts: Fact[] = [
+    { label: t('platform.organization.subscriptionForm.plan'), value: PLAN_LABEL[organization.planCode] !== undefined ? t(PLAN_LABEL[organization.planCode]) : organization.planCode },
+    { label: t('platform.organization.passport.debt.label'), value: <OrganizationDebtBlock row={debtRow} status={debtStatus} /> },
+    // «—» здесь значит «владельца нет», и подменять им несостоявшийся запрос нельзя: отсутствие
+    // владельца — повод завести код приглашения, а неудача — повод повторить.
+    { label: t('platform.organization.invites.colOwner'), value: ownerPart.status === 'failed' ? t('platform.organization.passport.unknownValue') : (owner ?? '—') },
+    // Соседняя секция канала обновлений называет его словами; паспорт печатал сырое stable/beta.
+    { label: t('platform.organization.passport.updateChannel'), value: `${t(channelLabelKey(organization.updateChannel))}${organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}` },
+    { label: t('platform.organization.passport.referral.code'), value: organization.referral.code ?? t('platform.organization.passport.referral.codeNotIssued') },
+    // «Приведён кем-то» — не общий случай: строка «—» у всех клубов, что пришли сами, была бы шумом.
+    ...(organization.referral.referredByOrganizationId !== null ? [{
+      label: t('platform.organization.passport.referral.referredBy'),
+      value: `${organization.referral.referredByOrganizationName ?? '—'} · ${organization.referral.rewardedAtUtc !== null
+        ? t('platform.organization.passport.referral.rewardedOn', { date: formatDate(organization.referral.rewardedAtUtc) })
+        : t('platform.organization.passport.referral.notRewardedYet')}`
+    }] : []),
+    ...(organization.referral.referred.length > 0 ? [{
+      label: t('platform.organization.passport.referral.referredClubs'),
+      value: organization.referral.referred
+        .map(club => club.rewarded ? club.name : `${club.name} (${t('platform.organization.passport.referral.notRewarded')})`)
+        .join(', ')
+    }] : [])
+  ];
+
+  // Имя клуба уже стоит заголовком страницы, поэтому паспорт озаглавлен «О клубе», а не вторым
+  // «Orion Gaming». Статус — только здесь: во вкладке «Лимиты» его второго переключателя больше нет.
   return (
-    <aside className="pc-passport">
-      <div className="pc-passport-id">
-        <strong>{organization.name}</strong>
-        <span>{t('platform.organization.passport.branchCount', { count: organization.branches.length })}{cities.length > 0 ? ` · ${cities.join(', ')}` : ''}</span>
-      </div>
-
-      <div className="pc-passport-chips">
-        <Badge variant={STATUS_VARIANT[organization.status] ?? 'outline'}>
-          {STATUS_LABEL[organization.status] !== undefined ? t(STATUS_LABEL[organization.status]) : organization.status}
-        </Badge>
-        {isPastDue && !isUnderActiveGrace ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
-      </div>
-
-      {somethingFailed ? (
-        <PartialFailure
-          title={t('platform.organization.passport.partialError')}
-          retryLabel={t('state.retry')}
-          onRetry={reloadParts}
-        />
-      ) : null}
-
-      <dl className="pc-passport-facts">
-        <Row label={t('platform.organization.subscriptionForm.plan')}>
-          {PLAN_LABEL[organization.planCode] !== undefined ? t(PLAN_LABEL[organization.planCode]) : organization.planCode}
-        </Row>
-        <Row label={t('platform.organization.passport.price')}>
-          {subscriptionPart.status === 'loading' ? <Skeleton className="pc-skel-value" />
-            : subscription === null ? t('platform.organization.passport.unknownValue')
-            : formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}
-        </Row>
-        <Row label={t('platform.organization.passport.nextInvoice')}>
-          {subscriptionPart.status === 'loading' ? <Skeleton className="pc-skel-value" />
-            : subscription === null ? t('platform.organization.passport.unknownValue')
-            : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
-        </Row>
-        <Row label={t('platform.organization.passport.debt.label')}>
-          <OrganizationDebtBlock row={debtRow} status={debtStatus} />
-        </Row>
-        <Row label={t('platform.organization.invites.colOwner')}>
-          {/* «—» здесь значит «владельца нет», и подменять им несостоявшийся запрос нельзя:
-              отсутствие владельца — повод завести код доступа, а неудача — повод повторить. */}
-          {ownerPart.status === 'failed' ? t('platform.organization.passport.unknownValue') : (owner ?? '—')}
-        </Row>
-        <Row label={t('platform.organization.passport.updateChannel')}>
-          {/* Соседняя секция канала обновлений давно называет его словами; паспорт печатал сырое
-              stable/beta/internal, и один и тот же канал на одном экране читался двумя способами. */}
-          {t(channelLabelKey(organization.updateChannel))}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
-        </Row>
-        <Row label={t('platform.organization.passport.referral.code')}>
-          {organization.referral.code ?? t('platform.organization.passport.referral.codeNotIssued')}
-        </Row>
-        {/* «Приведён кем-то» — не общий случай, и держать строку «—» для всех клубов, которые
-            пришли сами, было бы шумом. Показываем только тем, у кого правда есть реферер. */}
-        {organization.referral.referredByOrganizationId !== null ? (
-          <Row label={t('platform.organization.passport.referral.referredBy')}>
-            {organization.referral.referredByOrganizationName ?? '—'}
-            {' · '}
-            {organization.referral.rewardedAtUtc !== null
-              ? t('platform.organization.passport.referral.rewardedOn', { date: formatDate(organization.referral.rewardedAtUtc) })
-              : t('platform.organization.passport.referral.notRewardedYet')}
-          </Row>
-        ) : null}
-        {organization.referral.referred.length > 0 ? (
-          <Row label={t('platform.organization.passport.referral.referredClubs')}>
-            {organization.referral.referred
-              .map(club => club.rewarded ? club.name : `${club.name} (${t('platform.organization.passport.referral.notRewarded')})`)
-              .join(', ')}
-          </Row>
-        ) : null}
-      </dl>
-
-      {/* Иерархия действий явная: главный рычаг — условия обслуживания, остальное вторично,
-          приостановка отдельно и красным. Прошлая версия давала шесть одинаковых серых кнопок. */}
-      <div className="pc-passport-actions">
-        {access.canManageSubscriptions ? (
-          // Диалог условий строится вокруг текущей подписки: пока её нет в руках, открывать
-          // нечего.
+    <>
+      <Inspector
+        className="pc-passport"
+        title={t('platform.organization.passport.title')}
+        status={(
           <>
-            <Button
-              size="sm"
-              disabled={subscription === null}
-              aria-describedby={subscriptionBlocked.describedBy}
-              onClick={() => setOpenDialog('subscription')}
-            >
-              {t('platform.organization.passport.action.editSubscription')}
-            </Button>
-            {subscriptionBlocked.hint}
+            <Badge variant={STATUS_VARIANT[organization.status] ?? 'outline'}>
+              {STATUS_LABEL[organization.status] !== undefined ? t(STATUS_LABEL[organization.status]) : organization.status}
+            </Badge>
+            {isPastDue && !isUnderActiveGrace ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
           </>
+        )}
+        subtitle={`${t('platform.organization.passport.branchCount', { count: organization.branches.length })}${cities.length > 0 ? ` · ${cities.join(', ')}` : ''}`}
+        menu={menuActions.length > 0 ? { label: t('platform.organization.passport.more'), actions: menuActions } : undefined}
+        figure={{ label: t('platform.organization.passport.price'), value: priceValue, hint: nextInvoiceHint }}
+      >
+        {somethingFailed ? (
+          <PartialFailure
+            title={t('platform.organization.passport.partialError')}
+            retryLabel={t('state.retry')}
+            onRetry={reloadParts}
+          />
         ) : null}
-        {access.canManageInvoices ? (
-          <Button variant="outline" size="sm" disabled={invoicePending} onClick={() => void generateInvoice()}>
-            {t('platform.organization.passport.action.generateInvoice')}
-          </Button>
+
+        {access.canManageSubscriptions || secondary.length > 0 ? (
+          <Inspector.Actions
+            // Диалог условий строится вокруг текущей подписки: пока её нет в руках, открывать нечего.
+            primary={access.canManageSubscriptions ? (
+              <Button
+                block
+                disabled={subscription === null}
+                aria-describedby={subscriptionBlocked.describedBy}
+                onClick={() => setOpenDialog('subscription')}
+              >
+                {t('platform.organization.passport.action.editSubscription')}
+              </Button>
+            ) : undefined}
+            hint={subscriptionBlocked.hint}
+            secondary={secondary.length === 2 ? [secondary[0], secondary[1]] : secondary.length === 1 ? [secondary[0]] : []}
+          />
         ) : null}
-        {access.canManageSubscriptions ? (
-          <Button variant="outline" size="sm" onClick={() => setOpenDialog('grace')}>
-            {t('platform.organization.passport.action.paymentGrace')}
-          </Button>
-        ) : null}
-        {access.canManageProfile ? (
-          <Button variant="outline" size="sm" onClick={() => setOpenDialog('profile')}>
-            {t('platform.organization.passport.action.editProfile')}
-          </Button>
-        ) : null}
-        {access.canTransferOwner ? (
-          <Button variant="outline" size="sm" onClick={() => setOpenDialog('ownerTransfer')}>
-            {t('platform.organization.passport.action.transferOwner')}
-          </Button>
-        ) : null}
-        {access.canManageStatus ? (
-          <Button
-            variant={nextStatus === 'suspended' ? 'destructive' : 'default'}
-            size="sm"
-            className="pc-passport-danger"
-            onClick={() => setStatusConfirmOpen(true)}
-          >
-            {nextStatus === 'suspended' ? t('platform.organization.passport.action.suspend') : t('platform.organization.passport.action.activate')}
-          </Button>
-        ) : null}
-      </div>
+
+        <Inspector.Facts items={facts} />
+      </Inspector>
 
       <ConfirmDialog
-        open={statusConfirmOpen}
-        title={nextStatus === 'suspended' ? t('platform.organization.passport.suspendTitle') : t('platform.organization.passport.activateTitle')}
+        open={statusTarget !== null}
+        title={statusTarget === 'suspended' ? t('platform.organization.passport.suspendTitle')
+          : statusTarget === 'deletion_pending' ? t('platform.organization.passport.offboardTitle')
+          : t('platform.organization.passport.activateTitle')}
+        description={statusTarget === 'deletion_pending' ? t('platform.organization.passport.offboardBody') : undefined}
         confirmLabel={t('platform.organization.statusForm.confirm')}
         cancelLabel={t('platform.organization.statusForm.cancel')}
-        reasonLabel={nextStatus === 'suspended' ? t('platform.organization.statusForm.reason') : undefined}
-        destructive={nextStatus === 'suspended'}
+        reasonLabel={statusTarget !== 'active' ? t('platform.organization.statusForm.reason') : undefined}
+        destructive={statusTarget !== 'active'}
         pending={statusPending}
         onConfirm={reason => void applyStatus(reason)}
-        onOpenChange={open => { if (!open) setStatusConfirmOpen(false); }}
+        onOpenChange={open => { if (!open) setStatusTarget(null); }}
       />
 
       {openDialog === 'profile' ? (
@@ -313,16 +291,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           onTransferred={() => { setOpenDialog(null); setTick(value => value + 1); }}
         />
       ) : null}
-    </aside>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="pc-passport-row">
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
+    </>
   );
 }
 

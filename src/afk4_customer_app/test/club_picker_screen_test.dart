@@ -456,7 +456,7 @@ void main() {
 
     await tester.tap(find.text('Подробнее'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Играть здесь'));
+    await tester.tap(find.text('Выбрать клуб'));
     await tester.pumpAndSettle();
 
     expect(picked, _cyberx);
@@ -567,7 +567,7 @@ void main() {
     expect(find.text('Ваши клубы'), findsOneWidget);
     expect(find.text('Все клубы'), findsOneWidget);
     expect(find.textContaining('120,00 с.'), findsOneWidget);
-    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+    expect(find.textContaining('Удержано под бронь'), findsOneWidget);
   });
 
   testWidgets('без своих клубов витрина выглядит как прежде', (tester) async {
@@ -591,7 +591,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Вы здесь'), findsOneWidget);
-    expect(find.text('Перейти'), findsNothing);
+    expect(find.text('Выбрать'), findsNothing);
 
     await tester.tap(find.text('Вы здесь'));
     await tester.pumpAndSettle();
@@ -729,5 +729,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(ChoiceChip, 'Рядом со мной'), findsNothing);
+  });
+
+  // Витрина прокручивается целиком: заголовок и подзаголовок уходят вверх, а поиск остаётся
+  // под пальцем. Раньше вся эта шапка стояла неподвижно и съедала полэкрана.
+  testWidgets('при прокрутке витрины уходит заголовок, а поиск остаётся', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx, _arena, _cyberx, _arena])));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Выберите клуб'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(TextField)).dy, lessThan(120));
   });
 }

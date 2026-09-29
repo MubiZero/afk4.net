@@ -1,27 +1,8 @@
-/* Каркас экрана: шапка «подзаголовок над заголовком», колонка контента с разумной мерой
+/* Каркас экрана: шапка раздела (SectionHeader), колонка контента с разумной мерой
    ширины, приподнятая панель под форму или список, тулбар панели-списка.
 
    Ширина колонки — не косметика: форма, растянутая от края до края, читается как
    недоделанный экран, а список, зажатый в 720px, теряет колонки. Отсюда три меры. */
-
-.management-screen-head {
-  flex-shrink: 0;
-  display: grid;
-  gap: 2px;
-  margin-bottom: var(--space-3);
-}
-
-.management-screen-head span {
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-}
-
-.management-screen-head h1 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--text-md);
-  line-height: 1.15;
-}
 
 /* ============ Шапка раздела ============ */
 /* Один порядок на все разделы: строка 1 — название слева, справа до трёх счётчиков и одна главная
@@ -177,7 +158,17 @@
   gap: var(--space-2);
 }
 
-.ui-inspector-secondary > .ui-btn { min-width: 0; }
+/* Три кнопки в ширине инспектора не помещают подпись одной строкой («Перевод DushanbeCity»,
+   «Открыть карту»): подпись переносится, а кнопки ряда остаются одной высоты — ряд читается как
+   ряд, а не обрезается по краю. */
+.ui-inspector-secondary > .ui-btn {
+  min-width: 0;
+  height: auto;
+  min-height: var(--control-h);
+  padding-block: var(--space-1);
+  line-height: 1.2;
+  white-space: normal;
+}
 
 .ui-inspector-section {
   display: grid;
@@ -273,11 +264,14 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
+/* Нижняя граница — чтобы подсказка поиска читалась целиком: при узком окне поле делило свободное
+   место поровну с распоркой тулбара и обрезало её до «Игрок, телефон, карт». */
 .tt-search {
   display: flex;
   flex: 1;
   align-items: center;
   gap: 8px;
+  min-width: 200px;
   max-width: 360px;
   height: 34px;
   border: 1px solid var(--border-default);

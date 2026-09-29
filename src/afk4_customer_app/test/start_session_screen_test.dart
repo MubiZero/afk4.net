@@ -57,7 +57,14 @@ FakeHttpClient _serve({String seats = '[]', (String, int)? start, String? tariff
           _ => ('[]', 200),
         });
 
-Widget harness(FakeHttpClient http, {void Function(String?)? onClosed, bool? pinSet}) => MaterialApp(
+/// Второй шаг «Сесть за ПК»: код с монитора уже прочитан на первом, здесь только тариф и время.
+Widget harness(
+  FakeHttpClient http, {
+  void Function(SitDownOutcome?)? onClosed,
+  bool? pinSet,
+  String code = '482913',
+}) =>
+    MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -65,11 +72,12 @@ Widget harness(FakeHttpClient http, {void Function(String?)? onClosed, bool? pin
         builder: (context) => Scaffold(
           body: TextButton(
             onPressed: () async {
-              final result = await Navigator.of(context).push<String>(
+              final result = await Navigator.of(context).push<SitDownOutcome>(
                 MaterialPageRoute(
                   builder: (_) => StartSessionScreen(
                     api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
                     branchId: 'branch-1',
+                    seatingCode: code,
                     pinSet: pinSet,
                   ),
                 ),
@@ -97,8 +105,10 @@ void main() {
 
     expect(find.text('Клуб пока не назначил цены'), findsOneWidget);
     expect(find.textContaining('администратор посадит вас за ПК'), findsOneWidget);
-    // Кнопки старта нет вовсе: серая кнопка без объяснения — та же поломка, что и была.
+    // Кнопки старта нет вовсе: серая кнопка без объяснения — та же поломка, что и была. Выход
+    // остаётся один — выбрать время на самом ПК.
     expect(find.byType(FilledButton), findsNothing);
+    expect(find.text('Выбрать время на экране ПК'), findsOneWidget);
   });
 
   // Список мест перестал быть выбором: машину называет её собственный монитор. Но «есть ли
@@ -124,8 +134,6 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
     // Цену сервер считает сразу, а кнопка ждёт код: без него начинать нечего.
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
 
     expect(http.paths, contains('/api/me/reservations/quote'));
     expect(find.textContaining('Начать за'), findsOneWidget);
@@ -171,12 +179,10 @@ void main() {
       seats: jsonEncode([_seat(id: 's1', name: 'PC-01'), _seat(id: 's2', name: 'PC-02')]),
       start: ('{"session":{"seatId":"s2"}}', 200),
     );
-    String? closedWith;
+    SitDownOutcome? closedWith;
     await tester.pumpWidget(harness(http, onClosed: (result) => closedWith = result));
     await open(tester);
 
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -187,7 +193,7 @@ void main() {
     // Платное действие — ключ идемпотентности защищает от двойного списания.
     expect(started['idempotencyKey'], isA<String>());
     // Имя места подтверждает, что человек не ошибся монитором.
-    expect(closedWith, 'PC-02');
+    expect(closedWith, isA<SessionStarted>().having((o) => o.seatName, 'seat', 'PC-02'));
   });
 
   // Код не подошёл — это не общий сбой: он истёк, набран с чужого экрана или с опечаткой, и
@@ -197,11 +203,9 @@ void main() {
       seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]),
       start: ('{"error":"seating_code_invalid"}', 400),
     );
-    await tester.pumpWidget(harness(http));
+    await tester.pumpWidget(harness(http, code: '000000'));
     await open(tester);
 
-    await tester.enterText(find.byType(TextField), '000000');
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -218,8 +222,6 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -235,8 +237,6 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -252,8 +252,6 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -270,8 +268,6 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -320,12 +316,11 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    // Сначала кнопка ждёт код: без машины начинать нечего, каким бы ни был тариф.
-    expect(find.widgetWithText(FilledButton, 'Код с экрана ПК'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField), '482913');
-    await tester.pumpAndSettle();
+    // Код прочитан на первом шаге; без тарифа начинать нечего. Чего кнопка ждёт, сказано
+    // строкой над ней — сама она по-прежнему называет действие.
     expect(find.text('Выберите тариф'), findsOneWidget);
+    final start = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Начать игру'));
+    expect(start.onPressed, isNull);
 
     await tester.tap(find.text('Ночной'));
     await tester.pumpAndSettle();
@@ -351,7 +346,8 @@ void main() {
 
     expect(find.textContaining('ПИН-код'), findsWidgets);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Задать ПИН-код'));
+    // Задать ПИН — второе действие экрана, главное здесь — начать игру.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Задать ПИН-код'));
     await tester.pumpAndSettle();
 
     expect(find.text('ПИН-код для посадки за ПК'), findsOneWidget);
@@ -363,6 +359,21 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    expect(find.widgetWithText(FilledButton, 'Задать ПИН-код'), findsNothing);
+    expect(find.text('Задать ПИН-код'), findsNothing);
+  });
+
+  // Выбирать на телефоне не обязательно: тот же прайс есть на экране ПК, и кому-то удобнее
+  // решать, уже сев. Тогда телефон только впускает — это решает первый шаг.
+  testWidgets('время можно выбрать на самом ПК', (tester) async {
+    final http = _serve(seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]));
+    SitDownOutcome? closedWith;
+    await tester.pumpWidget(harness(http, onClosed: (result) => closedWith = result));
+    await open(tester);
+
+    await tester.tap(find.text('Выбрать время на экране ПК'));
+    await tester.pumpAndSettle();
+
+    expect(closedWith, isA<ChooseOnPc>());
+    expect(http.paths, isNot(contains('/api/me/sessions/start')));
   });
 }

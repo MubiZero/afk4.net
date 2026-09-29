@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@afk4/ui/react';
 import { Badge } from '@/components/ui/badge';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonRows } from '@/components/ui/skeletons';
@@ -8,7 +9,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';
@@ -34,7 +35,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
   /// общему «управлению деньгами».
   canManageInvoices?: boolean;
 }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useLoadable(() => client.listOrganizationInvoices(organizationId), [organizationId]);
   const [pending, setPending] = useState(false);
@@ -84,15 +85,14 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.organization.section.invoices')}</CardTitle>
-        {canManage ? (
+      {canManage ? (
+        <CardToolbar>
           <span className="pc-cell-actions">
             <Button variant="outline" disabled={pending} onClick={() => void generate()}>{t('platform.organization.invoices.generate')}</Button>
             <Button variant="outline" onClick={() => setManualOpen(true)}>{t('platform.organization.invoices.manual')}</Button>
           </span>
-        ) : null}
-      </CardHeader>
+        </CardToolbar>
+      ) : null}
       <CardContent>
         {state.status === 'error' ? (
           <ErrorState message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
@@ -105,16 +105,17 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
             <div key={inv.invoiceId} className="pc-list-row">
               <span className="pc-num">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
               <span className="pc-cell-actions">
-                <span className="pc-num">{formatCurrency(minorToMajor(inv.amountMinorUnits), inv.currencyCode)}</span>
+                <span className="pc-num">{formatMoney(inv.amountMinorUnits, inv.currencyCode)}</span>
                 <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[inv.status] ? t(INVOICE_STATUS_LABEL[inv.status]) : inv.status}</Badge>
                 {canManageInvoices && actionable(inv.status) ? (
                   <>
                     <Button variant="outline" size="sm" disabled={pending} onClick={() => setAction({ kind: 'markPaid', invoice: inv })}>
                       {t('platform.billing.action.markPaid')}
                     </Button>
-                    <Button variant="destructive" size="sm" disabled={pending} onClick={() => setAction({ kind: 'void', invoice: inv })}>
-                      {t('platform.billing.action.void')}
-                    </Button>
+                    <RowActions
+                      label={t('platform.row.more', { name: `№${inv.number}` })}
+                      actions={[{ id: 'void', label: t('platform.billing.action.void'), danger: true, disabled: pending, onSelect: () => setAction({ kind: 'void', invoice: inv }) }]}
+                    />
                   </>
                 ) : null}
               </span>

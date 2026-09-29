@@ -29,7 +29,7 @@ export function NewsDestination({ backend, session, onDirtyChange }: Destination
   }, [onDirtyChange]);
 
   return (
-    <ManagementScreen title={t('op.management.dest.news')} subtitle={t('op.management.dest.news.subtitle')} contentWidth="full">
+    <ManagementScreen title={t('op.management.dest.news')} contentWidth="full">
       <NewsWorkspace backend={backend} canManage={canManage} />
     </ManagementScreen>
   );

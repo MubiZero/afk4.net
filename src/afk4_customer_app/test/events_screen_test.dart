@@ -202,7 +202,7 @@ void main() {
     await tester.tap(find.text('Записаться').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('На кошельке не хватает денег на взнос'), findsOneWidget);
+    expect(find.text('На балансе не хватает денег на взнос'), findsOneWidget);
   });
 
   testWidgets('снятие спрашивает подтверждение и обещает вернуть взнос', (tester) async {
@@ -213,6 +213,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Снять запись?'), findsOneWidget);
-    expect(find.textContaining('вернётся на кошелёк'), findsOneWidget);
+    expect(find.textContaining('вернётся на баланс'), findsOneWidget);
   });
 }

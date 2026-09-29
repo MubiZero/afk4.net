@@ -60,7 +60,7 @@ export function InstallDestination({ backend }: { backend: OperatorBackendContex
   ];
 
   return (
-    <ManagementScreen title={t('op.network.dest.install')} subtitle={t('op.network.dest.install.subtitle')} contentWidth="full">
+    <ManagementScreen title={t('op.network.dest.install')} contentWidth="full">
       <section className="management-panel network-install-get">
         <h3>{t('op.network.install.get.title')}</h3>
         <p>{t('op.network.install.get.lead')}</p>

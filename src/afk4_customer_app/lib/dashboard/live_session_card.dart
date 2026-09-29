@@ -9,6 +9,8 @@ import '../money/money.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import 'live_session.dart';
+import '../shell/actions.dart';
+import '../theme/space.dart';
 
 /// Текущая сессия: где игрок сидит и сколько времени идёт или осталось.
 class LiveSessionCard extends StatefulWidget {
@@ -106,7 +108,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
         boxShadow: dark ? AppTheme.accentGlow(signal.withValues(alpha: 0.30)) : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Space.s5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -122,7 +124,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
                 // Место — опознавательный знак сессии, поэтому набрано как ярлык, а не строкой
                 // в общем ряду: игрок ищет его глазами, когда возвращается к экрану.
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s1),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(999),
@@ -131,7 +133,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Space.s3),
             // Читалке отдаётся подпись со смыслом, а само поле цифр скрыто: иначе она
             // проговаривает время каждую секунду и перебивает всё остальное.
             Semantics(
@@ -151,7 +153,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
             ),
             if (warning != null)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: Space.s1),
                 child: Text(
                   warning,
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
@@ -174,7 +176,7 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
               if (parts.isEmpty) return const <Widget>[];
               return [
                 Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.only(top: Space.s2),
                   child: Text(
                     parts.join(' · '),
                     style: theme.textTheme.bodyMedium
@@ -187,40 +189,29 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
             // у открытой.
             if (!fixed && session.accruedCostMinorUnits != null)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: Space.s1),
                 child: Text(
                   '≈ ${formatMoney(session.accruedCostMinorUnits!, session.currencyCode, locale: Localizations.localeOf(context).languageCode)} '
                   '${l.customerDashboardAccrued}',
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
                 ),
               ),
-            // Продление стоит в карточке сессии, а не в отдельном разделе: его нажимают
-            // ровно в тот момент, когда смотрят на убегающие цифры. Дорога до кассы или
-            // до вкладки — это брошенная сессия.
-            if (fixed && widget.onExtend != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: widget.onExtend,
-                icon: const Icon(Icons.more_time, size: 20),
-                label: Text(l.customerSessionExtendAction),
-              ),
-            ],
-            if (widget.onOrder != null) ...[
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: widget.onOrder,
-                icon: const Icon(Icons.local_cafe_outlined, size: 20),
-                label: Text(l.customerActionsOrder),
-              ),
-            ],
-            // Закончить — рядом с продлением, но тише его: уйти можно в любой момент, а
-            // главное действие на этой карточке всё-таки «остаться подольше».
-            if (widget.onEnd != null) ...[
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: widget.onEnd,
-                icon: const Icon(Icons.logout, size: 20),
-                label: Text(l.customerSessionEndAction),
+            // Продление стоит в карточке сессии, а не в отдельном разделе: его нажимают ровно в
+            // тот момент, когда смотрят на убегающие цифры. Бар — второе действие, «закончить» —
+            // третье и тише остальных: уйти можно в любой момент, а главное на этой карточке —
+            // «остаться подольше».
+            if ((fixed && widget.onExtend != null) || widget.onOrder != null || widget.onEnd != null) ...[
+              const SizedBox(height: Space.s4),
+              ActionStack(
+                primary: fixed && widget.onExtend != null
+                    ? AppAction(l.customerSessionExtendAction, widget.onExtend, icon: Icons.more_time)
+                    : null,
+                secondary: widget.onOrder != null
+                    ? AppAction(l.customerActionsOrder, widget.onOrder, icon: Icons.local_cafe_outlined)
+                    : null,
+                tertiary: widget.onEnd != null
+                    ? AppAction(l.customerSessionEndAction, widget.onEnd, icon: Icons.logout)
+                    : null,
               ),
             ],
           ],
@@ -257,7 +248,7 @@ class _Pulse extends StatelessWidget {
             boxShadow: [BoxShadow(color: color, blurRadius: 10)],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: Space.s2),
         Text(
           label,
           style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),

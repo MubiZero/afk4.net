@@ -23,7 +23,6 @@ export function EventsDestination({ backend, session, onDirtyChange }: Destinati
   return (
     <ManagementScreen
       title={t('op.management.dest.events')}
-      subtitle={t('op.management.dest.events.subtitle')}
       contentWidth="full"
     >
       <EventsWorkspace backend={backend} canManage={canManage} />

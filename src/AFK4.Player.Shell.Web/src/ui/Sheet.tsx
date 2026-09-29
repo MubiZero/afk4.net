@@ -7,11 +7,13 @@ interface SheetProps {
   onClose: () => void;
   /** Пока идёт денежное действие, закрыть нельзя: игрок должен увидеть, чем оно кончилось. */
   closeDisabled?: boolean;
+  /** Окно по центру высотой по содержимому — для подтверждения, где выбирать не из чего. */
+  compact?: boolean;
   children: ReactNode;
 }
 
 /** Лист поверх экрана сессии — продление, ранний выход. Esc и крестик закрывают, фон не кликабелен. */
-export function Sheet({ title, onClose, closeDisabled = false, children }: SheetProps) {
+export function Sheet({ title, onClose, closeDisabled = false, compact = false, children }: SheetProps) {
   const { t } = useI18n();
   const titleId = useId();
 
@@ -24,8 +26,8 @@ export function Sheet({ title, onClose, closeDisabled = false, children }: Sheet
   }, [closeDisabled, onClose]);
 
   return (
-    <div className="sheet-backdrop">
-      <section className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div className={compact ? 'sheet-backdrop sheet-backdrop--center' : 'sheet-backdrop'}>
+      <section className={compact ? 'sheet sheet--compact' : 'sheet'} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="sheet__head">
           <h2 id={titleId} className="sheet__title">{title}</h2>
           <button type="button" className="sheet__close" onClick={onClose} disabled={closeDisabled} aria-label={t('playerShell.sheet.close')}>

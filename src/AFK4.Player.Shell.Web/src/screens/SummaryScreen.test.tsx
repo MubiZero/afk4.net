@@ -84,7 +84,7 @@ describe('итог визита', () => {
     serve();
     renderSummary({ billedMinutes: 35, refunded: { currencyCode: 'TJS', minorUnits: 1_000 }, packageMinutesReturned: 20 });
 
-    expect(await screen.findByText(/Вернули на счёт 10/)).toBeInTheDocument();
+    expect(await screen.findByText(/Вернули на баланс 10/)).toBeInTheDocument();
     expect(screen.getByText('В пакет вернулось 20 мин')).toBeInTheDocument();
   });
 
@@ -117,6 +117,16 @@ describe('итог визита', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Отправить оценку' })));
 
     expect(await screen.findByText(/Спасибо/)).toBeInTheDocument();
+  });
+
+  // Главная на итоге одна: отправить оценку — рядом с полем, обводкой.
+  it('главная на итоге одна — «Играть ещё»', () => {
+    serve();
+    renderSummary();
+    fireEvent.click(screen.getByRole('button', { name: '4 звезды' }));
+
+    const primaries = screen.getAllByRole('button').filter((button) => button.className.includes('btn--primary'));
+    expect(primaries.map((button) => button.textContent)).toEqual(['Играть ещё']);
   });
 
   it('«Играть ещё» и «Выйти» делают своё', () => {

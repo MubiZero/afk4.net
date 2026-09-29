@@ -65,17 +65,21 @@ describe('buildSeatMenu', () => {
   });
 
   // Раньше «Разблокировать» пряталась без сессии — решала не связь ПК, а сессия (#1 аудита).
-  // Теперь пункт есть всегда, доступность зависит от isDeviceLocked, а не от сессии.
-  it('показывает «Разблокировать» и без сессии — доступность решает статус блокировки', () => {
-    const locked = buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: true }), allCaps);
-    const lockedItems = flat(locked);
-    expect(lockedItems.find((item) => item.id === 'pc-unlock')?.disabled).toBe(false);
-    expect(lockedItems.find((item) => item.id === 'pc-lock')?.disabled).toBe(true);
+  // Решает статус блокировки самого ПК — и по факту (дизайн-проход 29.09): запертому предлагаем
+  // только разблокировать, открытому — только запереть. Закрытый пункт «ПК уже заблокирован» в
+  // каждом меню был шумом.
+  it('предлагает блокировку по факту: запертому — разблокировать, открытому — запереть', () => {
+    const locked = flat(buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: true }), allCaps));
+    expect(locked.find((item) => item.id === 'pc-unlock')?.disabled).toBe(false);
+    expect(locked.find((item) => item.id === 'pc-lock')).toBeUndefined();
 
-    const unlocked = buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: false }), allCaps);
-    const unlockedItems = flat(unlocked);
-    expect(unlockedItems.find((item) => item.id === 'pc-unlock')?.disabled).toBe(true);
-    expect(unlockedItems.find((item) => item.id === 'pc-lock')?.disabled).toBe(false);
+    const unlocked = flat(buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: false }), allCaps));
+    expect(unlocked.find((item) => item.id === 'pc-lock')?.disabled).toBe(false);
+    expect(unlocked.find((item) => item.id === 'pc-unlock')).toBeUndefined();
+
+    // Статус не подтверждён — не гадаем, даём обе с пометкой.
+    const unknown = flat(buildSeatMenu(seat({ tone: 'ready', isDeviceLocked: undefined }), allCaps));
+    expect(unknown.filter((item) => item.id === 'pc-lock' || item.id === 'pc-unlock')).toHaveLength(2);
   });
 
   it('disables — but still shows — live ops while the backend is not ready', () => {

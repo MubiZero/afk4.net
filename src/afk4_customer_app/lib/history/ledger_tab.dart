@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import 'cursor_list.dart';
 import 'cursor_list_view.dart';
 import 'receipt_screen.dart';
+import '../theme/space.dart';
 
 /// Движения по кошельку: откуда деньги пришли и куда ушли.
 ///
@@ -17,9 +18,13 @@ import 'receipt_screen.dart';
 /// пополнение, кешбэк, бонус за друга, ручная правка оператора и погашение долга не видны там
 /// нигде. Человек видел, за что списали, и не видел, откуда пришло: кошелёк у него не сходился.
 class LedgerTab extends StatefulWidget {
-  const LedgerTab({super.key, required this.api, this.clock = DateTime.now});
+  const LedgerTab({super.key, required this.api, this.clock = DateTime.now, this.onRefresh});
 
   final PlayerApiClient api;
+
+  /// Что ещё перечитать тем же жестом «потянуть вниз» — остаток над списком. Раньше жест
+  /// обновлял только сам список, а цифра баланса над ним оставалась прежней.
+  final Future<void> Function()? onRefresh;
   final DateTime Function() clock;
 
   @override
@@ -55,9 +60,11 @@ class _LedgerTabState extends State<LedgerTab> {
     final l = L.of(context);
     return CursorListView<PlayerLedgerEntryDto>(
       controller: _list,
+      onRefresh: widget.onRefresh,
       loadingLabel: l.a11yLoadingLedger,
       errorText: l.customerWalletLedgerError,
       emptyText: l.customerWalletLedgerEmpty,
+      emptyIcon: Icons.swap_vert,
       itemBuilder: (context, entry) => _LedgerRow(
         entry: entry,
         // Строка про визит ведёт в его чек: сумма без состава — это половина ответа на
@@ -132,7 +139,7 @@ class _LedgerRow extends StatelessWidget {
         onTap: onOpenReceipt,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Space.s4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +166,7 @@ class _LedgerRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: Space.s3),
               // Знак перед суммой — главное в строке: человек листает выписку, чтобы понять, где
               // прибыло, а где убыло, и цвет тут помогает, но решает именно знак.
               Column(
@@ -185,7 +192,7 @@ class _LedgerRow extends StatelessWidget {
                 ],
               ),
               if (onOpenReceipt != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: Space.s1),
                 Icon(
                   Icons.chevron_right,
                   size: 20,

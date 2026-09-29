@@ -62,13 +62,13 @@ describe('DeferredSkeleton', () => {
 // Какой экран какую форму получает. Без сервера экраны «Сети» остаются в ожидании, и видно ровно
 // то, что стоит на месте содержимого.
 describe('network screens wait in the shape of their content', () => {
-  it('branches: five totals and a grid of branch cards with four figures each', async () => {
+  // Филиалы — одна главная цифра и список: заглушка повторяет обе части, а не пять плиток и сетку
+  // карточек, как было.
+  it('branches: the main figure and a five-column branch list', async () => {
     const { container } = renderRu(<BranchesDestination backend={null} />);
-    await waitFor(() => expect(container.querySelector('[data-skeleton="cards"]')).toBeTruthy());
-    expect(container.querySelectorAll('.network-branches-totals[data-skeleton="tiles"] > .network-total')).toHaveLength(5);
-    const cards = container.querySelectorAll('.network-branches-grid .network-branch-card');
-    expect(cards.length).toBeGreaterThan(0);
-    for (const card of cards) expect(card.querySelectorAll('.network-branch-kpis .network-stat')).toHaveLength(4);
+    await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
+    expect(container.querySelector('.network-branches-figure')).toBeTruthy();
+    expect(headColumns(container)).toBe(6); // пять колонок и место под «⋯» строки
   });
 
   it('billing: subscription figures and a five-column invoice table', async () => {
@@ -167,20 +167,19 @@ describe('cash, news, events and client screens wait in the shape of their conte
     globalThis.fetch = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;
   });
 
-  it('shift: status with commands, the drawer check, the revenue strip, cash movements and past shifts', async () => {
+  // Сверка ящика и движение наличных ушли со вкладки (первое — в шапку и окно закрытия, второе —
+  // во вкладку «Кассовые операции»), и заглушка их больше не обещает.
+  it('shift: status with the export menu, the revenue strip and past shifts', async () => {
     const { container } = renderRu(
-      <CashShiftWorkspace backend={null} branchId="branch-1" currencyCode="TJS" revenueClient={{ current: never, history: never }} reports={{ getCashOperationReport: never }} />
+      <CashShiftWorkspace backend={null} branchId="branch-1" currencyCode="TJS" revenueClient={{ current: never, history: never }} />
     );
     await waitFor(() => expect(container.querySelector('[data-skeleton="cash-shift"]')).toBeTruthy());
     const shape = container.querySelector('[data-skeleton="cash-shift"]')!;
     expect(shape.querySelectorAll('.cash-shift-status-card > .cash-shift-status-block')).toHaveLength(4);
     expect(shape.querySelector('.cash-shift-status-actions .skeleton-control')).toBeTruthy();
-    expect(shape.querySelectorAll('.cash-shift-reconcile-band > div')).toHaveLength(3);
+    expect(shape.querySelector('.cash-shift-reconcile-band')).toBeNull();
     expect(shape.querySelector('.cash-shift-revenue-strip > .cash-shift-revenue-total')).toBeTruthy();
-    expect(shape.querySelectorAll('.cash-shift-movement-head > span')).toHaveLength(5);
-    const movements = shape.querySelectorAll('.cash-shift-movements > li');
-    expect(movements.length).toBeGreaterThan(0);
-    for (const row of movements) expect(row.children).toHaveLength(5);
+    expect(shape.querySelector('.cash-shift-movement-ledger')).toBeNull();
     expect(shape.querySelectorAll('.cash-shift-history-panel .cash-register-row .cash-shift-history-row').length).toBeGreaterThan(0);
     noLoadingText();
   });
@@ -243,11 +242,13 @@ describe('cash, news, events and client screens wait in the shape of their conte
     noLoadingText();
   });
 
-  it('news: a four-column table with the create button for someone who may write', async () => {
+  // Кнопка «+ Новость» — в шапке экрана, а не в тулбаре таблицы, поэтому и у заглушки тулбара нет:
+  // она повторяет настоящую таблицу, у которой его больше нет.
+  it('news: a four-column table without a toolbar — the create button lives in the screen header', async () => {
     const { container } = renderRu(<NewsWorkspace backend={null} canManage />);
     await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
     expect(headColumns(container)).toBe(4);
-    expect(container.querySelector('[data-skeleton="table"] .table-toolbar .skeleton-control')).toBeTruthy();
+    expect(container.querySelector('[data-skeleton="table"] .table-toolbar')).toBeNull();
     noLoadingText();
   });
 
@@ -266,7 +267,7 @@ describe('cash, news, events and client screens wait in the shape of their conte
 
   it('client packages: the real heading over a package placeholder', async () => {
     const { container } = renderRu(<PackagesSection packages={[]} loading />);
-    expect(container.querySelector('.clients-packages-section > .eyebrow')).toHaveTextContent('Пакеты клиента');
+    expect(container.querySelector('.clients-packages-section > .ui-section-label')).toHaveTextContent('Пакеты клиента');
     await waitFor(() => expect(container.querySelector('.clients-packages-section article[data-skeleton="list"]')).toBeTruthy());
     noLoadingText();
   });

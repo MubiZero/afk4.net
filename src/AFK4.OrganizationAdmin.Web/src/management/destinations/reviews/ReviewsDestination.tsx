@@ -184,7 +184,7 @@ export function ReviewsDestination({ backend, session, onDirtyChange }: Destinat
   };
 
   return (
-    <ManagementScreen title={t('op.management.dest.reviews')} subtitle={t('op.management.dest.reviews.subtitle')} contentWidth="wide">
+    <ManagementScreen title={t('op.management.dest.reviews')} contentWidth="wide">
       {content()}
     </ManagementScreen>
   );

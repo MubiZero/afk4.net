@@ -8,6 +8,12 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
+import '../shell/group_header.dart';
+import '../shell/skeleton.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Друзья и «кто сейчас в зале».
 ///
@@ -114,7 +120,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l.customerFriendsDismiss),
           ),
+          // Вернуть друга можно только новой заявкой, которую он должен принять: это не отмена
+          // нажатия, а разрыв — и выглядит он красным, а не зелёным «да».
           FilledButton(
+            style: irreversibleConfirmStyle(dialogContext),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l.customerFriendsRemove),
           ),
@@ -130,7 +139,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerFriendsTitle)),
+      appBar: nestedAppBar(context, title: l.customerFriendsTitle),
       body: RefreshIndicator(onRefresh: _load, child: _body(l)),
     );
   }
@@ -142,24 +151,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
     if (view == null) {
       return _failed
           ? LoadFailure(message: l.customerFriendsLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(label: l.customerCommonLoading);
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       children: [
         if (_error != null) ...[
           Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s4),
         ],
 
         // Пришедшие заявки идут первыми: это единственное, что ждёт ответа человека.
         if (view.incoming.isNotEmpty) ...[
-          Text(l.customerFriendsIncoming, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          GroupHeader(l.customerFriendsIncoming),
           for (final request in view.incoming)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: Space.s2),
               child: _RequestRow(
                 name: request.displayName,
                 busy: _busy,
@@ -167,32 +175,31 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 onDecline: () => _run(() => widget.api.declineFriendRequest(request.friendRequestId)),
               ),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Space.s6),
         ],
 
-        Text(l.customerFriendsTitle, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        GroupHeader(l.customerFriendsTitle),
         if (view.friends.isEmpty)
-          Text(
-            '${l.customerFriendsNone}\n${l.customerFriendsNoneHint}',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          EmptyState(
+            icon: Icons.people_outline,
+            title: l.customerFriendsNone,
+            hint: l.customerFriendsNoneHint,
           )
         else
           for (final friend in view.friends)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: Space.s2),
               child: FriendRow(friend: friend, onRemove: _busy ? null : () => _remove(friend)),
             ),
 
         // Отправленные заявки — внизу и молча: отзывать их незачем, а знать, что ответа ещё
         // нет, человеку стоит.
         if (view.outgoing.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text(l.customerFriendsOutgoing, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s6),
+          GroupHeader(l.customerFriendsOutgoing),
           for (final request in view.outgoing)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: Space.s1),
               child: Text(
                 request.displayName,
                 style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -200,9 +207,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
         ],
 
-        const SizedBox(height: 24),
-        Text(l.customerFriendsAddTitle, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s6),
+        GroupHeader(l.customerFriendsAddTitle),
         TextField(
           controller: _phone,
           enabled: !_busy,
@@ -211,17 +217,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
           decoration: InputDecoration(labelText: l.customerFriendsAddHint),
           onSubmitted: (_) => _invite(),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: AppTheme.primaryButtonHeight,
-          child: FilledButton(
-            onPressed: _busy ? null : _invite,
-            child: Text(l.customerFriendsAddCta),
-          ),
-        ),
+        const SizedBox(height: Space.s3),
+        PrimaryButton(action: AppAction(l.customerFriendsAddCta, _busy ? null : _invite)),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: Space.s6),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: view.showsPresence,
@@ -251,7 +250,7 @@ class FriendRow extends StatelessWidget {
     final presence = friend.presence;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s3),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
@@ -264,7 +263,7 @@ class FriendRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(friend.displayName, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 2),
+                const SizedBox(height: Space.s1),
                 Text(
                   presence == null
                       ? l.customerFriendsNotInHall
@@ -282,6 +281,7 @@ class FriendRow extends StatelessWidget {
             IconButton(
               onPressed: onRemove,
               tooltip: l.customerFriendsRemove,
+              color: theme.colorScheme.error,
               icon: const Icon(Icons.person_remove_outlined),
             ),
         ],
@@ -309,17 +309,30 @@ class _RequestRow extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s2),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         border: Border.all(color: theme.colorScheme.outline),
       ),
-      child: Row(
+      // Имя сверху, ответы под ним — во всю ширину: в одну строку с именем две кнопки не
+      // помещались уже на полуторном шрифте.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: Text(name, style: theme.textTheme.titleSmall)),
-          TextButton(onPressed: busy ? null : onDecline, child: Text(l.customerFriendsDecline)),
-          FilledButton(onPressed: busy ? null : onAccept, child: Text(l.customerFriendsAccept)),
+          Text(name, style: theme.textTheme.titleSmall),
+          const SizedBox(height: Space.s2),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(onPressed: busy ? null : onDecline, child: Text(l.customerFriendsDecline)),
+              ),
+              const SizedBox(width: Space.s2),
+              Expanded(
+                child: FilledButton(onPressed: busy ? null : onAccept, child: Text(l.customerFriendsAccept)),
+              ),
+            ],
+          ),
         ],
       ),
     );

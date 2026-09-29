@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RowActions, type RowAction } from '@afk4/ui/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ErrorState } from '@/components/ui/states';
@@ -9,7 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
@@ -48,8 +49,43 @@ export interface DebtSectionAccess {
 // Очередь отвечает на «какие счета не оплачены», этот раздел — на более крупный вопрос
 // «какие клубы вообще требуют решения», включая тех, кто уже расплатился, но остался
 // отключён: приостановку никто не снимает автоматически.
+// Строка должника — одна кнопка следующего шага и «⋯» для остального. Раньше в строке стояли
+// четыре кнопки, из них «Приостановить» красным посередине, вплотную к «Отсрочке».
+// Следующий шаг: у должника — отметить оплату, у расплатившегося, но отключённого — вернуть его в
+// работу (ради этого он в списке и стоит).
+function DebtRowActions({ row, access, onAct, onGrace }: {
+  row: DebtRow;
+  access: DebtSectionAccess;
+  onAct: (action: Action) => void;
+  onGrace: (row: DebtRow) => void;
+}) {
+  const { t } = useI18n();
+  const canPay = access.canMarkPaid && row.oldestOverdueInvoiceId !== null;
+  const reactivateFirst = !canPay && access.canToggleStatus && row.organizationStatus !== 'active';
+  const menu: RowAction[] = [
+    ...(access.canGrantGrace && !row.settledButSuspended ? [{ id: 'grace', label: t('platform.debt.action.grace'), onSelect: () => onGrace(row) }] : []),
+    ...(access.canAddNote ? [{ id: 'note', label: t('platform.debt.action.note'), onSelect: () => onAct({ kind: 'note', row }) }] : []),
+    ...(access.canToggleStatus && !reactivateFirst ? [{
+      id: 'status',
+      label: row.organizationStatus === 'active' ? t('platform.organization.passport.action.suspend') : t('platform.organization.passport.action.activate'),
+      danger: row.organizationStatus === 'active',
+      onSelect: () => onAct({ kind: 'toggleStatus', row })
+    }] : [])
+  ];
+  return (
+    <span className="pc-cell-actions">
+      {canPay ? (
+        <Button variant="outline" size="sm" onClick={() => onAct({ kind: 'markPaid', row })}>{t('platform.billing.action.markPaid')}</Button>
+      ) : reactivateFirst ? (
+        <Button variant="outline" size="sm" onClick={() => onAct({ kind: 'toggleStatus', row })}>{t('platform.organization.passport.action.activate')}</Button>
+      ) : null}
+      <RowActions label={t('platform.row.more', { name: row.organizationName })} actions={menu} />
+    </span>
+  );
+}
+
 export function DebtSection({ client, access }: { client: DebtSectionClients; access: DebtSectionAccess }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useDebt(client.debt);
   const [action, setAction] = useState<Action | null>(null);
@@ -107,24 +143,24 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
   return (
     <Card>
       <CardHeader>
-        <div>
-          <CardTitle>{t('platform.debt.title')}</CardTitle>
-          {/* Постоянная подпись раздела: строка totals пуста, когда в очереди только клубы,
-              которые уже расплатились, но остались отключены (нечего суммировать), а
-              «platform.debt.empty» подходит только пустой очереди целиком. */}
-          <CardDescription>{rows.length === 0 ? t('platform.debt.empty') : t('platform.debt.subtitle')}</CardDescription>
-        </div>
+        <CardTitle>{t('platform.debt.title')}</CardTitle>
         {rows.length > 0 ? (
           <div className="pc-debt-summary">
             <Badge variant="warning">{t('platform.debt.count', { count: rows.length })}</Badge>
             {totals.length > 0 ? (
               <span className="pc-debt-summary-amount ui-money">
-                {totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
+                {totals.map(total => formatMoney(total.amountMinorUnits, total.currencyCode)).join(' · ')}
               </span>
             ) : null}
           </div>
         ) : null}
       </CardHeader>
+
+      {/* Постоянная подпись раздела — под шапкой, а не внутри неё: в шапке она наследовала
+          капитель заголовка. Строка totals пуста, когда в очереди только клубы, которые уже
+          расплатились, но остались отключены, а «platform.debt.empty» подходит только пустой
+          очереди целиком. */}
+      <CardDescription>{rows.length === 0 ? t('platform.debt.empty') : t('platform.debt.subtitle')}</CardDescription>
 
       {rows.length > 0 ? (
         <CardContent>
@@ -150,39 +186,10 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
                 {/* Погашенный долг у отключённого клуба — сумма к оплате 0, показывать «0 с.» нечего. */}
                 {row.outstandingMinorUnits > 0 ? (
                   <span className="pc-queue-amount ui-money">
-                    {formatCurrency(minorToMajor(row.outstandingMinorUnits), row.currencyCode)}
+                    {formatMoney(row.outstandingMinorUnits, row.currencyCode)}
                   </span>
                 ) : null}
-                {canManageAny ? (
-                  <span className="pc-cell-actions">
-                    {access.canMarkPaid && row.oldestOverdueInvoiceId !== null ? (
-                      <Button size="sm" onClick={() => setAction({ kind: 'markPaid', row })}>
-                        {t('platform.billing.action.markPaid')}
-                      </Button>
-                    ) : null}
-                    {access.canGrantGrace && !row.settledButSuspended ? (
-                      <Button variant="outline" size="sm" onClick={() => setGraceRow(row)}>
-                        {t('platform.debt.action.grace')}
-                      </Button>
-                    ) : null}
-                    {access.canToggleStatus ? (
-                      <Button
-                        variant={row.organizationStatus === 'active' ? 'destructive' : 'default'}
-                        size="sm"
-                        onClick={() => setAction({ kind: 'toggleStatus', row })}
-                      >
-                        {row.organizationStatus === 'active'
-                          ? t('platform.organization.passport.action.suspend')
-                          : t('platform.organization.passport.action.activate')}
-                      </Button>
-                    ) : null}
-                    {access.canAddNote ? (
-                      <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'note', row })}>
-                        {t('platform.debt.action.note')}
-                      </Button>
-                    ) : null}
-                  </span>
-                ) : null}
+                {canManageAny ? <DebtRowActions row={row} access={access} onAct={setAction} onGrace={setGraceRow} /> : null}
               </li>
             ))}
           </ul>

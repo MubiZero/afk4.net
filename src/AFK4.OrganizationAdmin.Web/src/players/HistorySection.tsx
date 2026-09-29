@@ -47,7 +47,7 @@ export function HistorySection({
     <div className="clients-history-section">
       {isMini ? (
         <div className="recent-head">
-          <span className="eyebrow">{t('op.players.wallet.recentTitle')}</span>
+          <h3 className="ui-section-label">{t('op.players.wallet.recentTitle')}</h3>
           {onOpenFull && (
             <button type="button" className="recent-link" onClick={onOpenFull}>
               {t('op.players.wallet.allHistory')}

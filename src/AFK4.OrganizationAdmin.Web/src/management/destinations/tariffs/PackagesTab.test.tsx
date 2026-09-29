@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+// Кнопка создания живёт в шапке экрана (ScreenAction), поэтому вкладка рендерится внутри него.
+import { ManagementScreen } from '../../ManagementScreen';
 import { ToastProvider } from '../../../operatorToast';
 import { permissionNames } from '../../../operatorPermissions';
 import type { PackageOptionDto } from '../../../operatorApiClients';
@@ -31,7 +33,7 @@ afterEach(() => {
 });
 
 const wrap = (ui: React.ReactNode) =>
-  render(<I18nProvider initialLocale="ru"><ToastProvider>{ui}</ToastProvider></I18nProvider>);
+  render(<I18nProvider initialLocale="ru"><ToastProvider><ManagementScreen title="Тарифы и пакеты">{ui}</ManagementScreen></ToastProvider></I18nProvider>);
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },

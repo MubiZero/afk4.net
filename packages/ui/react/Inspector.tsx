@@ -19,7 +19,8 @@ export function Inspector({ title, status, subtitle, menu, close, figure, classN
   status?: ReactNode;
   subtitle?: ReactNode;
   menu?: { label: string; actions: RowAction[] };
-  close?: { label: string; onClose: () => void };
+  /** `disabled` — пока идёт команда: закрыть карточку посреди записи значит потерять её исход. */
+  close?: { label: string; onClose: () => void; disabled?: boolean };
   figure?: { label: string; value: ReactNode; hint?: ReactNode };
   className?: string;
   children?: ReactNode;
@@ -38,7 +39,7 @@ export function Inspector({ title, status, subtitle, menu, close, figure, classN
         {menu !== undefined || close !== undefined ? (
           <div className="ui-inspector-head-actions">
             {menu !== undefined ? <RowActions label={menu.label} actions={menu.actions} /> : null}
-            {close !== undefined ? <CloseButton label={close.label} onClick={close.onClose} /> : null}
+            {close !== undefined ? <CloseButton label={close.label} disabled={close.disabled} onClick={close.onClose} /> : null}
           </div>
         ) : null}
       </div>

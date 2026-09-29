@@ -24,11 +24,29 @@ describe('Stepper', () => {
     expect(screen.queryByText('Зал')).toBeNull();
   });
 
-  it('нумерует шаги подряд, без дыр от пропущенных', () => {
-    const { container } = renderStepper(['phoneLogin', 'role', 'device', 'finished'], 'phoneLogin');
+  // Номер — только у текущего шага, и он считается по шагам этого прогона, без дыр от
+  // пропущенных. У будущих номера нет: после «Игровой ПК» настройка клуба уходит из списка, и
+  // уже показанный номер «ПК» сменился бы с восьмого на четвёртый.
+  it('нумерует только текущий шаг, по шагам этого прогона', () => {
+    const { container } = renderStepper(['phoneLogin', 'role', 'device', 'finished'], 'device');
 
     const numbers = [...container.querySelectorAll('.wizard-stepper-dot')].map((dot) => dot.textContent);
-    expect(numbers).toEqual(['1', '2', '3', '4']);
+    expect(numbers).toEqual(['', '', '3', '']);
+  });
+
+  // Подпись видна всегда, а не во всплывающей подсказке: по одним кружкам не понять, что впереди.
+  it('подписывает каждый шаг', () => {
+    renderStepper(['phoneLogin', 'role', 'device', 'finished'], 'role');
+
+    for (const label of ['Вход', 'Роль', 'ПК', 'Готово']) expect(screen.getByText(label)).toBeVisible();
+  });
+
+  it('на «Готово» все шаги отмечены сделанными', () => {
+    const { container } = renderStepper(['phoneLogin', 'role', 'device', 'finished'], 'finished');
+
+    const numbers = [...container.querySelectorAll('.wizard-stepper-dot')].map((dot) => dot.textContent);
+    expect(numbers).toEqual(['', '', '', '']);
+    expect(screen.getByText('Готово').closest('li')?.getAttribute('aria-current')).toBe('step');
   });
 
   it('отмечает текущий шаг для скринридера', () => {

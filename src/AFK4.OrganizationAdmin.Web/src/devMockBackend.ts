@@ -182,9 +182,9 @@ function floorMap() {
       { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Maintenance', deviceId: 'd6', deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, maintenanceSinceUtc: minutesAgoUtc(90) },
       { seatId: 'b3', seatName: 'VIP-03', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 30, state: 'Free', deviceId: 'd9', deviceName: 'VIP-03', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
       // Зал B — две проблемы (ошибка команды + нет связи) и одна сессия.
-      { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Failed', deviceId: 'd10', deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Free', deviceId: 'd10', deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, lastFailedCommandType: 'reboot' },
       { seatId: 'c2', seatName: 'PC-08', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 20, state: 'Offline', deviceId: 'd11', deviceName: 'PC-08', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T07:30:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: 'd12', deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900 }
+      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: 'd12', deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900, assistanceRequestedAtUtc: minutesAgoUtc(3) }
     ]
   };
 }
@@ -382,11 +382,13 @@ const previewMoneyActions: Array<Record<string, unknown>> = [{
 }];
 
 // targetId: null явно — контракт (AuditRecordDto.cs) шлёт его всегда, пропавшего ключа реальный
-// сервер не отдаёт; фикстура без него однажды маскировала разбор `undefined` как `null`.
+// сервер не отдаёт; фикстура без него однажды маскировала разбор `undefined` как `null`. Коды
+// действий и итоги — настоящие серверные (AuditActionNames, AuditOutcome): выдуманные
+// «cash.shift.opened» / «success» показывали в демо журнал, которого в клубе не бывает.
 const previewAuditRecords: Array<Record<string, unknown>> = [
-  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', targetId: null, amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
-  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', targetId: null, amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
-  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', targetId: null, amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
+  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin', action: 'shifts.open', outcome: 'Succeeded', targetType: 'Shift', targetId: null, amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
+  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin', action: 'billing.money_action.rejected', outcome: 'Succeeded', targetType: 'MoneyAction', targetId: null, amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
+  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin', action: 'billing.money_action.approved', outcome: 'Succeeded', targetType: 'MoneyAction', targetId: null, amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
 ];
 
 function previewAudit(searchParams: URLSearchParams) {
@@ -1002,7 +1004,7 @@ function walletSummary() {
 
 function playerPackages() {
   return [
-    { playerPackageId: 'pp-1', name: 'Ночной 5ч', purchasedPrice: money(25000), includedSeconds: 18000, bonusSeconds: 1800, remainingIncludedSeconds: 9000, remainingBonusSeconds: 1800, purchasedAtUtc: minutesAgoUtc(1440), expiresAtUtc: FAR_FUTURE }
+    { playerPackageId: 'pp-1', name: 'Ночной 5ч', purchasedPrice: money(25000), includedSeconds: 18000, bonusSeconds: 1800, remainingIncludedSeconds: 9000, remainingBonusSeconds: 1800, purchasedAtUtc: minutesAgoUtc(1440), expiresAtUtc: minutesAgoUtc(1440 - 30 * 24 * 60) }
   ];
 }
 
@@ -1378,9 +1380,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const approved = moneyDecisionMatch[2] === 'approve';
     const auditRecord = {
       auditRecordId: `audit-preview-${Date.now()}`,
-      actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
-      action: approved ? 'money_action.approved' : 'money_action.rejected',
-      outcome: approved ? 'approved' : 'rejected', targetType: 'money_action',
+      actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', actorDisplayName: 'Администратор смены', sourceApp: 'OrganizationAdmin',
+      action: approved ? 'billing.money_action.approved' : 'billing.money_action.rejected',
+      outcome: 'Succeeded', targetType: 'MoneyAction',
       targetId: request.moneyActionRequestId, amountMinorUnits: request.amountMinorUnits,
       decisionReason: typeof body.decisionReason === 'string' ? body.decisionReason : null,
       createdAtUtc: new Date().toISOString()

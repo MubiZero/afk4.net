@@ -102,7 +102,7 @@ it('says so when there are no recent failures', async () => {
   render(
     <I18nProvider><HealthScreen canSendTestEmail client={fakeClient(overview({ recentFailures: [] }))} /></I18nProvider>
   );
-  expect(await screen.findByText('Свежих провалов нет — уведомления и биллинг уходят. Неудачная отправка появится здесь с причиной.')).toBeTruthy();
+  expect(await screen.findByText('Свежих провалов нет — уведомления и счета уходят. Неудачная отправка появится здесь с причиной.')).toBeTruthy();
 });
 
 // Кнопка существует ради текста ошибки: без него «письмо не ушло» отправляет разбираться в базу.
@@ -164,7 +164,8 @@ it('hides the test email card without the permission', async () => {
     </I18nProvider>
   );
 
-  expect(await screen.findByText('Здоровье платформы')).toBeTruthy();
+  // Заголовок раздела — подпись рейла «Здоровье», а не отдельное «Здоровье платформы».
+  expect(await screen.findByRole('heading', { name: 'Здоровье' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Отправить проверочное письмо' })).toBeNull();
 });
 

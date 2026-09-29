@@ -73,14 +73,14 @@ describe('InvoicesTab', () => {
     );
     await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
 
-    await userEvent.type(screen.getByRole('textbox', { name: 'Поиск по организации' }), 'нет такой');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Поиск по клубу' }), 'нет такой');
 
     expect(screen.getByText('Под эти условия ничего не подошло.')).toBeInTheDocument();
     expect(screen.queryByText(/Счетов пока нет/u)).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }));
 
     expect(screen.getByText('Acme')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Поиск по организации' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Поиск по клубу' })).toHaveValue('');
   });
 
   it('пустой реестр говорит, откуда берутся счета', async () => {

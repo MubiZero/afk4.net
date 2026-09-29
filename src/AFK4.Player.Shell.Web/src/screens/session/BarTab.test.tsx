@@ -80,7 +80,7 @@ describe('бар к месту', () => {
     const posted = calls.find((call) => call.method === 'POST')!;
     expect(posted.path).toBe('/api/me/shop/orders');
     expect(posted.body).toMatchObject({ lines: [{ productId: 'cola', quantity: 2 }] });
-    expect(await screen.findByText('Заказ принят, готовим')).toBeInTheDocument();
+    expect(await screen.findByText('Заказ отправлен — ждём, когда стойка его примет')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Выберите, что принести' })).toBeDisabled();
   });
 
@@ -95,7 +95,7 @@ describe('бар к месту', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Добавить: Энергетик' }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /Заказать за 18/ })));
 
-    expect(await screen.findByText('На счёте не хватает денег на этот заказ.')).toBeInTheDocument();
+    expect(await screen.findByText('На балансе не хватает денег на этот заказ.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Заказать за 18/ })).toBeEnabled();
   });
 
@@ -112,14 +112,14 @@ describe('бар к месту', () => {
     await act(async () => fireEvent.click(cancel));
 
     expect(calls.some((call) => call.path === '/api/me/shop/orders/order-1/cancel')).toBe(true);
-    expect(await screen.findByText('Заказ отменён, деньги вернулись на счёт')).toBeInTheDocument();
+    expect(await screen.findByText('Заказ отменён, деньги вернулись на баланс')).toBeInTheDocument();
   });
 
   it('заказ, который уже несут, отменить нельзя — кнопки нет', async () => {
     serve((path) => path.endsWith('/catalog') ? { status: 200, body: catalog } : { status: 200, body: [order('accepted')] });
     renderBar();
 
-    expect(await screen.findByText('Администратор несёт заказ')).toBeInTheDocument();
+    expect(await screen.findByText('Стойка приняла заказ — скоро принесут')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Отменить заказ' })).toBeNull();
   });
 

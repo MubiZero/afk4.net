@@ -45,35 +45,35 @@ function session(permissions: string[]) {
   return { permissions } as unknown as import('../authClient').OperatorAuthSession;
 }
 
+// Бывший «Журнал кассы» разложен на три вкладки первого уровня — у каждой свои права, как были у
+// его сегментов: сотрудник не видит вкладку, к которой у него нет доступа.
 describe('visibleCashTabs (per-tab гранулярность прав)', () => {
-  it('только право продаж → только Продажи (sales — суперсет, orders-вкладка удалена)', () => {
+  it('только право продаж → только Продажи', () => {
     expect(visibleCashTabs(session(['organization.pos.sales.create']))).toEqual(['sales']);
   });
-  it('reports.view → Смена + Журнал (суперсет прав)', () => {
-    expect(visibleCashTabs(session(['organization.reports.view']))).toEqual(['shift', 'journal']);
+  it('reports.view → Смена + Кассовые операции', () => {
+    expect(visibleCashTabs(session(['organization.reports.view']))).toEqual(['shift', 'ops']);
   });
-  it('shifts.view → Смена + Журнал (суперсет прав)', () => {
-    expect(visibleCashTabs(session(['organization.shifts.view']))).toEqual(['shift', 'journal']);
+  it('shifts.view → Смена + Кассовые операции', () => {
+    expect(visibleCashTabs(session(['organization.shifts.view']))).toEqual(['shift', 'ops']);
   });
-  it('только approveMoneyAction → Журнал', () => {
-    expect(visibleCashTabs(session(['organization.billing.money_action.approve']))).toEqual(['journal']);
+  it('только approveMoneyAction → Согласования', () => {
+    expect(visibleCashTabs(session(['organization.billing.money_action.approve']))).toEqual(['review']);
   });
-  it('только receipts.view → Журнал', () => {
-    expect(visibleCashTabs(session(['organization.receipts.view']))).toEqual(['journal']);
+  it('только receipts.view → Чеки', () => {
+    expect(visibleCashTabs(session(['organization.receipts.view']))).toEqual(['receipts']);
   });
-  it('только pos.sales.refund → Журнал', () => {
-    expect(visibleCashTabs(session(['organization.pos.sales.refund']))).toEqual(['sales', 'journal']);
-  });
-  it('только viewReports → Журнал виден (расширение доступа, не регрессия)', () => {
-    expect(visibleCashTabs(session(['organization.reports.view']))).toContain('journal');
+  it('только pos.sales.refund → Продажи + Чеки', () => {
+    expect(visibleCashTabs(session(['organization.pos.sales.refund']))).toEqual(['sales', 'receipts']);
   });
   it('null сессия → пусто', () => {
     expect(visibleCashTabs(null)).toEqual([]);
   });
-  it('все права → все 3 вкладки по порядку', () => {
+  it('все права → все вкладки по порядку', () => {
     expect(visibleCashTabs(session([
       'organization.pos.sales.create', 'organization.pos.sales.pay', 'organization.pos.sales.refund', 'organization.pos.sales.void',
-      'organization.shifts.view', 'organization.shifts.open', 'organization.reports.view', 'organization.billing.money_action.approve'
-    ]))).toEqual(['sales', 'shift', 'journal']);
+      'organization.shifts.view', 'organization.shifts.open', 'organization.reports.view', 'organization.billing.money_action.approve',
+      'organization.billing.wallet.top_up'
+    ]))).toEqual(['sales', 'shift', 'topups', 'ops', 'receipts', 'review']);
   });
 });

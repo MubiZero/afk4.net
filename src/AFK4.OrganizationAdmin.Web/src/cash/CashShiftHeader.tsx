@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { SectionHeader, type HeaderCounts } from '@afk4/ui/react';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { Money, StateFlag } from '../operatorPrimitives';
+import { Money } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { ShiftRevenueDto } from '../operatorApiClients';
@@ -12,9 +13,9 @@ interface ShiftRevenueReader {
   current(branchId: string): Promise<ShiftRevenueDto | null>;
 }
 
-// Якорь раздела «Касса»: статус текущей смены (виден из любой вкладки) + командная панель смены
-// (открыть/внести/изъять/закрыть). Действие → onShiftChanged → раздел бампает shiftNonce →
-// шапка и вкладка «Смена» перечитывают смену.
+// Шапка раздела «Касса»: деньги смены и её команды (открыть/внести/изъять/закрыть) — на любой
+// вкладке, включая «Смену»: вкладка их не повторяет, и шапка не пропадает при переключении.
+// Действие → onShiftChanged → раздел бампает shiftNonce → шапка и вкладка перечитывают смену.
 export function CashShiftHeader({
   backend,
   currencyCode,
@@ -22,7 +23,8 @@ export function CashShiftHeader({
   shiftNonce = 0,
   onShiftChanged = () => {},
   client: injectedClient,
-  actions
+  actions,
+  tabs
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
@@ -31,6 +33,7 @@ export function CashShiftHeader({
   onShiftChanged?: () => void;
   client?: ShiftRevenueReader;
   actions?: CashShiftActionsClient;
+  tabs?: ReactNode;
 }) {
   const { t } = useI18n();
   // Боевой клиент строим только при backend && !injectedClient: тесты подают injectedClient с
@@ -41,46 +44,48 @@ export function CashShiftHeader({
     [backend?.config, backend?.session, injectedClient]
   );
   const client = injectedClient ?? memoizedClient;
-  const [revenue, setRevenue] = useState<ShiftRevenueDto | null>(null);
+  // undefined — ещё не спросили: до ответа шапка не утверждает ни «открыта», ни «не открыта».
+  const [revenue, setRevenue] = useState<ShiftRevenueDto | null | undefined>(undefined);
 
   useEffect(() => {
     if (client === null || backend === null) return undefined;
     let active = true;
-    setRevenue(null);
     client.current(backend.branchId)
       .then((cur) => { if (active) setRevenue(cur); })
-      .catch(() => { if (active) setRevenue(null); });
+      .catch(() => { if (active) setRevenue(undefined); });
     return () => { active = false; };
   }, [client, backend?.branchId, shiftNonce]);
 
-  const header = buildCashHeader(revenue);
+  const known = revenue !== undefined;
+  const header = buildCashHeader(revenue ?? null);
+  const counts: HeaderCounts = !known
+    ? []
+    : header.isOpen
+      ? [
+        { label: t('op.cash.metric.inHand'), value: <Money minorUnits={header.cashInHand?.minorUnits ?? 0} currencyCode={currencyCode} /> },
+        { label: t('op.cash.metric.revenue'), value: <Money minorUnits={header.revenueTotal?.minorUnits ?? 0} currencyCode={currencyCode} /> }
+      ]
+      : [{ label: t('op.cash.tab.shift'), value: t('op.cash.header.closed'), tone: 'warning' }];
 
   return (
-    <section className="cash-head">
-      <h1>
-        <strong className="cash-head-name">{t('op.cash.title')}</strong>
-        {' · '}
-        <span className="cash-head-tagline">
-          {header.isOpen ? t('op.cash.header.open') : t('op.cash.header.closed')}
-        </span>
-      </h1>
-      {header.isOpen && (
-        <div className="cash-head-metrics">
-          <StateFlag label={t('op.cash.metric.inHand')} value={<Money minorUnits={header.cashInHand?.minorUnits ?? 0} currencyCode={currencyCode} />} />
-          <StateFlag label={t('op.cash.metric.revenue')} value={<Money minorUnits={header.revenueTotal?.minorUnits ?? 0} currencyCode={currencyCode} />} />
-        </div>
-      )}
-      <CashShiftCommandBar
-        backend={backend}
-        session={session}
-        shiftId={revenue?.shiftId ?? null}
-        isOpen={header.isOpen}
-        expectedCash={header.cashInHand}
-        currencyCode={currencyCode}
-        revenue={revenue}
-        onShiftChanged={onShiftChanged}
-        actions={actions}
-      />
-    </section>
+    <SectionHeader
+      title={t('op.cash.title')}
+      counts={counts}
+      tabs={tabs}
+      action={known ? (
+        <CashShiftCommandBar
+          backend={backend}
+          session={session}
+          shiftId={revenue?.shiftId ?? null}
+          isOpen={header.isOpen}
+          openedByStaffUserId={revenue?.openedByStaffUserId ?? null}
+          expectedCash={header.cashInHand}
+          currencyCode={currencyCode}
+          revenue={revenue ?? null}
+          onShiftChanged={onShiftChanged}
+          actions={actions}
+        />
+      ) : undefined}
+    />
   );
 }

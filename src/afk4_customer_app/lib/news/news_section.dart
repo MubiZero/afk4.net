@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../format/date_time.dart';
+import '../shell/group_header.dart';
 import '../theme/app_theme.dart';
+import '../theme/space.dart';
 
 /// Новости и акции клуба на главной.
 ///
@@ -46,7 +49,6 @@ class _NewsSectionState extends State<NewsSection> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final theme = Theme.of(context);
     if (_items.isEmpty) return const SizedBox.shrink();
 
     final shown = _items.take(widget.maxItems).toList();
@@ -54,11 +56,13 @@ class _NewsSectionState extends State<NewsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l.customerNewsTitle, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        // Заголовок раздела — заголовком группы, как везде в приложении, а новость — карточкой
+        // со своим, более мелким заголовком и датой. Раньше «Новости» и сама новость были набраны
+        // одним стилем и читались как две новости подряд.
+        GroupHeader(l.customerNewsTitle),
         for (final item in shown)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: Space.s2),
             child: _NewsCard(item: item),
           ),
       ],
@@ -95,13 +99,18 @@ class _NewsCard extends StatelessWidget {
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Space.s4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: theme.textTheme.titleMedium),
+                Text(
+                  formatDateTime(L.of(context), item.publishedAtUtc, Localizations.localeOf(context).languageCode),
+                  style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: Space.s1),
+                Text(item.title, style: theme.textTheme.titleSmall),
                 if (item.body.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Space.s1),
                   Text(item.body, style: theme.textTheme.bodyMedium),
                 ],
               ],

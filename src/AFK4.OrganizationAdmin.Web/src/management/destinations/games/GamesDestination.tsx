@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Gamepad2, Trash2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import { ManagementScreen } from '../../ManagementScreen';
+import { ManagementScreen, ScreenAction } from '../../ManagementScreen';
+import { Button } from '@afk4/ui/react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import { CriticalActionConfirmation, EmptyState } from '../../../operatorPrimitives';
@@ -166,7 +167,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
       return (
         <DeferredSkeleton>
           <div className="mgmt-master-detail">
-            <SkeletonTable gridTemplate={GAMES_GRID} toolbar={{ action: canManage }} />
+            <SkeletonTable gridTemplate={GAMES_GRID} />
           </div>
         </DeferredSkeleton>
       );
@@ -224,20 +225,20 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
             { id: 'down', label: t('op.games.moveDown'), icon: <ArrowDown size={14} aria-hidden="true" />, onSelect: () => void move(game, 1), disabled: games.at(-1)?.branchGameId === game.branchGameId },
             { id: 'remove', label: t('op.games.remove'), icon: <Trash2 size={14} aria-hidden="true" />, onSelect: () => setRemoveTarget(game), danger: true }
           ] : undefined}
-          toolbar={{
-            title: t('op.management.dest.games'),
-            secondary: canManage ? { label: t('op.games.addOwn'), onClick: openCustom } : undefined,
-            primary: canManage ? { label: t('op.games.addFromCatalog'), onClick: () => { setQuery(''); setDrawer({ mode: 'pick' }); } } : undefined
-          }}
           empty={{
             icon: <Gamepad2 size={22} aria-hidden="true" />,
             title: t('op.games.empty'),
             description: t('op.games.emptyDescription'),
-            next: canManage
-              ? { kind: 'action', label: t('op.games.addFromCatalog'), onClick: () => setDrawer({ mode: 'pick' }) }
-              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+            next: canManage ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
+        {/* Главная — из каталога (обложка, возраст и запуск уже заполнены), своя — второстепенная. */}
+        {canManage && (
+          <ScreenAction>
+            <Button onClick={openCustom}>{t('op.games.addOwnCta')}</Button>
+            <Button variant="primary" onClick={() => { setQuery(''); setDrawer({ mode: 'pick' }); }}>{t('op.games.addFromCatalogCta')}</Button>
+          </ScreenAction>
+        )}
 
         {drawer.mode === 'pick' && (
           <MgmtDrawer title={t('op.games.addFromCatalog')} subtitle={t('op.games.catalogHint')} onClose={close}>
@@ -391,7 +392,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
   };
 
   return (
-    <ManagementScreen title={t('op.management.dest.games')} subtitle={t('op.management.dest.games.subtitle')} contentWidth="full">
+    <ManagementScreen title={t('op.management.dest.games')} contentWidth="full">
       {content()}
     </ManagementScreen>
   );

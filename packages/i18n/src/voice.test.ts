@@ -28,8 +28,8 @@ const GLOSSARY: { name: string; forbidden: RegExp; instead: string }[] = [
   // администратору» на одном экране и «позовите оператора» на соседнем.
   { name: 'оператор', forbidden: /оператор/i, instead: 'администратор' },
   { name: 'operator', forbidden: /\boperators?\b/i, instead: 'admin' },
-  { name: 'тенант', forbidden: /тенант/i, instead: 'организация' },
-  { name: 'клуб-клиент', forbidden: /клуб-клиент/i, instead: 'организация' },
+  { name: 'тенант', forbidden: /тенант/i, instead: 'клуб' },
+  { name: 'клуб-клиент', forbidden: /клуб-клиент/i, instead: 'клуб' },
   { name: 'имперсонация', forbidden: /имперсонац/i, instead: 'режим поддержки' },
   { name: 'инвайт', forbidden: /инвайт/i, instead: 'код приглашения' },
   { name: 'дашборд', forbidden: /дашборд/i, instead: 'пульс' },
@@ -84,6 +84,31 @@ it('keeps «код доступа» for the PIN alone (terminology glossary)', (
 
 it.each(GLOSSARY)('keeps «$name» out of the catalog (use «$instead»)', ({ forbidden }) => {
   expect(offenders(forbidden)).toEqual([]);
+});
+
+// Пульт платформы говорит о клиенте платформы «клуб», а о точке — «филиал» (решение владельца
+// 2026-09-29). До того на одном экране жили «организация», «клиент», «сеть» и «клуб», и «клубом»
+// звали то весь бизнес, то его точку: «1 из 2 клубов молчит» в строке клуба Orion Gaming.
+// Юридическая форма рекламодателя («Организация или ИП») — не клиент платформы, ей можно.
+const PLATFORM_CLIENT_WORDS: Record<Locale, RegExp> = {
+  ru: /организац|клиент/i,
+  en: /\borgani[sz]ations?\b|\bclients?\b/i,
+  tg: /ташкилот|муштар/i
+};
+// «Riot Client» — имя программы, не клиент платформы.
+const PLATFORM_LEGAL_FORM = new Set(['platform.ads.advertiser.field.legalNameHint', 'platform.games.target.riotHint']);
+
+it('в Пульте платформы клиент — «клуб», а не «организация» или «клиент»', () => {
+  const hits: string[] = [];
+  for (const loc of LOCALES) {
+    for (const [key, value] of Object.entries(messages[loc])) {
+      if (!key.startsWith('platform.') && !key.startsWith('nav.platform.')) continue;
+      // platform.messages.* читает Панель AFK4.net: это её полоса сообщений, а не пульт.
+      if (key.startsWith('platform.messages.') || PLATFORM_LEGAL_FORM.has(key)) continue;
+      if (PLATFORM_CLIENT_WORDS[loc].test(value)) hits.push(`${loc}:${key} = "${value}"`);
+    }
+  }
+  expect(hits).toEqual([]);
 });
 
 // В мастере «панель» — всегда Панель AFK4.net, и названа она полностью. Голое «в панели» рядом

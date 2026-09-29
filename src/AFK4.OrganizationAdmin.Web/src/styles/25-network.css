@@ -1,66 +1,38 @@
-/* Сеть → Филиалы: свод KPI по org. Карточки/итоги переиспользуют .management-panel
-   (раскладка/подъём), здесь только грид и типографика статов. */
+/* Сеть → Филиалы: одна главная цифра (выручка сети сегодня) и список филиалов на общем
+   списке Управления (MgmtTable). Было пять плиток итогов, повторённых в карточке каждого филиала. */
 
-.network-branches-totals {
+.network-branches-figure {
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+}
+
+.network-branches-figure-value {
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.network-branches-figure-hint {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.network-branch-name {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.network-total {
-  gap: 6px;
-  padding: 14px 16px;
-}
-
-.network-total-label {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.network-total-value {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.network-branches-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.network-branch-card header {
-  display: flex;
-  flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.network-branch-card h3 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.network-branch-city {
+.network-branch-name span {
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .network-branch-error {
-  margin: 0;
   color: var(--danger-text);
-  font-size: 13px;
-}
-
-.network-branch-kpis {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px 16px;
-  margin: 0;
+  font-size: var(--text-sm);
 }
 
 .network-stat {
@@ -79,11 +51,6 @@
   color: var(--text-strong);
   font-size: 14px;
   font-weight: 600;
-}
-
-.network-branch-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .network-branches-add-note {
@@ -283,19 +250,26 @@
   margin-bottom: 12px;
 }
 
-.network-journal-action {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-strong);
+/* Код, которого нет в словаре действий: мелко и как код — видно, что это не название. */
+.network-journal-code {
+  overflow-wrap: anywhere;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
 }
 
-.network-journal-details {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-tertiary);
-  font-size: 13px;
+/* Подробности записи — раскрытием, а не строкой JSON в ячейке. */
+.network-journal-details summary {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.network-journal-details pre {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
 }
 
 .network-journal-limit-note {

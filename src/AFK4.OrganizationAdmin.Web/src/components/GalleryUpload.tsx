@@ -112,7 +112,7 @@ export function GalleryUpload({ value, onChange, branchId, backend, disabled }: 
                   onClick={() => move(index, 1)}
                 >›</button>
                 <button
-                  type="button" className="ui-btn ui-btn--sm ui-btn--danger"
+                  type="button" className="ui-btn ui-btn--sm"
                   aria-label={t('op.media.upload.remove')}
                   disabled={disabled || busy}
                   onClick={() => handleRemove(index)}

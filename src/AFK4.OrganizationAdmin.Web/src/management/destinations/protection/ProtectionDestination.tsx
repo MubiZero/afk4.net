@@ -126,7 +126,6 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
   return (
     <ManagementScreen
       title={t('op.management.dest.protection')}
-      subtitle={t('op.management.dest.protection.subtitle')}
       contentWidth="wide"
       state={managementScreenState(loadStatus)}
       skeleton={

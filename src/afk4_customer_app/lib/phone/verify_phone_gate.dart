@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import 'phone_verification_sheet.dart';
+import '../shell/app_sheet.dart';
+import '../shell/actions.dart';
+import '../theme/space.dart';
 
 /// Действие закрыто, пока номер не подтверждён, — и здесь же способ его подтвердить.
 ///
@@ -27,11 +30,9 @@ class VerifyPhoneGate extends StatelessWidget {
   Future<void> _verify(BuildContext context) async {
     final l = L.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PhoneVerificationSheet(api: api),
+    final confirmed = await showAppSheet<bool>(
+      context,
+      (_) => PhoneVerificationSheet(api: api),
     );
     if (confirmed != true) return;
 
@@ -45,17 +46,14 @@ class VerifyPhoneGate extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           explanation,
           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
-        const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: () => _verify(context),
-          child: Text(l.customerWalletGateAction),
-        ),
+        const SizedBox(height: Space.s3),
+        SecondaryButton(action: AppAction(l.customerWalletGateAction, () => _verify(context))),
       ],
     );
   }

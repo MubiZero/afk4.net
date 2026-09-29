@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -166,6 +167,10 @@ Future<void> signOut(WidgetTester tester) async {
 /// Вход по коду из SMS — единственный, который есть. Кнопки ищутся по типу, а не по
 /// подписи: тест языка запускает приложение на английском.
 Future<void> signIn(WidgetTester tester) async {
+  // Витрина прокручивается целиком: на крупном шрифте карточка клуба ниже первого экрана, а к
+  // верху прилипает поиск — карточку ставим в середину, а не под него.
+  unawaited(Scrollable.ensureVisible(tester.element(find.text('CyberX')), alignment: 0.5));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('CyberX'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).first, '+992900000000');
@@ -285,7 +290,7 @@ void main() {
     await tester.pumpAndSettle();
     await signIn(tester);
     await openProfile(tester);
-    await tapInProfile(tester, find.text('Сменить клуб'));
+    await tapInProfile(tester, find.text('Выбрать другой клуб'));
 
     expect(find.text('Выберите клуб'), findsOneWidget);
     // Сессия на месте: вернувшись в клуб, игрок попадает на главную, а не на экран входа.
@@ -362,7 +367,7 @@ void main() {
       await signIn(tester);
       expect(find.text('Иван'), findsOneWidget);
 
-      await tester.tap(find.text('Кошелёк'));
+      await tester.tap(find.text('Баланс'));
       await tester.pumpAndSettle();
 
       await openProfile(tester);

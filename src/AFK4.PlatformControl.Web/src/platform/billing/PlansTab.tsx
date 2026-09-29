@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -8,7 +8,7 @@ import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons'
 import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionPlan } from '@/api/types';
 import { usePlans } from './usePlans';
@@ -17,7 +17,7 @@ import { BillingTermsCard } from './BillingTermsCard';
 import { emptyPlanForm, planToForm, planFormToCreateRequest, planFormToUpdateRequest, INTERVAL_LABEL, type PlanForm } from './billingModel';
 
 export function PlansTab({ client, canManage = true }: { client: PlansApi; canManage?: boolean }) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const { toast } = useToast();
   const state = usePlans(client);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,10 +58,7 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.billing.tab.plans')}</CardTitle>
-        {canManage ? <Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button> : null}
-      </CardHeader>
+      {canManage ? <CardToolbar><Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button></CardToolbar> : null}
       <CardContent>
         {state.data.length === 0 ? (
           <EmptyState
@@ -86,24 +83,23 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
             <TableBody>
               {state.data.map(plan => (
                 <TableRow key={plan.planCode}>
-                  <TableCell><strong>{plan.name}</strong> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
-                  <TableCell className="pc-num">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
+                  {/* Код тарифа — служебный ключ; он виден в форме тарифа, где его и сверяют. */}
+                  <TableCell><strong>{plan.name}</strong></TableCell>
+                  <TableCell className="pc-num">{formatMoney(plan.priceMinorUnits, plan.currencyCode)}</TableCell>
                   <TableCell className="pc-num">
                     {(plan.pricePerDeviceMinorUnits ?? 0) > 0
                       ? t('platform.billing.plans.perDevice', {
-                          price: formatCurrency(minorToMajor(plan.pricePerDeviceMinorUnits ?? 0), plan.currencyCode),
+                          price: formatMoney(plan.pricePerDeviceMinorUnits ?? 0, plan.currencyCode),
                           included: plan.includedDevices ?? 0
                         })
                       : '—'}
                   </TableCell>
                   <TableCell className="pc-num">{plan.maxDevices ?? '—'}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
-                  {/* Точка и прочерк ничего не говорят ни человеку, ни зачитывающей экран программе:
-                      скрытый тариф видно только по тому, что кружок другого цвета. */}
+                  {/* Скрытый тариф назван словом, а не цветом кружка. «Активен» в каждой строке —
+                      шум (решение владельца 29.09): отмечаем только отклонение. */}
                   <TableCell>
-                    {plan.isActive
-                      ? <Badge variant="success">{t('platform.billing.plans.state.active')}</Badge>
-                      : <Badge variant="outline">{t('platform.billing.plans.state.hidden')}</Badge>}
+                    {plan.isActive ? null : <Badge variant="outline">{t('platform.billing.plans.state.hidden')}</Badge>}
                   </TableCell>
                   <TableCell>{canManage ? <Button variant="outline" onClick={() => openEdit(plan)}>{t('platform.billing.plans.edit')}</Button> : null}</TableCell>
                 </TableRow>

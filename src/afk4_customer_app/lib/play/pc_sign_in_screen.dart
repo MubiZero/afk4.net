@@ -8,6 +8,11 @@ import '../api/contracts.dart';
 import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../shell/actions.dart';
+import '../shell/group_header.dart';
+import '../theme/space.dart';
+import 'start_session_screen.dart';
+import '../shell/app_scaffold.dart';
 
 /// Что прочитали с монитора: код посадки и, если QR его назвал, клуб этого ПК.
 class PcSignInLink {
@@ -34,12 +39,33 @@ PcSignInLink? parsePcSignInLink(String raw) {
   return PcSignInLink(segments[1], organizationId: club == null || club.isEmpty ? null : club);
 }
 
-/// Вход на ПК с телефона: навести камеру на QR с монитора — ПК войдёт сам, без номера и ПИН-кода
-/// на клавиатуре зала. Экран ждёт, пока ПК заберёт заявку, и говорит «Вы вошли на ПК 07».
+/// «Сесть за ПК» — одна дверь вместо двух.
+///
+/// Раньше на главной было две: «Сесть за ПК» (код с монитора → тариф → время) и «Войти на ПК по
+/// QR» (камера → ПК входит сам). Обе начинались одним и тем же — кодом с экрана ПК, — и игрок у
+/// монитора должен был угадать, какая из них его. Теперь шаг один: навести камеру на QR или
+/// набрать код. Дальше — тариф и время на телефоне, если телефону есть из чего выбрать; иначе, или
+/// если игрок сам так решил, ПК просто впускает его, а время выбирается на экране ПК.
+///
+/// Возвращает имя места, если сессия началась с телефона: главная скажет «садитесь за ПК 07».
 class PcSignInScreen extends StatefulWidget {
-  const PcSignInScreen({super.key, required this.api, this.initialLink, this.enableCamera = true});
+  const PcSignInScreen({
+    super.key,
+    required this.api,
+    this.initialLink,
+    this.enableCamera = true,
+    this.branchId,
+    this.pinSet,
+  });
 
   final PlayerApiClient api;
+
+  /// Зал игрока — из профиля. Без него на телефоне не из чего выбрать тариф, и ПК впускает игрока
+  /// сразу. Он же отсекает чужой клуб: QR другого клуба ведёт только ко входу.
+  final String? branchId;
+
+  /// Задан ли ПИН — для предупреждения на шаге тарифа.
+  final bool? pinSet;
 
   /// Ссылка, которой открыли приложение (системная камера): тогда сканировать уже нечего.
   final PcSignInLink? initialLink;
@@ -92,7 +118,7 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
       final link = parsePcSignInLink(barcode.rawValue ?? '');
       if (link != null) {
         HapticFeedback.mediumImpact();
-        _submit(link);
+        _proceed(link);
         return;
       }
     }
@@ -205,7 +231,40 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
       return;
     }
     FocusScope.of(context).unfocus();
-    _submit(link);
+    _proceed(link);
+  }
+
+  /// Код прочитан. Тариф выбирается на телефоне, только когда есть где: зал известен и QR этого же
+  /// клуба. Иначе — сразу вход, время выберут на ПК.
+  Future<void> _proceed(PcSignInLink link) async {
+    final branchId = widget.branchId;
+    final club = link.organizationId;
+    final sameClub = club == null || club == widget.api.session?.organizationId;
+    if (branchId == null || !sameClub) {
+      await _submit(link);
+      return;
+    }
+
+    final outcome = await Navigator.of(context).push<SitDownOutcome>(
+      MaterialPageRoute(
+        builder: (_) => StartSessionScreen(
+          api: widget.api,
+          branchId: branchId,
+          seatingCode: link.code,
+          pinSet: widget.pinSet,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (outcome) {
+      case SessionStarted(:final seatName):
+        Navigator.of(context).pop(seatName);
+      case ChooseOnPc():
+        await _submit(link);
+      case null:
+        // Вернулись назад — остаёмся на шаге кода: может, человек ошибся монитором.
+        break;
+    }
   }
 
   @override
@@ -214,17 +273,17 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerPcSignInTitle)),
+      appBar: nestedAppBar(context, title: l.customerPlayStart),
       body: SafeArea(
         child: switch (_stage) {
           _Stage.scanning => ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(Space.screen),
               children: [
                 Text(l.customerPcSignInHint, style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 16),
-                if (widget.enableCamera)
+                const SizedBox(height: Space.s4),
+                if (widget.enableCamera) ...[
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(Space.s4),
                     child: AspectRatio(
                       aspectRatio: 1,
                       child: MobileScanner(
@@ -232,7 +291,7 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                         errorBuilder: (context, error) => Container(
                           color: theme.colorScheme.surfaceContainerHighest,
                           alignment: Alignment.center,
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(Space.s6),
                           child: Text(
                             error.errorCode == MobileScannerErrorCode.permissionDenied
                                 ? l.customerPcSignInCameraDenied
@@ -243,9 +302,9 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                       ),
                     ),
                   ),
-                const SizedBox(height: 20),
-                Text(l.customerPcSignInOrType, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 8),
+                  const SizedBox(height: Space.s5),
+                ],
+                GroupHeader(l.customerPcSignInOrType),
                 TextField(
                   controller: _code,
                   keyboardType: TextInputType.number,
@@ -258,18 +317,16 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                   ),
                   onSubmitted: (_) => _submitTyped(),
                 ),
-                const SizedBox(height: 12),
-                FilledButton(onPressed: _submitTyped, child: Text(l.customerPcSignInSubmit)),
               ],
             ),
           _Stage.sending || _Stage.waiting => Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(Space.s6),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.s4),
                     Text(
                       _stage == _Stage.waiting && _seat != null
                           ? l.customerPcSignInWaitingSeat(_seat!)
@@ -281,52 +338,77 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
                 ),
               ),
             ),
-          _Stage.done => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle_outline, size: 56, color: theme.colorScheme.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      _seat != null ? l.customerPcSignInDoneSeat(_seat!) : l.customerPcSignInDone,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(l.customerPcSignInDoneHint, textAlign: TextAlign.center),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      child: Text(l.customerPcSignInClose),
-                    ),
-                  ],
-                ),
-              ),
+          _Stage.done => _Outcome(
+              icon: Icons.check_circle_outline,
+              color: theme.colorScheme.primary,
+              title: _seat != null ? l.customerPcSignInDoneSeat(_seat!) : l.customerPcSignInDone,
+              body: l.customerPcSignInDoneHint,
             ),
-          _Stage.failed => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-                    const SizedBox(height: 16),
-                    Text(_problem ?? l.customerPcSignInFailed, textAlign: TextAlign.center),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: () => setState(() {
-                        _stage = _Stage.scanning;
-                        _problem = null;
-                      }),
-                      child: Text(l.customerPcSignInRetry),
-                    ),
-                  ],
-                ),
-              ),
+          _Stage.failed => _Outcome(
+              icon: Icons.error_outline,
+              color: theme.colorScheme.error,
+              title: _problem ?? l.customerPcSignInFailed,
             ),
         },
+      ),
+      // Главное действие каждого шага — у низа экрана, под большим пальцем.
+      bottomNavigationBar: switch (_stage) {
+        _Stage.scanning => PinnedActions(
+            child: ActionStack(primary: AppAction(l.customerPcSignInNext, _submitTyped)),
+          ),
+        _Stage.done => PinnedActions(
+            child: ActionStack(
+              primary: AppAction(l.customerPcSignInClose, () => Navigator.of(context).maybePop()),
+            ),
+          ),
+        _Stage.failed => PinnedActions(
+            child: ActionStack(
+              primary: AppAction(
+                l.customerCommonRetry,
+                () => setState(() {
+                  _stage = _Stage.scanning;
+                  _problem = null;
+                }),
+              ),
+            ),
+          ),
+        _ => null,
+      },
+    );
+  }
+}
+
+/// Итог шага: значок, крупная строка и пояснение под ней.
+class _Outcome extends StatelessWidget {
+  const _Outcome({required this.icon, required this.color, required this.title, this.body});
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? body;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(Space.s6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 56, color: color),
+            const SizedBox(height: Space.s4),
+            Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+            if (body case final text?) ...[
+              const SizedBox(height: Space.s2),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

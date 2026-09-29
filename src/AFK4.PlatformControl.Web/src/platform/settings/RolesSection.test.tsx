@@ -55,7 +55,8 @@ describe('RolesSection', () => {
     renderSection(makeClient());
 
     expect(await screen.findByText('Поддержка')).toBeInTheDocument();
-    expect(screen.getByText('platform_support')).toBeInTheDocument();
+    // Служебное имя роли на экран не выводится — роль названа словами.
+    expect(screen.queryByText('platform_support')).toBeNull();
     expect(screen.getByText('Встроенная')).toBeInTheDocument();
     expect(screen.getByText('2 администратора')).toBeInTheDocument();
   });
@@ -103,7 +104,7 @@ describe('RolesSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Новая роль' }));
 
     // Человек, раздающий доступы, читает назначение права, а не адрес проверки в коде.
-    expect(screen.getByLabelText('Видеть счета, платежи и долги организаций')).toBeInTheDocument();
+    expect(screen.getByLabelText('Видеть счета, платежи и долги клубов')).toBeInTheDocument();
     expect(screen.getByText('Оплаты')).toBeInTheDocument();
     expect(screen.queryByLabelText('platform.billing.view')).not.toBeInTheDocument();
   });
@@ -116,7 +117,7 @@ describe('RolesSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Новая роль' }));
     await userEvent.type(screen.getByLabelText('Короткое имя'), 'clerk');
     await userEvent.type(screen.getByLabelText('Название'), 'Клерк');
-    await userEvent.click(screen.getByLabelText('Видеть счета, платежи и долги организаций'));
+    await userEvent.click(screen.getByLabelText('Видеть счета, платежи и долги клубов'));
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(client.createRole).toHaveBeenCalledWith('clerk', {
@@ -191,7 +192,7 @@ describe('RolesSection', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
 
-    expect(await screen.findByLabelText('Видеть список организаций и их карточки')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Видеть список клубов и их карточки')).toBeInTheDocument();
     expect(listPermissions).toHaveBeenCalledTimes(2);
     expect(client.listRoles).toHaveBeenCalledTimes(1);
   });

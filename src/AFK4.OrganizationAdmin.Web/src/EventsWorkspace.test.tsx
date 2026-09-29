@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { EventsWorkspace } from './EventsWorkspace';
+import { ManagementScreen } from './management/ManagementScreen';
 import { PlatformApiError } from './platformApi';
 import type {
   CreateTournamentRequest,
@@ -85,7 +86,8 @@ function client(initial: TournamentDto[] = [], participants: TournamentParticipa
 function renderWorkspace(c: ReturnType<typeof client>, canManage?: boolean) {
   render(
     <I18nProvider initialLocale="ru">
-      <EventsWorkspace backend={backend as never} canManage={canManage} client={c as never} />
+      {/* Кнопка «+ Событие» живёт в шапке экрана (ScreenAction), поэтому список — внутри него. */}
+      <ManagementScreen title="События"><EventsWorkspace backend={backend as never} canManage={canManage} client={c as never} /></ManagementScreen>
     </I18nProvider>
   );
 }
@@ -119,7 +121,7 @@ describe('EventsWorkspace', () => {
   it('заводит событие через дровер', async () => {
     const c = client();
     renderWorkspace(c);
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Новое событие' }))[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: '+ Событие' }));
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Ночь FIFA' } });
     fireEvent.change(screen.getByLabelText('Начало'), { target: { value: '2026-08-28T19:00' } });
@@ -137,7 +139,7 @@ describe('EventsWorkspace', () => {
   it('без названия не сохраняет и говорит почему', async () => {
     const c = client();
     renderWorkspace(c);
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Новое событие' }))[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: '+ Событие' }));
 
     fireEvent.change(screen.getByLabelText('Начало'), { target: { value: '2026-08-28T19:00' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -150,7 +152,7 @@ describe('EventsWorkspace', () => {
   it('без даты начала не сохраняет', async () => {
     const c = client();
     renderWorkspace(c);
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Новое событие' }))[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: '+ Событие' }));
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Ночь FIFA' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));

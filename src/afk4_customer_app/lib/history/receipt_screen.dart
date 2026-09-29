@@ -6,6 +6,10 @@ import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../shell/load_failure.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Чек одного визита: время, покупки и итог.
 class ReceiptScreen extends StatefulWidget {
@@ -55,21 +59,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerReceiptTotal)),
+      appBar: nestedAppBar(context, title: l.customerReceiptTitle),
       body: switch (_state) {
-        _Load.loading => Semantics(
-            label: l.a11yLoadingReceipt,
-            child: const Center(child: CircularProgressIndicator()),
-          ),
-        _Load.missing => Center(
-            child: Text(
-              l.customerReceiptNotFound,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
+        _Load.loading => ListSkeleton(rows: 1, rowHeight: 280, label: l.a11yLoadingReceipt),
+        _Load.missing => EmptyState(icon: Icons.receipt_long_outlined, title: l.customerReceiptNotFound),
         _Load.failed => LoadFailure(message: l.customerReceiptLoadError, onRetry: _fetch),
         _Load.ready => _ReceiptBody(receipt: _receipt!, now: widget.clock()),
       },
@@ -91,11 +86,11 @@ class _ReceiptBody extends StatelessWidget {
     String money(int minorUnits) => formatMoney(minorUnits, receipt.currencyCode, locale: locale);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       children: [
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Space.s4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -109,7 +104,7 @@ class _ReceiptBody extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: Space.s1),
                 Text(
                   '${receipt.seatName} · '
                   '${formatVisitDuration(l, receipt.startedAtUtc, receipt.endedAtUtc, now: now)}',
@@ -150,7 +145,7 @@ class _Row extends StatelessWidget {
     final style = emphasized ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: Space.s1),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

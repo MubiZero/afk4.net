@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
@@ -65,7 +65,6 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
 
   return (
     <Card>
-      <CardHeader><CardTitle>{t('platform.organization.section.limits')}</CardTitle></CardHeader>
       <CardContent>
         {field(t('platform.organization.limitsForm.maxDevicesTotal'), maxDevicesTotal, setMaxDevicesTotal)}
         {field(t('platform.organization.limitsForm.maxBranches'), maxBranches, setMaxBranches)}

@@ -8,7 +8,7 @@ function branch(overrides: Partial<OrganizationBranch> = {}): OrganizationBranch
   return {
     branchId: 'branch-1',
     slug: 'main',
-    name: 'Главный клуб',
+    name: 'Главный зал',
     city: 'Душанбе',
     createdAtUtc: '2026-01-01T00:00:00Z',
     ...overrides
@@ -67,7 +67,7 @@ describe('OrganizationDynamicsTab', () => {
     };
     render(<I18nProvider><OrganizationDynamicsTab client={client} organizationId="org-1" branches={[branch()]} /></I18nProvider>);
 
-    await waitFor(() => expect(screen.getByText('Клуб не выходил на связь')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Филиал не выходил на связь')).toBeInTheDocument());
     expect(screen.getByText('Нет данных о связи')).toBeInTheDocument();
     expect(screen.getByText(/дня без связи/)).toBeInTheDocument();
     expect(screen.getByText(/дня без наблюдения/)).toBeInTheDocument();
@@ -77,9 +77,9 @@ describe('OrganizationDynamicsTab', () => {
     const client = { getBranchDynamics: mock().mockRejectedValue(new Error('network down')) };
     render(<I18nProvider><OrganizationDynamicsTab client={client} organizationId="org-1" branches={[branch()]} /></I18nProvider>);
 
-    await waitFor(() => expect(screen.getByText('Не удалось загрузить историю клуба')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Не удалось загрузить историю филиала')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
-    expect(screen.queryByText('За последние 30 дней снимков нет. Снимок пишется за каждые прошедшие сутки — у нового клуба первый появится завтра.')).not.toBeInTheDocument();
+    expect(screen.queryByText('За последние 30 дней снимков нет. Снимок пишется за каждые прошедшие сутки — у нового филиала первый появится завтра.')).not.toBeInTheDocument();
   });
 
   it('ни одна подпись на экране не содержит символа \'{\' (регрессия на ICU-шаблон, попавший в UI сырым)', async () => {
@@ -114,7 +114,7 @@ describe('OrganizationDynamicsTab', () => {
     await waitFor(() => expect(getBranchDynamics).toHaveBeenCalledWith('org-1', 'branch-a', 30));
 
     // Переключаемся на клуб Б до того, как первый запрос успел ответить.
-    fireEvent.change(screen.getByLabelText('Клуб'), { target: { value: 'branch-b' } });
+    fireEvent.change(screen.getByLabelText('Филиал'), { target: { value: 'branch-b' } });
     await waitFor(() => expect(getBranchDynamics).toHaveBeenCalledWith('org-1', 'branch-b', 30));
 
     // Устаревший ответ по клубу А приходит ПОСЛЕ переключения — он не должен попасть на экран.

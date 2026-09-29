@@ -148,18 +148,20 @@ describe('MapSidePanel diagnostics (A3)', () => {
     expect(container.textContent).not.toContain('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE');
   });
 
-  it('flags a lost-connection PC with the danger status pill', () => {
+  // Связь с ПК — первым словом строки о ПК, выделенным, если её нет.
+  it('names a lost connection first in the PC line', () => {
     const utils = renderPanel(seat({ isDeviceOnline: false }));
-    const pill = utils.container.querySelector('.status-pill.bad');
-    expect(pill).not.toBeNull();
-    expect(pill?.textContent).toContain('Нет связи');
+    const offline = utils.container.querySelector('.seat-pc-line .is-offline');
+    expect(offline?.textContent).toBe('Нет связи');
   });
 
-  it('shows the unified status block under the controls, without a «Статус» button', () => {
+  // Статус ПК — одна строка внизу панели (дизайн-проход 29.09), а не блок «Статус ПК» с пилюлями
+  // и не кнопка «Статус».
+  it('shows the PC status as one line, without a «Статус» button or section', () => {
     const utils = renderPanel(seat({}));
-    // Статус — единый блок внизу, не действие: отдельной кнопки «Статус» больше нет.
     expect(utils.queryByRole('button', { name: /^Статус$/ })).toBeNull();
-    utils.getByText('Статус ПК');
+    expect(utils.queryByText('Статус ПК')).toBeNull();
+    expect(utils.container.querySelector('.seat-pc-line')?.textContent).toContain('Онлайн');
   });
 
   it('shows the real client and tariff from the backend session, not a placeholder', () => {
@@ -183,10 +185,9 @@ describe('MapSidePanel diagnostics (A3)', () => {
     getByText('Набежало');
   });
 
-  it('offers no PC control or status block for a seat without a device', () => {
-    const { queryByText } = renderPanel(seat({ deviceId: null, deviceName: null }));
-    expect(queryByText('Управление ПК')).toBeNull();
-    expect(queryByText('Статус ПК')).toBeNull();
+  it('offers no PC line for a seat without a device', () => {
+    const { container } = renderPanel(seat({ deviceId: null, deviceName: null }));
+    expect(container.querySelector('.seat-pc-line')).toBeNull();
   });
 });
 
@@ -388,58 +389,255 @@ describe('MapSidePanel new session client picker', () => {
   });
 });
 
-// Серая кнопка без объяснения заставляла кассира гадать. Причина — текстом рядом, и кнопка
-// ссылается на неё, чтобы её прочитал и экранный диктор.
-describe('MapSidePanel: почему действие недоступно', () => {
-  function renderWith(s: SeatSummary, permissions: string[], canUsePcControl = false) {
-    const context = backend();
-    context.session.permissions = permissions;
-    return render(
-      <I18nProvider>
-        <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={context} actionsEnabled canUsePcControl={canUsePcControl} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
-      </I18nProvider>
-    );
-  }
+// Панель места по таблице состояний (дизайн-проход 29.09): одна главная кнопка по положению
+// места, до трёх второстепенных рядом, остальное — в «Ещё». Было 12 кнопок в сессии и 8 на
+// свободном месте, все одного веса.
+const ALL = [
+  'organization.sessions.start', 'organization.sessions.extend', 'organization.sessions.transfer',
+  'organization.sessions.end', 'organization.sessions.pause', 'organization.assistance.resolve',
+  'organization.devices.commands.dispatch', 'organization.devices.maintenance'
+];
 
-  it('говорит, почему нельзя продлить и завершить, когда у сотрудника нет этих прав', () => {
-    renderWith(seat({}), ['organization.sessions.start', 'organization.sessions.transfer']);
+function renderWith(s: SeatSummary, {
+  permissions = ALL,
+  actionsEnabled = true,
+  seats = [s],
+  onSeatAction = async () => ({}),
+  onPcControlAction = async () => ({ detail: '' }),
+  onResolveAssistance = async () => ({ detail: '' })
+}: {
+  permissions?: string[];
+  actionsEnabled?: boolean;
+  seats?: SeatSummary[];
+  onSeatAction?: (request: SeatActionRequest) => Promise<Record<string, never>>;
+  onPcControlAction?: (seat: SeatSummary, action: string, options?: { text?: string }) => Promise<{ detail: string }>;
+  onResolveAssistance?: (seat: SeatSummary) => Promise<{ detail: string }>;
+} = {}) {
+  const context = backend();
+  context.session.permissions = permissions;
+  return render(
+    <I18nProvider>
+      <MapSidePanel
+        seat={s}
+        seats={seats}
+        currencyCode="TJS"
+        backend={context}
+        actionsEnabled={actionsEnabled}
+        canUsePcControl
+        onSeatAction={onSeatAction}
+        onPcControlAction={onPcControlAction as never}
+        onResolveAssistance={onResolveAssistance}
+      />
+    </I18nProvider>
+  );
+}
 
-    const extend = screen.getByRole('button', { name: /15 мин/ });
-    expect(extend).toBeDisabled();
-    const reason = screen.getByText(/Продлевать сессию может сотрудник с правом на продление/);
-    expect(extend.getAttribute('aria-describedby')).toBe(reason.id);
-    expect(screen.getByText(/Завершать сессию может сотрудник с правом на завершение/)).toBeInTheDocument();
-    expect(screen.queryByText(/Переносить сессию/)).toBeNull();
+const free = (overrides: Partial<SeatSummary> = {}) =>
+  seat({ tone: 'ready', stateLabel: 'Свободно', activeSessionId: null, hasActiveSession: false, command: 'Idle', ...overrides });
+
+// Главная кнопка — одна, в заливке и во всю ширину; её вид и подпись решает положение места.
+function primaryButton() {
+  const primaries = document.querySelectorAll('.ui-inspector .ui-btn--primary');
+  expect(primaries.length).toBeLessThanOrEqual(1);
+  return primaries[0] as HTMLButtonElement | undefined;
+}
+
+describe('MapSidePanel: одна главная кнопка по положению места', () => {
+  it('свободное место — «Посадить гостя»', () => {
+    renderWith(free());
+    expect(primaryButton()?.textContent).toBe('Посадить гостя');
   });
 
-  it('молчит, когда права есть', () => {
-    renderWith(seat({}), ['organization.sessions.extend', 'organization.sessions.end', 'organization.sessions.transfer']);
-
-    expect(screen.queryByText(/может сотрудник с правом/)).toBeNull();
-    expect(screen.getByRole('button', { name: /15 мин/ }).getAttribute('aria-describedby')).toBeNull();
+  it('идёт сессия — «Завершить и рассчитать», рядом +15 · +30 · Перенести…', () => {
+    const target = free({ id: 'seat-2', name: 'PC-08' });
+    renderWith(seat({ remainingSeconds: 1800 }), { seats: [seat({ remainingSeconds: 1800 }), target] });
+    expect(primaryButton()?.textContent).toBe('Завершить и рассчитать');
+    const secondary = [...document.querySelectorAll('.ui-inspector-secondary .ui-btn')].map((button) => button.textContent);
+    expect(secondary).toEqual(['15 мин', '30 мин', 'Перенести…']);
   });
 
-  it('объясняет, почему нельзя посадить гостя за ПК без связи', () => {
-    renderWith(
-      seat({ tone: 'offline', activeSessionId: null, hasActiveSession: false, isDeviceOnline: false }),
-      ['organization.sessions.start']
-    );
-
-    expect(screen.getByRole('button', { name: 'Посадить гостя' })).toBeDisabled();
-    expect(screen.getByText(/ПК не на связи — запустить на нём сессию сейчас нельзя/)).toBeInTheDocument();
+  it('открытый счёт — «Завершить и принять» с суммой, которая уже набежала', () => {
+    renderWith(seat({ remaining: '≈ 54 с.', remainingSeconds: null, accruedCostMinorUnits: 5400 }));
+    expect(primaryButton()?.textContent).toBe('Завершить и принять 54 с.');
   });
 
-  // Аудит #1: доступность блокировки/разблокировки решает статус самого ПК (isDeviceLocked),
-  // а не то, идёт ли на нём сессия — заблокированный свободный ПК всё равно можно разблокировать.
-  it('разблокировать можно и без сессии — решает статус блокировки ПК, а не сессия', () => {
-    renderWith(
-      seat({ tone: 'ready', activeSessionId: null, hasActiveSession: false, isDeviceLocked: true }),
-      ['organization.sessions.start'],
-      true
-    );
+  it('пауза — «Снять с паузы» и продолжает сессию', async () => {
+    const onSeatAction = mock(async (_request: SeatActionRequest) => ({}));
+    renderWith(seat({ sessionState: 'Paused', remainingSeconds: 1800 }), { onSeatAction });
+    expect(screen.getByText('Пауза')).toBeInTheDocument();
+    fireEvent.click(primaryButton()!);
+    await waitFor(() => expect(onSeatAction).toHaveBeenCalledTimes(1));
+    expect(onSeatAction.mock.calls[0][0]).toMatchObject({ type: 'resume' });
+  });
 
-    expect(screen.getByRole('button', { name: /Разблокировать/ })).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: /Блокировать/ })).toBeDisabled();
-    expect(screen.getByText('ПК уже заблокирован.')).toBeInTheDocument();
+  // Пока ПК не ответил на прошлую команду, вторая либо продублирует её, либо ударит по
+  // неподтверждённому состоянию — поэтому кнопки нет, есть строка, чего ждём.
+  it('ожидает ответа ПК — главной кнопки нет, есть строка, что ушло', () => {
+    renderWith(free({ tone: 'pending', command: 'Unlock pending' }));
+    expect(primaryButton()).toBeUndefined();
+    expect(screen.getByText('Разблокировка в процессе')).toBeInTheDocument();
+  });
+
+  it('выключенный ПК — «Разбудить», и команда уходит сразу', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(free({ tone: 'offline', isDeviceOnline: false }), { onPcControlAction });
+    expect(screen.queryByRole('button', { name: 'Посадить гостя' })).toBeNull();
+    fireEvent.click(primaryButton()!);
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('wake');
+  });
+
+  it('с сессией без связи — всё равно «Завершить и рассчитать»: деньги считает сервер', () => {
+    renderWith(seat({ tone: 'offline', isDeviceOnline: false, remainingSeconds: 1200 }));
+    expect(primaryButton()?.textContent).toBe('Завершить и рассчитать');
+  });
+
+  it('обслуживание — «Вернуть в зал», без вопросов: это безопасно', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(free({ tone: 'service', maintenanceSinceUtc: '2026-05-21T08:00:00Z' }), { onPcControlAction });
+    fireEvent.click(primaryButton()!);
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('maintenance-off');
+  });
+
+  it('ПК сверх тарифа — кнопки нет, одна строка почему', () => {
+    renderWith(free({ tone: 'service', isOutsidePlan: true, stateLabel: 'Вне тарифа' }));
+    expect(primaryButton()).toBeUndefined();
+    expect(screen.getByText(/ПК сверх тарифа/)).toBeInTheDocument();
+  });
+
+  // Серый «сервис» без решения клуба (ПК не одобрен) — это не «сверх тарифа» и не «вернуть в зал».
+  it('неодобренный ПК — ни «Вернуть в зал», ни строки про тариф', () => {
+    renderWith(free({ tone: 'service', stateLabel: 'Обслуживание' }));
+    expect(primaryButton()).toBeUndefined();
+    expect(screen.queryByText(/ПК сверх тарифа/)).toBeNull();
+  });
+
+  // Нет права — кнопки нет вовсе: серая кнопка с «попросите доступ» у каждой была шумом.
+  it('без права на продление и завершение этих кнопок нет, перенос остаётся', () => {
+    renderWith(seat({}), { permissions: ['organization.sessions.start', 'organization.sessions.transfer'] });
+    expect(primaryButton()).toBeUndefined();
+    expect(screen.queryByRole('button', { name: /15 мин/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Перенести…' })).toBeInTheDocument();
+  });
+
+  // Сервер недоступен — объясняет одна строка у главной кнопки, и кнопка ссылается на неё.
+  it('без связи с сервером главная кнопка закрыта с причиной', () => {
+    renderWith(free(), { actionsEnabled: false });
+    const primary = primaryButton()!;
+    expect(primary).toBeDisabled();
+    expect(screen.getByText('Нет связи с сервером')).toBeInTheDocument();
+  });
+
+  it('игрок зовёт — полоса «Зовёт» и «Подошёл» снимает вызов', async () => {
+    const onResolveAssistance = mock(async () => ({ detail: '' }));
+    renderWith(seat({ assistanceRequestedAtUtc: new Date(Date.now() - 4 * 60_000).toISOString() }), { onResolveAssistance });
+    expect(screen.getByText(/Зовёт 4 мин/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Подошёл' }));
+    await waitFor(() => expect(onResolveAssistance).toHaveBeenCalledTimes(1));
   });
 });
+
+// Сбой команды — своё положение места: главное — повторить именно ту команду, что упала, тем же
+// путём, что из «Ещё» (с ключом повтора и, для опасной, с «точно?»); гостя посадить тоже можно.
+describe('MapSidePanel: «Повторить» упавшую команду', () => {
+  const failed = (type: string) => free({ tone: 'failed', stateLabel: 'Сбой команды', lastFailedCommandType: type });
+
+  it('упавшая разблокировка — «Повторить разблокировку» уходит сразу, рядом «Посадить гостя»', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(failed('unlock'), { onPcControlAction });
+    expect(primaryButton()?.textContent).toBe('Повторить разблокировку');
+    expect(screen.getByRole('button', { name: 'Посадить гостя' })).not.toHaveClass('ui-btn--primary');
+    fireEvent.click(primaryButton()!);
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('unlock');
+  });
+
+  it('упавшая перезагрузка повторяется только после «точно?»', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(failed('reboot'), { onPcControlAction });
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить перезагрузку' }));
+    expect(onPcControlAction).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Перезагрузить' }));
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('reboot');
+  });
+
+  it('без права на команды ПК повтора нет — остаётся «Посадить гостя»', () => {
+    renderWith(failed('unlock'), { permissions: ['organization.sessions.start'] });
+    expect(primaryButton()?.textContent).toBe('Посадить гостя');
+  });
+
+  // С игроком за ПК главная — сессия, а упавшая команда — строкой с «Повторить».
+  it('в сессии упавшая команда — строкой с «Повторить», главная остаётся сессии', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(seat({ remainingSeconds: 1800, lastFailedCommandType: 'unlock' }), { onPcControlAction });
+    expect(primaryButton()?.textContent).toBe('Завершить и рассчитать');
+    expect(screen.getByText('Не прошла команда: Разблокировка')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('unlock');
+  });
+});
+
+describe('MapSidePanel: «Ещё» — всё остальное, с причинами', () => {
+  const openMore = () => fireEvent.click(screen.getByRole('button', { name: 'Ещё действия' }));
+
+  it('перезагрузка свободного ПК спрашивает «точно?» и уходит только после подтверждения', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(free(), { onPcControlAction });
+    openMore();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Перезагрузить' }));
+    expect(onPcControlAction).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Перезагрузить' }));
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('reboot');
+  });
+
+  it('сообщение нельзя отправить пустым, а с текстом оно уходит с текстом', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(seat({}), { onPcControlAction });
+    openMore();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Сообщение игроку' }));
+    const dialog = screen.getByRole('dialog');
+    const send = within(dialog).getAllByRole('button').at(-1)!;
+    expect(send).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Через 5 минут закрываемся' } });
+    fireEvent.click(send);
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect(onPcControlAction.mock.calls[0] as unknown[]).toMatchObject([expect.anything(), 'message', { text: 'Через 5 минут закрываемся' }]);
+  });
+
+  it('за ПК играют — перезагрузка закрыта и говорит почему', () => {
+    renderWith(seat({}));
+    openMore();
+    const reboot = screen.getByRole('menuitem', { name: 'Перезагрузить' });
+    expect(reboot).toHaveAttribute('aria-disabled', 'true');
+    expect(reboot).toHaveAccessibleDescription('идёт сессия');
+  });
+
+  // Блокировка по факту: запертому ПК — только «Разблокировать».
+  it('запертому ПК предлагает только разблокировать — и без сессии', () => {
+    renderWith(free({ isDeviceLocked: true }));
+    openMore();
+    expect(screen.getByRole('menuitem', { name: 'Разблокировать' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByRole('menuitem', { name: 'Блокировать' })).toBeNull();
+  });
+
+  // Что уже стоит кнопкой на панели, в «Ещё» не дублируется.
+  it('не повторяет в «Ещё» то, что уже стоит кнопкой', () => {
+    renderWith(seat({ sessionState: 'Paused', remainingSeconds: 1800 }));
+    openMore();
+    expect(screen.queryByRole('menuitem', { name: 'Продолжить' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /15 мин/ })).toBeNull();
+  });
+
+  it('отказ сервера виден словами', async () => {
+    renderWith(free(), { onPcControlAction: async () => { throw new Error('ПК занят другой командой'); } });
+    openMore();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Разблокировать' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('ПК занят другой командой');
+  });
+});
+

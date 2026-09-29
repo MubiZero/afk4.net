@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../shell/actions.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
 
 /// Подтверждение своего номера по SMS.
 ///
@@ -136,75 +139,55 @@ class _PhoneVerificationSheetState extends State<PhoneVerificationSheet> {
     final l = L.of(context);
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l.customerPhoneTitle, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              l.customerPhoneIntro,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            if (_step == _Step.phone) ..._phoneStep(l) else ..._codeStep(l, theme),
-            if (_problem != null) ...[
-              const SizedBox(height: 12),
-              Text(_problem!, style: TextStyle(color: theme.colorScheme.error)),
-            ],
-          ],
+    final phoneStep = _step == _Step.phone;
+
+    return AppSheet(
+      title: l.customerPhoneTitle,
+      content: [
+        Text(
+          l.customerPhoneIntro,
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+        const SizedBox(height: Space.s4),
+        if (phoneStep)
+          TextField(
+            controller: _phone,
+            enabled: !_pending,
+            autofocus: true,
+            keyboardType: TextInputType.phone,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            decoration: InputDecoration(labelText: l.customerPhoneNumber),
+            onSubmitted: (_) => _pending ? null : _send(),
+          )
+        else ...[
+          Text(l.customerPhoneSent(_phone.text.trim()), style: theme.textTheme.bodyMedium),
+          const SizedBox(height: Space.s3),
+          TextField(
+            controller: _code,
+            enabled: !_pending,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            decoration: InputDecoration(labelText: l.customerPhoneCode),
+            onSubmitted: (_) => _pending ? null : _confirm(),
+          ),
+        ],
+      ],
+      actions: ActionStack(
+        error: _problem,
+        primary: phoneStep
+            ? AppAction(_pending ? l.customerPhoneSending : l.customerPhoneSend, _pending ? null : _send)
+            : AppAction(
+                _pending ? l.customerPhoneConfirming : l.customerPhoneConfirm,
+                _pending ? null : _confirm,
+              ),
+        tertiary: phoneStep
+            ? null
+            : AppAction(
+                _resendIn > 0 ? l.customerPhoneResendIn('$_resendIn') : l.customerPhoneResend,
+                _resendIn > 0 || _pending ? null : _send,
+              ),
       ),
     );
   }
-
-  List<Widget> _phoneStep(L l) => [
-        TextField(
-          controller: _phone,
-          enabled: !_pending,
-          autofocus: true,
-          keyboardType: TextInputType.phone,
-          autofillHints: const [AutofillHints.telephoneNumber],
-          decoration: InputDecoration(labelText: l.customerPhoneNumber),
-          onSubmitted: (_) => _pending ? null : _send(),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _pending ? null : _send,
-          child: Text(_pending ? l.customerPhoneSending : l.customerPhoneSend),
-        ),
-      ];
-
-  List<Widget> _codeStep(L l, ThemeData theme) => [
-        Text(
-          l.customerPhoneSent(_phone.text.trim()),
-          style: theme.textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _code,
-          enabled: !_pending,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          autofillHints: const [AutofillHints.oneTimeCode],
-          decoration: InputDecoration(labelText: l.customerPhoneCode),
-          onSubmitted: (_) => _pending ? null : _confirm(),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _pending ? null : _confirm,
-          child: Text(_pending ? l.customerPhoneConfirming : l.customerPhoneConfirm),
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: _resendIn > 0 || _pending ? null : _send,
-          child: Text(
-            _resendIn > 0 ? l.customerPhoneResendIn('$_resendIn') : l.customerPhoneResend,
-          ),
-        ),
-      ];
 }

@@ -26,9 +26,9 @@ function renderScreen(client: any, onCreated = mock(), onCancel = mock()) {
 }
 
 function fillRequired() {
-  fireEvent.change(screen.getByLabelText('Ключ организации'), { target: { value: '  victory  ' } });
+  fireEvent.change(screen.getByLabelText('Короткий адрес клуба'), { target: { value: '  victory  ' } });
   fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Victory' } });
-  fireEvent.change(screen.getByLabelText('Ключ филиала'), { target: { value: 'main' } });
+  fireEvent.change(screen.getByLabelText('Короткий адрес филиала'), { target: { value: 'main' } });
   fireEvent.change(screen.getByLabelText('Название филиала'), { target: { value: 'Main' } });
   fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Moscow' } });
 }
@@ -38,7 +38,7 @@ it('submits trimmed values with the default plan/status and calls onCreated', as
   const { onCreated } = renderScreen(client);
 
   fillRequired();
-  fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Создать клуб' }));
 
   await waitFor(() => expect(client.createOrganization).toHaveBeenCalled());
   const payload = client.createOrganization.mock.calls[0][0];
@@ -55,8 +55,8 @@ it('names the taken key instead of a generic failure', async () => {
   const client = { createOrganization: mock().mockRejectedValue(new PlatformApiError(409, 'slug taken')) };
   renderScreen(client);
   fillRequired();
-  fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
-  expect(await screen.findByText(/ключ организации или филиала уже занят/iu)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Создать клуб' }));
+  expect(await screen.findByText(/адрес клуба или филиала уже занят/iu)).toBeInTheDocument();
 });
 
 // Технические англоязычные строки транспорта не должны доезжать до пользователя.
@@ -64,7 +64,7 @@ it('shows a human error for a server failure without leaking the transport messa
   const client = { createOrganization: mock().mockRejectedValue(new PlatformApiError(500, 'Platform API call failed.')) };
   renderScreen(client);
   fillRequired();
-  fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Создать клуб' }));
   expect(await screen.findByText(/Сервер платформы вернул ошибку/iu)).toBeInTheDocument();
   expect(screen.queryByText(/Platform API call failed/iu)).toBeNull();
 });
@@ -83,12 +83,12 @@ it('auto-fills the organization slug from the name until the slug is edited', ()
 
   // Type into the org-name input — slug should auto-fill
   fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'AFK4 Душанбе' } });
-  expect((screen.getByLabelText('Ключ организации') as HTMLInputElement).value).toBe('afk4-dushanbe');
+  expect((screen.getByLabelText('Короткий адрес клуба') as HTMLInputElement).value).toBe('afk4-dushanbe');
 
   // Edit the slug directly — auto-fill should stop
-  fireEvent.change(screen.getByLabelText('Ключ организации'), { target: { value: 'custom-slug' } });
+  fireEvent.change(screen.getByLabelText('Короткий адрес клуба'), { target: { value: 'custom-slug' } });
   fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'AFK4 Душанбе v2' } });
-  expect((screen.getByLabelText('Ключ организации') as HTMLInputElement).value).toBe('custom-slug');
+  expect((screen.getByLabelText('Короткий адрес клуба') as HTMLInputElement).value).toBe('custom-slug');
 });
 
 // Форма длинная: обязательные поля в двух верхних карточках, кнопка — под лимитами и владельцем.
@@ -96,9 +96,9 @@ it('auto-fills the organization slug from the name until the slug is edited', ()
 it('пока обязательные поля пусты, называет их у кнопки', () => {
   renderScreen({ createOrganization: mock() });
 
-  const submit = screen.getByRole('button', { name: 'Создать организацию' });
+  const submit = screen.getByRole('button', { name: 'Создать клуб' });
   expect(submit).toBeDisabled();
-  const reason = screen.getByText('Заполните ключ и название организации, а также ключ, название и город филиала.');
+  const reason = screen.getByText('Заполните адрес и название клуба, а также адрес, название и город филиала.');
   expect(submit.getAttribute('aria-describedby')).toBe(reason.id);
 
   fillRequired();

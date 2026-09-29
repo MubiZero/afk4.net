@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -66,10 +67,8 @@ export function PeopleScreen({ client }: { client: Client }) {
   }
 
   return (
+    <Page title={t('nav.platform.people')} width="form">
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.people.title')}</CardTitle>
-      </CardHeader>
       <CardContent>
         <p className="mgmt-drawer-hint">{t('platform.people.description')}</p>
 
@@ -149,6 +148,7 @@ export function PeopleScreen({ client }: { client: Client }) {
         />
       </CardContent>
     </Card>
+    </Page>
   );
 }
 

@@ -182,7 +182,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   // спокойный серый, как обслуживание, а не «готов». Идущая сессия доживает в своём цвете.
   const isOutsidePlan = dto.isOutsidePlan === true;
   const idleOutsidePlan = isOutsidePlan && !hasActiveSession;
-  const tone = idleOutsidePlan ? 'service' : resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession);
+  const lastFailedCommandType = dto.lastFailedCommandType ?? null;
+  const tone = idleOutsidePlan ? 'service' : withFailedCommand(resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession), lastFailedCommandType);
   const remainingSeconds = dto.remainingSeconds ?? null;
   const remainingDeadlineMs = remainingSeconds === null
     ? null
@@ -239,7 +240,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     maintenanceSinceUtc: dto.maintenanceSinceUtc ?? null,
     sessionState: dto.state,
     isConsole,
-    isOutsidePlan
+    isOutsidePlan,
+    lastFailedCommandType
   };
 }
 
@@ -285,7 +287,7 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
       ? status.isLocked ? SeatStateNames.Locked : SeatStateNames.Free
       : SeatStateNames.Offline;
   const normalizedState = normalizeState(nextRawState);
-  const tone = resolveTone(normalizedState, hasDevice, status.isOnline, hasActiveSession);
+  const tone = withFailedCommand(resolveTone(normalizedState, hasDevice, status.isOnline, hasActiveSession), seat.lastFailedCommandType ?? null);
 
   return {
     ...seat,
@@ -307,7 +309,8 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
 }
 
 function refreshSeatRemaining(seat: SeatSummary, t: TFn, nowMs: number): SeatSummary {
-  if (!seat.hasActiveSession || seat.remainingDeadlineMs === null || seat.remainingDeadlineMs === undefined) {
+  // На паузе сервер держит остаток замершим — и карта не должна тикать его вниз между снимками.
+  if (!seat.hasActiveSession || seat.sessionState === 'Paused' || seat.remainingDeadlineMs === null || seat.remainingDeadlineMs === undefined) {
     return seat;
   }
 
@@ -373,6 +376,14 @@ function resolveTone(
     default:
       return 'ready';
   }
+}
+
+// Свободный ПК на связи, у которого упала последняя команда администратора, — «Сбой команды»,
+// а не «Свободно»: сервер называет упавшую команду (lastFailedCommandType), и панель места
+// предлагает её повторить. Сердцебиение знает только связь и блокировку — сбой оно не снимает,
+// снимает следующий снимок карты после успешной команды.
+function withFailedCommand(tone: SeatTone, lastFailedCommandType: string | null): SeatTone {
+  return tone === 'ready' && lastFailedCommandType !== null ? 'failed' : tone;
 }
 
 // Единая подпись состояния по тону — один словарь для плитки, панели и таблицы

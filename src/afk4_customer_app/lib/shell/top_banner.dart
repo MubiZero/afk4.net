@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/space.dart';
 
 /// Общая вёрстка полосы уведомлений вверху экрана: заливка на всю ширину, иконка слева,
 /// содержимое по центру, необязательные действия справа. `NetworkBanNote` (запрет сети) и
@@ -11,7 +12,7 @@ class TopBanner extends StatelessWidget {
     required this.icon,
     required this.content,
     this.actions = const [],
-    this.padding = const EdgeInsets.fromLTRB(20, 12, 20, 12),
+    this.padding = const EdgeInsets.fromLTRB(Space.s5, Space.s3, Space.s5, Space.s3),
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
 
@@ -35,7 +36,7 @@ class TopBanner extends StatelessWidget {
             crossAxisAlignment: crossAxisAlignment,
             children: [
               Icon(icon, size: 18, color: foreground),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.s2),
               Expanded(child: content),
               ...actions,
             ],

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Download, Search } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import {
   cashOperationTypeLabel,
   cashReasonLabel,
@@ -104,8 +105,8 @@ export function CashOperationsLedger({
     <section className="cash-operations-terminal">
       <CashMetricStrip ariaLabel={t('op.cash.journal.metricsAria')} items={[
         { label: t('op.cash.journal.net'), value: <Money minorUnits={report?.netCashTotal.minorUnits ?? 0} currencyCode={currencyCode} /> },
-        { label: t('op.cash.journal.cashIn'), value: <Money minorUnits={report?.cashInTotal.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'positive' },
-        { label: t('op.cash.journal.cashOut'), value: <Money minorUnits={report?.cashOutTotal.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'danger' }
+        { label: t('op.cash.journal.cashIn'), value: <Money minorUnits={report?.cashInTotal.minorUnits ?? 0} currencyCode={currencyCode} /> },
+        { label: t('op.cash.journal.cashOut'), value: <Money minorUnits={report?.cashOutTotal.minorUnits ?? 0} currencyCode={currencyCode} /> }
       ]} />
       <CashTerminalSplit
           inspectorLabel={t('op.cash.inspector.aria')}
@@ -121,8 +122,8 @@ export function CashOperationsLedger({
               <option value="cash_in">{t('op.cash.journal.cashIn')}</option>
               <option value="cash_out">{t('op.cash.journal.cashOut')}</option>
             </select>
-            <span className="cash-ledger-result-count">{filtered.length} {filtered.length === 1 ? t('op.cash.journal.operationOne') : t('op.cash.journal.operationMany')}</span>
-            <button type="button" className="cash-ledger-export" onClick={() => void exportCsv()}><Download size={14} aria-hidden="true" />{t('op.cash.journal.export')}</button>
+            <span className="cash-ledger-result-count">{t('op.cash.journal.operationCount', { count: filtered.length })}</span>
+            <Button size="sm" onClick={() => void exportCsv()}><Download size={14} aria-hidden="true" />{t('op.cash.journal.export')}</Button>
           </div>
           {exportError && <p className="cash-export-error" role="alert">{exportError}</p>}
           {filtered.length === 0 ? (rows.length === 0

@@ -13,7 +13,7 @@ import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonChart, SkeletonRows, SkeletonTiles } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney, majorToMinor } from '@afk4/money';
 import type { BranchDynamicsApi } from '@/api/platformClients/branchDynamics';
 import type { BranchDynamics, OrganizationBranch } from '@/api/types';
 import { countAliveDays, toDynamicsSeries } from './dynamicsModel';
@@ -75,7 +75,7 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
 // Верхнеуровневая функция, а не компонент, вложенный в рендер OrganizationDynamicsTab: вложенное
 // определение пересоздавало бы тип компонента на каждый рендер и размонтировало бы поддерево.
 function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; data: BranchDynamics }) {
-  const { t, formatCurrency, formatNumber } = i18n;
+  const { t, formatNumber } = i18n;
 
   if (data.days.length === 0) return <EmptyState message={t('platform.dynamics.empty')} next="calm" />;
 
@@ -91,7 +91,7 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
       <div className="pc-analytics-summary">
         <SummaryTile
           label={t('platform.dynamics.summary.revenue')}
-          value={formatCurrency(minorToMajor(data.totalRevenue.minorUnits), data.totalRevenue.currencyCode)}
+          value={formatMoney(data.totalRevenue.minorUnits, data.totalRevenue.currencyCode)}
         />
         <SummaryTile
           label={t('platform.dynamics.summary.sessions')}
@@ -127,7 +127,7 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
                 <XAxis dataKey="date" stroke="var(--text-tertiary)" fontSize={12} />
                 <YAxis stroke="var(--text-tertiary)" fontSize={12} />
                 <Tooltip
-                  formatter={value => formatCurrency(Number(value), data.totalRevenue.currencyCode)}
+                  formatter={value => formatMoney(majorToMinor(Number(value)), data.totalRevenue.currencyCode)}
                   contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}
                 />
                 <Line type="monotone" dataKey="revenue" stroke="var(--accent)" name={t('platform.dynamics.series.revenue')} />

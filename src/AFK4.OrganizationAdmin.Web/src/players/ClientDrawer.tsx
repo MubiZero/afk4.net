@@ -1,26 +1,24 @@
 import { useI18n } from '@afk4/i18n';
-import { Cake, CalendarClock, Play, Smartphone } from 'lucide-react';
-import { describeBirthday, initials, type PlayerClientItem } from '../operatorHelpers';
+import { Cake, Smartphone } from 'lucide-react';
+import { Button, Inspector, Money, StatusBadge, type Fact } from '@afk4/ui/react';
+import { describeBirthday, type PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
-import { Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { WalletZone } from './WalletZone';
 import { HistorySection } from './HistorySection';
-import { ClientActionsMenu } from './ClientActionsMenu';
+import { clientMenuActions } from './ClientActionsMenu';
 import { PackagesSection } from './PackagesSection';
 import { ReputationCard } from './ReputationCard';
 import type { ReputationController } from './useReputation';
-import { CloseButton } from '@afk4/ui/react';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
 const noop = () => {};
 
-// Узкая правая панель выбранного клиента (mock-v7) — замена вертикального разреза ClientDetail
-// рядом с широкой ClientsTable (Task 8 удалит ClientDetail/ClientList). Без сплита пакеты/история
-// и без продажи пакетов (та уходит в Кассу) — только деньги (баланс-герой + долг-callout + форма
-// пополнения) и мини-история. Презентационный: данные и money-write живут в оркестраторе, этот
-// компонент только зовёт переданные колбэки.
+// Карточка выбранного клиента справа от таблицы — на инспекторе кита: кто это → баланс одной
+// крупной цифрой → «Пополнить баланс» во всю ширину и частые действия рядом → факты (долг,
+// придержанное, где играет, бронь) → секции. Презентационная: данные и запись денег живут в
+// оркестраторе, здесь только колбэки. Чего нельзя по правам — не рисуется вовсе.
 export function ClientDrawer({
   client,
   liveContext,
@@ -34,7 +32,6 @@ export function ClientDrawer({
   packagesErrorDetail,
   topUpAmount,
   canTopUp,
-  topUpBlockedReason = null,
   onChangeTopUpAmount,
   onTopUp,
   onOpenDcTopUp,
@@ -69,7 +66,6 @@ export function ClientDrawer({
   packagesErrorDetail?: string;
   topUpAmount: string;
   canTopUp: boolean;
-  topUpBlockedReason?: string | null;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
   onOpenDcTopUp: () => void;
@@ -92,167 +88,110 @@ export function ClientDrawer({
   reputation: ReputationController;
 }) {
   const { t, locale } = useI18n();
-  const hasDebt = debtMinorUnits > 0;
-  const hasHeld = heldMinorUnits > 0;
   const isInactive = !client.isActive;
   const birthday = client.birthDate ? describeBirthday(client.birthDate, locale) : null;
-  // Триггер «⋯» показываем, если у оператора есть ХОТЯ БЫ одно из трёх прав — иначе меню
-  // рендерится пустым (см. ClientActionsMenu), а кнопка без пунктов бесполезна.
-  const showActionsMenu = canManageClient || canCreateReservation || canCorrect || canSellPackage || canStartSession;
+  const session = liveContext.session;
+  const booking = liveContext.nextBooking;
+
+  const facts: Fact[] = [];
+  if (debtMinorUnits > 0) {
+    facts.push({ label: t('op.players.wallet.debtLabel'), value: <Money minorUnits={debtMinorUnits} currencyCode={currencyCode} className="client-fact-debt" /> });
+  }
+  // Придержанное — только когда оно есть: у большинства клиентов это вечный ноль, и нулевая
+  // строка заставляла бы каждый раз гадать, что она значит.
+  if (heldMinorUnits > 0) {
+    facts.push({ label: t('op.players.wallet.heldLabel'), value: <Money minorUnits={heldMinorUnits} currencyCode={currencyCode} /> });
+  }
+  if (session !== null) {
+    facts.push({
+      label: t('op.players.table.col.now'),
+      value: `${session.seatName} · ${session.untilLabel ? t('op.players.context.until', { time: session.untilLabel }) : t('op.players.context.openTab')}`,
+    });
+  }
+  if (booking !== null) {
+    facts.push({ label: t('op.players.fact.booking'), value: booking.seatName ? `${booking.timeLabel} · ${booking.seatName}` : booking.timeLabel });
+  }
+  if (birthday) {
+    facts.push({ label: t('op.players.fact.birthday'), value: t('op.players.birthday', { date: birthday.label, age: birthday.age }) });
+  }
+
+  // Частые действия — ровным рядом под главной. Посадить того, кто уже сидит, некуда.
+  const payDebt = debtMinorUnits > 0 && canPayDebt ? <Button onClick={onOpenPayDebt}>{t('op.players.actions.payDebtBtn')}</Button> : null;
+  const dcTopUp = canTopUp ? <Button onClick={onOpenDcTopUp}>{t('op.dc.topup.open')}</Button> : null;
+  const seat = canStartSession && session === null ? <Button onClick={onStartSession}>{t('op.players.session.start')}</Button> : null;
+  const hasSecondary = payDebt !== null || dcTopUp !== null || seat !== null;
 
   return (
-    <aside className="drawer-panel">
-      <div className="drawer-head">
-        <div className="drawer-av" aria-hidden="true">{initials(client.name)}</div>
-        <div className="drawer-id">
-          <div className="drawer-name">{client.name}</div>
-          <div className="drawer-phone">{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</div>
-          {birthday && (
-            <div className="drawer-phone">{t('op.players.birthday', { date: birthday.label, age: birthday.age })}</div>
+    <Inspector
+      className="client-inspector"
+      title={client.name}
+      status={(
+        <>
+          {isInactive && <StatusBadge tone="neutral">{playerStatusLabel('inactive', t)}</StatusBadge>}
+          {birthday?.isToday && (
+            <StatusBadge tone="success"><Cake size={12} aria-hidden="true" />{t('op.players.birthdayToday')}</StatusBadge>
           )}
-        </div>
-        {showActionsMenu && (
-          <ClientActionsMenu
-            isActive={client.isActive}
-            canManageClient={canManageClient}
-            onEditProfile={onEditProfile}
-            onToggleActive={onToggleActive}
-            canCreateReservation={canCreateReservation}
-            onCreateReservation={onCreateReservation}
-            canSellPackage={canSellPackage}
-            onSellPackage={onSellPackage}
-            canStartSession={canStartSession}
-            onStartSession={onStartSession}
-            canCorrect={canCorrect}
-            onCorrect={onCorrect}
-          />
-        )}
-        <CloseButton label={t('common.close')} onClick={onClose} />
-      </div>
-
-      <div className="drawer-context">
-        {isInactive && (
-          <span className="status-pill neutral">{playerStatusLabel('inactive', t)}</span>
-        )}
-        {birthday?.isToday && (
-          <span className="status-pill ok">
-            <Cake size={12} aria-hidden="true" />
-            {t('op.players.birthdayToday')}
-          </span>
-        )}
-        {/* Откуда взялась карточка. Стойке это меняет разговор: человека, который завёл себя
-            сам из приложения, здесь никто не видел и документов его не сверял. */}
-        {client.createdFromApp && (
-          <span className="status-pill neutral" title={t('op.players.createdFromApp.hint')}>
-            <Smartphone size={12} aria-hidden="true" />
-            {t('op.players.createdFromApp')}
-          </span>
-        )}
-        {liveContext.session !== null ? (
-          <span className="status-pill ok">
-            <Play size={12} aria-hidden="true" />
-            {t('op.players.context.playingOn', { seat: liveContext.session.seatName })}
-            {' · '}
-            {liveContext.session.untilLabel
-              ? t('op.players.context.until', { time: liveContext.session.untilLabel })
-              : t('op.players.context.openTab')}
-          </span>
-        ) : (
-          <span className="status-pill neutral">
-            <Play size={12} aria-hidden="true" />
-            {t('op.players.context.notPlaying')}
-          </span>
-        )}
-        {liveContext.nextBooking !== null ? (
-          <span className="status-pill neutral">
-            <CalendarClock size={12} aria-hidden="true" />
-            {t('op.players.context.nextBooking', { time: liveContext.nextBooking.timeLabel })}
-            {liveContext.nextBooking.seatName ? ` · ${liveContext.nextBooking.seatName}` : ''}
-          </span>
-        ) : (
-          <span className="status-pill neutral">
-            <CalendarClock size={12} aria-hidden="true" />
-            {t('op.players.context.noBooking')}
-          </span>
-        )}
-      </div>
-
-      <div className="drawer-body">
-        <div className={`wallet-money${hasDebt ? ' has-debt' : ''}`}>
-          <div className="wallet-balance">
-            <span className="eyebrow">{t('op.players.wallet.balanceLabel')}</span>
-            <span className="val"><Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /></span>
-          </div>
-
-          {hasDebt && (
-            <div className="wallet-debt">
-              <span className="eyebrow">{t('op.players.wallet.debtLabel')}</span>
-              <span className="val"><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></span>
-            </div>
+          {/* Откуда взялась карточка. Стойке это меняет разговор: человека, который завёл себя
+              сам из приложения, здесь никто не видел и документов его не сверял. */}
+          {client.createdFromApp && (
+            <StatusBadge tone="neutral" title={t('op.players.createdFromApp.hint')}>
+              <Smartphone size={12} aria-hidden="true" />{t('op.players.createdFromApp')}
+            </StatusBadge>
           )}
-
-          {/* Третья величина появляется, только когда деньги действительно придержаны: у
-              большинства клиентов это вечный ноль, а нулевая строка рядом с остатком заставляет
-              оператора каждый раз спрашивать себя, что она значит. */}
-          {hasHeld && (
-            <div className="wallet-held">
-              <span className="eyebrow">{t('op.players.wallet.heldLabel')}</span>
-              <span className="val"><Money minorUnits={heldMinorUnits} currencyCode={currencyCode} /></span>
-              <small>{t('op.players.wallet.heldHint')}</small>
-            </div>
-          )}
-        </div>
-
-        <div className="wallet-sep" />
-
-        {!isInactive && (
-          <>
-            <WalletZone
-              debtMinorUnits={debtMinorUnits}
-              topUpAmount={topUpAmount}
-              canTopUp={canTopUp}
-              topUpBlockedReason={topUpBlockedReason}
-              onChangeTopUpAmount={onChangeTopUpAmount}
-              onTopUp={onTopUp}
-              onOpenDcTopUp={onOpenDcTopUp}
-              canPayDebt={canPayDebt}
-              onOpenPayDebt={onOpenPayDebt}
-              canCorrect={canCorrect}
-              onCorrect={onCorrect}
-            />
-
-            <div className="wallet-sep" />
-          </>
-        )}
-
-        <ReputationCard controller={reputation} />
-
-        <div className="wallet-sep" />
-
-        <PackagesSection
-          packages={packages}
-          loading={packagesLoading}
-          errorDetail={packagesErrorDetail}
-          canSellPackage={canSellPackage}
-          onSellPackage={onSellPackage}
+        </>
+      )}
+      subtitle={client.phoneNumber || t('op.pos.cart.clientNoPhone')}
+      menu={{
+        label: t('op.players.menu.open'),
+        actions: clientMenuActions(t, {
+          isActive: client.isActive,
+          canManageClient,
+          onEditProfile,
+          onToggleActive,
+          canCreateReservation,
+          onCreateReservation,
+          canSellPackage,
+          onSellPackage,
+          canCorrect,
+          onCorrect,
+        }),
+      }}
+      close={{ label: t('common.close'), onClose }}
+      figure={{ label: t('op.players.wallet.balanceLabel'), value: <Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /> }}
+    >
+      {/* Неактивному деньги не проводят: ни пополнения, ни долга — только «Активировать» в «⋯». */}
+      {!isInactive && (canTopUp || hasSecondary) && (
+        <Inspector.Actions
+          primary={canTopUp ? <WalletZone topUpAmount={topUpAmount} onChangeTopUpAmount={onChangeTopUpAmount} onTopUp={onTopUp} /> : undefined}
+          secondary={hasSecondary ? [payDebt, dcTopUp, seat] : []}
         />
+      )}
 
-        <div className="wallet-sep" />
+      {facts.length > 0 && <Inspector.Facts items={facts} />}
 
-        <HistorySection
-          entries={recentEntries}
-          currencyCode={currencyCode}
-          activeFilter={null}
-          onFilterChange={noop}
-          hasMore={false}
-          onLoadMore={noop}
-          loading={false}
-          canRefund={false}
-          onRefund={noop}
-          limit={RECENT_ENTRIES_LIMIT}
-          onOpenFull={onOpenFullHistory}
-        />
-      </div>
-    </aside>
+      <ReputationCard controller={reputation} />
+
+      <PackagesSection
+        packages={packages}
+        loading={packagesLoading}
+        errorDetail={packagesErrorDetail}
+        canSellPackage={canSellPackage}
+        onSellPackage={onSellPackage}
+      />
+
+      <HistorySection
+        entries={recentEntries}
+        currencyCode={currencyCode}
+        activeFilter={null}
+        onFilterChange={noop}
+        hasMore={false}
+        onLoadMore={noop}
+        loading={false}
+        canRefund={false}
+        onRefund={noop}
+        limit={RECENT_ENTRIES_LIMIT}
+        onOpenFull={onOpenFullHistory}
+      />
+    </Inspector>
   );
 }

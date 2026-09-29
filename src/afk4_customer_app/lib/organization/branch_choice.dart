@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'organization.dart';
+import '../theme/space.dart';
 
 /// Зал сети, в который придёт игрок.
 ///
@@ -58,15 +59,15 @@ class BranchPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(l.customerBranchTitle, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 4),
+        const SizedBox(height: Space.s1),
         Text(
           l.customerBranchHint,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s2),
         for (final hall in choice.halls)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: Space.s2),
             child: _HallOption(
               hall: hall,
               selected: hall.branchId == choice.chosenId,
@@ -107,7 +108,7 @@ class _HallOption extends StatelessWidget {
             // Палец, а не курсор: строка обязана держать минимальную цель касания даже с
             // одной строкой текста.
             constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s3),
             decoration: BoxDecoration(
               borderRadius: radius,
               border: Border.all(
@@ -123,7 +124,7 @@ class _HallOption extends StatelessWidget {
                       ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: Space.s3),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

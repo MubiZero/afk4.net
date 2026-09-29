@@ -6,6 +6,7 @@ import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
 import { ScanSearchBar } from './ScanSearchBar';
+import { useBlockedReason } from '@afk4/ui/react';
 import { createAuthenticatedOperatorClients, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { retryKeys } from '../unsettledKeys';
@@ -64,6 +65,8 @@ export function ReceivingWorkspace({
   const [supplier, setSupplier] = useState('');
   const [invoiceNo, setInvoiceNo] = useState('');
   const [post, setPost] = useState<PostState>({ kind: 'idle' });
+  // Пустую накладную провести нельзя — и кнопка говорит почему, а не гаснет молча.
+  const postBlocked = useBlockedReason(lines.length === 0 ? t('op.stock.receiving.postNeedsLines') : null);
 
   // Только товары с учётом остатка — приходовать имеет смысл только их.
   const trackedCatalog = useMemo(() => catalog.filter((p) => readBoolean(p, 'trackStock')), [catalog]);
@@ -286,10 +289,11 @@ export function ReceivingWorkspace({
         <section className="stock-section">
           <div className="mv"><span>{t('op.stock.receiving.totalPositions')}</span><b>{totals.positions}</b></div>
           <div className="mv"><span>{t('op.stock.receiving.totalUnits')}</span><b>{totals.units}</b></div>
-          <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={lines.length === 0 || posting} onClick={postReceipt}>
+          <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={lines.length === 0 || posting} aria-describedby={postBlocked.describedBy} onClick={postReceipt}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.receiving.posting') : t('op.stock.receiving.post')}
           </button>
+          {postBlocked.hint}
           {post.kind === 'done' && <p className="recv-status ok">{t('op.stock.receiving.posted', { count: post.count })}</p>}
           {post.kind === 'error' && <p className="recv-status err" role="alert">{post.detail}</p>}
         </section>

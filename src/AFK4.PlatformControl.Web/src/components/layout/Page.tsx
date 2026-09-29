@@ -8,7 +8,7 @@ import { SectionHeader } from '@afk4/ui/react';
 //
 // Мера ширины не косметика: форма во всю ширину монитора читается как недоделанный экран,
 // а таблицу, наоборот, нельзя зажимать — отсюда три варианта колонки.
-export function Page({ width = 'wide', back, title, actions, tabs, children }: {
+export function Page({ width = 'wide', back, title, actions, tabs, tools, children }: {
   width?: 'form' | 'wide' | 'full';
   back?: { label: string; onBack: () => void };
   // Узел, а не строка: пока карточка грузится, на месте названия стоит его заглушка.
@@ -16,6 +16,8 @@ export function Page({ width = 'wide', back, title, actions, tabs, children }: {
   actions?: ReactNode;
   /** Вкладки раздела — второй строкой шапки, под названием. */
   tabs?: ReactNode;
+  /** Инструменты раздела — третьей строкой: фильтры, поиск. */
+  tools?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -27,7 +29,7 @@ export function Page({ width = 'wide', back, title, actions, tabs, children }: {
         </button>
       ) : null}
 
-      {title !== undefined ? <SectionHeader title={title} action={actions} tabs={tabs} /> : null}
+      {title !== undefined ? <SectionHeader title={title} action={actions} tabs={tabs} tools={tools} /> : null}
 
       <div className={`management-content management-content--${width}`}>{children}</div>
     </section>

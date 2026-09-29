@@ -6,6 +6,7 @@ import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
 import { ScanSearchBar } from './ScanSearchBar';
+import { signedCount } from './stockModel';
 import { createAuthenticatedOperatorClients, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { retryKeys } from '../unsettledKeys';
@@ -118,7 +119,6 @@ export function InventoryWorkspace({
     ? lines.filter((l) => l.name.toLowerCase().includes(query) || l.sku.toLowerCase().includes(query))
     : lines;
 
-  const signedUnits = (value: number) => (value > 0 ? `+${value}` : String(value));
 
   const postInventory = async () => {
     if (adjustments.length === 0 || posting) return;
@@ -226,7 +226,7 @@ export function InventoryWorkspace({
                         />
                       </div>
                       <div className={`inv-diff ${diffClass}`}>
-                        {pending ? t('op.stock.inventory.notCounted') : diff === 0 ? '0' : signedUnits(diff)}
+                        {pending ? t('op.stock.inventory.notCounted') : signedCount(diff)}
                       </div>
                       <div className={`inv-sum ${diffClass}`}>
                         {pending || diff === 0
@@ -251,14 +251,16 @@ export function InventoryWorkspace({
 
         <StockHero
           label={t('op.stock.inventory.netCost')}
-          value={<Money minorUnits={totals.netSumMinorUnits} currencyCode={currencyCode} signed={totals.netSumMinorUnits !== 0} />}
+          // Ничего не пересчитано — итога ещё нет: «—», а не «0 с.», которое читалось бы как «сошлось».
+          value={<Money minorUnits={totals.countedCount === 0 ? null : totals.netSumMinorUnits} currencyCode={currencyCode} signed={totals.netSumMinorUnits !== 0} />}
           tone={totals.netSumMinorUnits < 0 ? 'attention' : totals.netSumMinorUnits > 0 ? 'ok' : 'muted'}
         />
 
         <section className="stock-section">
           <div className="mv"><span>{t('op.stock.inventory.discrepancies')}</span><b>{totals.discrepancies}</b></div>
-          <div className="mv"><span>{t('op.stock.inventory.shortage')}</span><b className="warning-text">-{totals.shortageUnits} {unit} · <Money minorUnits={totals.shortageSumMinorUnits} currencyCode={currencyCode} /></b></div>
-          <div className="mv"><span>{t('op.stock.inventory.surplus')}</span><b className="inv-pos">+{totals.surplusUnits} {unit} · <Money minorUnits={totals.surplusSumMinorUnits} currencyCode={currencyCode} /></b></div>
+          {/* Нулевая недостача — прочерк, а не «−0 шт. · 0 с.». */}
+          <div className="mv"><span>{t('op.stock.inventory.shortage')}</span>{totals.shortageUnits > 0 ? <b className="warning-text">{signedCount(-totals.shortageUnits)} {unit} · <Money minorUnits={totals.shortageSumMinorUnits} currencyCode={currencyCode} /></b> : <b className="ui-money--muted">—</b>}</div>
+          <div className="mv"><span>{t('op.stock.inventory.surplus')}</span>{totals.surplusUnits > 0 ? <b className="inv-pos">{signedCount(totals.surplusUnits)} {unit} · <Money minorUnits={totals.surplusSumMinorUnits} currencyCode={currencyCode} /></b> : <b className="ui-money--muted">—</b>}</div>
           <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={adjustments.length === 0 || posting} onClick={postInventory}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.inventory.posting') : t('op.stock.inventory.post')}

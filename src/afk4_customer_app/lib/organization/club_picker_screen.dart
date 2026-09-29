@@ -15,6 +15,11 @@ import 'club_map.dart';
 import 'nearby_location.dart';
 import 'organization.dart';
 import 'organization_directory.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
 
 /// Выбор клуба — первый экран приложения. У мобильной сборки нет поддомена, из которого веб
 /// берёт организацию, а войти без неё нельзя: игрок опознаётся парой организация + телефон.
@@ -123,20 +128,16 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
   }
 
   void _openReviews(Organization club) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => ClubReviewsSheet(directory: widget.directory, club: club),
+    showAppSheet<void>(
+      context,
+      (_) => ClubReviewsSheet(directory: widget.directory, club: club),
     );
   }
 
   void _openDetails(Organization club) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (sheetContext) => ClubDetailsSheet(
+    showAppSheet<void>(
+      context,
+      (sheetContext) => ClubDetailsSheet(
         club: club,
         onChoose: () {
           Navigator.of(sheetContext).pop();
@@ -146,6 +147,9 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     );
   }
 
+  /// Витрина прокручивается целиком, у верхнего края держится только поиск. Раньше знак,
+  /// заголовок, подзаголовок, поиск, города и переключатель вида стояли неподвижной шапкой в
+  /// 330 точек — на телефоне поменьше под сами клубы оставалось полэкрана.
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -153,37 +157,44 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(Space.screen, Space.s3, Space.screen, 0),
+              sliver: SliverList.list(
                 children: [
                   const BrandMark(),
-                  const SizedBox(height: 18),
-                  Text(
-                    l.customerClubPickerTitle,
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Space.s5),
+                  Text(l.customerClubPickerTitle, style: theme.textTheme.headlineMedium),
+                  const SizedBox(height: Space.s1),
                   Text(
                     l.customerClubPickerSubtitle,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: l.customerClubPickerSearch,
-                      prefixIcon: const Icon(Icons.search),
-                    ),
-                    textInputAction: TextInputAction.search,
-                    onChanged: _onQueryChanged,
+                  const SizedBox(height: Space.s4),
+                ],
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PinnedSearch(
+                background: theme.canvasColor,
+                child: TextField(
+                  decoration: InputDecoration(
+                    labelText: l.customerClubPickerSearch,
+                    prefixIcon: const Icon(Icons.search),
                   ),
-                  const SizedBox(height: 12),
+                  textInputAction: TextInputAction.search,
+                  onChanged: _onQueryChanged,
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(Space.screen, Space.s3, Space.screen, 0),
+              sliver: SliverList.list(
+                children: [
                   ..._cityFilter(l),
                   // Список и карта — два взгляда на один и тот же каталог: поиск сверху
                   // относится к обоим, поэтому переключатель стоит под ним, а не над.
@@ -202,14 +213,13 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                     ],
                     selected: {_view},
                     showSelectedIcon: false,
-                    onSelectionChanged: (selection) =>
-                        setState(() => _view = selection.first),
+                    onSelectionChanged: (selection) => setState(() => _view = selection.first),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.s3),
                 ],
               ),
             ),
-            Expanded(child: _buildBody(l)),
+            ..._buildBody(l),
           ],
         ),
       ),
@@ -318,7 +328,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           scrollDirection: Axis.horizontal,
           children: [
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: Space.s2),
               child: ChoiceChip(
                 label: Text(l.customerClubPickerAllCities),
                 selected: _city == null && _here == null,
@@ -332,7 +342,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
             // спрашивают, когда человек сам о нём попросил, и грубый — до района.
             if (_anyClubHasPoint)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: Space.s2),
                 child: ChoiceChip(
                   avatar: _locating
                       ? const SizedBox(
@@ -350,7 +360,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
             if (cities.length > 1)
               for (final city in cities)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: Space.s2),
                   child: ChoiceChip(
                     label: Text(city),
                     selected: _city == city,
@@ -365,7 +375,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           ],
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: Space.s3),
     ];
   }
 
@@ -395,51 +405,97 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     return [
       _SectionTitle(l.customerClubsMine),
       ...rows,
-      const SizedBox(height: 8),
+      const SizedBox(height: Space.s2),
       _SectionTitle(l.customerClubsAll),
     ];
   }
 
-  Widget _buildBody(L l) {
+  List<Widget> _buildBody(L l) {
+    Widget fill(Widget child) => SliverFillRemaining(child: child);
     return switch (_load) {
-      _Loading() => const Center(child: CircularProgressIndicator()),
-      _Failed(offline: final offline) => offline
-          ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _fetch)
-          : LoadFailure(message: l.customerClubPickerError, onRetry: _fetch),
-      _Ready(clubs: final clubs) when clubs.isEmpty => _Message(
-        text: l.customerClubPickerEmpty,
-      ),
-      _Ready(clubs: final clubs) when _inCity(clubs).isEmpty => _Message(
-        text: l.customerClubPickerEmpty,
-        actionLabel: l.customerClubPickerAllCities,
-        onAction: () => setState(() => _city = null),
-      ),
+      _Loading() => [SliverToBoxAdapter(child: ListSkeleton(rows: 2, rowHeight: 180, label: l.customerCommonLoading))],
+      _Failed(offline: final offline) => [
+          fill(offline
+              ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _fetch)
+              : LoadFailure(message: l.customerClubPickerError, onRetry: _fetch)),
+        ],
+      _Ready(clubs: final clubs) when clubs.isEmpty => [
+          fill(EmptyState(icon: Icons.storefront_outlined, title: l.customerClubPickerEmpty)),
+        ],
+      _Ready(clubs: final clubs) when _inCity(clubs).isEmpty => [
+          fill(EmptyState(
+            icon: Icons.storefront_outlined,
+            title: l.customerClubPickerEmpty,
+            action: SecondaryButton(
+              action: AppAction(l.customerClubPickerAllCities, () => setState(() => _city = null)),
+            ),
+          )),
+        ],
       _Ready(clubs: final clubs) => switch (_view) {
-        _View.list => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: [
-            ..._myClubsSection(l, clubs),
-            for (final club in _inCity(clubs)) ...[
-              ClubCard(
-                club: club,
-                distanceMeters: _distanceMeters(club),
-                onTap: () => widget.onSelected(club),
-                onOpenReviews: () => _openReviews(club),
-                onOpenDetails: () => _openDetails(club),
+          _View.list => [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(Space.screen, 0, Space.screen, Space.s6),
+                sliver: SliverList.list(
+                  children: [
+                    ..._myClubsSection(l, clubs),
+                    for (final club in _inCity(clubs)) ...[
+                      ClubCard(
+                        club: club,
+                        distanceMeters: _distanceMeters(club),
+                        onTap: () => widget.onSelected(club),
+                        onOpenReviews: () => _openReviews(club),
+                        onOpenDetails: () => _openDetails(club),
+                      ),
+                      const SizedBox(height: Space.s4),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 14),
             ],
-          ],
-        ),
-        // Карта показывает то же, что список: выбранный город сужает оба, иначе переключение
-        // вида молча отменяло бы фильтр.
-        _View.map => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: ClubMap(clubs: _inCity(clubs), onSelected: widget.onSelected),
-        ),
-      },
+          // Карта показывает то же, что список: выбранный город сужает оба, иначе переключение
+          // вида молча отменяло бы фильтр. Высота — остаток экрана; шапка витрины уезжает
+          // вверх, и карта занимает его целиком.
+          _View.map => [
+              SliverFillRemaining(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(Space.screen, 0, Space.screen, Space.s6),
+                  child: ClubMap(clubs: _inCity(clubs), onSelected: widget.onSelected),
+                ),
+              ),
+            ],
+        },
     };
   }
+}
+
+/// Поиск, прилипший к верху витрины. Своя подложка обязательна: без неё сквозь поле
+/// просвечивают уезжающие под него карточки.
+class _PinnedSearch extends SliverPersistentHeaderDelegate {
+  _PinnedSearch({required this.child, required this.background});
+
+  final Widget child;
+  final Color background;
+
+  static const double _height = 72;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => ColoredBox(
+        color: background,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.screen, vertical: Space.s2),
+          child: Align(alignment: Alignment.center, child: child),
+        ),
+      );
+
+  @override
+  bool shouldRebuild(_PinnedSearch oldDelegate) =>
+      oldDelegate.child != child || oldDelegate.background != background;
 }
 
 /// Заголовок группы в списке клубов.
@@ -450,7 +506,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.only(bottom: Space.s3),
     child: Text(text, style: Theme.of(context).textTheme.titleSmall),
   );
 }
@@ -475,7 +531,7 @@ class _MyClubRow extends StatelessWidget {
     final locale = Localizations.localeOf(context).languageCode;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: Space.s3),
       child: ListTile(
         title: Text(club.organizationName),
         subtitle: Column(
@@ -510,30 +566,6 @@ class _MyClubRow extends StatelessWidget {
         // Нажимается и текущий клуб — это и есть дорога назад для того, кто передумал
         // переходить.
         onTap: onOpen,
-      ),
-    );
-  }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.text, this.actionLabel, this.onAction});
-
-  final String text;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(text, textAlign: TextAlign.center),
-          if (actionLabel != null) ...[
-            const SizedBox(height: 12),
-            FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ],
       ),
     );
   }

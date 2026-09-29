@@ -530,8 +530,8 @@ describe('AdsScreen — отчёт', () => {
     await screen.findByText('Центр');
     await screen.findByRole('option', { name: 'Курсы программирования' });
 
+    // Фильтр срабатывает сразу, без кнопки «Показать».
     await userEvent.selectOptions(screen.getByLabelText('Кампания'), 'Курсы программирования');
-    await userEvent.click(screen.getByRole('button', { name: 'Показать' }));
 
     expect(await screen.findByText('У этой кампании за эти дни показов нет.')).toBeInTheDocument();
     const lastCall = (client.report as ReturnType<typeof mock>).mock.calls.at(-1) as [Parameters<AdsClient['report']>[0]];
@@ -549,7 +549,6 @@ describe('AdsScreen — отчёт', () => {
 
     fireEvent.change(screen.getByLabelText('Первый день'), { target: { value: '2026-01-01' } });
     fireEvent.change(screen.getByLabelText('Последний день'), { target: { value: '2026-09-01' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Показать' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Период — не длиннее 92 дней.');
     expect(client.report).toHaveBeenCalledTimes(1);
@@ -583,7 +582,9 @@ describe('AdsScreen — жалобы', () => {
     expect(await screen.findByText('Кибер Арена')).toBeInTheDocument();
     expect(screen.getByText('Не подходит детям')).toBeInTheDocument();
     expect(screen.getByText('Ночью у детей')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Открыть кампанию' }));
+    // У открытой жалобы на виду — ответ, а кампания — в «⋯» строки.
+    await userEvent.click(screen.getByRole('button', { name: /^Ещё действия/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Открыть кампанию' }));
     expect(onOpenCampaign).toHaveBeenCalledWith(CAMPAIGN_ID);
 
     await userEvent.click(screen.getByRole('button', { name: 'Закрыть жалобу' }));

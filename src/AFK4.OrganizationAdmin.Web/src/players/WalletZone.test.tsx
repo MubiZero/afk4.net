@@ -5,79 +5,33 @@ import { WalletZone } from './WalletZone';
 
 afterEach(cleanup);
 
-const base = {
-  debtMinorUnits: 0,
-  topUpAmount: '',
-  canTopUp: true,
-  onChangeTopUpAmount: () => {},
-  onTopUp: () => {},
-  onOpenDcTopUp: () => {},
-  canPayDebt: true,
-  onOpenPayDebt: () => {},
-  canCorrect: false,
-  onCorrect: () => {},
-};
+const renderZone = (over: Partial<Parameters<typeof WalletZone>[0]> = {}) =>
+  render(
+    <I18nProvider initialLocale="ru">
+      <WalletZone topUpAmount="" onChangeTopUpAmount={() => {}} onTopUp={() => {}} {...over} />
+    </I18nProvider>
+  );
 
-const renderZone = (over: Partial<typeof base> & { topUpBlockedReason?: string | null } = {}) =>
-  render(<I18nProvider initialLocale="ru"><WalletZone {...base} {...over} /></I18nProvider>);
-
+// Форма пополнения — только поле и главная кнопка. Без права её не рисуют вовсе (решает
+// ClientDrawer), поэтому гасить и объяснять здесь нечего.
 describe('WalletZone', () => {
-  it('disables the top-up amount field together with the rest of the form when topUp is not allowed', () => {
-    renderZone({ canTopUp: false });
-    expect(screen.getByLabelText('Сумма пополнения')).toBeDisabled();
-  });
-
-  // Серая кнопка без причины заставляла кассира гадать, почему нельзя пополнить.
-  it('names why top-up is unavailable next to the buttons', () => {
-    renderZone({ canTopUp: false, topUpBlockedReason: 'Нет права на пополнение.' });
-    const reason = screen.getByText('Нет права на пополнение.');
-    expect(screen.getByRole('button', { name: /Пополнить/ }).getAttribute('aria-describedby')).toBe(reason.id);
-  });
-
-  it('says nothing when top-up is allowed', () => {
-    renderZone({ canTopUp: true, topUpBlockedReason: 'Нет права на пополнение.' });
-    expect(screen.queryByText('Нет права на пополнение.')).toBeNull();
-  });
-
-  it('fires onTopUp when the inline top-up form is submitted', () => {
-    const onTopUp = mock(() => {});
-    renderZone({ onTopUp });
-    fireEvent.click(screen.getByRole('button', { name: /Пополнить/ }));
-    expect(onTopUp).toHaveBeenCalled();
-  });
-
   it('exposes the amount field labelled "Сумма пополнения"', () => {
     renderZone();
     expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();
   });
 
-  it('fires onOpenDcTopUp from the DushanbeCity trigger, gated by the same canTopUp flag', () => {
-    const onOpenDcTopUp = mock(() => {});
-    const { rerender } = renderZone({ canTopUp: false, onOpenDcTopUp });
-    expect(screen.getByRole('button', { name: /DushanbeCity/ })).toBeDisabled();
-    rerender(<I18nProvider initialLocale="ru"><WalletZone {...base} onOpenDcTopUp={onOpenDcTopUp} /></I18nProvider>);
-    fireEvent.click(screen.getByRole('button', { name: /DushanbeCity/ }));
-    expect(onOpenDcTopUp).toHaveBeenCalled();
+  it('passes typed amount up', () => {
+    const onChangeTopUpAmount = mock(() => {});
+    renderZone({ onChangeTopUpAmount });
+    fireEvent.change(screen.getByLabelText('Сумма пополнения'), { target: { value: '50' } });
+    expect(onChangeTopUpAmount).toHaveBeenCalledWith('50');
   });
 
-  it('hides the pay-debt button when there is no debt', () => {
-    renderZone({ debtMinorUnits: 0 });
-    expect(screen.queryByRole('button', { name: 'Списать долг' })).toBeNull();
-  });
-
-  it('shows the pay-debt button and fires onOpenPayDebt when debt is present', () => {
-    const onOpenPayDebt = mock(() => {});
-    renderZone({ debtMinorUnits: 3500, onOpenPayDebt });
-    fireEvent.click(screen.getByRole('button', { name: 'Списать долг' }));
-    expect(onOpenPayDebt).toHaveBeenCalled();
-  });
-
-  it('hides the correction button without permission and fires onCorrect with it', () => {
-    const onCorrect = mock(() => {});
-    const { rerender } = renderZone({ canCorrect: false });
-    expect(screen.queryByRole('button', { name: /корректировк/i })).toBeNull();
-    rerender(<I18nProvider initialLocale="ru"><WalletZone {...base} canCorrect onCorrect={onCorrect} /></I18nProvider>);
-    fireEvent.click(screen.getByRole('button', { name: /корректировк/i }));
-    expect(onCorrect).toHaveBeenCalled();
+  it('fires onTopUp from the button and from Enter in the field', () => {
+    const onTopUp = mock(() => {});
+    renderZone({ onTopUp });
+    fireEvent.click(screen.getByRole('button', { name: 'Пополнить баланс' }));
+    fireEvent.submit(screen.getByLabelText('Сумма пополнения').closest('form')!);
+    expect(onTopUp).toHaveBeenCalledTimes(2);
   });
 });

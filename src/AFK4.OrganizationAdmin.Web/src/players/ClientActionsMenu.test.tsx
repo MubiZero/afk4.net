@@ -1,109 +1,53 @@
-import { describe, expect, it, afterEach, mock } from 'bun:test';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
-import { I18nProvider } from '@afk4/i18n';
-import { ClientActionsMenu } from './ClientActionsMenu';
+import { describe, expect, it, mock } from 'bun:test';
+import { createTranslator } from '@afk4/i18n';
+import { clientMenuActions } from './ClientActionsMenu';
 
-afterEach(cleanup);
+// Клавиатура, фокус и закрытие меню — у RowActions кита и проверяются там. Здесь — только какие
+// пункты получает оператор и в каком порядке.
+const t = createTranslator('ru');
 
-const renderMenu = (over: Partial<Parameters<typeof ClientActionsMenu>[0]> = {}) => {
-  const onEditProfile = mock(() => {});
-  const onToggleActive = mock(() => {});
-  render(
-    <I18nProvider initialLocale="ru">
-      <ClientActionsMenu
-        isActive={true}
-        canManageClient={true}
-        onEditProfile={onEditProfile}
-        onToggleActive={onToggleActive}
-        {...over}
-      />
-    </I18nProvider>
-  );
-  return { onEditProfile, onToggleActive };
-};
+const build = (over: Partial<Parameters<typeof clientMenuActions>[1]> = {}) =>
+  clientMenuActions(t, { isActive: true, canManageClient: true, onEditProfile: () => {}, onToggleActive: () => {}, ...over });
 
-describe('ClientActionsMenu', () => {
-  it('hides the menu until opened', () => {
-    renderMenu();
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+describe('clientMenuActions', () => {
+  it('edit and deactivate for a manager, deactivate marked dangerous', () => {
+    const items = build();
+    expect(items.map((item) => item.label)).toEqual(['Править профиль', 'Деактивировать']);
+    expect(items.at(-1)?.danger).toBe(true);
   });
 
-  it('opens on trigger click and shows items', () => {
-    renderMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Править профиль/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Деактивировать/ })).toBeInTheDocument();
+  it('offers activation, not a danger item, for an inactive client', () => {
+    const toggle = build({ isActive: false }).at(-1)!;
+    expect(toggle.label).toBe('Активировать');
+    expect(toggle.danger).toBe(false);
   });
 
-  it('shows reactivate label when client is inactive', () => {
-    renderMenu({ isActive: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    expect(screen.getByRole('menuitem', { name: /Активировать/ })).toBeInTheDocument();
+  it('is empty without any permission — the kit then draws no «⋯» at all', () => {
+    expect(build({ canManageClient: false })).toEqual([]);
   });
 
-  it('calls handler and closes after selecting an item', () => {
-    const { onEditProfile } = renderMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Править профиль/ }));
-    expect(onEditProfile).toHaveBeenCalled();
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('closes on Escape', () => {
-    renderMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('focuses first menuitem on open', () => {
-    renderMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    const items = screen.getAllByRole('menuitem');
-    expect(document.activeElement).toBe(items[0]);
-  });
-
-  it('moves focus to next item on ArrowDown', () => {
-    renderMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    const items = screen.getAllByRole('menuitem');
-    // Фокус уже на первом пункте (автофокус при открытии).
-    fireEvent.keyDown(items[0], { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(items[1]);
-  });
-
-  it('renders nothing when no permission grants any item', () => {
-    renderMenu({ canManageClient: false });
-    expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
-  });
-
-  it('adds the reservation item first and the correction item before deactivate when permitted', () => {
+  it('orders reservation first and correction before deactivate when permitted', () => {
     const onCreateReservation = mock(() => {});
-    const onCorrect = mock(() => {});
-    renderMenu({ canCreateReservation: true, onCreateReservation, canCorrect: true, onCorrect });
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    const items = screen.getAllByRole('menuitem');
-    expect(items.map((item) => item.textContent)).toEqual([
+    const items = build({ canCreateReservation: true, onCreateReservation, canCorrect: true, onCorrect: () => {}, canSellPackage: true, onSellPackage: () => {} });
+    expect(items.map((item) => item.label)).toEqual([
       'Создать бронь',
+      'Продать пакет',
       'Править профиль',
       'Ручная корректировка',
       'Деактивировать',
     ]);
-    fireEvent.click(screen.getByRole('menuitem', { name: /Создать бронь/ }));
+    items[0].onSelect();
     expect(onCreateReservation).toHaveBeenCalled();
   });
 
-  it('shows a separator before the deactivate item once another item is present', () => {
-    renderMenu({ canCorrect: true, onCorrect: () => {} });
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    expect(screen.getByRole('separator')).toBeInTheDocument();
+  // «Посадить за ПК» — кнопка на виду в карточке, а не второй раз в меню.
+  it('never repeats the seat-at-PC action that is already a visible button', () => {
+    expect(build({ canCreateReservation: true, onCreateReservation: () => {} }).some((item) => item.id === 'startSession')).toBe(false);
   });
 
-  it('omits the reservation/correction items when their permission is missing', () => {
-    renderMenu({ canCreateReservation: false, canCorrect: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
-    expect(screen.queryByRole('menuitem', { name: /Создать бронь/ })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: /Ручная корректировка/ })).toBeNull();
+  it('omits reservation and correction without their permissions even for a manager', () => {
+    const labels = build({ canCreateReservation: false, canCorrect: false }).map((item) => item.label);
+    expect(labels).not.toContain('Создать бронь');
+    expect(labels).not.toContain('Ручная корректировка');
   });
 });

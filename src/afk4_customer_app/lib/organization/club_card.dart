@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'halls_line.dart';
 import 'opening_hours.dart';
 import 'organization.dart';
+import '../theme/space.dart';
 
 /// Карточка клуба в витрине: фото зала, название поверх него, оценка, цена часа и адрес.
 ///
@@ -68,18 +69,18 @@ class ClubCard extends StatelessWidget {
           children: [
             _Cover(club: club, onOpenReviews: onOpenReviews),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              padding: const EdgeInsets.fromLTRB(Space.s4, Space.s3, Space.s4, Space.s4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _AddressLine(club: club, distanceMeters: distanceMeters),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: Space.s3),
                   _OpeningLine(club: club, clock: clock),
                   _DescriptionLine(club: club),
                   // Цена и мест — то, ради чего игрок открывает карточку клуба на любом сервисе.
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: Space.s2,
+                    runSpacing: Space.s2,
                     children: [
                       _Chip(
                         icon: Icons.payments_outlined,
@@ -289,7 +290,7 @@ class _PhotoDots extends StatelessWidget {
       children: [
         for (var index = 0; index < count; index++)
           Padding(
-            padding: const EdgeInsets.only(left: 4),
+            padding: const EdgeInsets.only(left: Space.s1),
             child: Container(
               width: 6,
               height: 6,
@@ -386,7 +387,7 @@ class _RatingBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -395,7 +396,7 @@ class _RatingBadge extends StatelessWidget {
               size: 16,
               color: rating == null ? palette.onMediaMuted : palette.ratingOnMedia,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: Space.s1),
             Text(
               rating == null
                   ? l.customerClubPickerNoRating
@@ -403,7 +404,7 @@ class _RatingBadge extends StatelessWidget {
               style: theme.textTheme.labelMedium?.copyWith(color: palette.onMedia),
             ),
             if (rating != null && club.reviewCount > 0) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: Space.s2),
               Text(
                 '·  ${club.reviewCount}',
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -470,7 +471,7 @@ class _AddressLine extends StatelessWidget {
           size: 16,
           color: theme.colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: Space.s2),
         Expanded(
           child: Text(
             distance == null ? text : '$text · $distance',
@@ -504,7 +505,7 @@ class _DescriptionLine extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.s3),
       child: Text(
         description,
         maxLines: 2,
@@ -537,7 +538,7 @@ class _OpeningLine extends StatelessWidget {
     final (text, open) = (now.text, now.open);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.s3),
       child: Row(
         children: [
           Icon(
@@ -547,7 +548,7 @@ class _OpeningLine extends StatelessWidget {
                 ? theme.colorScheme.primary
                 : theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: Space.s2),
           Expanded(
             child: Text(
               text,
@@ -591,15 +592,19 @@ class _Chip extends StatelessWidget {
         border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(color: color),
+            const SizedBox(width: Space.s2),
+            // На крупном шрифте длинная подпись переносится внутри ярлыка, а не вылезает за
+            // карточку.
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(color: color),
+              ),
             ),
           ],
         ),

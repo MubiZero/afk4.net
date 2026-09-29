@@ -9,6 +9,14 @@ import { BackendBookingWorkspace } from './BackendBookingWorkspace';
 
 const originalFetch = globalThis.fetch;
 
+// Карточка брони — инспектор кита (<aside>, подписан именем клиента), а не диалог: она не
+// модальная и не перекрывает ленту. Поэтому ищется по своему классу.
+const bookingCard = () => {
+  const card = document.querySelector<HTMLElement>('.booking-inspector');
+  if (!card) throw new Error('карточки брони нет');
+  return card;
+};
+
 afterEach(() => {
   cleanup();
   globalThis.fetch = originalFetch;
@@ -74,13 +82,13 @@ describe('BackendBookingWorkspace · куда перенести бронь', ()
   // списка мест за секунды. Роль и подпись проверяются один раз — у найденного поля.
   async function enabledMoveSelect(): Promise<HTMLElement> {
     const find = () => document.querySelector<HTMLButtonElement>(
-      '.booking-drawer button[role="combobox"][aria-label="Перенести на место"]');
+      '.booking-inspector button[role="combobox"][aria-label="Перенести на место"]');
     await waitFor(() => {
       const move = find();
       expect(move).not.toBeNull();
       expect(move).not.toBeDisabled();
     }, { timeout: 15_000 });
-    return within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('combobox', { name: 'Перенести на место' });
+    return within(bookingCard()).getByRole('combobox', { name: 'Перенести на место' });
   }
 
   function mount(startsAtUtc: Date, freeSeatIds: string[]) {

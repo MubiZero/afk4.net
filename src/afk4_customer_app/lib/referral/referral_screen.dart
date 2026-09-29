@@ -9,6 +9,11 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
+import '../shell/group_header.dart';
+import '../shell/skeleton.dart';
+import '../shell/actions.dart';
+import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// «Приведи друга».
 ///
@@ -16,9 +21,13 @@ import '../shell/load_failure.dart';
 /// Деньги приходят не за код, а за первое настоящее пополнение друга — экран говорит об этом
 /// прямо, иначе игрок ждёт бонус сразу после того, как назовёт код.
 class ReferralScreen extends StatefulWidget {
-  const ReferralScreen({super.key, required this.api});
+  const ReferralScreen({super.key, required this.api, this.place, this.placeLogoUrl});
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
 
   @override
   State<ReferralScreen> createState() => _ReferralScreenState();
@@ -116,7 +125,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Widget build(BuildContext context) {
     final l = L.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerReferralTitle)),
+      appBar: nestedAppBar(context, title: l.customerReferralTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
       body: RefreshIndicator(onRefresh: _load, child: _body(l)),
     );
   }
@@ -128,12 +137,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
     if (data == null) {
       return _failed
           ? LoadFailure(message: l.customerReferralLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(label: l.customerCommonLoading);
     }
 
     if (!data.enabled) {
       return ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Space.s6),
         children: [
           Text(
             l.customerReferralOff,
@@ -147,12 +156,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
     String money(int minor) => formatMoney(minor, data.currencyCode, locale: locale);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       children: [
         _CodeCard(code: data.code ?? '', onCopy: () => _copyCode(data.code ?? '')),
-        const SizedBox(height: 20),
-        Text(l.customerReferralHow, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s5),
+        GroupHeader(l.customerReferralHow),
         _Step(number: '1', text: l.customerReferralStepShare),
         _Step(
           number: '2',
@@ -167,23 +175,21 @@ class _ReferralScreenState extends State<ReferralScreen> {
             money(data.inviteeBonusMinorUnits),
           ),
         ),
-        const SizedBox(height: 24),
-        Text(l.customerReferralMine, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s6),
+        GroupHeader(l.customerReferralMine),
         _StatsRow(
           invited: data.invitedCount,
           rewarded: data.rewardedCount,
           earned: money(data.earnedMinorUnits),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: Space.s6),
         if (data.hasClaimedCode)
           Text(
             l.customerReferralAlreadyInvited,
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           )
         else if (data.canClaimCode) ...[
-          Text(l.customerReferralHaveCode, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          GroupHeader(l.customerReferralHaveCode),
           TextField(
             controller: _codeController,
             textCapitalization: TextCapitalization.characters,
@@ -192,10 +198,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
               errorText: _claimError,
             ),
           ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _claiming ? null : _claim,
-            child: Text(_claiming ? l.customerReferralClaiming : l.customerReferralClaim),
+          const SizedBox(height: Space.s3),
+          PrimaryButton(
+            action: AppAction(
+              _claiming ? l.customerReferralClaiming : l.customerReferralClaim,
+              _claiming ? null : _claim,
+            ),
           ),
         ] else
           Text(
@@ -224,7 +232,7 @@ class _CodeCard extends StatelessWidget {
         border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
         color: theme.colorScheme.surface,
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Space.s5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -232,19 +240,15 @@ class _CodeCard extends StatelessWidget {
             l.customerReferralYourCode,
             style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: Space.s3),
           Text(
             code,
             // Разрядка: код переписывают от руки и называют голосом, и слипшиеся знаки
             // читаются с ошибкой.
             style: theme.textTheme.displaySmall?.copyWith(letterSpacing: 4),
           ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onCopy,
-            icon: const Icon(Icons.copy_outlined),
-            label: Text(l.customerReferralCopy),
-          ),
+          const SizedBox(height: Space.s3),
+          SecondaryButton(action: AppAction(l.customerReferralCopy, onCopy, icon: Icons.copy_outlined)),
         ],
       ),
     );
@@ -261,7 +265,7 @@ class _Step extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.s3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -270,7 +274,7 @@ class _Step extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.18),
             child: Text(number, style: theme.textTheme.labelMedium),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: Space.s3),
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
         ],
       ),

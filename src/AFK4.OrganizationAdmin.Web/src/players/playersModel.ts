@@ -166,21 +166,18 @@ export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): Clie
   }));
 }
 
-// Сводка «по всей базе» для шапки раздела (зеркало счётчиков в шапке «Карты»/«Броней»):
-// сколько клиентов, сумма депозитов и сумма долгов по загруженному списку. Это денежная
-// картина базы — намеренно отличается от сегмент-чипов списка (те — фильтры-навигация).
+// Денежная картина базы для шапки раздела: сколько лежит на балансах и сколько должны, по
+// загруженному списку. Число клиентов сюда не входит — его показывает фильтр «Все» под шапкой.
 export interface ClientOverview {
-  count: number;
-  depositMinorUnits: number;
+  balanceMinorUnits: number;
   debtMinorUnits: number;
 }
 
 export function buildClientOverview(clients: PlayerClientItem[]): ClientOverview {
   return clients.reduce<ClientOverview>((acc, c) => ({
-    count: acc.count + 1,
-    depositMinorUnits: acc.depositMinorUnits + Math.max(0, c.balanceMinorUnits),
+    balanceMinorUnits: acc.balanceMinorUnits + Math.max(0, c.balanceMinorUnits),
     debtMinorUnits: acc.debtMinorUnits + Math.max(0, c.debtMinorUnits)
-  }), { count: 0, depositMinorUnits: 0, debtMinorUnits: 0 });
+  }), { balanceMinorUnits: 0, debtMinorUnits: 0 });
 }
 
 // ── Кросс-контекст профиля: «играет сейчас» + «ближайшая бронь» ──────────────────

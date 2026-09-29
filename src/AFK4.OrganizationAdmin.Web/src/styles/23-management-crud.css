@@ -163,6 +163,26 @@
 }
 .club-hours-time::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 
+/* Стрелки порядка в строке списка (категории товара): две иконки одного размера рядом. */
+.mgmt-order-arrows {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+/* Правка названия прямо в строке: поле тянется, кнопки — по тексту. */
+.mgmt-inline-edit {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mgmt-inline-edit input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Текст ячейки и метки при нём («опубликовано», «на ПК») — в одной строке, с переносом по месту. */
 .mgmt-inline-tags {
   display: inline-flex;

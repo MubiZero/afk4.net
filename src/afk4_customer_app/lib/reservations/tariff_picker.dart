@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../api/contracts.dart';
 import '../api/dto_rules.dart';
 import '../l10n/app_localizations.dart';
+import '../shell/group_header.dart';
 import '../money/money.dart';
+import '../theme/space.dart';
 
 /// Часы тарифа словами: «08:00–16:00», «Пн Вт 08:00–16:00», «Сб Вс». Возвращает null у тарифа без
 /// расписания — приписка «круглосуточно» к каждому обычному тарифу только зашумила бы список.
@@ -90,11 +92,10 @@ class TariffPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l.customerReservationsTariff, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
+        GroupHeader(l.customerReservationsTariff),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: Space.s2,
+          runSpacing: Space.s2,
           children: [
             for (final tariff in tariffs)
               ChoiceChip(
@@ -109,7 +110,7 @@ class TariffPicker extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s2),
         if (problem != null)
           Text(problem!, style: TextStyle(color: theme.colorScheme.error))
         else if (quoting)

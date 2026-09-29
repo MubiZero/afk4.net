@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { billingLabel, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, shouldShowBillingBanner } from './operatorHelpers';
+import { billingLabel, initials, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, shouldShowBillingBanner } from './operatorHelpers';
 import type { OrganizationBillingStatusDto } from './operatorApiClients';
 import type { OperatorAuthSession } from './authClient';
 import type { SeatSummary } from './operatorData';
 import type { SessionLifecycleChangedDto } from './operatorRealtime';
 
 const t = createTranslator('ru');
+
+describe('initials', () => {
+  it('берёт первые буквы слов, пропуская кавычки и знаки', () => {
+    expect(initials('Фариза Назарова')).toBe('ФН');
+    expect(initials('Турнир «Алиф»')).toBe('ТА');
+    expect(initials('  Азиз   П. ')).toBe('АП');
+    expect(initials('')).toBe('—');
+  });
+});
 
 describe('resolveReasonInput', () => {
   // §7.5: wallet reason inputs are empty by default with a placeholder — this is the
@@ -55,7 +64,7 @@ describe('billingLabel', () => {
   // Every billing token the floor-map data layer can emit must localize to a real
   // label — none may silently fall through to "not set".
   it.each([
-    ['Wallet', 'Депозит'],
+    ['Wallet', 'Баланс'],
     ['Package', 'Пакет'],
     ['Постоплата', 'Постоплата'],
     ['Fast guest', 'Гость'],

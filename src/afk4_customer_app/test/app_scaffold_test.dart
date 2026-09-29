@@ -70,6 +70,7 @@ void main() {
       wrap(
         Scaffold(
           body: QuickActions(
+            moreLabel: 'Ещё',
             actions: [
               QuickAction(icon: Icons.event_outlined, label: 'Забронировать', onOpen: () {}),
               QuickAction(icon: Icons.savings_outlined, label: 'Кэшбек', onOpen: () {}),
@@ -96,6 +97,7 @@ void main() {
       wrap(
         Scaffold(
           body: QuickActions(
+            moreLabel: 'Ещё',
             actions: [
               QuickAction(icon: Icons.event_outlined, label: 'Забронировать', onOpen: () {}),
               QuickAction(icon: Icons.local_cafe_outlined, label: 'Заказать', onOpen: () {}),
@@ -185,5 +187,53 @@ void main() {
 
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(Icons.place_outlined), findsOneWidget);
+  });
+
+  // Восемь плиток одного веса не отвечали на вопрос «что здесь главное»: сверх четырёх на
+  // главной остаются первые три и «Ещё», а хвост уходит в лист.
+  testWidgets('сверх четырёх плиток остаются три и «Ещё», остальное — в листе', (tester) async {
+    final opened = <String>[];
+    QuickAction action(String label) =>
+        QuickAction(icon: Icons.star_outline, label: label, onOpen: () => opened.add(label));
+    await tester.pumpWidget(
+      wrap(
+        Scaffold(
+          body: QuickActions(
+            moreLabel: 'Ещё',
+            actions: [for (final label in ['A', 'B', 'C', 'D', 'E']) action(label)],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Pressable), findsNWidgets(4));
+    expect(find.text('D'), findsNothing);
+
+    await tester.tap(find.text('Ещё'));
+    await tester.pumpAndSettle();
+    expect(find.text('D'), findsOneWidget);
+    expect(find.text('E'), findsOneWidget);
+
+    await tester.tap(find.text('E'));
+    await tester.pumpAndSettle();
+    expect(opened, ['E']);
+  });
+
+  // Вложенный экран носит тот же каркас шапки, что и раздел, и тоже говорит, в каком клубе
+  // игрок: раньше клуб был виден только на Главной.
+  testWidgets('шапка вложенного экрана называет клуб', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) => Scaffold(
+            appBar: nestedAppBar(context, title: 'Заказать еду', place: 'CyberX Рудаки'),
+            body: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Заказать еду'), findsOneWidget);
+    expect(find.text('CyberX Рудаки'), findsOneWidget);
   });
 }

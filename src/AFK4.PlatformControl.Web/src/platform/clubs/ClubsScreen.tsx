@@ -9,7 +9,7 @@ import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { PulseOrganization } from '@/api/types';
 import { usePulse } from './usePulse';
-import { resolveDensity, selectView, type PulseView } from './pulseModel';
+import { countNeedingAttention, resolveDensity, selectView, type PulseView } from './pulseModel';
 import { OrganizationPulseRow } from './OrganizationPulseRow';
 
 const VIEWS: readonly PulseView[] = ['now', 'all', 'debt'];
@@ -56,10 +56,15 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
         />
       )}
     >
-      {/* На какой момент то, что на экране. Раздел называется «Сейчас», держат его открытым весь
-          день, и без этой строки снимок часовой давности читается как положение дел сию минуту. */}
+      {/* Вердикт утра — одна строка над списком: сколько клубов ждут человека. Без неё первый
+          экран дня надо было прочитать целиком, чтобы понять, что всё спокойно. Рядом — на какой
+          момент снимок: экран держат открытым весь день, и снимок часовой давности иначе
+          читается как положение дел сию минуту. */}
       {state.status === 'ready' ? (
-        <p className="mgmt-drawer-hint">{t('platform.clubs.snapshotAt', { time: formatDate(state.data.generatedAtUtc) })}</p>
+        <p className="pc-verdict">
+          {(state.data.organizations ?? []).length > 0 ? <strong>{verdictText(state.data.organizations ?? [], t)}</strong> : null}
+          <span>{t('platform.clubs.snapshotAt', { time: formatDate(state.data.generatedAtUtc) })}</span>
+        </p>
       ) : null}
 
       {state.status === 'loading' ? (
@@ -71,6 +76,13 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
       )}
     </Page>
   );
+}
+
+function verdictText(organizations: PulseOrganization[], t: ReturnType<typeof useI18n>['t']): string {
+  const attention = countNeedingAttention(organizations);
+  return attention === 0
+    ? t('platform.clubs.verdict.calm', { total: organizations.length })
+    : t('platform.clubs.verdict.attention', { count: attention, total: organizations.length });
 }
 
 // Сети списком (.pulse-list): строка сети — та же .ctable-row, что у настоящей, со стрелкой слева.

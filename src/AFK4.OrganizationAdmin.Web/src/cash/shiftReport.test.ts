@@ -57,6 +57,6 @@ describe('buildShiftReportText', () => {
     const data = buildShiftReportData(openRevenue(), shiftDto({ state: 'closed', countedCash: m(185000), difference: m(-5000), closedAtUtc: '2026-06-24T18:00:00Z' }));
     const text = buildShiftReportText(data, 'z', 'TJS', t);
     expect(text).toContain('Z-отчёт');
-    expect(text).toContain('-50 с.');
+    expect(text).toContain('−50 с.');
   });
 });

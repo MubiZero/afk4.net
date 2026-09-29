@@ -70,7 +70,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(_loyaltyJson(shop: true, shopBp: 300))));
     await tester.pumpAndSettle();
 
-    expect(find.text('5% с пополнения кошелька'), findsOneWidget);
+    expect(find.text('5% с пополнения баланса'), findsOneWidget);
     expect(find.text('3% с заказов в баре'), findsOneWidget);
     expect(find.textContaining('с оплаченного времени'), findsNothing);
   });
@@ -80,7 +80,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(_loyaltyJson())));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('обычные деньги на кошельке'), findsOneWidget);
+    expect(find.textContaining('обычные деньги на балансе'), findsOneWidget);
   });
 
   testWidgets('начисления подписаны источником, а не служебной строкой', (tester) async {
@@ -110,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Клуб пока не начисляет кэшбек'), findsOneWidget);
-    expect(find.textContaining('с пополнения кошелька'), findsNothing);
+    expect(find.textContaining('с пополнения баланса'), findsNothing);
   });
 
   testWidgets('сбой загрузки не притворяется нулевым кэшбеком', (tester) async {

@@ -38,7 +38,7 @@ export interface LoyaltySettingsController {
 }
 
 // Загрузка/сохранение настроек лояльности для зоны «Как вы возвращаете». Контроллер отдаёт
-// save/state/dirty секционной кнопке внутри LoyaltySection (глобального save-бара на экране нет).
+// save/state/dirty общей плашке сохранения экрана (PaymentsLoyaltyDestination).
 // Money-контракт loyaltySettings не трогаем.
 export function useLoyaltySettings(backend: OperatorBackendContext | null, enabled = true): LoyaltySettingsController {
   const { t } = useI18n();

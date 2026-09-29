@@ -152,9 +152,12 @@ describe('AdCampaignPage', () => {
     expect(within(declined).getByText('Причина: Алкоголь рекламировать нельзя')).toBeInTheDocument();
     // Без русского текста русского блока нет вовсе.
     expect(declined.querySelector('.pc-ad-ru')).toBeNull();
-    // Отклонённый второй раз не отклоняют — его правят или одобряют.
-    expect(within(declined).queryByRole('button', { name: 'Отклонить' })).not.toBeInTheDocument();
-    expect(within(declined).getByRole('button', { name: 'Изменить' })).toBeEnabled();
+    // Отклонённый второй раз не отклоняют — его правят или одобряют. На виду — «Одобрить»,
+    // правка — в «⋯» строки.
+    expect(within(declined).getByRole('button', { name: 'Одобрить' })).toBeEnabled();
+    await userEvent.click(within(declined).getByRole('button', { name: /^Ещё действия/ }));
+    expect(within(declined).queryByRole('menuitem', { name: 'Отклонить' })).not.toBeInTheDocument();
+    expect(within(declined).getByRole('menuitem', { name: 'Изменить' })).toBeEnabled();
   });
 
   it('без одобренного креатива «Запустить» погашена и говорит почему', async () => {
@@ -284,7 +287,8 @@ describe('AdCampaignPage', () => {
     renderPage(client);
     await screen.findByText('Тахфиф ба ноутбукҳо');
 
-    await userEvent.click(within(creativeRow('Тахфиф ба ноутбукҳо')).getByRole('button', { name: 'Отклонить' }));
+    await userEvent.click(within(creativeRow('Тахфиф ба ноутбукҳо')).getByRole('button', { name: /^Ещё действия/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Отклонить' }));
     const dialog = screen.getByRole('dialog', { name: 'Отклонить креатив' });
     const confirm = within(dialog).getByRole('button', { name: 'Отклонить' });
     expect(confirm).toBeDisabled();
@@ -338,15 +342,15 @@ describe('AdCampaignPage', () => {
     await screen.findByText('Тахфиф ба ноутбукҳо');
 
     const row = creativeRow('Тахфиф ба ноутбукҳо');
-    const edit = within(row).getByRole('button', { name: 'Изменить' });
-    expect(edit).toBeDisabled();
-    expect(edit).toHaveAccessibleDescription(
-      'Одобренный креатив не меняется: игроки видели именно его, и отчёт показов считает его. Нужна правка — добавьте новый креатив.');
-    // Отклонить задним числом — тоже нельзя: после отказа креатив снова правился бы.
-    expect(within(row).queryByRole('button', { name: 'Отклонить' })).not.toBeInTheDocument();
+    // Правки у одобренного нет вовсе, а почему — строкой над таблицей.
+    expect(screen.getByText('Одобренный креатив не меняется: игроки видели именно его, и отчёт показов считает его. Нужна правка — добавьте новый креатив.')).toBeVisible();
     expect(within(row).queryByRole('button', { name: 'Одобрить' })).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByRole('button', { name: /^Ещё действия/ }));
+    expect(within(row).queryByRole('menuitem', { name: 'Изменить' })).not.toBeInTheDocument();
+    // Отклонить задним числом — тоже нельзя: после отказа креатив снова правился бы.
+    expect(within(row).queryByRole('menuitem', { name: 'Отклонить' })).not.toBeInTheDocument();
 
-    await userEvent.click(within(row).getByRole('button', { name: 'Снять с показа' }));
+    await userEvent.click(within(row).getByRole('menuitem', { name: 'Снять с показа' }));
     const dialog = screen.getByRole('dialog', { name: 'Снять креатив с показа?' });
     expect(dialog).toHaveTextContent('Вернуть его на показ будет нельзя');
     // Последний одобренный у запущенной кампании — после снятия её не станет на ПК.
@@ -379,7 +383,8 @@ describe('AdCampaignPage', () => {
     renderPage(client);
     await screen.findByText('Фестивали пиво');
 
-    await userEvent.click(within(creativeRow('Фестивали пиво')).getByRole('button', { name: 'Изменить' }));
+    await userEvent.click(within(creativeRow('Фестивали пиво')).getByRole('button', { name: /^Ещё действия/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Изменить' }));
     const dialog = screen.getByRole('dialog', { name: 'Изменить креатив' });
     expect(dialog).toHaveTextContent('После сохранения креатив снова ждёт модерации');
     expect(dialog).toHaveTextContent('На карточке первым идёт таджикский');
@@ -410,7 +415,8 @@ describe('AdCampaignPage', () => {
     renderPage(client);
     await screen.findByText('Тахфиф ба ноутбукҳо');
 
-    await userEvent.click(within(creativeRow('Тахфиф ба ноутбукҳо')).getByRole('button', { name: 'Изменить' }));
+    await userEvent.click(within(creativeRow('Тахфиф ба ноутбукҳо')).getByRole('button', { name: /^Ещё действия/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Изменить' }));
     const dialog = screen.getByRole('dialog', { name: 'Изменить креатив' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 

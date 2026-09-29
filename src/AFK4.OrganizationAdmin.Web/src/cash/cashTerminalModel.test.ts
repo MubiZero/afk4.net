@@ -1,32 +1,13 @@
 import { describe, expect, it } from 'bun:test';
-import type { OperatorAuthSession } from '../authClient';
 import type { CashOperationReportRowDto } from '../operatorApiClients';
 import { cashOperationRow } from './cashFixtures';
-import { filterCashOperationRows, visibleCashJournalSegments } from './cashTerminalModel';
-
-function session(permissions: string[]): OperatorAuthSession {
-  return { permissions } as OperatorAuthSession;
-}
+import { filterCashOperationRows } from './cashTerminalModel';
 
 // Строка отчёта целиком, а не её огрызок: у функции теперь настоящий тип строки, и урезанный
 // объект перестал бы собираться — как и должен, потому что сервер отдаёт все поля.
 function row(operationId: string, operationType: string, reason: string): CashOperationReportRowDto {
   return cashOperationRow({ operationId, operationType, reason });
 }
-
-describe('visibleCashJournalSegments', () => {
-  it('receipt-only staff sees only receipts', () => {
-    expect(visibleCashJournalSegments(session(['organization.receipts.view']))).toEqual(['receipts']);
-  });
-
-  it('preserves terminal order for a fully permitted manager', () => {
-    expect(visibleCashJournalSegments(session([
-      'organization.reports.view',
-      'organization.receipts.view',
-      'organization.billing.money_action.approve'
-    ]))).toEqual(['ops', 'receipts', 'review']);
-  });
-});
 
 describe('filterCashOperationRows', () => {
   const rows = [

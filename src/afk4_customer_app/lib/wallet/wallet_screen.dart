@@ -13,6 +13,10 @@ import '../shell/skeleton.dart';
 import '../phone/verify_phone_gate.dart';
 import 'top_up_sheet.dart';
 import 'wallet_card.dart';
+import '../shell/app_sheet.dart';
+import '../shell/actions.dart';
+import '../theme/space.dart';
+import '../shell/load_failure.dart';
 
 /// Раздел денег: сколько есть, как пополнить и куда ушло.
 ///
@@ -32,8 +36,14 @@ class WalletScreen extends StatefulWidget {
     this.onPhoneVerified,
     this.onAccountOpened,
     this.active = true,
+    this.place,
+    this.placeLogoUrl,
     this.clock = DateTime.now,
   });
+
+  /// Клуб, в котором игрок сейчас, — над заголовком раздела.
+  final String? place;
+  final String? placeLogoUrl;
 
   final PlayerApiClient api;
   final bool phoneVerified;
@@ -114,11 +124,9 @@ class _WalletScreenState extends State<WalletScreen> {
   /// не бывает — только сумма и зал, в котором клуб заведёт кошелёк.
   Future<void> _openFirstTopUp() async {
     final l = L.of(context);
-    final outcome = await showModalBottomSheet<TopUpOutcome>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => TopUpSheet(
+    final outcome = await showAppSheet<TopUpOutcome>(
+      context,
+      (_) => TopUpSheet(
         api: widget.api,
         currencyCode: widget.currencyCode,
         intents: const [],
@@ -149,27 +157,25 @@ class _WalletScreenState extends State<WalletScreen> {
       return Scaffold(
         body: CustomScrollView(
           slivers: [
-            appHeader(context, title: l.customerNavWallet),
+            appHeader(
+              context,
+              title: l.customerNavWallet,
+              place: widget.place,
+              placeLogoUrl: widget.placeLogoUrl,
+            ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
               sliver: SliverList.list(children: [
                 const NewClubNote(),
                 if (_topUpEnabled && widget.phoneVerified) ...[
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: _openFirstTopUp,
-                      icon: const Icon(Icons.add, size: 20),
-                      label: Text(l.customerWalletTopUp),
-                    ),
-                  ),
+                  const SizedBox(height: Space.s4),
+                  PrimaryButton(action: AppAction(l.customerWalletTopUp, _openFirstTopUp, icon: Icons.add)),
                 ]
                 // Тупик: в клубе, где счёта ещё нет, гейт с подтверждением жил только внутри
                 // карточки кошелька — то есть у тех, у кого счёт уже открыт. Новичок с
                 // неподтверждённым номером видел два абзаца текста и ни одной кнопки.
                 else if (_topUpEnabled) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Space.s4),
                   VerifyPhoneGate(
                     api: widget.api,
                     explanation: l.customerWalletGate,
@@ -188,12 +194,19 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Scaffold(
         body: NestedScrollView(
           headerSliverBuilder: (context, _) => [
-            appHeader(context, title: l.customerNavWallet),
+            appHeader(
+              context,
+              title: l.customerNavWallet,
+              place: widget.place,
+              placeLogoUrl: widget.placeLogoUrl,
+            ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
                 child: data == null && _failed
-                    ? _BalanceFailed(onRetry: _load)
+                    // Своя ошибка и свой повтор: списки трат под ней живут отдельно и сбоем
+                    // баланса не затрагиваются.
+                    ? LoadFailure(message: l.customerDashboardLoadError, onRetry: _load)
                     : data == null
                     ? const SkeletonBox(height: 188, radius: 24)
                     : WalletCard(
@@ -218,6 +231,12 @@ class _WalletScreenState extends State<WalletScreen> {
               delegate: _TabBarHeader(
                 background: theme.canvasColor,
                 tabBar: TabBar(
+                  // На крупном шрифте три подписи в ширину не помещаются и обрезались до
+                  // «Визиты»/«Покупк»: тогда вкладки прокручиваются, а не режутся.
+                  isScrollable: MediaQuery.textScalerOf(context).scale(1) > 1.3,
+                  tabAlignment: MediaQuery.textScalerOf(context).scale(1) > 1.3
+                      ? TabAlignment.start
+                      : null,
                   tabs: [
                     Tab(text: l.customerHistoryVisits),
                     Tab(text: l.customerHistoryPurchases),
@@ -229,39 +248,15 @@ class _WalletScreenState extends State<WalletScreen> {
           ],
           body: TabBarView(
             children: [
-              VisitsTab(api: widget.api, clock: widget.clock),
-              PurchasesTab(api: widget.api),
-              LedgerTab(api: widget.api, clock: widget.clock),
+              // Потянуть вниз любой список — перечитать и его, и остаток над ним: деньги и их
+              // движение — один вопрос, и обновляться они должны вместе.
+              VisitsTab(api: widget.api, clock: widget.clock, onRefresh: _load),
+              PurchasesTab(api: widget.api, onRefresh: _load),
+              LedgerTab(api: widget.api, clock: widget.clock, onRefresh: _load),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Остаток не загрузился. Своя ошибка и свой повтор: списки трат под ней живут отдельно и
-/// сбоем баланса не затрагиваются.
-class _BalanceFailed extends StatelessWidget {
-  const _BalanceFailed({required this.onRetry});
-
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            l.customerDashboardLoadError,
-            style: TextStyle(color: theme.colorScheme.error),
-          ),
-        ),
-        TextButton(onPressed: onRetry, child: Text(l.customerCommonRetry)),
-      ],
     );
   }
 }

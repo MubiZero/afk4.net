@@ -29,6 +29,8 @@ const COMPOSED_PREFIXES: { prefix: string; builtAt: string }[] = [
   // `journal.outcome.${outcome}`.
   { prefix: 'platform.audit.target.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' },
   { prefix: 'platform.audit.source.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' },
+  // Действие журнала платформы — тоже строка с сервера: `platform.audit.action.${action}`.
+  { prefix: 'platform.audit.action.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' },
   { prefix: 'journal.outcome.', builtAt: 'PlatformControl.Web/platform/audit/auditModel.ts' }
 ];
 

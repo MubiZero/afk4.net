@@ -14,7 +14,6 @@ import { OrganizationHealthSection } from './OrganizationHealthSection';
 import { OrganizationInvoicesSection } from './OrganizationInvoicesSection';
 import { OrganizationLimitsSection } from './OrganizationLimitsSection';
 import { OrganizationOwnerInvitesSection } from './OrganizationOwnerInvitesSection';
-import { OrganizationStatusSection } from './OrganizationStatusSection';
 import { OrganizationSupportNotesSection } from './OrganizationSupportNotesSection';
 import { SupportAccessSection } from './SupportAccessSection';
 import { OrganizationUpdateChannelSection } from './OrganizationUpdateChannelSection';
@@ -28,7 +27,7 @@ const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: Or
   { value: 'dynamics', labelKey: 'platform.organization.tab.dynamics', allowed: () => true },
   { value: 'features', labelKey: 'platform.organization.features.tab', allowed: () => true },
   { value: 'invoices', labelKey: 'platform.organization.tab.invoices', allowed: access => access.canViewBilling },
-  { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageLimits || access.canManageStatus },
+  { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageLimits },
   { value: 'updates', labelKey: 'platform.organization.tab.updates', allowed: access => access.canManageUpdateChannel },
   { value: 'access', labelKey: 'platform.organization.tab.access', allowed: access => access.canManageAccess || access.canViewSupportNotes || access.canUseSupportAccess },
   { value: 'history', labelKey: 'platform.organization.tab.history', allowed: access => access.canViewAudit },
@@ -141,15 +140,9 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
               canManage={access.canManageInvoices}
               canManageInvoices={access.canManageInvoices}
             /></TabBoundary> : null}
-            {tab === 'limits' ? (
-              <>
-                {/* На вкладке два блока, и сервер спрашивает на них разные права: статус — своё, лимиты —
-                    своё. Вкладка открывается по любому из них, блок — только по своему: иначе у
-                    сотрудника с правом на лимиты смена статуса была живой, а ответом был отказ. */}
-                {access.canManageStatus ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
-                {access.canManageLimits ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
-              </>
-            ) : null}
+            {/* Статус клуба меняется только в паспорте справа (решение владельца 29.09): второй
+                переключатель статуса здесь предлагал то же самое другими словами. */}
+            {tab === 'limits' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
             {tab === 'updates' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationUpdateChannelSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
             {tab === 'access' ? (
               <>
@@ -170,7 +163,6 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             client={{
               organizations: client.organizations,
               subscriptions: client.subscriptions,
-              invoices: client.invoices,
               organizationOwnerInvites: client.organizationOwnerInvites,
               debt: client.debt,
               plans: client.plans
@@ -196,12 +188,16 @@ function OrganizationPageSkeleton({ tabCount }: { tabCount: number }) {
           <SkeletonCard><SkeletonRows rows={3} rowClassName="pc-list-row" /></SkeletonCard>
         </div>
       </div>
-      <aside className="pc-passport" data-skeleton="list">
-        <div className="pc-passport-id"><strong><SkeletonLine width="9em" /></strong><span><SkeletonLine width="12em" /></span></div>
-        <div className="pc-passport-chips"><SkeletonControl width="6rem" size="sm" /></div>
-        <dl className="pc-passport-facts">
-          {[0, 1, 2, 3].map(row => <div key={row} className="pc-passport-row"><dt><SkeletonLine width="7em" /></dt><dd><SkeletonLine width="5em" /></dd></div>)}
-        </dl>
+      <aside className="ui-inspector pc-passport" data-skeleton="list">
+        <div className="ui-inspector-head">
+          <div className="ui-inspector-id"><SkeletonLine width="9em" /><SkeletonLine width="12em" /></div>
+        </div>
+        <div className="ui-inspector-body">
+          <SkeletonControl width="100%" />
+          <dl className="ui-facts">
+            {[0, 1, 2, 3].map(row => <div key={row} className="ui-facts-row"><dt><SkeletonLine width="7em" /></dt><dd><SkeletonLine width="5em" /></dd></div>)}
+          </dl>
+        </div>
       </aside>
     </div>
   );

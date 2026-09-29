@@ -11,6 +11,11 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// События клуба: турнир по пятницам, ночь игры, чемпионат зала.
 ///
@@ -21,11 +26,17 @@ class EventsScreen extends StatefulWidget {
   const EventsScreen({
     super.key,
     required this.api,
+    this.place,
+    this.placeLogoUrl,
     required this.branchId,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
   final String branchId;
   final DateTime Function() clock;
 
@@ -107,7 +118,9 @@ class _EventsScreenState extends State<EventsScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l.customerEventsDismiss),
           ),
+          // Место могут занять сразу после отмены: вернуть его не получится.
           FilledButton(
+            style: irreversibleConfirmStyle(dialogContext),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l.customerEventsCancel),
           ),
@@ -178,7 +191,7 @@ class _EventsScreenState extends State<EventsScreen> {
         if (!didPop) Navigator.of(context).pop(_walletChanged);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(l.customerEventsTitle)),
+        appBar: nestedAppBar(context, title: l.customerEventsTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
         body: RefreshIndicator(onRefresh: _load, child: _body(l)),
       ),
     );
@@ -191,27 +204,24 @@ class _EventsScreenState extends State<EventsScreen> {
     if (events == null) {
       return _failed
           ? LoadFailure(message: l.customerEventsLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(rows: 2, rowHeight: 160, label: l.customerCommonLoading);
     }
 
     final locale = Localizations.localeOf(context).languageCode;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       children: [
         if (_error != null) ...[
           Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s4),
         ],
         if (events.isEmpty)
-          Text(
-            l.customerEventsNone,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          )
+          EmptyState(icon: Icons.emoji_events_outlined, title: l.customerEventsNone)
         else
           for (final event in events)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: Space.s3),
               child: EventCard(
                 event: event,
                 locale: locale,
@@ -254,7 +264,7 @@ class EventCard extends StatelessWidget {
     final full = spots == 0 && !event.isRegistered;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
@@ -264,26 +274,26 @@ class EventCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(event.title, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 4),
+          const SizedBox(height: Space.s1),
           Text(
             formatDateTime(l, event.startsAtUtc, locale, now: clock()),
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
           ),
           if (event.discipline.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               event.discipline,
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
           if (event.description.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.s2),
             Text(event.description, style: theme.textTheme.bodyMedium),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: Space.s3),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: Space.s2,
+            runSpacing: Space.s2,
             children: [
               _Tag(
                 text: event.isFree
@@ -300,7 +310,7 @@ class EventCard extends StatelessWidget {
                 _Tag(text: l.customerEventsGoing(event.registeredCount)),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: Space.s3),
           if (event.isCancelled)
             // Отменённое событие остаётся в списке у того, кто на него шёл, — вместе с причиной.
             // Молча убрать его значит оставить человека собираться на вечер, которого не будет.
@@ -314,7 +324,7 @@ class EventCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.check_circle_outline, size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 6),
+                const SizedBox(width: Space.s2),
                 Expanded(
                   child: Text(
                     l.customerEventsRegistered,
@@ -322,18 +332,17 @@ class EventCard extends StatelessWidget {
                   ),
                 ),
                 TextButton(
+                  style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
                   onPressed: busy ? null : onCancel,
                   child: Text(l.customerEventsCancel),
                 ),
               ],
             )
           else
-            SizedBox(
-              width: double.infinity,
-              height: AppTheme.primaryButtonHeight,
-              child: FilledButton(
-                onPressed: busy || full ? null : onRegister,
-                child: Text(full ? l.customerEventsNoSpots : l.customerEventsRegister),
+            PrimaryButton(
+              action: AppAction(
+                full ? l.customerEventsNoSpots : l.customerEventsRegister,
+                busy || full ? null : onRegister,
               ),
             ),
         ],
@@ -354,7 +363,7 @@ class _Tag extends StatelessWidget {
     final color = accent ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s2),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppTheme.radiusControl),

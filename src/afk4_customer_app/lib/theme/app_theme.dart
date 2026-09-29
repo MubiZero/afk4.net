@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_palette.dart';
+import 'space.dart';
 
 /// Тема клиентского приложения.
 ///
@@ -28,6 +29,11 @@ class AppTheme {
   static const Color _darkSurface = Color(0xFF111917);
   static const Color _darkCard = Color(0xFF161F1D);
   static const Color _darkBorder = Color(0xFF25302D);
+
+  /// Рамка поля ввода. Общая рамка карточек (1,3:1) делила поле с фоном так слабо, что пустое
+  /// поле на карточке не читалось полем вовсе; WCAG требует от границы элемента управления 3:1.
+  /// Этот цвет держит 3,5:1 даже на карточке с подсветкой поля.
+  static const Color _darkControl = Color(0xFF6E807B);
   static const Color _darkText = Color(0xFFF2FBF8);
   static const Color _darkTextMuted = Color(0xB3EAFBF6);
   static const Color _darkOnAccent = Color(0xFF04120D);
@@ -38,6 +44,7 @@ class AppTheme {
   static const Color _lightSurface = Color(0xFFFFFFFF);
   static const Color _lightCard = Color(0xFFFFFFFF);
   static const Color _lightBorder = Color(0xFFDDE5E2);
+  static const Color _lightControl = Color(0xFF7F8F8A);
   static const Color _lightText = Color(0xFF0B1512);
   static const Color _lightTextMuted = Color(0xFF5A6B66);
   // `--accent-text` токенов, а не `--accent`: акцентом здесь набраны надписи и залиты кнопки
@@ -154,6 +161,7 @@ class AppTheme {
       surface: _darkSurface,
       card: _darkCard,
       border: _darkBorder,
+      control: _darkControl,
       text: _darkText,
       textMuted: _darkTextMuted,
       accent: accent,
@@ -171,6 +179,7 @@ class AppTheme {
       surface: _lightSurface,
       card: _lightCard,
       border: _lightBorder,
+      control: _lightControl,
       text: _lightText,
       textMuted: _lightTextMuted,
       accent: accent,
@@ -186,6 +195,7 @@ class AppTheme {
     required Color surface,
     required Color card,
     required Color border,
+    required Color control,
     required Color text,
     required Color textMuted,
     required Color accent,
@@ -283,7 +293,7 @@ class AppTheme {
         labelStyle: TextStyle(color: text, fontSize: 14, fontWeight: FontWeight.w600),
         secondaryLabelStyle: TextStyle(color: onAccent, fontSize: 14, fontWeight: FontWeight.w600),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s3, vertical: Space.s3),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -332,7 +342,7 @@ class AppTheme {
         filled: true,
         fillColor: brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : surface,
         constraints: const BoxConstraints(minHeight: primaryButtonHeight),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: Space.s4, vertical: Space.s4),
         labelStyle: TextStyle(color: textMuted),
         floatingLabelStyle: TextStyle(color: accent),
         // Рамка по умолчанию не рисуется: поле — заливка, а не коробка. Обводка появляется
@@ -342,7 +352,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusControl),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: border),
+          borderSide: BorderSide(color: control),
           borderRadius: BorderRadius.circular(radiusControl),
         ),
         focusedBorder: OutlineInputBorder(
@@ -362,8 +372,13 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         height: 68,
-        labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textMuted),
+        // Подпись вкладки — не мельче 12: 11 с приглушённым цветом на крупном шрифте системы
+        // оставалась самым мелким текстом экрана. Выбранная отличается не одной подложкой
+        // значка: жирнее и цветом текста, а не приглушённым.
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: text)
+              : TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textMuted),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -413,25 +428,43 @@ class AppTheme {
     );
   }
 
-  /// Крупные заголовки с плотным трекингом и цифры фиксированной ширины: суммы и таймеры не
-  /// должны дёргаться при каждом обновлении.
-  static TextTheme _typography(TextTheme base) => base.copyWith(
-        displaySmall: base.displaySmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.4,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-        headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1),
-        headlineMedium: base.headlineMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.8,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-        headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
-        titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4),
-        titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2),
-        bodyLarge: base.bodyLarge?.copyWith(letterSpacing: -0.1),
-        bodyMedium: base.bodyMedium?.copyWith(letterSpacing: -0.1),
-        labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-      );
+  /// Крупные заголовки с плотным трекингом и цифры фиксированной ширины во всех стилях.
+  ///
+  /// Ровные цифры стояли только у крупных стилей, и суммы в строках списков, цены в меню и
+  /// «Осталось 12 мин» набирались пляшущими цифрами: столбец денег не выравнивался, а время
+  /// дёргалось при каждом обновлении. Цифры одной ширины нужны везде, где стоит число.
+  static TextTheme _typography(TextTheme base) {
+    final shaped = base.copyWith(
+      displaySmall: base.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1.4),
+      headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1),
+      headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.8),
+      headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+      titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4),
+      titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.2),
+      titleSmall: base.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      bodyLarge: base.bodyLarge?.copyWith(letterSpacing: -0.1),
+      bodyMedium: base.bodyMedium?.copyWith(letterSpacing: -0.1),
+      labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+      labelMedium: base.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+    );
+    TextStyle? even(TextStyle? style) =>
+        style?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    return TextTheme(
+      displayLarge: even(shaped.displayLarge),
+      displayMedium: even(shaped.displayMedium),
+      displaySmall: even(shaped.displaySmall),
+      headlineLarge: even(shaped.headlineLarge),
+      headlineMedium: even(shaped.headlineMedium),
+      headlineSmall: even(shaped.headlineSmall),
+      titleLarge: even(shaped.titleLarge),
+      titleMedium: even(shaped.titleMedium),
+      titleSmall: even(shaped.titleSmall),
+      bodyLarge: even(shaped.bodyLarge),
+      bodyMedium: even(shaped.bodyMedium),
+      bodySmall: even(shaped.bodySmall),
+      labelLarge: even(shaped.labelLarge),
+      labelMedium: even(shaped.labelMedium),
+      labelSmall: even(shaped.labelSmall),
+    );
+  }
 }

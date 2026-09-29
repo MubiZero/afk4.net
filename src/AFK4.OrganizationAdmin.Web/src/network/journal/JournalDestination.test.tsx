@@ -28,7 +28,10 @@ const searchOrganizationAudit = mock(async () => {
 
 const downloadTextFile = mock((_name: string, _contents: string, _mime?: string) => undefined);
 
+// Словарь действий — настоящий: журнал показывает его подписи, а не коды.
+const realHelpers = (globalThis as typeof globalThis & { __afk4RealOperatorHelpers: typeof import('../../operatorHelpers') }).__afk4RealOperatorHelpers;
 mock.module('../../operatorHelpers', () => ({
+  ...realHelpers,
   createAuthenticatedOperatorClients: () => ({
     orgAudit: { searchOrganizationAudit }
   }),
@@ -47,11 +50,12 @@ describe('JournalDestination', () => {
   it('renders an audit row including an org-level (null-branch) action', async () => {
     const { JournalDestination } = await import('./JournalDestination');
     render(<I18nProvider initialLocale="ru"><JournalDestination backend={backend as never} /></I18nProvider>);
+    // Незнакомый словарю код показан как есть (мелко, как код), объект — словом.
     await waitFor(() => expect(screen.getByText('news.published')).toBeInTheDocument());
     // The whole point of this screen is org-wide audit — verify the org-level (BranchId=null)
     // record actually reached the query the client was called with, not just that some row rendered.
     expect(searchOrganizationAudit).toHaveBeenCalled();
-    expect(screen.getByText('News (n1)')).toBeInTheDocument();
+    expect(screen.getByText('News')).toBeInTheDocument();
     expect(screen.getByText('система')).toBeInTheDocument();
   });
 
@@ -109,6 +113,7 @@ describe('JournalDestination', () => {
   it('выгружает показанные записи в CSV с сырыми полями', async () => {
     const { JournalDestination } = await import('./JournalDestination');
     render(<I18nProvider initialLocale="ru"><JournalDestination backend={backend as never} /></I18nProvider>);
+    // Незнакомый словарю код показан как есть (мелко, как код), объект — словом.
     await waitFor(() => expect(screen.getByText('news.published')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Выгрузить для поддержки' }));

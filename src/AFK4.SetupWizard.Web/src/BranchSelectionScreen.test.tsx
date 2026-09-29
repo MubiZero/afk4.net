@@ -57,13 +57,14 @@ describe('BranchSelectionScreen', () => {
   });
 
   // Ставят обычно в том зале, где сейчас стоят: сколько мест свободно — то, по чему его узнают.
-  it('показывает, сколько мест в филиале свободно', () => {
+  it('показывает, сколько мест в филиале свободно, без короткого имени', () => {
     renderScreen([branch('Центральный', 'central', 20, 5)]);
 
     const card = screen.getByRole('button', { name: /Центральный/ });
     expect(card.textContent).toContain('5');
     expect(card.textContent).toContain('20');
-    expect(card.textContent).toContain('central');
+    // Короткое имя («central») человеку у ПК ничего не говорит: выбирают по названию.
+    expect(card.textContent).not.toContain('central');
   });
 
   // Пустой список — это не «ничего не найдено», а «нечего выбирать, идите в панель»: молча

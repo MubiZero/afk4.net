@@ -4,8 +4,6 @@ import { I18nProvider } from '@afk4/i18n';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import { ToastProvider } from '../operatorToast';
-import type { CashOperationReportRowDto } from '../operatorApiClients';
-import { cashOperationReport, cashOperationRow } from './cashFixtures';
 import { PlatformApiError } from '../platformApi';
 
 afterEach(cleanup);
@@ -36,7 +34,7 @@ function closedShift(): ShiftRevenueDto {
   };
 }
 
-function renderWs(current: ShiftRevenueDto | null, cashRows: CashOperationReportRowDto[] = [], history: ShiftRevenueDto[] = []) {
+function renderWs(current: ShiftRevenueDto | null, history: ShiftRevenueDto[] = []) {
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
@@ -45,7 +43,6 @@ function renderWs(current: ShiftRevenueDto | null, cashRows: CashOperationReport
           branchId="b1"
           currencyCode="TJS"
           revenueClient={{ current: async () => current, history: async () => ({ shifts: history, limit: 20 }) }}
-          reports={{ getCashOperationReport: async () => cashOperationReport(cashRows) }}
         />
       </ToastProvider>
     </I18nProvider>
@@ -61,11 +58,10 @@ describe('CashShiftWorkspace', () => {
       current: () => { calls += 1; return calls === 1 ? Promise.resolve(openShift()) : new Promise<ShiftRevenueDto | null>(() => {}); },
       history: async () => ({ shifts: [], limit: 20 })
     };
-    const reports = { getCashOperationReport: async () => cashOperationReport([]) };
     const ui = (shiftNonce: number) => (
       <I18nProvider initialLocale="ru">
         <ToastProvider>
-          <CashShiftWorkspace backend={backend} branchId="b1" currencyCode="TJS" revenueClient={revenueClient} reports={reports} shiftNonce={shiftNonce} />
+          <CashShiftWorkspace backend={backend} branchId="b1" currencyCode="TJS" revenueClient={revenueClient} shiftNonce={shiftNonce} />
         </ToastProvider>
       </I18nProvider>
     );
@@ -90,20 +86,28 @@ describe('CashShiftWorkspace', () => {
     expect(screen.queryByText('Неявки')).toBeNull();
   });
 
-  it('открытая смена → выручка и сверка', async () => {
-    renderWs(openShift());
-    await waitFor(() => expect(screen.getByText('Выручка смены')).toBeInTheDocument());
-    expect(screen.getByLabelText('Сверка кассы')).toBeInTheDocument();
-    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
-  });
-
-  it('строит читаемый командный экран: статус, сверка, выручка и рабочая сетка', async () => {
+  // Деньги смены и её команды — в шапке раздела, которая теперь стоит и на этой вкладке. Вкладка
+  // их не повторяет: ни «Ожидается в кассе», ни итога выручки, ни второго ряда «Внести · Изъять ·
+  // Закрыть». До пересчёта «Фактически» и «Расхождение» всегда пусты — сверка живёт в окне закрытия.
+  it('не повторяет шапку раздела: без сверки ящика, итога выручки и кнопок смены', async () => {
     renderWs(openShift());
     expect(await screen.findByText('Смена открыта')).toBeInTheDocument();
     expect(screen.getByText('Зарина Н.')).toBeInTheDocument();
-    expect(document.querySelector('.cash-shift-reconcile-band')).not.toBeNull();
+    expect(screen.getByText('Выручка смены')).toBeInTheDocument();
+    expect(screen.queryByText('4 310 с.')).toBeNull();
+    expect(screen.queryByText('13 800 с.')).toBeNull();
+    expect(screen.queryByText('не введено')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Закрыть смену|Внести|Изъять/ })).toBeNull();
     expect(document.querySelector('.cash-shift-main-grid')).not.toBeNull();
-    expect(screen.queryByLabelText('Ключевые показатели смены')).toBeNull();
+  });
+
+  // Движение наличных — вкладка «Кассовые операции». Короткий повтор здесь со своим «Итого
+  // движение» спорил с «Итого по кассе» там.
+  it('движение наличных не дублирует вкладку кассовых операций', async () => {
+    renderWs(openShift());
+    await screen.findByText('Выручка смены');
+    expect(screen.queryByText('Движение наличных')).toBeNull();
+    expect(screen.queryByText('Итого движение')).toBeNull();
   });
 
   it('прячет выгрузки в компактное меню вместо отдельной панели', async () => {
@@ -119,48 +123,17 @@ describe('CashShiftWorkspace', () => {
     await waitFor(() => expect(screen.getByText('Нет открытой смены')).toBeInTheDocument());
   });
 
-  it('открытая смена → «Расхождение» остаётся пустым до ввода факта, не превращается в «0 с.»', async () => {
-    renderWs(openShift()); // difference === null
-    const reconciliation = await screen.findByLabelText('Сверка кассы');
-    expect(reconciliation).toHaveTextContent('не введено');
-    const differenceRow = screen.getByText('Расхождение').closest('div')!;
-    expect(differenceRow).toHaveTextContent('—');
-    expect(differenceRow.textContent).not.toMatch(/0[,.]00/);
-  });
-
-  // Колонка «Оператор» отвечает на вопрос «кто взял деньги». Пока имени в строке не было, экран
-  // подставлял туда имя того, кто сейчас смотрит, — и каждое движение выглядело его собственным.
-  it('в движении наличных стоит тот, кто его провёл, а не тот, кто смотрит', async () => {
-    renderWs(openShift(), [
-      cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Размен', createdByDisplayName: 'Мадина' })
-    ]);
-    await waitFor(() => expect(screen.getByText('Движение наличных')).toBeInTheDocument());
-    expect(screen.getByText('Администратор')).toBeInTheDocument();
-    expect(screen.getByText('Мадина')).toBeInTheDocument();
-    // «Зарина Н.» — открывшая смену, и она названа ровно один раз: в шапке смены.
-    expect(screen.getAllByText('Зарина Н.')).toHaveLength(1);
-  });
-
-  it('показывает понятную сверку и полную причину движения', async () => {
-    renderWs(openShift(), [
-      cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Разменный фонд' })
-    ]);
-    expect(await screen.findByLabelText('Сверка кассы')).toBeInTheDocument();
-    expect(screen.getByText('Введите сумму после пересчёта')).toBeInTheDocument();
-    expect(screen.getByText('Разменный фонд')).toBeInTheDocument();
-  });
-
   it('выбирает закрытую смену и показывает её в инспекторе', async () => {
-    renderWs(openShift(), [], [closedShift()]);
+    renderWs(openShift(), [closedShift()]);
     fireEvent.click(await screen.findByRole('row', { name: /20\.05\.2026/ }));
     const inspector = document.querySelector('.cash-shift-history-detail')!;
     expect(inspector).toHaveTextContent('2 340 с.');
-    expect(inspector).toHaveTextContent('-50 с.');
+    expect(inspector).toHaveTextContent('−50 с.');
     expect(screen.queryByLabelText('Детали выбранной записи')).toBeNull();
   });
 
   it('без открытой смены ведёт последним закрытием, а не пустой сеткой', async () => {
-    renderWs(null, [], [closedShift()]);
+    renderWs(null, [closedShift()]);
     expect(await screen.findByText('Сейчас нет открытой смены')).toBeInTheDocument();
     expect(screen.getByText('Последняя закрытая смена')).toBeInTheDocument();
   });
@@ -180,7 +153,6 @@ describe('CashShiftWorkspace', () => {
             branchId="b"
             currencyCode="TJS"
             revenueClient={empty}
-            reports={{ getCashOperationReport: async () => cashOperationReport() }}
           />
         </ToastProvider>
       </I18nProvider>
@@ -192,37 +164,6 @@ describe('CashShiftWorkspace', () => {
     expect(document.querySelector('.cash-export-error')).toBeNull();
     fireEvent.click(exportBtn);
     await waitFor(() => expect(document.querySelector('.cash-export-error')).not.toBeNull());
-  });
-
-  // Смена, прошлые смены и движение наличных — три запроса и три панели. Отказ отчёта о
-  // наличных не должен стирать открытую смену с её сверкой и кнопкой закрытия, а повтор —
-  // перечитывать то, что уже на экране.
-  it('отказ движения наличных не прячет смену и повторяет только движение', async () => {
-    const current = mock(async () => openShift());
-    const history = mock(async () => ({ shifts: [closedShift()], limit: 20 }));
-    const getCashOperationReport = mock()
-      .mockRejectedValueOnce(new PlatformApiError('boom', 500, 'Internal Server Error', ''))
-      .mockResolvedValue(cashOperationReport([
-        cashOperationRow({ operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', cashImpact: m(5000), reason: 'Размен', createdByDisplayName: 'Мадина' })
-      ]));
-    render(
-      <I18nProvider initialLocale="ru">
-        <ToastProvider>
-          <CashShiftWorkspace backend={backend} branchId="b1" currencyCode="TJS" revenueClient={{ current, history }} reports={{ getCashOperationReport }} />
-        </ToastProvider>
-      </I18nProvider>
-    );
-
-    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /20\.05\.2026/ })).toBeInTheDocument();
-    expect(screen.getByText(/Не удалось загрузить движение наличных/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
-
-    expect(await screen.findByText('Мадина')).toBeInTheDocument();
-    expect(getCashOperationReport).toHaveBeenCalledTimes(2);
-    expect(current).toHaveBeenCalledTimes(1);
-    expect(history).toHaveBeenCalledTimes(1);
   });
 
   it('отказ прошлых смен называет причину, а открытая смена остаётся', async () => {
@@ -237,7 +178,6 @@ describe('CashShiftWorkspace', () => {
             branchId="b1"
             currencyCode="TJS"
             revenueClient={{ current: async () => openShift(), history }}
-            reports={{ getCashOperationReport: async () => cashOperationReport() }}
           />
         </ToastProvider>
       </I18nProvider>

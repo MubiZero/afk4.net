@@ -35,6 +35,10 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.hardware.gb',
     // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
     'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
+    // «ПК» — канон и в таджикском каталоге (не «КМ», не «компютер»).
+    'setup.wizard.stepper.device',
+    // «Баланс» — то же слово в таджикском каталоге (см. «Аз баланс», «Дар баланс» у чаевых).
+    'playerShell.session.balance', 'playerShell.chooseTime.balance',
     // «Реклама» — так и пишется по-таджикски на вывесках и в эфире; метку сверит носитель языка.
     'playerShell.showcase.kind.ad',
     // «Реклама» в Панели — то же слово, что метка на ПК; «Реклама · {advertiser}» повторяет её.
@@ -52,15 +56,25 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Филиал», «Клуб», «Кассир», «Объект» — заимствования, которыми таджикский каталог и
     // пользуется: «филиал» в нём встречается чаще «шӯъба», и канон свёл его к одному слову.
     'branches.unnamed', 'op.branch.unnamed', 'op.helper.update.target.branch', 'platform.audit.target.Branch',
+    // Клиент платформы — «клуб» и по-таджикски (решение владельца 2026-09-29): то же заимствование,
+    // что у «Клуб» в отчёте рекламы; «ПК» пишется одинаково на всех трёх языках.
+    'platform.audit.organization', 'platform.audit.target.Organization', 'platform.billing.column.organization',
+    'platform.newOrganization.section.organization', 'platform.search.kind.organization', 'platform.organization.health.devices',
     'platform.organization.invites.branch', 'op.network.install.codes.branch', 'op.pc.bulk.seats', 'op.hardware.os', 'op.games.age', 'op.games.kind.steam', 'op.games.kind.epic', 'op.games.kind.riot', 'op.games.kind.battlenet', 'op.games.field.genre', 'op.status.club', 'platform.search.kind.club', 'op.cash.shift.cashier',
     'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
-    'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone',
-    'platform.health.queue.billing_outbox', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone',
-    'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
+    'account.phone.placeholder', 'clients.field.phone', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
     'op.management.dest.club', 'platform.dynamics.branch.label',
+    // Группы меню «Управления»: «Клуб» — то же заимствование, «ПК» — канон терминов, одинаков во всех языках.
+    'op.management.group.club', 'op.management.group.pcs',
+    // Журнал сети: «Клуб», «Филиал», «Смена», «Кэшбек», «Сервер», «ПК» — те же заимствования и канон,
+    // Eskhata и DushanbeCity — названия.
+    'op.network.journal.source.pc', 'op.network.journal.source.server', 'op.network.journal.target.branch',
+    'op.network.journal.target.device', 'op.network.journal.target.dushanbeCity', 'op.network.journal.target.eskhata',
+    'op.network.journal.target.loyalty', 'op.network.journal.target.organization', 'op.network.journal.target.shift',
+    'op.network.branches.col.branch',
     'op.eskhata.title', 'op.eskhata.baseUrl', 'op.eskhata.companyId', 'op.eskhata.merchantId',
     'op.eskhata.hashKey', 'op.dc.title',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',
@@ -82,11 +96,11 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.helper.player.packageCount', 'op.helper.player.packageFallback', 'op.helper.player.platform', 'op.helper.player.tariffFallback',
     'op.helper.pos.receiptNumber', 'op.helper.pos.receiptType.fallback', 'op.helper.pos.saleState.fallback',
     'op.helper.staff.technician', 'op.helper.update.channel.beta', 'op.helper.update.channel.fallback', 'op.helper.zone.bootcamp',
-    'op.management.halls.addSeatCta', 'op.management.halls.col.seatName', 'op.management.tariffs.addTariffCta', 'op.management.tariffs.addPackageCta',
+    'op.management.halls.addSeatCta', 'op.management.tariffs.addTariffCta', 'op.management.tariffs.addPackageCta',
     'op.management.tariffs.col.bonus', 'op.management.staff.col.login', 'op.management.goods.col.sku', 'op.map.panel.packageLabel',
     'op.map.panel.tariffLabel', 'op.news.col.branch', 'op.news.fieldBranch', 'op.players.editProfile.phoneLabel',
     'op.players.profile.packageFallback', 'op.pos.catalog.categoryFallback', 'op.pos.catalog.title', 'op.pos.fixture.cola',
-    'op.pos.fixture.hotdog', 'op.pos.receipts.receiptFallback', 'op.settings.devices.detail.agent',
+    'op.pos.fixture.hotdog', 'op.pos.receipts.receiptFallback',
     'op.settings.devices.detail.shell', 'op.settings.devices.offline', 'op.settings.devices.online',
     'op.settings.layout.seatCount', 'op.settings.layout.seatFallback', 'op.settings.packages.packageFallback', 'op.settings.pos.category',
     'op.settings.pos.sku', 'op.settings.tariffs.tariffFallback',
@@ -101,7 +115,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'setup.wizard.hall.prefixDefault',
     // Чистая склейка «{who}, {state}, {from}–{to}» для читалки: слова подставляются из уже
     // переведённых ключей, в самом шаблоне переводить нечего.
-    'op.booking.block.a11y'
+    'op.booking.block.a11y',
+    // «Чек» — то же слово и в таджикском: каталог уже пишет «Чек ёфт нашуд», «Чекро бор кардан».
+    'customer.receipt.title'
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {
@@ -243,7 +259,7 @@ it('includes the platform admin keys', () => {
 
 it('includes the organization card keys', () => {
   for (const key of [
-    'platform.organization.status.suspended', 'platform.organization.subscription.pastDue', 'platform.organization.section.status',
+    'platform.organization.status.suspended', 'platform.organization.subscription.pastDue',
     'platform.organization.limitsForm.maxBranches', 'platform.organization.action.error'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
@@ -286,9 +302,9 @@ it('includes the organization health keys', () => {
 
 it('includes the network section keys', () => {
   for (const key of [
-    'op.shell.navGroup.network', 'op.network.dest.branches', 'op.network.dest.branches.subtitle',
-    'op.network.dest.billing', 'op.network.dest.billing.subtitle', 'op.network.dest.install',
-    'op.network.dest.install.subtitle', 'op.network.dest.journal', 'op.network.dest.journal.subtitle',
+    'op.shell.navGroup.network', 'op.network.dest.branches',
+    'op.network.dest.billing', 'op.network.dest.install',
+    'op.network.dest.journal',
     'op.network.noAccess', 'op.network.install.get.title', 'op.network.install.get.lead',
     'op.network.install.download', 'op.network.install.noUrl', 'op.network.install.steps.title',
     'op.network.install.step.run', 'op.network.install.step.signIn', 'op.network.install.step.branch',
@@ -364,7 +380,7 @@ it('includes the network journal (org-audit) screen keys', () => {
 it('includes the network branches rollup screen keys', () => {
   for (const key of [
     'op.network.branches.unnamed',
-    'op.network.branches.totals.branches',
+    'op.network.branches.figure.label',
     'op.network.branches.kpi.devices',
     'op.network.branches.kpi.sessions',
     'op.network.branches.kpi.revenue',

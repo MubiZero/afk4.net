@@ -125,14 +125,16 @@ function projectPosProduct(
   const stockOnHand = readNumber(product, 'stockOnHand', 0);
   const reorderThreshold = readNumber(product, 'reorderThreshold', 0);
   const categoryId = readString(product, 'categoryId');
+  const trackStock = readBoolean(product, 'trackStock');
   return {
     productId: readString(product, 'productId') || undefined,
     name: readString(product, 'name', t('op.pos.catalog.productFallback')),
     priceMinorUnits: price?.minorUnits ?? 0,
     categoryId: categoryId || undefined,
     category: directory.get(categoryId)?.name || t('op.pos.catalog.categoryFallback'),
-    note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
-    trackStock: readBoolean(product, 'trackStock'),
+    // Остаток — только у товара со складским учётом: «0 шт.» у гостевого часа читалось как «кончился».
+    note: trackStock ? t('op.pos.catalog.note', { sku, count: stockOnHand }) : sku,
+    trackStock,
     stockOnHand,
     reorderThreshold,
     barcodes: readArray<string>(product, 'barcodes'),
@@ -697,7 +699,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         <section className="pos-panel pos-sale-panel">
           <header className="pos-panel-title">
             <span>{t('op.pos.cart.title')}</span>
-            <strong>{shiftId ? t('op.pos.cart.shiftOpen') : t('op.pos.cart.shiftClosed')}</strong>
+            {/* Открытая смена видна в шапке кассы; здесь говорим только о том, что мешает продать. */}
+            {shiftId ? null : <strong className="pos-cart-shift-closed">{t('op.pos.cart.shiftClosed')}</strong>}
           </header>
           {/* КТО — клиент одной строкой; поиск разворачивается по «Выбрать» */}
           {selectedPosPlayer ? (

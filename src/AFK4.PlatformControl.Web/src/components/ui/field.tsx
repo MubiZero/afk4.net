@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 // Поле формы — та же разметка, что в CRUD-формах Organization Admin: подпись сверху, контрол
-// под ней, подсказка ниже. Внешний вид даёт .mgmt-form из общего кита, поэтому поля панели и
-// оператора совпадают по высоте, отступам и фокус-кольцу.
+// под ней, подсказка ниже. Вид подписи — .pc-field, и он не зависит от того, обёрнута ли форма
+// в .mgmt-form: вне неё подпись раньше падала в браузерный шрифт.
 //
 // Ошибка стоит у самого поля, а не общей полосой над формой: человек видит, что чинить, там, куда
 // смотрит. Её id — `${htmlFor}-error`: контрол ссылается на него через aria-describedby.
@@ -19,7 +19,7 @@ export function Field({ label, htmlFor, hint, error, children }: {
   children: ReactNode;
 }) {
   return (
-    <label htmlFor={htmlFor}>
+    <label htmlFor={htmlFor} className="pc-field">
       {label}
       {children}
       {error !== undefined ? <span id={fieldErrorId(htmlFor)} className="pc-error-text">{error}</span> : null}

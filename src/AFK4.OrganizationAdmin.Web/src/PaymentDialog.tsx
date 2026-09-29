@@ -226,7 +226,7 @@ export function PaymentDialog({
                     type="text"
                     inputMode="decimal"
                     aria-label={draft.method === 'cash' ? t('op.checkout.cashTendered') : t('op.checkout.paymentAmount')}
-                    placeholder="0.00"
+                    placeholder="0"
                     value={draft.amountText}
                     disabled={editingDisabled}
                     onChange={(event) => updateSplitDraft(index, { amountText: event.currentTarget.value })}

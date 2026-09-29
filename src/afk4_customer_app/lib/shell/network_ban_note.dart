@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import 'top_banner.dart';
+import '../theme/space.dart';
 
 /// «Платформа закрыла вход в сеть» — состояние, в котором человек всё видит, но ничего не
 /// начинает.
@@ -34,14 +35,14 @@ class NetworkBanNote extends StatelessWidget {
             style: theme.textTheme.titleSmall
                 ?.copyWith(color: theme.colorScheme.onErrorContainer),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: Space.s1),
           Text(
             l.customerBanHint,
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onErrorContainer),
           ),
           if (reason != null && reason.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               l.customerBanReason(reason),
               style: theme.textTheme.bodySmall

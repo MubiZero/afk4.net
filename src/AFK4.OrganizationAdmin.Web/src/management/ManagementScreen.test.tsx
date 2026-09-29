@@ -1,42 +1,50 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
-import { ManagementScreen } from './ManagementScreen';
+import { ManagementScreen, ScreenAction } from './ManagementScreen';
 
 const renderScreen = (ui: React.ReactNode) =>
   render(<I18nProvider initialLocale="ru">{ui}</I18nProvider>);
 
 describe('ManagementScreen', () => {
-  it('renders title, subtitle and body', () => {
-    renderScreen(
-      <ManagementScreen title="Клуб" subtitle="Профиль филиала"><p>тело</p></ManagementScreen>
+  // Шапка — общая шапка раздела кита: название, главная кнопка раздела и вкладки под ними. Мелкой
+  // строки над названием больше нет (решение владельца 29.09) — в шапке только то, что передали.
+  // Главную кнопку ставит список из тела экрана (ScreenAction), а встаёт она в шапку.
+  it('renders the section header with its action and tabs, then the body', () => {
+    const { container } = renderScreen(
+      <ManagementScreen title="Товары" tabs={<div role="tablist" aria-label="Вкладки" />}>
+        <p>тело</p>
+        <ScreenAction><button type="button">+ Товар</button></ScreenAction>
+      </ManagementScreen>
     );
-    expect(screen.getByRole('heading', { name: 'Клуб' })).toBeTruthy();
-    expect(screen.getByText('Профиль филиала')).toBeTruthy();
+    const header = container.querySelector('.ui-section-header');
+    expect(header?.querySelector('h1')?.textContent).toBe('Товары');
+    expect(header?.querySelector('button')?.textContent).toBe('+ Товар');
+    expect(header?.querySelector('[role="tablist"]')).toBeTruthy();
     expect(screen.getByText('тело')).toBeTruthy();
   });
 
   it('disables save while clean and enables it while dirty', () => {
     const { rerender } = renderScreen(
-      <ManagementScreen title="t" subtitle="s" save={{ state: 'clean', onSave: () => {} }}><i/></ManagementScreen>
+      <ManagementScreen title="t" save={{ state: 'clean', onSave: () => {} }}><i/></ManagementScreen>
     );
     expect(screen.getByRole('button', { name: 'Сохранить' }).hasAttribute('disabled')).toBe(true);
     rerender(
       <I18nProvider initialLocale="ru">
-        <ManagementScreen title="t" subtitle="s" save={{ state: 'dirty', onSave: () => {} }}><i/></ManagementScreen>
+        <ManagementScreen title="t" save={{ state: 'dirty', onSave: () => {} }}><i/></ManagementScreen>
       </I18nProvider>
     );
     expect(screen.getByRole('button', { name: 'Сохранить' }).hasAttribute('disabled')).toBe(false);
   });
 
   it('omits the save bar when no save prop is given', () => {
-    renderScreen(<ManagementScreen title="t" subtitle="s"><i/></ManagementScreen>);
+    renderScreen(<ManagementScreen title="t"><i/></ManagementScreen>);
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
   });
 
   it('renders the screen\'s own skeleton instead of children, with no save bar, when state is loading', async () => {
     const { container } = renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="loading" skeleton={<div data-skeleton="table" />} save={{ state: 'dirty', onSave: () => {} }}>
+      <ManagementScreen title="t" state="loading" skeleton={<div data-skeleton="table" />} save={{ state: 'dirty', onSave: () => {} }}>
         <p>тело</p>
       </ManagementScreen>
     );
@@ -50,7 +58,7 @@ describe('ManagementScreen', () => {
   // у Platform Control.
   it('holds the skeleton back for an instant so quick answers do not flash', async () => {
     const { container } = renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="loading" skeleton={<div data-skeleton="table" />}><p>тело</p></ManagementScreen>
+      <ManagementScreen title="t" state="loading" skeleton={<div data-skeleton="table" />}><p>тело</p></ManagementScreen>
     );
     expect(container.querySelector('[data-skeleton]')).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -63,7 +71,7 @@ describe('ManagementScreen', () => {
   // содержимым, а не вдвигается сверху в момент подмены.
   it('keeps the view-only line above the skeleton while loading', () => {
     renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="loading" skeleton={null} viewOnly="Менять может владелец."><p>тело</p></ManagementScreen>
+      <ManagementScreen title="t" state="loading" skeleton={null} viewOnly="Менять может владелец."><p>тело</p></ManagementScreen>
     );
     expect(screen.getByText('Менять может владелец.', { exact: false })).toBeTruthy();
   });
@@ -71,7 +79,7 @@ describe('ManagementScreen', () => {
   it('renders the concrete error detail and a retry button that calls onRetry when state is error', () => {
     const onRetry = mock(() => {});
     renderScreen(
-      <ManagementScreen title="t" subtitle="s" state="error" skeleton={null} failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry}>
+      <ManagementScreen title="t" state="error" skeleton={null} failure={{ title: '', detail: 'boom', retryCanHelp: true }} onRetry={onRetry}>
         <p>тело</p>
       </ManagementScreen>
     );
@@ -82,7 +90,7 @@ describe('ManagementScreen', () => {
   });
 
   it('renders children as usual when state is ready or omitted (regression)', () => {
-    renderScreen(<ManagementScreen title="t" subtitle="s" state="ready" skeleton={null}><p>тело</p></ManagementScreen>);
+    renderScreen(<ManagementScreen title="t" state="ready" skeleton={null}><p>тело</p></ManagementScreen>);
     expect(screen.getByText('тело')).toBeTruthy();
   });
 });

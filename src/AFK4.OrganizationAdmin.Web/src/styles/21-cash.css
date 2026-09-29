@@ -1,69 +1,4 @@
-/* Раздел «Касса»: шапка-якорь (зеркало .booking-header) + под-вкладки раздела. */
-.cash-head {
-  box-sizing: border-box;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-height: var(--map-toolbar-h);
-  margin-bottom: var(--space-2);
-  padding: 3px var(--space-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-}
-/* Деньги шапки = язык тоталайзера: белый моноширинный ридаут (заголовочные деньги смены).
-   Янтарь зарезервирован за предупреждениями (низкий остаток), а не за суммами.
-   Скоуп на ПРЯМЫХ детей — иначе вложенный <span class="ui-money"> внутри <strong> ловит
-   стиль метки (10px/tertiary) вместо белого моноширинного ридаута. */
-.cash-head-metrics .ui-chip--count > span {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 10px;
-  font-weight: 600;
-}
-.cash-head-metrics .ui-chip--count > strong {
-  color: var(--text-strong);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-.cash-head h1 {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cash-head-name { font-weight: 700; }
-.cash-head-tagline { color: var(--text-secondary); font-weight: 500; }
-.cash-head-metrics { display: flex; align-items: center; flex: none; gap: var(--space-2); }
-
-.cash-tabs {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-}
-.cash-tab {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-2) var(--space-3);
-  min-height: var(--control-md);
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-}
-.cash-tab:hover { color: var(--text-primary); }
-.cash-tab.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
-.cash-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Раздел «Касса»: шапка — SectionHeader кита, вкладки — Tabs кита; здесь только тело вкладок. */
 
 /* Общий каркас плотного кассового терминала: метрики → реестр → стабильный инспектор. */
 .cash-terminal-metrics {
@@ -94,15 +29,11 @@
   display: block;
   margin-top: 3px;
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-size: var(--text-xl);
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   line-height: 1.15;
 }
-.cash-terminal-metric.tone-positive > strong { color: var(--accent-text); }
-.cash-terminal-metric.tone-attention > strong { color: var(--warning); }
-.cash-terminal-metric.tone-danger > strong { color: var(--danger); }
 
 .cash-terminal-split {
   display: grid;
@@ -158,41 +89,22 @@
   flex-direction: column;
 }
 .cash-shift-screen,
-.cash-journal-screen,
 .cash-stock-screen {
   flex: 1;
   min-height: 0;
   overflow: auto;
 }
 
-/* S1: командная панель смены в шапке-якоре + формы модалок смены. */
+/* Команды смены в шапке раздела + формы модалок смены. */
 .cash-head-commands { display: flex; align-items: center; flex: none; gap: var(--space-2); }
-/* НЕ дедуплено с .ui-btn: .cash-command-btn также несётся САМОСТОЯТЕЛЬНО, без атом-классов,
-   на кнопке экспорта Журнала склада (stock/JournalWorkspace.tsx .journal-export) — там она
-   единственный источник display/border/фон/паддинга. Дедуп сломал бы ту кнопку. */
-.cash-command-btn {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: var(--control-sm);
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  background: var(--surface-elevated);
-  color: var(--text-primary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.cash-command-btn:hover { border-color: var(--accent); color: var(--accent-bright); }
-.cash-command-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.cash-command-btn.danger { color: var(--danger); }
-.cash-command-btn.danger:hover { border-color: var(--danger); }
 
 .cash-shift-form { display: flex; flex-direction: column; gap: var(--space-2); }
 .cash-shift-form label { font-size: 12px; color: var(--text-secondary); }
-.cash-shift-form input {
+.cash-shift-form input,
+.cash-shift-form select {
   min-height: var(--control-md);
+  font: inherit;
+  font-size: var(--text-sm);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
@@ -203,20 +115,6 @@
 .cash-close-reconcile > div { display: flex; justify-content: space-between; font-size: 13px; }
 .cash-close-reconcile .attention strong { color: var(--danger); }
 .cash-close-impact { margin: 0; font-size: 12px; color: var(--text-secondary); }
-/* display/align-items/justify-content/background/cursor — идентичны .ui-btn(--primary), удалены.
-   gap/border/border-radius/color/font-weight отличаются от атома — отличительное, оставлено:
-   border:none + radius 7px (атом: 1px solid + 6px), color #fff держит контраст в тёмной теме
-   (--text-on-accent там тёмный, не белый — атом дал бы нечитаемый текст), font-weight 600 (атом 700). */
-.cash-primary-action {
-  gap: var(--space-2);
-  min-height: var(--control-lg);
-  border: none;
-  border-radius: 7px;
-  color: #fff;
-  font-weight: 600;
-}
-.cash-primary-action:disabled { opacity: 0.6; cursor: default; }
-.cash-primary-action.danger { background: var(--danger); }
 
 /* S1: вкладка «Смена» — кокпит кассира. Парящие панели (язык консоли) + герой-цифры для главного. */
 /* align-items: stretch (по умолчанию) — карточки ряда равной высоты, без рваного низа. */
@@ -234,7 +132,6 @@
 /* Герой-цифра = моно-тоталайзер (язык денег консоли): выручка смены / расхождение. */
 .cash-shift-hero {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-xl);
   font-weight: 600;
@@ -249,14 +146,14 @@
 .cash-shift-rows { display: flex; flex-direction: column; gap: var(--space-1); }
 .cash-shift-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); font-size: 13px; }
 .cash-shift-row > span { color: var(--text-tertiary); }
-.cash-shift-row strong { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.cash-shift-row strong { color: var(--text-primary); font-variant-numeric: tabular-nums; font-weight: 600; }
 .cash-shift-row.attention strong { color: var(--danger); }
 
 .cash-shift-movements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .cash-shift-movements li { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-2); font-size: 12px; }
-.cash-shift-movements li > span { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li > span { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .cash-shift-movements li strong { color: var(--text-secondary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cash-shift-movements li b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .cash-shift-movements li.out b { color: var(--danger); }
 
 .cash-shift-exports { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -282,10 +179,10 @@
   border-top: 1px solid var(--border-soft);
 }
 .cash-shift-hist-row:first-child { border-top: 0; }
-.cash-shift-hist-date { color: var(--text-secondary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+.cash-shift-hist-date { color: var(--text-secondary); font-variant-numeric: tabular-nums; font-size: 13px; }
 .cash-shift-hist-cell { display: inline-flex; align-items: baseline; gap: var(--space-2); font-size: 13px; }
 .cash-shift-hist-cell em { color: var(--text-tertiary); font-style: normal; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
-.cash-shift-hist-cell b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-hist-cell b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .cash-shift-hist-cell.attention b { color: var(--danger); }
 
 .cash-shift-empty, .cash-shift-empty-note { color: var(--text-secondary); font-size: 13px; }
@@ -293,24 +190,20 @@
 /* S4: «Смена» — выбранное направление Shift Command Center. */
 .cash-shift-screen { display: flex; min-height: 0; flex-direction: column; gap: var(--space-2); color: var(--text-primary); }
 .cash-shift-status-card,
-.cash-shift-reconcile-band,
 .cash-shift-revenue-strip,
 .cash-shift-movement-ledger,
 .cash-shift-history-panel,
 .cash-shift-no-open { border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-elevated); }
-.cash-shift-status-card,
-.cash-shift-reconcile-band { flex: none; }
+.cash-shift-status-card { flex: none; }
 
-.cash-shift-status-card { display: grid; grid-template-columns: minmax(190px, .8fr) repeat(3, minmax(170px, 1fr)) minmax(420px, auto); align-items: stretch; min-height: 92px; }
+.cash-shift-status-card { display: grid; grid-template-columns: minmax(190px, .8fr) repeat(3, minmax(170px, 1fr)) auto; align-items: stretch; min-height: 92px; }
 .cash-shift-status-block { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 5px; padding: var(--space-3) var(--space-4); border-left: 1px solid var(--border-soft); }
 .cash-shift-status-block > span { color: var(--text-secondary); font-size: 13px; }
 .cash-shift-status-block > strong { overflow: hidden; color: var(--text-primary); font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .cash-shift-status-lead { position: relative; padding-left: 52px; border-left: 0; }
 .cash-shift-status-lead > svg { position: absolute; left: var(--space-4); color: var(--text-tertiary); }
-.cash-shift-status-lead > strong { color: var(--accent-text); font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
+.cash-shift-status-lead > strong { color: var(--accent-text); font-size: 18px; font-variant-numeric: tabular-nums; }
 .cash-shift-status-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3); border-left: 1px solid var(--border-soft); }
-.cash-shift-status-actions .cash-head-commands { flex-wrap: wrap; justify-content: flex-end; }
-.cash-shift-status-actions .cash-command-btn { min-height: var(--control-md); padding-right: var(--space-3); padding-left: var(--space-3); font-size: 13px; }
 
 .cash-shift-export-menu { position: relative; flex: none; }
 .cash-shift-export-menu > summary { display: inline-flex; min-height: var(--control-md); align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 13px; cursor: pointer; list-style: none; }
@@ -321,25 +214,15 @@
 .cash-shift-export-popover button { display: flex; min-height: var(--control-md); align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-primary); font-size: 13px; text-align: left; cursor: pointer; }
 .cash-shift-export-popover button:hover { background: var(--surface-hover); color: var(--accent-bright); }
 
-.cash-shift-reconcile-band { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: 126px; }
-.cash-shift-reconcile-band > div { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 6px; padding: var(--space-4) var(--space-5); border-left: 1px solid var(--border-soft); }
-.cash-shift-reconcile-band > div:first-child { border-left: 0; }
-.cash-shift-reconcile-band span { color: var(--text-secondary); font-size: 14px; }
-.cash-shift-reconcile-band strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.cash-shift-reconcile-band strong .ui-money { color: inherit; font-size: inherit; }
-.cash-shift-reconcile-band small { color: var(--text-tertiary); font-size: 12px; }
-.cash-shift-reconcile-band > div:first-child strong { color: var(--accent-text); }
-.cash-shift-reconcile-band .cash-shift-reconcile-pending strong { color: var(--danger-text); font-family: inherit; }
-
 .cash-shift-main-grid { display: grid; min-height: 0; flex: 1; grid-template-columns: minmax(0, 1fr) minmax(360px, 24%); gap: var(--space-2); }
 .cash-shift-main-column { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: var(--space-2); }
-.cash-shift-revenue-strip { display: grid; grid-template-columns: 1.35fr repeat(5, minmax(110px, 1fr)); min-height: 84px; align-items: stretch; }
+.cash-shift-revenue-strip { display: grid; grid-auto-columns: minmax(96px, 1fr); grid-auto-flow: column; grid-template-columns: max-content; min-height: 84px; align-items: stretch; }
 .cash-shift-revenue-strip > div { display: grid; align-content: center; gap: 4px; padding: var(--space-3) var(--space-4); border-left: 1px solid var(--border-soft); }
 .cash-shift-revenue-strip > div:first-child { border-left: 0; }
 .cash-shift-revenue-strip span { color: var(--text-secondary); font-size: 13px; }
-.cash-shift-revenue-strip strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.cash-shift-revenue-strip strong { color: var(--text-primary); font-size: 15px; font-variant-numeric: tabular-nums; }
 .cash-shift-revenue-strip small { color: var(--text-tertiary); font-size: 12px; }
-.cash-shift-revenue-total strong { font-size: 23px; }
+.cash-shift-revenue-total strong { font-family: inherit; font-size: var(--text-sm); font-weight: 700; }
 
 .cash-shift-movement-ledger { display: flex; min-height: 320px; flex: 1; flex-direction: column; overflow: hidden; }
 .cash-shift-movement-ledger > header,
@@ -347,39 +230,36 @@
 .cash-shift-movement-ledger h2,
 .cash-shift-history-panel h2 { margin: 0; font-size: 16px; font-weight: 700; }
 .cash-shift-movement-ledger > header > span,
-.cash-shift-history-panel > header > span { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 12px; }
-.cash-shift-movement-head,
+.cash-shift-history-panel > header > span { color: var(--text-tertiary); font-size: 12px; }
 .cash-shift-movements li { display: grid; grid-template-columns: 82px 150px minmax(220px, 1fr) minmax(140px, .55fr) 120px; align-items: center; column-gap: var(--space-3); }
-.cash-shift-movement-head { min-height: 38px; padding: 0 var(--space-4); border-bottom: 1px solid var(--border-soft); color: var(--text-tertiary); font-size: 12px; }
-.cash-shift-movement-head span:last-child { text-align: right; }
 .cash-shift-movements { gap: 0; }
 .cash-shift-movements li { min-height: 52px; padding: 0 var(--space-4); border-top: 1px solid var(--border-soft); font-size: 15px; }
 .cash-shift-movements li:first-child { border-top: 0; }
 .cash-shift-movements li > span { color: var(--text-secondary); font-family: inherit; }
-.cash-shift-movements li > span:first-child { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li > span:first-child { font-variant-numeric: tabular-nums; }
 .cash-shift-movements li > strong { overflow: hidden; color: var(--text-primary); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .cash-shift-movements li > em { overflow: hidden; color: var(--text-secondary); font-size: 14px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-.cash-shift-movements li > b { justify-self: end; color: var(--success); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li > b { justify-self: end; color: var(--success); font-variant-numeric: tabular-nums; }
 .cash-shift-movements li.out > b { color: var(--danger); }
 .cash-shift-movement-ledger > footer { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-top: auto; padding: 0 var(--space-4); border-top: 1px solid var(--border-soft); color: var(--text-secondary); font-size: 13px; }
-.cash-shift-movement-ledger > footer strong { color: var(--accent-text); font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.cash-shift-movement-ledger > footer strong { color: var(--accent-text); font-size: 15px; font-variant-numeric: tabular-nums; }
 
 .cash-shift-history-panel { min-width: 0; min-height: 100%; overflow: hidden; }
 .cash-shift-history-panel .cash-register-row { min-height: 64px; padding: 0 var(--space-3); }
 .cash-shift-history-row { display: grid; width: 100%; grid-template-columns: 92px 1fr 1fr 18px; align-items: center; gap: var(--space-2); }
-.cash-shift-history-row > span:first-child { color: var(--text-secondary); font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cash-shift-history-row > span:first-child { color: var(--text-secondary); font-size: 13px; font-variant-numeric: tabular-nums; }
 .cash-shift-history-row > span:not(:first-child) { display: flex; flex-direction: column; gap: 4px; }
 .cash-shift-history-row small { color: var(--text-tertiary); font-size: 11px; }
-.cash-shift-history-row strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cash-shift-history-row strong { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
 .cash-shift-history-row .attention strong { color: var(--danger); }
 .cash-shift-history-row > svg { color: var(--text-tertiary); }
 .cash-shift-history-detail { margin: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-sunken); }
 .cash-shift-history-detail > span { color: var(--text-tertiary); font-size: 11px; }
-.cash-shift-history-detail > strong { display: block; margin-top: var(--space-1); font-family: var(--font-mono); font-size: 20px; }
+.cash-shift-history-detail > strong { display: block; margin-top: var(--space-1); font-size: 20px; }
 .cash-shift-history-detail dl { display: grid; gap: var(--space-1); margin: var(--space-3) 0 0; }
 .cash-shift-history-detail dl > div { display: flex; justify-content: space-between; gap: var(--space-3); }
 .cash-shift-history-detail dt { color: var(--text-secondary); font-size: 12px; }
-.cash-shift-history-detail dd { margin: 0; font-family: var(--font-mono); font-size: 12px; }
+.cash-shift-history-detail dd { margin: 0; font-size: 12px; }
 .cash-shift-empty-note { margin: 0; padding: var(--space-4); }
 .cash-shift-no-open { position: relative; padding: var(--space-5); }
 .cash-shift-no-open > span { color: var(--text-tertiary); font-size: 12px; }
@@ -389,47 +269,22 @@
 .cash-shift-last-closed { display: grid; max-width: 560px; grid-template-columns: 1fr auto auto; align-items: center; gap: var(--space-4); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-soft); }
 .cash-shift-last-closed > span { color: var(--text-secondary); font-size: 13px; }
 .cash-shift-last-closed > strong,
-.cash-shift-last-closed > b { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
+.cash-shift-last-closed > b { font-size: 14px; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 1500px) {
-  .cash-shift-status-card { grid-template-columns: repeat(4, minmax(170px, 1fr)); }
-  .cash-shift-status-actions { grid-column: 1 / -1; border-top: 1px solid var(--border-soft); border-left: 0; }
   .cash-shift-main-grid { grid-template-columns: minmax(0, 1fr) 360px; }
-  .cash-shift-revenue-strip { grid-template-columns: 1.2fr repeat(5, minmax(92px, 1fr)); }
 }
 
 @media (max-width: 1180px) {
   .cash-shift-status-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cash-shift-status-actions { grid-column: 1 / -1; border-top: 1px solid var(--border-soft); border-left: 0; }
+  .cash-shift-revenue-strip { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .cash-shift-status-block:nth-child(odd) { border-left: 0; }
   .cash-shift-status-block:nth-child(n + 3) { border-top: 1px solid var(--border-soft); }
-  .cash-shift-reconcile-band { grid-template-columns: 1fr; }
-  .cash-shift-reconcile-band > div { border-top: 1px solid var(--border-soft); border-left: 0; }
-  .cash-shift-reconcile-band > div:first-child { border-top: 0; }
   .cash-shift-main-grid { flex: none; grid-template-columns: 1fr; }
   .cash-shift-history-panel { min-height: 280px; }
 }
 
-/* S2: вкладка «Журнал кассы» — сегменты, лента операций, встроенная проверка. */
-.cash-journal-segments {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-}
-.cash-journal-segments button {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-1) var(--space-2);
-  min-height: var(--control-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.cash-journal-segments button:hover { color: var(--text-primary); }
-.cash-journal-segments button.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
-.cash-journal-segments button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .review-embed { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: var(--space-2); }
 
 /* Лента операций — парящая панель ограниченной ширины: сумма рядом с описанием, сканируется. */
@@ -448,7 +303,7 @@
 .cash-ledger-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4); }
 .cash-ledger-stat { display: flex; flex-direction: column; gap: 2px; }
 .cash-ledger-stat em { font-style: normal; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; color: var(--text-tertiary); font-weight: 600; }
-.cash-ledger-stat b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-base); font-weight: 600; }
+.cash-ledger-stat b { color: var(--text-primary); font-variant-numeric: tabular-nums; font-size: var(--text-base); font-weight: 600; }
 .cash-ledger-stat--lead b { font-size: var(--text-xl); }
 .cash-ledger-stat--out b { color: var(--danger); }
 
@@ -457,6 +312,8 @@
   flex: 1;
   min-width: 0;
   min-height: var(--control-md);
+  font: inherit;
+  font-size: var(--text-sm);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
@@ -466,6 +323,8 @@
 .cash-ledger-search input:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 .cash-ledger-search select {
   min-height: var(--control-md);
+  font: inherit;
+  font-size: var(--text-sm);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
@@ -474,15 +333,6 @@
 }
 .cash-ledger-search select:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 .cash-ledger-result-count { flex: none; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; }
-.cash-ledger-export {
-  display: inline-flex; align-items: center; gap: var(--space-1);
-  min-height: var(--control-md); padding: 0 var(--space-2);
-  border: 1px solid var(--border-soft); border-radius: 6px;
-  background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.cash-ledger-export:hover { border-color: var(--accent); color: var(--accent-bright); }
-.cash-ledger-export:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 
 /* Список-обёртка: ряды теперь на общей .ui-ledger-* грамматике (02-ui-kit.css), тут только list-reset. */
 .cash-ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -495,11 +345,11 @@
 .cash-operation-inspector { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
 .cash-operation-inspector > p { margin: 0; color: var(--accent-text); font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
 .cash-operation-inspector h2 { margin: 0; color: var(--text-primary); font-size: var(--text-lg); line-height: 1.3; }
-.cash-operation-inspector > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.cash-operation-inspector > strong { color: var(--text-primary); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
 .cash-operation-inspector dl { display: flex; flex-direction: column; margin: var(--space-2) 0 0; border-top: 1px solid var(--border-soft); }
 .cash-operation-inspector dl > div { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 1.4fr); gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft); }
 .cash-operation-inspector dt { color: var(--text-tertiary); font-size: 11px; }
-.cash-operation-inspector dd { margin: 0; overflow-wrap: anywhere; color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; text-align: right; }
+.cash-operation-inspector dd { margin: 0; overflow-wrap: anywhere; color: var(--text-primary); font-size: 11px; text-align: right; }
 .cash-inspector-empty { margin: 0; padding: var(--space-4); color: var(--text-tertiary); font-size: 12px; }
 .cash-ledger-failure { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); }
 .cash-ledger-failure .workspace-error { margin: 0; }
@@ -559,10 +409,10 @@
 .cash-receipts-terminal { display: flex; min-height: 100%; flex-direction: column; gap: var(--space-2); }
 .cash-receipts-terminal > .cash-terminal-split { flex: 1; min-height: 400px; }
 .cash-receipt-row { display: grid; grid-template-columns: 56px 90px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 50px; padding: var(--space-2) var(--space-3); }
-.cash-receipt-row > span { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cash-receipt-row > span { color: var(--text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
 .cash-receipt-row > strong { color: var(--text-primary); font-size: 12px; }
 .cash-receipt-row > em { overflow: hidden; color: var(--text-secondary); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-.cash-receipt-row > b { color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cash-receipt-row > b { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
 .cash-receipt-detail-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); margin: 0; padding: var(--space-4); color: var(--text-secondary); font-size: 12px; }
 .cash-receipt-detail-state strong { color: var(--danger); font-size: 13px; }
 .cash-receipt-detail-state small { color: var(--text-tertiary); }
@@ -571,19 +421,19 @@
 .cash-receipt-inspector-head { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: var(--space-1) var(--space-3); }
 .cash-receipt-inspector-head > span { grid-column: 1 / -1; color: var(--text-tertiary); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .cash-receipt-inspector-head > strong { color: var(--accent-text); font-size: 12px; }
-.cash-receipt-inspector-head > b { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.cash-receipt-inspector-head > b { color: var(--text-primary); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
 .cash-receipt-inspector section { display: flex; flex-direction: column; border-top: 1px solid var(--border-soft); }
 .cash-receipt-inspector section h3 { margin: 0; padding: var(--space-2) 0; color: var(--text-tertiary); font-size: 10px; letter-spacing: .055em; text-transform: uppercase; }
 .cash-receipt-inspector .pos-receipt-detail { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: var(--space-1) var(--space-3); padding: var(--space-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-muted); }
 .cash-receipt-inspector .pos-receipt-detail > span { color: var(--text-tertiary); font-size: 10px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
-.cash-receipt-inspector .pos-receipt-detail > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; }
+.cash-receipt-inspector .pos-receipt-detail > strong { color: var(--text-primary); font-size: 12px; }
 .cash-receipt-inspector .pos-receipt-detail > p { grid-column: 1 / -1; margin: 0; color: var(--text-secondary); font-size: 11px; }
 .cash-receipt-line,
 .cash-receipt-payment { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--border-soft); font-size: 12px; }
 .cash-receipt-line > span { display: flex; min-width: 0; flex-direction: column; color: var(--text-primary); }
 .cash-receipt-line small { color: var(--text-tertiary); }
 .cash-receipt-line > strong,
-.cash-receipt-payment > strong { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-receipt-payment > strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .cash-receipt-payment > span { color: var(--text-secondary); }
 
 @media (max-width: 1180px) {
@@ -626,7 +476,7 @@
 
 /* Чаевые за смену — тот же журнал, что движение наличных, только короче: без высоты журнала. */
 .cash-shift-tips { min-height: 0; flex: none; }
-.cash-shift-tips > header strong { color: var(--accent-text); font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.cash-shift-tips > header strong { color: var(--accent-text); font-size: 15px; font-variant-numeric: tabular-nums; }
 .cash-shift-tips-lead { margin: 0; padding: var(--space-2) var(--space-4) 0; color: var(--text-secondary); font-size: 13px; }
 .cash-shift-tips .cash-shift-movements li.reversed > b { color: var(--text-tertiary); text-decoration: line-through; }
 .cash-shift-tips > footer { gap: var(--space-3); }

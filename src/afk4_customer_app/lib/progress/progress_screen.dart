@@ -7,6 +7,9 @@ import '../l10n/app_localizations.dart';
 import '../shell/app_scaffold.dart';
 import '../shell/load_failure.dart';
 import '../theme/app_theme.dart';
+import '../shell/group_header.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
 
 /// Стаж игрока: уровень, часы за ПК и достижения.
 ///
@@ -50,10 +53,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final theme = Theme.of(context);
     final data = _data;
 
     return AppScaffold(
+      compact: true,
       title: l.customerProgressTitle,
       onRefresh: _load,
       slivers: [
@@ -66,18 +69,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
                     : LoadFailure(message: l.customerProgressError, onRetry: _load)
               else if (data == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                )
+                ListSkeleton(rows: 3, rowHeight: 88, label: l.customerCommonLoading)
               else ...[
                 LevelCard(data: data),
-                const SizedBox(height: 20),
-                Text(l.customerProgressAchievements, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 12),
+                const SizedBox(height: Space.s5),
+                GroupHeader(l.customerProgressAchievements),
                 for (final achievement in data.achievements) ...[
                   _AchievementTile(achievement: achievement),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: Space.s3),
                 ],
               ],
             ],
@@ -103,7 +102,7 @@ class LevelCard extends StatelessWidget {
     final toNext = data.minutesToNextLevel;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Space.s5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         gradient: LinearGradient(
@@ -122,19 +121,19 @@ class LevelCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.military_tech_outlined, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.s2),
               Text(
                 l.customerProgressLevel('${data.level}'),
                 style: theme.textTheme.headlineSmall,
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: Space.s2),
           Text(
             l.customerProgressHours('$hours', data.visitCount),
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: Space.s1),
           Text(
             // Достигнут потолок — так и говорим. «До следующего уровня 0 ч» звучало бы как
             // подсчёт, который вот-вот сорвётся.
@@ -164,7 +163,7 @@ class _AchievementTile extends StatelessWidget {
     final accent = unlocked ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(Space.s4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppTheme.radiusControl),
@@ -182,13 +181,13 @@ class _AchievementTile extends StatelessWidget {
             ),
             child: Icon(_iconFor(achievement.code), size: 20, color: accent),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: Space.s3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_titleFor(l, achievement.code), style: theme.textTheme.titleSmall),
-                const SizedBox(height: 2),
+                const SizedBox(height: Space.s1),
                 Text(
                   _hintFor(l, achievement.code),
                   style: theme.textTheme.bodySmall
@@ -197,7 +196,7 @@ class _AchievementTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: Space.s3),
           if (unlocked)
             Icon(Icons.check_circle, color: theme.colorScheme.primary)
           else

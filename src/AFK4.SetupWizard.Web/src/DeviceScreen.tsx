@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { wizardErrorMessage } from './wizardErrors';
+import { WizardStepLayout } from './WizardStepLayout';
 import {
   type WizardBranch,
   type WizardEnrollResult,
@@ -158,17 +160,31 @@ export function DeviceScreen({
     : 'setup.wizard.device.manager.subtitle';
 
   return (
-    <section className="wizard-screen is-framed is-narrow">
-      <div className="wizard-screen-head">
-        <span className="wizard-screen-context">{ownerName} · {branch.branchName}</span>
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>{stepNumber}</span>
-          <h1>{t(titleKey)}</h1>
-        </div>
-        <p>{t(subtitleKey)}</p>
-      </div>
-
-      <form className="wizard-form" onSubmit={handleSubmit} noValidate>
+    <WizardStepLayout
+      stepNumber={stepNumber}
+      context={`${ownerName} · ${branch.branchName}`}
+      title={t(titleKey)}
+      subtitle={t(subtitleKey)}
+      onSubmit={handleSubmit}
+      onBack={() => onBack({ displayName, seatChoice: freeSeats.length > 0 ? seatChoice : null })}
+      backDisabled={busy}
+      primary={(
+        <Button type="submit" variant="primary" disabled={!canEnroll || busy}>
+          {busy ? (
+            <>
+              <Loader2 size={16} className="ui-spinner" aria-hidden />
+              {t('setup.wizard.device.action.enrolling')}
+            </>
+          ) : (
+            <>
+              {t('setup.wizard.device.action.enroll')}
+              <ArrowRight size={16} aria-hidden />
+            </>
+          )}
+        </Button>
+      )}
+    >
+      <div className="wizard-form">
         {/* Свободных мест нет — место заведётся само, и сказать об этом надо до нажатия:
             иначе в зале молча появляется ещё одна строка, о которой человек узнаёт из панели. */}
         {requiresSeat && freeSeats.length === 0 && defaultZone !== null && (
@@ -222,31 +238,7 @@ export function DeviceScreen({
           </div>
         )}
 
-        <div className="wizard-actions">
-          <button
-            type="button"
-            className="ui-btn"
-            onClick={() => onBack({ displayName, seatChoice: freeSeats.length > 0 ? seatChoice : null })}
-            disabled={busy}
-          >
-            <ArrowLeft aria-hidden />
-            <span>{t('setup.wizard.common.back')}</span>
-          </button>
-          <button type="submit" className="ui-btn ui-btn--primary" disabled={!canEnroll || busy}>
-            {busy ? (
-              <>
-                <Loader2 className="ui-spinner" aria-hidden />
-                <span>{t('setup.wizard.device.action.enrolling')}</span>
-              </>
-            ) : (
-              <>
-                <span>{t('setup.wizard.device.action.enroll')}</span>
-                <ArrowRight aria-hidden />
-              </>
-            )}
-          </button>
-        </div>
-      </form>
-    </section>
+      </div>
+    </WizardStepLayout>
   );
 }

@@ -8,7 +8,7 @@ import { playersSnapshotCache } from './players/playersSnapshot';
 // одиночные — клик по кнопке рельса; вкладочные — сперва открыть раздел, затем вкладку (клик
 // по вкладке скоупим внутри полоски раздела, чтобы не задеть одноимённые внутренние вкладки экранов).
 const TAB_SECTION: Record<string, string> = {
-  'Продажи': 'Касса', 'Смена': 'Касса', 'Журнал кассы': 'Касса',
+  'Продажи': 'Касса', 'Смена': 'Касса', 'Кассовые операции': 'Касса', 'Чеки': 'Касса', 'Согласования': 'Касса',
   'Сводка': 'Отчёты', 'Смены и касса': 'Отчёты', 'Выручка': 'Отчёты',
   'Настройки': 'Управление', 'Платежи и лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
 };
@@ -99,7 +99,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(await screen.findByTitle(/Смена открыта/)).toBeInTheDocument();
     expect(await screen.findByText('Cashier One')).toBeInTheDocument();
@@ -110,11 +110,10 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
     expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
-    // «Управление ПК» теперь секция в карточке выбранного места (не отдельная кнопка в тулбаре).
-    expect(screen.getByText('Управление ПК')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeInTheDocument();
-    // Статус ПК — единый блок внизу карточки выбранного места, всегда виден (не за кнопкой).
-    expect(screen.getByText('Статус ПК')).toBeInTheDocument();
+    // Панель выбранного места — одна главная кнопка по его положению, команды ПК — в «Ещё»,
+    // статус ПК — строкой внизу (дизайн-проход 29.09).
+    expect(screen.getByRole('button', { name: 'Ещё действия' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Завершить и/ })).toBeInTheDocument();
     expect(screen.getByText(/^(за|раз)блокирован$/)).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
@@ -139,7 +138,7 @@ describe('App', () => {
     }));
 
     const { container } = render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     const footer = container.querySelector('.signals-strip');
     expect(footer).not.toBeNull();
 
@@ -157,7 +156,7 @@ describe('App', () => {
     const bridge = installSessionBridge();
     const { container } = render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
 
     const topCommand = container.querySelector('.top-command');
     expect(topCommand).not.toBeNull();
@@ -188,17 +187,15 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    // PC controls live in the selected seat's card (no toolbar button, no popover).
-    expect(screen.getByText('Управление ПК')).toBeInTheDocument();
-    // Статус ПК — единый блок внизу карточки, виден сразу: не действие за кнопкой, без сырого текста.
+    // Команды ПК — в «Ещё» панели выбранного места; статус ПК — строкой внизу, не кнопкой.
     expect(screen.queryByRole('button', { name: /^Статус$/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Статус ПК')).toBeInTheDocument();
     expect(await screen.findByText(/^(за|раз)блокирован$/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Блокировать/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ещё действия' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Блокировать' }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/11111111-1111-1111-1111-111111111111/commands') &&
       init?.method === 'POST' &&
@@ -212,7 +209,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Свободно/ }));
 
@@ -247,9 +244,9 @@ describe('App', () => {
     render(<App />);
 
     // Money surfaces (the checkout breakdown) render amounts in the configured host currency.
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     await within(dialog).findByText('К оплате');
     expect(within(dialog).getAllByText(/\$/).length).toBeGreaterThan(0);
@@ -275,7 +272,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     // The session lives in sessionStorage (staffSessionStore) — cleared on tab close, never in
     // localStorage. Auth is a direct HTTP call now (StaffAuthApi), no native bridge involved.
     const sessionishKeys = Object.keys(localStorage).filter((key) =>
@@ -380,7 +377,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     fireEvent.change(await screen.findByLabelText('Введите ПИН-код'), { target: { value: '246813' } });
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
   });
 
   it('opens the forgot-password screen from the sign-in link', async () => {
@@ -446,7 +443,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/refresh'))).toBe(false);
   });
 
@@ -639,9 +636,9 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
 
     // Finish opens the checkout modal; with nothing owed (zero-bill quote) the primary action
     // just ends the session through /end without recording a payment.
@@ -701,9 +698,9 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     await within(dialog).findByText('К оплате');
@@ -762,9 +759,9 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
-    fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Завершить и/ }));
     const realtimeFinishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     fireEvent.click(await within(realtimeFinishDialog).findByRole('button', { name: 'Завершить' }));
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(2));
@@ -782,7 +779,7 @@ describe('App', () => {
 
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(3));
     expect(await screen.findByRole('button', { name: /Посадить гостя/ })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: /Завершить сессию/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Завершить и/ })).not.toBeInTheDocument();
   });
 
   it('reconciles the floor map and dashboard when a session-lifecycle event arrives over realtime', async () => {
@@ -803,7 +800,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     // Wait for the initial KPI load to settle so the assertions below prove an event-driven
     // reconcile, not the first mount.
@@ -856,7 +853,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Вход администратора' })).not.toBeInTheDocument();
     expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
@@ -873,7 +870,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     const floorMapBefore = floorMapRequestCount;
 
@@ -899,7 +896,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // «+» свободной плитки открывает запуск; гость по умолчанию идёт открытым счётом.
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
@@ -930,7 +927,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
@@ -956,12 +953,12 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // «+» свободной плитки открывает запуск сессии сразу (выбрав место).
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
-    // Клиент клуба → списание по умолчанию «Депозит» (prepaid_wallet).
+    // Клиент клуба → списание по умолчанию «Баланс» (prepaid_wallet).
     fireEvent.click(within(startDialog).getByRole('tab', { name: 'Клиент клуба' }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
     fireEvent.click(await within(startDialog).findByRole('option', { name: /Madina S\./ }));
@@ -992,18 +989,20 @@ describe('App', () => {
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands/44444444-4444-4444-4444-444444444444/status'))).toBe(true);
   });
 
-  it('hides unauthorized workspaces and disables selected-seat actions', async () => {
+  // Нет права — действия не рисуются вовсе (решение владельца для инспекторов, 29.09): раньше
+  // были серые «15 мин» и «Завершить» с подписью «Нет прав на действия с сессией».
+  it('hides unauthorized workspaces and selected-seat actions', async () => {
     installSessionBridge(createSession({ permissions: ['organization.floor_map.view'] }));
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(screen.queryByTitle('Касса')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Брони')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /15 мин/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeDisabled();
-    expect(screen.getByText('Нет прав на действия с сессией')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /15 мин/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Завершить и/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ещё действия' })).not.toBeInTheDocument();
   });
 
   it('opens workspace rail entries with partial role permissions', async () => {
@@ -1021,7 +1020,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     const rail = within(screen.getByRole('navigation', { name: 'Рабочие места' }));
     expect(rail.getByTitle('Касса')).toBeEnabled();
 
@@ -1041,7 +1040,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     const bookingButton = within(screen.getByRole('navigation')).getByTitle('Брони');
     expect(bookingButton).toBeEnabled();
 
@@ -1054,7 +1053,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Сводка');
     expect(screen.getByRole('tab', { name: 'Сводка' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Смены и касса' })).toBeInTheDocument();
@@ -1064,7 +1063,7 @@ describe('App', () => {
     expect(screen.queryByText('Журнал филиала')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Брони'));
-    const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.booking-header');
+    const bookingHead = screen.getByRole('heading', { name: 'Брони' }).closest('.ui-section-header');
     expect(bookingHead).toBeInTheDocument();
     // Дата-нав нового дизайна: кнопки «‹»/«›» + метка текущей даты (не вкладки «Завтра»/«Неделя»).
     expect(bookingHead).not.toHaveTextContent('Завтра');
@@ -1090,21 +1089,23 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
-    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.clients-head');
+    const clientsHead = (await screen.findByRole('heading', { name: 'Клиенты' })).closest('.ui-section-header');
     expect(clientsHead).toBeInTheDocument();
-    // глобальные метрики базы в шапке: Клиентов / Депозиты / Долги (сумма по базе, не per-client)
-    expect(clientsHead).toHaveTextContent('Клиентов');
+    // Денежная картина базы в шапке: На балансах / Долги. Число клиентов не повторяем — его
+    // показывает фильтр «Все» под шапкой.
+    expect(clientsHead).toHaveTextContent('На балансах');
     expect(clientsHead).toHaveTextContent('Долги');
+    expect(clientsHead).not.toHaveTextContent('Клиентов');
     // Таблица + drawer выбранного клиента видны одновременно: тулбар таблицы, зона денег и мини-история.
     expect(screen.getByRole('button', { name: /Новый клиент/ })).toBeInTheDocument();
     expect(await screen.findByLabelText('Сумма пополнения')).toBeInTheDocument();
     expect(screen.getByText('Последние операции')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Пополнить баланс' })).toBeInTheDocument();
 
     gotoWorkspace('Смена');
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
-    expect(screen.getByText('Фактически в кассе')).toBeInTheDocument();
+    // «Ожидается в кассе» — счётчик «В кассе» шапки раздела: вкладка его не повторяет.
+    expect(screen.getByText('В кассе')).toBeInTheDocument();
     expect(screen.getByText('Прошлые смены')).toBeInTheDocument();
     // дренаж: CashShiftHeader делает отдельный фетч /shifts/revenue/current независимо от Workspace;
     // ждём завершения обоих (>= 2 вызовов сделано И ответы обработаны) перед уходом со вкладки
@@ -1126,7 +1127,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     // Task 1.6: Настройки/Приём платежей/Лояльность/Новости/Логи collapsed into one
     // 'Управление' rail entry with a left destination nav (no tab strip) — open the section,
     // then pick the destination inside .management-nav.
@@ -1160,7 +1161,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Выручка');
     expect(screen.getAllByText('Выручка').length).toBeGreaterThan(0);
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
@@ -1199,7 +1200,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // Чек стартует пустым — кладём товар кликом по карточке каталога, как это делает кассир.
@@ -1240,7 +1241,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     // Выбор клиента свёрнут в строку «Гость» — разворачиваем поиск по «Выбрать».
@@ -1321,7 +1322,8 @@ describe('App', () => {
     expect(await screen.findByLabelText('ПК зала')).toBeInTheDocument();
   });
 
-  it('renders the shift tab without errors on empty reports', async () => {
+  // Движение наличных живёт во вкладке «Кассовые операции»: пустой отчёт — её спокойное «операций нет».
+  it('renders the cash operations tab without errors on empty reports', async () => {
     installSessionBridge();
     const zero = { currencyCode: 'TJS', minorUnits: 0 };
     fetchMock.mockImplementation((input, init) => {
@@ -1333,10 +1335,9 @@ describe('App', () => {
     });
 
     render(<App />);
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Смена');
-    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Движений нет')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
+    gotoWorkspace('Кассовые операции');
+    expect(await screen.findByText('Кассовых операций нет')).toBeInTheDocument();
   });
 
   it('does not replace an empty backend POS catalog with demo products', async () => {
@@ -1352,7 +1353,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Продажи');
 
     expect(await screen.findByText('Каталог пуст')).toBeInTheDocument();
@@ -1374,7 +1375,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
 
     // Поиска нет, база пуста — это «клиентов пока нет», а не «никто не подошёл под поиск».
@@ -1388,17 +1389,15 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
-    // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку + сверку.
+    // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку; ожидаемое в ящике —
+    // счётчиком «В кассе» в шапке раздела.
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
-    expect(screen.getByText('Фактически в кассе')).toBeInTheDocument();
+    expect(screen.getByText('В кассе')).toBeInTheDocument();
     // Проверяем, что реальные данные смены из мока доехали до кокпита (нет generic заглушек).
     expect(screen.queryByText('Нет открытой смены')).not.toBeInTheDocument();
-    // Движение наличных — одна строка из createCashReport (operationType=opening, reason='test').
-    expect(screen.getByText('Движение наличных')).toBeInTheDocument();
   });
 
   it('downloads shift tab CSV exports from the backend', async () => {
@@ -1420,7 +1419,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Ждём загрузки кокпита и раскрываем компактное меню экспорта.
@@ -1452,7 +1451,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Шапка-якорь: смена открыта → кнопка «Закрыть смену» открывает модалку.
@@ -1496,7 +1495,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
     // Шапка-якорь: смена открыта → кнопка «Внести» открывает модалку внесения.
@@ -1506,7 +1505,7 @@ describe('App', () => {
     fireEvent.change(within(movementDialog).getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
     const revenueCallsBeforeMovement = fetchMock.mock.calls.filter(([input]) =>
       String(input).includes('/shifts/revenue/current')).length;
-    fireEvent.click(within(movementDialog).getByRole('button', { name: 'Подтвердить' }));
+    fireEvent.click(within(movementDialog).getByRole('button', { name: 'Внести' }));
 
     expect(await screen.findByText('Внесение наличных: подтверждено')).toBeInTheDocument();
     const movementCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1534,14 +1533,14 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Брони'));
     // Бронь из мока отрисована в гриде таймлайна — значит данные сервера получены.
     expect((await screen.findAllByText('Aziz P.')).length).toBeGreaterThan(0);
 
-    // Создание: кнопка «Добавить бронь» в тулбаре открывает drawer → submit «Создать бронь» → бэкенд-вызов.
+    // Создание: главная кнопка шапки «Добавить бронь» открывает карточку → «Создать бронь» → бэкенд-вызов.
     fireEvent.click(screen.getByRole('button', { name: 'Добавить бронь' }));
-    const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    const createDrawer = await screen.findByRole('complementary', { name: 'Новая бронь' });
     expect(createDrawer).toBeInTheDocument();
     fireEvent.click(within(createDrawer).getByRole('button', { name: 'Создать бронь' }));
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
@@ -1560,13 +1559,12 @@ describe('App', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Aziz P\./ }));
     });
-    // Ждём drawer детали — содержит заголовок «Бронь».
-    const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
-    expect(detailDrawer).toBeInTheDocument();
-    // «Отменить» — кнопка в action-grid detail-режима drawer.
-    const cancelBtn = within(detailDrawer).getByRole('button', { name: 'Отменить' });
+    // Карточка брони подписана именем клиента.
+    const detailDrawer = await screen.findByRole('complementary', { name: 'Aziz P.' });
+    // «Отменить бронь» — опасное действие, живёт в «⋯» карточки, а не рядом с «Отказать».
+    fireEvent.click(within(detailDrawer).getByRole('button', { name: 'Действия с бронью' }));
     await act(async () => {
-      fireEvent.click(cancelBtn);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Отменить бронь' }));
     });
     // Сначала убедиться, что бэкенд-вызов отмены реально произошёл, потом проверять текст.
     await waitFor(() => {
@@ -1577,38 +1575,35 @@ describe('App', () => {
     expect(await screen.findByText('Отменить бронь: подтверждено')).toBeInTheDocument();
   });
 
-  it('keeps booking mutation controls disabled without reservation manage permission', async () => {
+  // Без права вести брони кнопок изменения нет вовсе — не серые, а не нарисованные: строка
+  // «только просмотр» над лентой говорит почему, а на карточке остаётся лишь «Открыть карту».
+  it('draws no booking mutation controls without reservation manage permission', async () => {
     installSessionBridge(createSession({ permissions: ['organization.floor_map.view', 'organization.reservations.view'] }));
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Брони'));
     expect(await screen.findByText('Aziz P.')).toBeInTheDocument();
 
-    // Кнопка создания брони в тулбаре заблокирована без права manageReservations.
-    expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Добавить бронь' })).toBeNull();
 
-    // Клик по треку дорожки (не по блоку) открывает create-drawer вне зависимости от прав,
-    // чтобы проверить, что кнопка submit внутри тоже заблокирована.
+    // Клик по треку дорожки (не по блоку) открывает карточку создания вне зависимости от прав,
+    // поэтому проверяем, что создать из неё тоже нельзя.
     const track = document.querySelector<HTMLElement>('.booking-row-track');
     expect(track).not.toBeNull();
     fireEvent.click(track!);
-    const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    const createDrawer = await screen.findByRole('complementary', { name: 'Новая бронь' });
     expect(within(createDrawer).getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
-    // Закрываем create-drawer перед открытием detail-drawer.
-    fireEvent.click(within(createDrawer).getByRole('button', { name: 'Отмена' }));
+    fireEvent.click(within(createDrawer).getByRole('button', { name: 'Закрыть' }));
 
-    // Pending сначала нужно подтвердить: старый state-only «Посадить» и Start не показываем.
     fireEvent.click(screen.getByText('Aziz P.'));
-    const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
-    expect(within(detailDrawer).queryByRole('button', { name: 'Посадить' })).toBeNull();
-    expect(within(detailDrawer).queryByRole('button', { name: 'Начать сессию' })).toBeNull();
-    // «Перенести на место» — select, а не button; проверяем его disabled.
-    expect(within(detailDrawer).getByRole('combobox')).toBeDisabled();
-    expect(within(detailDrawer).getByRole('button', { name: 'Отменить' })).toBeDisabled();
-    // «Принять» виден только для online+pending брони (мок: source=online, state=pending).
-    expect(within(detailDrawer).getByRole('button', { name: 'Принять' })).toBeDisabled();
+    const detailDrawer = await screen.findByRole('complementary', { name: 'Aziz P.' });
+    expect(within(detailDrawer).queryByRole('button', { name: 'Принять' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Посадить за ПК' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Действия с бронью' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('combobox', { name: 'Перенести на место' })).toBeNull();
+    expect(within(detailDrawer).getByRole('button', { name: 'Открыть карту' })).toBeInTheDocument();
   });
 
   it('creates a reservation from the selected backend player card', async () => {
@@ -1616,7 +1611,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
@@ -1650,7 +1645,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
@@ -1664,15 +1659,15 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
-    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    const topUpWalletButton = screen.getByRole('button', { name: 'Пополнить баланс' });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
     fireEvent.click(topUpWalletButton);
 
-    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Пополнить баланс: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
@@ -1690,23 +1685,23 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Пополнить баланс' })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Оплатить долг' });
     await waitFor(() => expect(openPayDebtButton).toBeEnabled());
     fireEvent.click(openPayDebtButton);
 
-    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Оплатить долг' });
     fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
     fireEvent.change(within(payDebtDialog).getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
-    fireEvent.click(within(payDebtDialog).getByRole('button', { name: 'Списать долг' }));
+    fireEvent.click(within(payDebtDialog).getByRole('button', { name: 'Оплатить долг' }));
 
-    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Оплатить долг: подтверждено')).toBeInTheDocument();
     // модалка закрывается сама на успехе
-    expect(screen.queryByRole('dialog', { name: 'Погасить долг' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Оплатить долг' })).toBeNull();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
@@ -1725,16 +1720,16 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '50.00' } });
     // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
-    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    const topUpWalletButton = screen.getByRole('button', { name: 'Пополнить баланс' });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
     fireEvent.click(topUpWalletButton);
 
-    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Пополнить баланс: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
@@ -1748,23 +1743,23 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Пополнить баланс' })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Оплатить долг' });
     await waitFor(() => expect(openPayDebtButton).toBeEnabled());
     fireEvent.click(openPayDebtButton);
 
-    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Оплатить долг' });
     fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
     // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
-    const payDebtButton = within(payDebtDialog).getByRole('button', { name: 'Списать долг' });
+    const payDebtButton = within(payDebtDialog).getByRole('button', { name: 'Оплатить долг' });
     await waitFor(() => expect(payDebtButton).toBeEnabled());
     fireEvent.click(payDebtButton);
 
-    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Оплатить долг: подтверждено')).toBeInTheDocument();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
@@ -1778,7 +1773,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Новый клиент/ }));
@@ -1806,7 +1801,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
@@ -1855,7 +1850,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     // Task 1.6: the old 'Настройки' rail button is now the 'Клуб' destination inside the
     // consolidated 'Управление' section's left nav (no tab strip).
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
@@ -1940,46 +1935,46 @@ describe('App', () => {
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it('hides the cash journal tab without cash/review permissions', async () => {
-    installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay'] }));
+  it('hides the cash ledger tabs without cash/review permissions', async () => {
+    installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay', 'organization.shifts.view'] }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
-    // Без прав cash/approve раздел «Касса» открывается, но вкладка «Журнал кассы» в нём отсутствует.
+    // Без прав на чеки и согласования раздел «Касса» открывается, но этих вкладок в нём нет.
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
     const strip = screen.getByRole('tablist', { name: 'Касса' });
     expect(within(strip).getByRole('tab', { name: 'Продажи' })).toBeInTheDocument();
-    expect(within(strip).queryByRole('tab', { name: 'Журнал кассы' })).toBeNull();
+    expect(within(strip).queryByRole('tab', { name: 'Чеки' })).toBeNull();
+    expect(within(strip).queryByRole('tab', { name: 'Согласования' })).toBeNull();
   });
 
-  it('opens journal receipts for receipt-only staff', async () => {
+  // Одна доступная вкладка — полоски вкладок нет, касса сразу открыта на чеках.
+  it('opens receipts for receipt-only staff', async () => {
     installSessionBridge(createSession({ permissions: ['organization.receipts.view'] }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
-    const cashTabs = screen.getByRole('tablist', { name: 'Касса' });
-    fireEvent.click(within(cashTabs).getByRole('tab', { name: 'Журнал кассы' }));
-    expect(await screen.findByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tablist', { name: 'Касса' })).toBeNull();
+    expect(await screen.findByText('Продажи на сумму')).toBeInTheDocument();
   });
 
-  it('opens the cash journal for a manager', async () => {
+  it('opens cash operations and approvals for a manager', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
-    gotoWorkspace('Журнал кассы');
-    expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));
+    gotoWorkspace('Кассовые операции');
+    expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toHaveAttribute('aria-selected', 'true');
+    gotoWorkspace('Согласования');
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
   });
 
   it('renders the pending money-action queue and approves a request', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
+    await screen.findByRole('heading', { name: 'Карта зала' });
+    gotoWorkspace('Согласования');
 
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
     expect(screen.getByText(/Возврат/)).toBeInTheDocument();
@@ -1998,9 +1993,8 @@ describe('App', () => {
   it('requires a reason before rejecting a money action', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
+    await screen.findByRole('heading', { name: 'Карта зала' });
+    gotoWorkspace('Согласования');
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('row', { name: /Возврат.*120/ }));
@@ -2023,9 +2017,8 @@ describe('App', () => {
   it('builds an audit query from staff and amount filters', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
+    await screen.findByRole('heading', { name: 'Карта зала' });
+    gotoWorkspace('Согласования');
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Журнал операций' }));
@@ -2044,20 +2037,19 @@ describe('App', () => {
     });
   });
 
-  it('shows the cash operations ledger in the cash journal', async () => {
+  it('shows the cash operations ledger as a cash tab', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
 
-    gotoWorkspace('Журнал кассы');
-    // По умолчанию активен сегмент «Кассовые операции» (первый сегмент)
+    gotoWorkspace('Кассовые операции');
     expect(await screen.findByText('Итого по кассе')).toBeInTheDocument();
   });
 
   it('opens the X report from the cash header', async () => {
     installSessionBridge();
     render(<App />);
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     gotoWorkspace('Смена');
 
     fireEvent.click(await screen.findByRole('button', { name: /X-отчёт/ }));
@@ -2070,12 +2062,14 @@ describe('App', () => {
     installSessionBridge();
     render(<App />);
 
-    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    await screen.findByRole('heading', { name: 'Карта зала' });
     // Раздел «Склад» — одиночный элемент рейла, открывается прямым кликом (нет таб-секции).
     gotoWorkspace('Склад');
-    // Экран Остатков: заголовок секции + кнопка фильтра «Все»
-    expect(await screen.findByText('Остатки на складе')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Все/ })).toBeInTheDocument();
+    // Шапка раздела «Склад» и выбранная вкладка «Остатки» с фильтром «Все»: имя вкладки внутри
+    // больше не повторяется заголовком «Остатки на складе».
+    expect(await screen.findByRole('heading', { level: 1, name: 'Склад' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Остатки' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('button', { name: /^Все/ })).toBeInTheDocument();
   });
 });
 

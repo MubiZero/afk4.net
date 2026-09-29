@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Check, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TriangleAlert, Unlock, Wifi, WifiOff, Wrench } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { BellRing, Check, Loader2, Plus, TriangleAlert, Wifi, WifiOff } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { Button, Inspector, Money, StatusBadge, useBlockedReason, type Fact, type RowAction, type StatusTone } from '@afk4/ui/react';
 import { projectOperatorError } from './apiErrors';
 import { formatBilledDuration } from './checkoutState';
 import { type PaymentPartDto, type PlayerSearchResultDto, type SessionCheckoutQuoteResponse } from './operatorApiClients';
@@ -14,27 +15,29 @@ import type {
   SeatActionResult,
   SessionBillingSelection,
 } from './operatorTypes';
-import type { SeatSummary } from './operatorData';
+import type { SeatSummary, SeatTone } from './operatorData';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   appVersionsLabel,
+  commandTypeLabel,
   commandLabel,
   createAuthenticatedOperatorClients,
   emptyFeedback,
   formatMinorUnits,
   projectOperatorFacingError,
-  toneLabel,
   type PlayerClientItem,
   projectPlayerClient,
   zoneLabel
 } from './operatorHelpers';
 import { CriticalActionConfirmation } from './operatorPrimitives';
-import { useBlockedReason } from './components/BlockedReason';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PanelSelect } from './PanelSelect';
-import { PcCommands } from './pc/PcCommands';
-import { pcLockCommandsFor } from './pc/pcCommandOptions';
+import { PcCommandDialog } from './pc/PcCommandDialog';
+import { planBulk, type BulkPlan } from './pc/pcBulk';
+import { DANGEROUS_PC_COMMANDS, PC_COMMAND_CONFIRM } from './pc/pcCommandCopy';
+import type { PcCommandId } from './pc/pcCommandOptions';
+import { buildSeatMenu, type SeatMenuItem } from './seatMenu';
 import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact, isPendingSeatCommand } from './floorMapState';
 import { createSessionStartSelection, SessionStartForm, type SessionStartClient, type SessionStartSelection } from './session/SessionStartForm';
@@ -54,9 +57,8 @@ function formatSessionClock(iso: string | null | undefined): string | null {
 }
 
 /**
- * Визуальный отклик на действие вместо строки текста: пока команда в полёте — спиннер,
- * при успехе — зелёная галочка (сама гаснет через эффект выше). Ошибку показываем текстом:
- * её надо прочитать (#34). Так подтверждение читается «языком», а не абзацем.
+ * Отклик на действие одной строкой под кнопками: пока команда в полёте — спиннер, при успехе —
+ * галочка (гаснет сама), ошибку оставляем текстом: её надо прочитать (#34).
  */
 function ActionFeedback({ feedback }: { feedback: Feedback }) {
   const { t } = useI18n();
@@ -204,6 +206,55 @@ function CheckoutDialog({
   );
 }
 
+/**
+ * В каком положении место — от этого зависит одна главная кнопка панели (таблица состояний из
+ * дизайн-прохода 29.09): свободное сажают, идущую сессию завершают и рассчитывают, открытый счёт
+ * закрывают приёмом денег, паузу снимают, ожидающее ждёт, выключенный ПК будят, обслуживание
+ * возвращают в зал. Тон карты огрубляет состояние (пауза и игра одинаково «занято»), поэтому
+ * панель решает по своему, а не по тону.
+ */
+export type SeatPanelState = 'free' | 'session' | 'open-tab' | 'paused' | 'pending' | 'failed' | 'offline' | 'maintenance' | 'closed';
+
+export function seatPanelState(seat: SeatSummary): SeatPanelState {
+  if (isPendingSeatCommand(seat)) return 'pending';
+  const hasSession = Boolean(seat.activeSessionId) || seat.hasActiveSession === true || seat.tone === 'active';
+  if (hasSession) {
+    if (seat.sessionState === 'Paused') return 'paused';
+    return seatTileLead(seat).kind === 'postpaid' ? 'open-tab' : 'session';
+  }
+  if (seat.tone === 'ready') return 'free';
+  if (seat.tone === 'failed') return 'failed';
+  if (seat.tone === 'offline') return 'offline';
+  // Серый «сервис» — и обслуживание, и ПК сверх тарифа. У второго своя строка-причина; вернуть в
+  // зал можно только уведённый туда клубом (maintenanceSinceUtc), а не неодобренный ПК.
+  return seat.isOutsidePlan ? 'closed' : 'maintenance';
+}
+
+const STATUS_TONE: Record<SeatTone, StatusTone> = {
+  ready: 'success',
+  active: 'accent',
+  pending: 'warning',
+  // Сбой команды — не авария: ПК на связи и принимает гостей. Красного на карте нет.
+  failed: 'warning',
+  offline: 'neutral',
+  service: 'neutral'
+};
+
+// Эти пункты «Ещё» уже стоят на панели кнопкой — в меню их не дублируем.
+const SHOWN_ON_PANEL = new Set(['start-guest', 'extend-15', 'extend-30', 'resolve-assistance']);
+
+// Что повторяет «Повторить …» по упавшей команде (SeatStatusDto.lastFailedCommandType). Сервер
+// называет только те команды, что администратор шлёт сам и может повторить той же кнопкой.
+const RETRY: Partial<Record<string, { action: 'lock' | 'unlock' | Exclude<PcCommandId, 'wake' | 'message'>; label: MessageKey }>> = {
+  lock: { action: 'lock', label: 'op.map.panel.retry.lock' },
+  unlock: { action: 'unlock', label: 'op.map.panel.retry.unlock' },
+  reboot: { action: 'reboot', label: 'op.map.panel.retry.reboot' },
+  shutdown: { action: 'shutdown', label: 'op.map.panel.retry.shutdown' },
+  'sign-out': { action: 'sign-out', label: 'op.map.panel.retry.signOut' },
+  'maintenance-on': { action: 'maintenance-on', label: 'op.map.panel.retry.maintenanceOn' },
+  'maintenance-off': { action: 'maintenance-off', label: 'op.map.panel.retry.maintenanceOff' }
+};
+
 export function MapSidePanel({
   seat,
   seats: floorSeats,
@@ -213,7 +264,8 @@ export function MapSidePanel({
   canUsePcControl,
   startRequestToken,
   onSeatAction,
-  onPcControlAction
+  onPcControlAction,
+  onResolveAssistance
 }: {
   seat: SeatSummary;
   seats: SeatSummary[];
@@ -224,45 +276,18 @@ export function MapSidePanel({
   startRequestToken?: number;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId, options?: PcControlActionOptions) => Promise<PcControlActionResult>;
+  onResolveAssistance?: (seat: SeatSummary) => Promise<PcControlActionResult>;
 }) {
   const { t } = useI18n();
   const session = backend?.session ?? null;
+  const state = seatPanelState(seat);
   const lead = seatTileLead(seat);
-  // Сессия с оплаченным временем дотикала до нуля: «осталось» больше не уместно — это «Время вышло».
-  const isExpired = lead.kind === 'prepaid' && lead.expired === true;
-  // Просрочка в секундах (сколько ПК уже сидит занятым после нуля) — для строки «вышло N назад».
-  const overtimeSeconds = isExpired && seat.remainingSeconds != null ? Math.max(0, -seat.remainingSeconds) : 0;
-  // Plain-статус (нет связи / обслуживание / ожидание) уже назван чипом справа. Значение-герой
-  // показываем, только если оно добавляет конкретику сверх чипа (как «Нет связи с ПК» к «Нет
-  // связи»); если совпадает с чипом (как «Обслуживание»), это дубль — прячем.
-  const plainStatusRedundant = lead.kind === 'plain' && seat.remaining === toneLabel(seat.tone, t);
-  // Подпись над герой-значением — только для чисел (осталось / открытый счёт); у plain-статуса
-  // и истёкшей сессии подписи нет (чип/значение говорят сами за себя).
-  const heroLabel = lead.kind === 'prepaid'
-    ? (lead.expired ? null : t('op.map.seatLeft'))
-    : lead.kind === 'postpaid'
-      ? t('op.map.seatOpenTab')
-      : null;
-  // Консоль — место без агента: блока «Управление ПК» у неё нет (команды ей не доходят).
-  const hasDevice = !seat.isConsole && (Boolean(seat.deviceId) || Boolean(seat.deviceName));
-  const connectionLabel = seat.isDeviceOnline === true
-    ? t('op.helper.deviceStatus.online')
-    : seat.isDeviceOnline === false
-      ? t('op.helper.deviceStatus.offline')
-      : t('op.map.panel.unknown');
-  const lockLabel = seat.isDeviceLocked === true
-    ? t('op.helper.deviceStatus.locked')
-    : seat.isDeviceLocked === false
-      ? t('op.helper.deviceStatus.unlocked')
-      : t('op.helper.deviceStatus.lockUnknown');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  // Отклик команд блокировки/разблокировки ПК: спиннер→галочка на самой кнопке.
-  const [pcFeedback, setPcFeedback] = useState<Feedback>(emptyFeedback);
   const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
   const [startClient, setStartClient] = useState<SessionStartClient | null>(null);
   const [startFormValid, setStartFormValid] = useState(true);
-  const [criticalAction, setCriticalAction] = useState<'end-session' | 'checkout' | null>(null);
-  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [dialog, setDialog] = useState<'start' | 'checkout' | 'end-session' | 'transfer' | null>(null);
+  const [commandPlan, setCommandPlan] = useState<BulkPlan | null>(null);
   // Тот же вопрос, что «можно ли сюда посадить гостя» (см. isSeatReadyForGuest в floorMapState) —
   // ПК со сбоем прошлой команды, но на связи, годится и для переноса сессии.
   const transferCandidates = floorSeats.filter((candidate) =>
@@ -270,21 +295,23 @@ export function MapSidePanel({
     (candidate.tone === 'ready' || candidate.tone === 'failed') &&
     !candidate.activeSessionId);
   const [targetSeatId, setTargetSeatId] = useState(transferCandidates[0]?.id ?? '');
-  const hasStoredSession = Boolean(seat.activeSessionId);
-  const hasPendingSessionCommand = hasStoredSession && isPendingSeatCommand(seat);
-  const hasActionableSession = hasStoredSession && !hasPendingSessionCommand;
-  const hasActiveSession = hasStoredSession || seat.hasActiveSession === true || seat.tone === 'active';
-  const startedAtClock = formatSessionClock(seat.sessionStartedAtUtc);
-  const hasSessionIdentity = hasActiveSession && Boolean(seat.playerDisplayName || seat.tariffName || startedAtClock);
   const isBusy = feedback.state === 'pending';
-  const canStartPermission = hasPermission(session, permissionNames.startSession);
-  const canExtendPermission = hasPermission(session, permissionNames.extendSession);
-  const canTransferPermission = hasPermission(session, permissionNames.transferSession);
-  const canEndPermission = hasPermission(session, permissionNames.endSession);
-  const hasAnySessionActionPermission = canStartPermission ||
-    canExtendPermission ||
-    canTransferPermission ||
-    canEndPermission;
+
+  // Права решают, есть ли кнопка вообще; состояние места и связь — активна ли она.
+  const can = {
+    start: hasPermission(session, permissionNames.startSession),
+    extend: hasPermission(session, permissionNames.extendSession),
+    transfer: hasPermission(session, permissionNames.transferSession),
+    end: hasPermission(session, permissionNames.endSession),
+    pause: hasPermission(session, permissionNames.pauseSession),
+    resolve: hasPermission(session, permissionNames.resolveAssistanceRequest) && onResolveAssistance !== undefined,
+    dispatch: canUsePcControl && hasPermission(session, permissionNames.dispatchDeviceCommand),
+    maintain: canUsePcControl && hasPermission(session, permissionNames.maintainDevice)
+  };
+  const pcAccess = { canDispatch: can.dispatch, canMaintain: can.maintain };
+  // Консоль — место без агента: команд ПК и строки о нём у неё нет.
+  const hasDevice = !seat.isConsole && Boolean(seat.deviceId);
+
   const billingSelection: SessionBillingSelection = {
     mode: startSelection.billingMode as SessionBillingSelection['mode'],
     tariffRuleVersionId: startSelection.tariffRuleVersionId,
@@ -292,55 +319,6 @@ export function MapSidePanel({
     tariffVersionId: startSelection.tariffVersionId,
     playerPackageId: startSelection.playerPackageId
   };
-  // «Сбой команды» — ПК на связи (см. SeatTone.failed), прошлая упавшая команда не мешает
-  // посадить нового гостя.
-  const canStartSession = actionsEnabled && canStartPermission && startFormValid && !hasActionableSession
-    && (seat.tone === 'ready' || seat.tone === 'failed');
-  const canExtendSession = actionsEnabled && canExtendPermission && hasActionableSession;
-  const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
-  const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
-  // Почему кнопка действия неактивна. Строка готовности ниже говорит только «нет прав вообще»; у
-  // кассира, которому можно запускать, но нельзя продлевать, «+15» гасло молча. Пока панель
-  // недоступна целиком (нет связи с сервером), объясняет строка готовности, а не каждая кнопка.
-  const sessionActionsReady = actionsEnabled && hasActionableSession;
-  const extendBlocked = useBlockedReason(sessionActionsReady && !canExtendPermission ? t('op.map.panel.extendNoPermission') : null);
-  const endBlocked = useBlockedReason(sessionActionsReady && !canEndPermission ? t('op.map.panel.endNoPermission') : null);
-  const transferBlocked = useBlockedReason(sessionActionsReady && !canTransferPermission ? t('op.map.panel.transferNoPermission') : null);
-  const startBlocked = useBlockedReason(
-    !actionsEnabled || hasActionableSession
-      ? null
-      : !canStartPermission
-        ? t('op.map.panel.startNoPermission')
-        : seat.tone === 'offline'
-          ? t('op.map.panel.startBlockedOffline')
-          : seat.tone === 'service'
-            ? t('op.map.panel.startBlockedService')
-            : seat.tone === 'pending'
-              ? t('op.map.panel.startBlockedPending')
-              : null
-  );
-  // Доступна только та кнопка, что меняет состояние блокировки — решает сам ПК (isDeviceLocked),
-  // не то, идёт ли сессия (см. pcLockCommandsFor).
-  const lockOptions = pcLockCommandsFor(seat);
-  const lockOption = lockOptions.find((option) => option.id === 'lock') ?? { id: 'lock' as const, disabled: true, hintKey: null };
-  const unlockOption = lockOptions.find((option) => option.id === 'unlock') ?? { id: 'unlock' as const, disabled: true, hintKey: null };
-  const lockReasonId = useId();
-  const lockReasons = [...new Set(
-    [lockOption.hintKey, unlockOption.hintKey].filter((key): key is MessageKey => key !== null)
-  )];
-  // Строка отражает только готовность (можно ли действовать и почему нет), а не результат
-  // последнего действия — результат теперь показывает визуальный ActionFeedback (галочка/спиннер).
-  const confirmationText = !actionsEnabled
-    ? t('op.map.panel.confirmStatusUnavailable')
-    : !hasAnySessionActionPermission
-      ? t('op.map.panel.confirmStatusNoPermission')
-      : hasPendingSessionCommand
-        ? t('op.map.panel.confirmStatusPending')
-        : t('op.map.panel.confirmStatusWaiting');
-  // Строку готовности показываем только когда есть реальное препятствие: нет бэка / прав /
-  // биллинга или команда в полёте. Здоровое «готов к работе» — это шум, прячем.
-  const isHealthyIdle = actionsEnabled && hasAnySessionActionPermission
-    && !hasPendingSessionCommand;
 
   const searchBillingPlayers = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
     if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
@@ -370,9 +348,8 @@ export function MapSidePanel({
   }, [seat.id, floorSeats]);
 
   useEffect(() => {
-    setCriticalAction(null);
-    setStartDialogOpen(false);
-    setPcFeedback(emptyFeedback);
+    setDialog(null);
+    setCommandPlan(null);
   }, [seat.id, seat.activeSessionId]);
 
   // Клик по «+» свободной плитки (App растит startRequestToken) — открыть запуск сессии сразу,
@@ -386,7 +363,7 @@ export function MapSidePanel({
     }
     lastStartTokenRef.current = startRequestToken;
     if (startRequestToken && seat.tone === 'ready' && !seat.activeSessionId) {
-      setStartDialogOpen(true);
+      setDialog('start');
     }
   }, [startRequestToken]);
 
@@ -400,296 +377,287 @@ export function MapSidePanel({
     return () => window.clearTimeout(timer);
   }, [feedback]);
 
-  const runSeatAction = async (label: string, request: SeatActionRequest) => {
-    setCriticalAction(null);
-    setStartDialogOpen(false);
+  const run = async (label: string, action: () => Promise<{ detail?: string }>) => {
+    setDialog(null);
+    setCommandPlan(null);
     setFeedback({ label, state: 'pending' });
-
     try {
-      const result = await onSeatAction(request);
+      const result = await action();
       setFeedback({ label, state: 'confirmed', detail: result.detail });
     } catch (error) {
-      setFeedback({
-        label,
-        state: 'failed',
-        detail: projectOperatorFacingError(error, t)
-      });
+      setFeedback({ label, state: 'failed', detail: projectOperatorFacingError(error, t) });
+    }
+  };
+  const runSeatAction = (label: string, request: SeatActionRequest) => run(label, () => onSeatAction(request));
+  const runPc = (label: string, action: PcControlActionId, options?: PcControlActionOptions) =>
+    run(label, () => onPcControlAction(seat, action, options));
+
+  // Команда ПК из «Ещё»: опасная или с текстом спрашивает — тем же окном, что меню места на карте.
+  const askPcCommand = (command: PcCommandId, label: string) => {
+    if (PC_COMMAND_CONFIRM[command] === undefined) {
+      void runPc(label, command);
+      return;
+    }
+    setCommandPlan(planBulk([seat], command, pcAccess));
+  };
+
+  const runMenuItem = (item: SeatMenuItem) => {
+    const label = t(item.feedbackKey);
+    const menuRun = item.run;
+    if (menuRun.kind === 'pause' || menuRun.kind === 'resume') {
+      void runSeatAction(label, { type: menuRun.kind, seat });
+    } else if (menuRun.kind === 'pc') {
+      void runPc(label, menuRun.action);
+    } else if (menuRun.kind === 'pc-command') {
+      askPcCommand(menuRun.command, label);
     }
   };
 
-  // Иконка на самой кнопке: пока её действие в полёте — спиннер, при успехе — галочка,
-  // иначе обычная иконка. Так подтверждение читается на кнопке, без отдельной строки текста.
-  const actionGlyph = (label: string, fallback: ReactNode): ReactNode => {
-    if (feedback.label !== label) {
-      return fallback;
-    }
-    if (feedback.state === 'pending') {
-      return <Loader2 size={14} className="ui-spinner" aria-hidden="true" />;
-    }
-    if (feedback.state === 'confirmed') {
-      return <Check size={14} aria-hidden="true" />;
-    }
-    return fallback;
+  const extend = (minutes: 15 | 30) => {
+    const label = t(minutes === 15 ? 'op.map.panel.extend15Action' : 'op.map.panel.extend30Action');
+    return (
+      <Button
+        key={`extend-${minutes}`}
+        disabled={!actionsEnabled || isBusy}
+        onClick={() => void runSeatAction(label, { type: 'extend', seat, minutes, billing: billingSelection })}
+      >
+        <Plus size={14} aria-hidden="true" />{label}
+      </Button>
+    );
   };
+  const transferButton = can.transfer ? (
+    <Button key="transfer" disabled={!actionsEnabled || isBusy || transferCandidates.length === 0} onClick={() => setDialog('transfer')}>
+      {t('op.map.panel.transferOpen')}
+    </Button>
+  ) : null;
+  const endLabel = state === 'open-tab' && seat.accruedCostMinorUnits != null
+    ? t('op.map.panel.finishAndTake', { amount: formatMinorUnits(seat.accruedCostMinorUnits, currencyCode) })
+    : t('op.map.panel.finishLabel');
+  const openEnd = () => setDialog(backend !== null ? 'checkout' : 'end-session');
+  const startGuestButton = (primaryVariant: boolean) => can.start ? (
+    <Button key="start" variant={primaryVariant ? 'primary' : 'secondary'} block={primaryVariant} disabled={!actionsEnabled || isBusy} onClick={() => setDialog('start')}>
+      {t('op.map.seatInvite')}
+    </Button>
+  ) : null;
 
-  const pcBusy = pcFeedback.state === 'pending';
-  // Блокировка/разблокировка: успех — галочка на кнопке, ошибку показываем текстом (#34).
-  const runPcControl = async (label: string, action: PcControlActionId) => {
-    setPcFeedback({ label, state: 'pending' });
-    try {
-      await onPcControlAction(seat, action);
-      setPcFeedback({ label, state: 'confirmed' });
-    } catch (error) {
-      setPcFeedback({ label, state: 'failed', detail: projectOperatorFacingError(error, t) });
+  // Упавшая команда — тем же путём, что из «Ещё»: с тем же ключом повтора на нажатие и, для
+  // перезагрузки или выключения, с тем же «точно?».
+  const retry = seat.lastFailedCommandType ? RETRY[seat.lastFailedCommandType] : undefined;
+  const canRetry = retry !== undefined && hasDevice && seat.isDeviceOnline !== false
+    && (retry.action === 'maintenance-on' || retry.action === 'maintenance-off' ? can.maintain : can.dispatch);
+  const retryCommand = () => {
+    if (retry === undefined) return;
+    const label = t(retry.label);
+    if (retry.action === 'lock' || retry.action === 'unlock') {
+      void runPc(label, retry.action);
+    } else {
+      askPcCommand(retry.action, label);
     }
   };
-  const pcGlyph = (label: string, fallback: ReactNode): ReactNode => {
-    if (pcFeedback.label !== label) {
-      return fallback;
-    }
-    if (pcFeedback.state === 'pending') {
-      return <Loader2 size={14} className="ui-spinner" aria-hidden="true" />;
-    }
-    if (pcFeedback.state === 'confirmed') {
-      return <Check size={14} aria-hidden="true" />;
-    }
-    return fallback;
-  };
+  const retryButton = (primaryVariant: boolean) => canRetry && retry !== undefined ? (
+    <Button key="retry" variant={primaryVariant ? 'primary' : 'secondary'} block={primaryVariant} size={primaryVariant ? 'md' : 'sm'} disabled={!actionsEnabled || isBusy} onClick={retryCommand}>
+      {primaryVariant ? t(retry.label) : t('op.map.panel.retryShort')}
+    </Button>
+  ) : null;
+
+  // Одна главная кнопка по положению места и до трёх второстепенных рядом.
+  let primary: ReactElement | null = null;
+  let secondary: (ReactElement | null)[] = [];
+  const shownOnPanel = new Set(SHOWN_ON_PANEL);
+  if (state === 'failed' && canRetry) {
+    // Сбой команды: главное — повторить её, но ПК на связи, и гостя посадить тоже можно.
+    primary = retryButton(true);
+    secondary = [startGuestButton(false)];
+  } else if (state === 'free' || state === 'failed') {
+    primary = startGuestButton(true);
+  } else if (state === 'session' || state === 'open-tab') {
+    primary = can.end ? <Button variant="primary" block disabled={!actionsEnabled || isBusy} onClick={openEnd}>{endLabel}</Button> : null;
+    secondary = [can.extend ? extend(15) : null, can.extend ? extend(30) : null, transferButton];
+  } else if (state === 'paused') {
+    shownOnPanel.add('session-resume');
+    primary = can.pause
+      ? <Button variant="primary" block disabled={!actionsEnabled || isBusy} onClick={() => void runSeatAction(t('op.map.actionResume'), { type: 'resume', seat })}>{t('op.map.panel.resume')}</Button>
+      : null;
+    secondary = [can.end ? <Button key="end" disabled={!actionsEnabled || isBusy} onClick={openEnd}>{t('op.map.panel.finishLabel')}</Button> : null, transferButton];
+  } else if (state === 'offline' && can.dispatch && hasDevice) {
+    shownOnPanel.add('pc-wake');
+    primary = <Button variant="primary" block disabled={isBusy} onClick={() => void runPc(t('op.pc.wake'), 'wake')}>{t('op.pc.wake')}</Button>;
+  } else if (state === 'maintenance' && can.maintain && hasDevice && seat.maintenanceSinceUtc) {
+    shownOnPanel.add('pc-maintenance-off');
+    primary = <Button variant="primary" block disabled={isBusy} onClick={() => void runPc(t('op.pc.maintenanceOff'), 'maintenance-off')}>{t('op.pc.maintenanceOff')}</Button>;
+  }
+  const secondaryButtons = secondary.filter((node): node is ReactElement => node !== null).slice(0, 3) as [] | [ReactElement] | [ReactElement, ReactElement] | [ReactElement, ReactElement, ReactElement];
+  // Сервер недоступен — объясняет одна строка у главной, а не каждая кнопка. Ожидающему месту
+  // объяснять нечего: вместо кнопки стоит строка «ждём ответа ПК».
+  const blocked = useBlockedReason(primary !== null && !actionsEnabled ? t('op.map.panel.confirmStatusUnavailable') : null);
+
+  // «Ещё» — то же, что правый клик по плитке, без уже стоящего на панели. Опасное — в конец,
+  // за разделителем.
+  const menuItems = buildSeatMenu(seat, {
+    actionsEnabled,
+    canStart: can.start,
+    canExtend: can.extend,
+    canLockUnlock: can.dispatch,
+    canResolveAssistance: can.resolve,
+    canPause: can.pause,
+    canMaintain: can.maintain
+  }).flatMap((section) => section.items).filter((item) => !shownOnPanel.has(item.id));
+  const toAction = (item: SeatMenuItem): RowAction => ({
+    id: item.id,
+    label: t(item.labelKey),
+    hint: item.hintKey ? t(item.hintKey) : undefined,
+    disabled: item.disabled || isBusy,
+    danger: item.run.kind === 'pc-command' && DANGEROUS_PC_COMMANDS.has(item.run.command),
+    onSelect: () => runMenuItem(item)
+  });
+  const menuActions = [...menuItems.map(toAction).filter((action) => !action.danger), ...menuItems.map(toAction).filter((action) => action.danger)];
+
+  const startedAtClock = formatSessionClock(seat.sessionStartedAtUtc);
+  const facts = ([
+    seat.playerDisplayName ? { label: t('op.map.panel.playerLabel'), value: seat.playerDisplayName } : null,
+    seat.tariffName ? { label: t('op.map.panel.tariffLabel'), value: seat.tariffName } : null,
+    startedAtClock ? { label: t('op.map.panel.startedLabel'), value: <span className="ui-num">{startedAtClock}</span> } : null
+  ] as (Fact | null)[]).filter((fact): fact is Fact => fact !== null);
+
+  // Одна главная цифра: сколько осталось или сколько набежало. У остальных положений её нет —
+  // статус уже сказал всё.
+  const overtimeSeconds = lead.kind === 'prepaid' && lead.expired && seat.remainingSeconds != null ? Math.max(0, -seat.remainingSeconds) : 0;
+  const figure = lead.kind === 'prepaid' && seat.remainingSeconds != null
+    ? {
+        label: t('op.map.panel.timeLeft'),
+        value: lead.expired ? t('op.floor.duration.expiredShort') : formatDurationCompact(seat.remainingSeconds, t),
+        hint: (
+          <>
+            <span className={`seat-timebar${lead.expired ? ' seat-timebar--expired' : lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
+              <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
+            </span>
+            {overtimeSeconds >= 60 ? t('op.map.expiredAgo', { duration: formatDurationCompact(overtimeSeconds, t) }) : null}
+          </>
+        )
+      }
+    : lead.kind === 'postpaid' && seat.accruedCostMinorUnits != null
+      ? { label: t('op.map.panel.accrued'), value: <Money minorUnits={seat.accruedCostMinorUnits} currencyCode={currencyCode} /> }
+      : undefined;
+
+  const callingForSeconds = seat.assistanceRequestedAtUtc
+    ? Math.max(0, Math.round((Date.now() - new Date(seat.assistanceRequestedAtUtc).getTime()) / 1000))
+    : null;
+  const statusLabel = state === 'paused' ? t('op.map.panel.pausedStatus') : seat.stateLabel;
 
   return (
-    <aside className="context-panel">
-      {/* Герой места: что я смотрю + главное число (остаток/счёт/статус) одним блоком наверху. */}
-      <header className={`seat-hero state-${seat.tone}`}>
-        {/* Надзаголовок «зона» вплотную над именем места — один титульный блок, а не два
-            конкурирующих заголовка; чип статуса прижат справа на уровне имени. */}
-        <div className="seat-hero-head">
-          <div className="seat-hero-id">
-            <span className="seat-hero-zone">{zoneLabel(seat.zone, t)}</span>
-            <h2 className="seat-hero-name">{seat.name}</h2>
-          </div>
-          <span className={`state-chip state-${seat.tone}`}>{toneLabel(seat.tone, t)}</span>
+    <Inspector
+      className="seat-inspector"
+      title={seat.name}
+      status={<StatusBadge tone={state === 'paused' ? 'warning' : STATUS_TONE[seat.tone]}>{statusLabel}</StatusBadge>}
+      subtitle={zoneLabel(seat.zone, t)}
+      menu={{ label: t('op.map.panel.more'), actions: menuActions }}
+      figure={figure}
+    >
+      {/* Игрок позвал: сколько ждёт и «Подошёл» прямо тут — к зовущему идут первым. */}
+      {callingForSeconds !== null && (
+        <div className="seat-calling-strip" role="status">
+          <BellRing size={14} aria-hidden="true" />
+          <span>{t('op.map.panel.calling', { duration: formatDurationCompact(callingForSeconds, t) })}</span>
+          {can.resolve && (
+            <Button size="sm" disabled={!actionsEnabled || isBusy} onClick={() => void run(t('op.map.actionResolveAssistance'), () => onResolveAssistance!(seat))}>
+              {t('op.map.panel.resolveAssistance')}
+            </Button>
+          )}
         </div>
-        {/* Крупное число-герой только когда оно есть (время/счёт). Для свободного места и для
-            статуса, дублирующего чип (напр. «Обслуживание»), ничего не показываем — чип уже всё
-            сказал; для остальных проблемных статусов даём строку скромным размером. */}
-        {lead.kind !== 'free' && !plainStatusRedundant && (
-          <div className="seat-hero-metric">
-            {heroLabel && <span className="seat-hero-label">{heroLabel}</span>}
-            <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}${lead.kind === 'plain' ? ' is-text' : ''}${isExpired ? ' is-expired' : ''}`}>
-              {lead.kind === 'prepaid' && seat.remainingSeconds != null
-                ? formatDurationCompact(seat.remainingSeconds, t)
-                : seat.remaining}
-            </strong>
-          </div>
-        )}
-        {/* Сколько ПК уже сидит занятым после нуля — оператор видит, что место «зависло». */}
-        {isExpired && overtimeSeconds >= 60 && (
-          <span className="seat-hero-sub">{t('op.map.expiredAgo', { duration: formatDurationCompact(overtimeSeconds, t) })}</span>
-        )}
-        {lead.kind === 'prepaid' && (
-          <span className={`seat-timebar${lead.expired ? ' seat-timebar--expired' : lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
-            <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
+      )}
+
+      {/* С игроком за ПК упавшая команда — не главная кнопка (главная — сессия), а строка с
+          «Повторить»: так видно, что разблокировка при старте не прошла и игрок сидит у экрана. */}
+      {seat.lastFailedCommandType && state !== 'failed' && state !== 'pending' && (
+        <div className="seat-failed-strip" role="status">
+          <TriangleAlert size={14} aria-hidden="true" />
+          <span>{t('op.map.panel.commandFailed', { command: commandTypeLabel(seat.lastFailedCommandType, t) })}</span>
+          {retryButton(false)}
+        </div>
+      )}
+
+      {state === 'pending' ? (
+        <p className="seat-pending-line" role="status">
+          <Loader2 size={14} className="ui-spinner" aria-hidden="true" />
+          {commandLabel(seat.command, t)}
+        </p>
+      ) : state === 'closed' ? (
+        <p className="ui-blocked-reason">{t('op.map.panel.outsidePlanHint')}</p>
+      ) : (primary !== null || secondaryButtons.length > 0) && (
+        <Inspector.Actions primary={primary} hint={blocked.hint} secondary={secondaryButtons} />
+      )}
+
+      <ActionFeedback feedback={feedback} />
+
+      {facts.length > 0 && <Inspector.Facts items={facts} />}
+
+      {hasDevice && canUsePcControl && (
+        <p className="seat-pc-line">
+          {seat.isDeviceOnline === false ? <WifiOff size={13} aria-hidden="true" /> : <Wifi size={13} aria-hidden="true" />}
+          <span className={seat.isDeviceOnline === false ? 'is-offline' : undefined}>
+            {seat.isDeviceOnline === true ? t('op.helper.deviceStatus.online') : seat.isDeviceOnline === false ? t('op.helper.deviceStatus.offline') : t('op.map.panel.unknown')}
           </span>
-        )}
-      </header>
+          <span>{seat.isDeviceLocked === true ? t('op.helper.deviceStatus.locked') : seat.isDeviceLocked === false ? t('op.helper.deviceStatus.unlocked') : t('op.helper.deviceStatus.lockUnknown')}</span>
+          {seat.deviceName && seat.deviceName !== seat.name && <span>{seat.deviceName}</span>}
+          <span>{appVersionsLabel(seat.app, t)}</span>
+        </p>
+      )}
 
-      {/* Действия: главная CTA доминирует, быстрые продления сегментом, перенос/стоп тише. */}
-      <section className="panel-actions" aria-label={t('op.map.panel.quickActions')}>
-        <div className="context-section-head"><span>{t('op.map.panel.actionsHead')}</span></div>
-        {hasActiveSession ? (
-          <>
-            {/* Время вышло: спокойная подсказка, что у оператора два пути — продлить или завершить. */}
-            {isExpired && <p className="panel-expired-hint">{t('op.map.panel.expiredHint')}</p>}
-            <div className="quick-extend">
-              <button type="button" disabled={!canExtendSession || isBusy} aria-describedby={extendBlocked.describedBy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend15Action'), <Plus size={14} />)}{t('op.map.panel.extend15Action')}</button>
-              <button type="button" disabled={!canExtendSession || isBusy} aria-describedby={extendBlocked.describedBy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <Plus size={14} />)}{t('op.map.panel.extend30Action')}</button>
-            </div>
-            {extendBlocked.hint}
-            {/* Одна кнопка «Завершить»: онлайн ведёт в расчёт (с опцией «без оплаты»),
-                офлайн — в простое подтверждение завершения. Отдельный «Стоп» убран. */}
-            <button type="button" className="cta-primary" disabled={!canEndSession || isBusy} aria-describedby={endBlocked.describedBy} onClick={() => setCriticalAction(backend !== null ? 'checkout' : 'end-session')}>
-              <ReceiptText size={16} />{t('op.map.panel.finishLabel')}
-            </button>
-            {endBlocked.hint}
-            <div className="transfer-row">
-              <span className="transfer-row-label"><ArrowRightLeft size={13} aria-hidden="true" />{t('op.map.panel.transferTo')}</span>
-              <div className="transfer-row-controls">
-                <PanelSelect
-                  className="transfer-select"
-                  ariaLabel={t('op.map.panel.transferTo')}
-                  value={targetSeatId}
-                  disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0}
-                  placeholder={t('op.map.panel.noFreePc')}
-                  options={transferCandidates.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
-                  onChange={setTargetSeatId}
-                />
-                <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} aria-describedby={transferBlocked.describedBy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{actionGlyph(t('op.map.panel.transferAction'), null)}{t('op.map.panel.transferAction')}</button>
-              </div>
-              {transferBlocked.hint}
-            </div>
-          </>
-        ) : (
-          <>
-            <button type="button" className="cta-primary start-action" disabled={!actionsEnabled || !canStartPermission || isBusy || (seat.tone !== 'ready' && seat.tone !== 'failed')} aria-describedby={startBlocked.describedBy} onClick={() => setStartDialogOpen(true)}>
-              <Plus size={16} />{t('op.map.seatInvite')}
-            </button>
-            {startBlocked.hint}
-          </>
-        )}
-      </section>
-
-      {criticalAction === 'end-session' && (
+      {dialog === 'end-session' && (
         <CriticalActionConfirmation
           title={t('op.map.panel.stopConfirmTitle')}
           detail={`${seat.name} · ${seat.remaining}`}
           impact={t('op.map.panel.stopConfirmImpact')}
           confirmLabel={t('op.map.panel.stopConfirmBtn')}
           disabled={isBusy}
-          onCancel={() => setCriticalAction(null)}
+          onCancel={() => setDialog(null)}
           onConfirm={() => void runSeatAction(t('op.map.panel.stopAction'), { type: 'end', seat })}
         />
       )}
-      {criticalAction === 'checkout' && backend !== null && (
+      {dialog === 'checkout' && backend !== null && (
         <CheckoutDialog
           seat={seat}
           backend={backend}
           disabled={isBusy}
-          onCancel={() => setCriticalAction(null)}
+          onCancel={() => setDialog(null)}
           onConfirm={(payments) => void runSeatAction(t('op.map.panel.paymentAction'), { type: 'checkout', seat, payments })}
           onEndWithoutPayment={() => void runSeatAction(t('op.map.panel.stopAction'), { type: 'end', seat })}
         />
       )}
-      <ActionFeedback feedback={feedback} />
-
-      {/* Готовность к действиям (нет прав / биллинг не готов / команда в полёте) — это про
-          ДЕЙСТВИЯ, не про статус ПК, поэтому показываем здесь и всегда, не пряча за «Статус». */}
-      {!isHealthyIdle && (
-        <div className="detail-row panel-readiness">
-          <span>{t('op.map.panel.confirmationLabel')}</span>
-          <strong>{confirmationText}</strong>
-        </div>
-      )}
-
-      {hasActiveSession && seat.remainingSeconds == null && seat.accruedCostMinorUnits != null && (
-        // Открытый счёт: набежавшая сумма — настоящие деньги, которые уже на руках (#34).
-        <section className="context-section">
-          <div className="detail-row">
-            <span>{t('op.map.panel.accrued')}</span>
-            <strong className="detail-value-money">{formatMinorUnits(seat.accruedCostMinorUnits, currencyCode)}</strong>
-          </div>
-        </section>
-      )}
-
-      {hasSessionIdentity && (
-        // Кто на месте и по какому тарифу — реальные данные сессии из floor-map DTO (B1),
-        // а не плейсхолдеры. Каждую строку показываем только когда бэкенд её знает (#34).
-        <section className="context-section">
-          {seat.playerDisplayName && (
-            <div className="detail-row"><span>{t('op.map.panel.playerLabel')}</span><strong>{seat.playerDisplayName}</strong></div>
-          )}
-          {seat.tariffName && (
-            <div className="detail-row"><span>{t('op.map.panel.tariffLabel')}</span><strong>{seat.tariffName}</strong></div>
-          )}
-          {startedAtClock && (
-            <div className="detail-row"><span>{t('op.map.panel.startedLabel')}</span><strong>{startedAtClock}</strong></div>
-          )}
-        </section>
-      )}
-
-      {/* Управление ПК: команды блокировки/разблокировки для выбранного места. */}
-      {canUsePcControl && hasDevice && (
-        <section className="context-section">
-          <div className="context-section-head">
-            <Wrench size={13} aria-hidden="true" />
-            <span>{t('op.map.pcControlLabel')}</span>
-          </div>
-          <div className="pc-control-actions panel-pc-actions">
-            <button
-              type="button"
-              disabled={pcBusy || lockOption.disabled}
-              aria-describedby={lockOption.hintKey ? lockReasonId : undefined}
-              onClick={() => void runPcControl(t('op.map.actionLock'), 'lock')}
-            >
-              {pcGlyph(t('op.map.actionLock'), <Lock size={14} />)}<span>{t('op.map.actionLockBtn')}</span>
-            </button>
-            <button
-              type="button"
-              disabled={pcBusy || unlockOption.disabled}
-              aria-describedby={unlockOption.hintKey ? lockReasonId : undefined}
-              onClick={() => void runPcControl(t('op.map.actionUnlock'), 'unlock')}
-            >
-              {pcGlyph(t('op.map.actionUnlock'), <Unlock size={14} />)}<span>{t('op.map.actionUnlockBtn')}</span>
-            </button>
-          </div>
-          {lockReasons.length > 0 && (
-            <div id={lockReasonId}>
-              {lockReasons.map((reason) => (
-                <p key={reason} className="ui-blocked-reason" role="status">{t(reason)}</p>
-              ))}
-            </div>
-          )}
-          {pcFeedback.state === 'failed' && pcFeedback.detail && (
-            <p className="pc-control-result failed" role="alert">{pcFeedback.detail}</p>
-          )}
-          <PcCommands
-            seat={seat}
-            access={{
-              canDispatch: hasPermission(session, permissionNames.dispatchDeviceCommand),
-              canMaintain: hasPermission(session, permissionNames.maintainDevice)
-            }}
-            onPcControlAction={onPcControlAction}
+      {dialog === 'transfer' && (
+        <PanelModal title={t('op.map.panel.transferTitle')} subtitle={seat.name} onClose={() => setDialog(null)}>
+          <PanelSelect
+            ariaLabel={t('op.map.panel.transferTo')}
+            value={targetSeatId}
+            placeholder={t('op.map.panel.noFreePc')}
+            options={transferCandidates.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+            onChange={setTargetSeatId}
           />
-        </section>
+          <div className="critical-confirmation-actions">
+            <Button onClick={() => setDialog(null)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={targetSeatId.length === 0 || isBusy}
+              onClick={() => void runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}
+            >
+              {t('op.map.panel.transferAction')}
+            </Button>
+          </div>
+        </PanelModal>
+      )}
+      {commandPlan !== null && (
+        <PcCommandDialog
+          plan={commandPlan}
+          onCancel={() => setCommandPlan(null)}
+          onConfirm={(text) => void runPc(t(PC_COMMAND_CONFIRM[commandPlan.command]!.confirm), commandPlan.command as PcControlActionId, commandPlan.command === 'message' ? { text } : undefined)}
+        />
       )}
 
-      {/* Статус ПК — единый блок состояния (связь, блокировка, полезные детали) внизу панели,
-          всегда виден. Данные берём из карты — обновляются с floor-map, без отдельного опроса. */}
-      {canUsePcControl && hasDevice && (
-        <section className="context-section pc-status-section">
-          <div className="context-section-head">
-            <MonitorCheck size={13} aria-hidden="true" />
-            <span>{t('op.map.actionStatus')}</span>
-          </div>
-          <div className="pc-status-readout">
-            <div className="pc-health">
-              <span className={`status-pill ${seat.isDeviceOnline === true ? 'ok' : seat.isDeviceOnline === false ? 'bad' : 'neutral'}`}>
-                {seat.isDeviceOnline === false ? <WifiOff size={12} aria-hidden="true" /> : <Wifi size={12} aria-hidden="true" />}
-                {connectionLabel}
-              </span>
-              <span className="status-pill neutral">
-                {seat.isDeviceLocked === true ? <Lock size={12} aria-hidden="true" /> : <Unlock size={12} aria-hidden="true" />}
-                {lockLabel}
-              </span>
-            </div>
-            {seat.deviceName && seat.deviceName !== seat.name && (
-              <div className="detail-row">
-                <span>{t('op.map.panel.deviceLabel')}</span>
-                <strong>{seat.deviceName}</strong>
-              </div>
-            )}
-            {/* Версия ПО показывается всегда — оператору важно знать билд агента/оболочки
-                независимо от того, на связи ПК сейчас или нет. */}
-            <div className="detail-row">
-              <span>{t('op.map.panel.versions')}</span>
-              <strong>{appVersionsLabel(seat.app, t)}</strong>
-            </div>
-            {/* Команда несёт смысл только в проблемных состояниях (ожидание/сбой/нет связи) —
-                для активной/свободной сессии она дублирует чип статуса, поэтому её прячем. */}
-            {(seat.tone === 'pending' || seat.tone === 'offline' || seat.tone === 'failed') && (
-              <div className="detail-row">
-                <span>{t('op.map.panel.commandLabel')}</span>
-                <strong>{commandLabel(seat.command, t)}</strong>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {startDialogOpen && (
+      {dialog === 'start' && (
       <PanelModal
         title={t('op.map.panel.startSessionTitle')}
         subtitle={seat.name}
-        onClose={() => setStartDialogOpen(false)}
+        onClose={() => setDialog(null)}
       >
         <SessionStartForm
           seatName={seat.name}
@@ -705,11 +673,10 @@ export function MapSidePanel({
           onValidityChange={(valid) => setStartFormValid(valid)}
         />
         <div className="critical-confirmation-actions">
-          <button type="button" onClick={() => setStartDialogOpen(false)} disabled={isBusy}>{t('common.cancel')}</button>
-          <button
-            type="button"
-            className="cta-primary"
-            disabled={!canStartSession || isBusy}
+          <Button onClick={() => setDialog(null)} disabled={isBusy}>{t('common.cancel')}</Button>
+          <Button
+            variant="primary"
+            disabled={!actionsEnabled || !can.start || !startFormValid || isBusy}
             onClick={() => void runSeatAction(startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) }), {
               type: 'start', seat, billing: billingSelection,
               durationMode: startSelection.durationMode === 'open' ? 'open' : 'fixed',
@@ -718,11 +685,11 @@ export function MapSidePanel({
               compReason: startSelection.compReason
             })}
           >
-            <Plus size={16} />{startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) })}
-          </button>
+            {startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) })}
+          </Button>
         </div>
       </PanelModal>
       )}
-    </aside>
+    </Inspector>
   );
 }

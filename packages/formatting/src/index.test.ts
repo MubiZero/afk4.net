@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, isTajikLocale, localPhoneDigits } from './index';
+import { displayPhone, formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, groupCode, isTajikLocale, localPhoneDigits } from './index';
 
 it('formats numbers with locale grouping and options', () => {
   // ru-RU groups thousands with a non-breaking space (U+00A0); normalise any
@@ -43,6 +43,13 @@ describe('телефон Таджикистана', () => {
     expect(formatLocal('')).toBe('');
   });
 
+  it('для чтения номер делится на группы, а чужой или неполный остаётся как есть', () => {
+    expect(displayPhone('+992930000010')).toBe('+992 93 000 00 10');
+    expect(displayPhone('992937380070')).toBe('+992 93 738 00 70');
+    expect(displayPhone('+7 916 000-00-00')).toBe('+7 916 000-00-00');
+    expect(displayPhone('93738')).toBe('93738');
+  });
+
   it('на сервер уходит код страны и девять цифр', () => {
     expect(fullPhoneDigits('93 738 00 70')).toBe('992937380070');
     expect(fullPhoneDigits('+992937380070')).toBe('992937380070');
@@ -76,4 +83,10 @@ describe('таджикские даты', () => {
     expect(isTajikLocale('tg')).toBe(true);
     expect(isTajikLocale('ru-RU')).toBe(false);
   });
+});
+
+it('делит шестизначный код тройками, остальное не трогает', () => {
+  expect(groupCode('418207')).toBe('418 207');
+  expect(groupCode('41820')).toBe('41820');
+  expect(groupCode('AB12CD')).toBe('AB12CD');
 });

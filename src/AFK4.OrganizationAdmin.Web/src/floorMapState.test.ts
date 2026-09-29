@@ -131,6 +131,30 @@ describe('floor-map state', () => {
     expect(isSeatReadyForGuest(createSeat({ state: 'Failed' as unknown as FloorMapDto['seats'][number]['state'], isDeviceOnline: true }))).toBe(true);
   });
 
+  // Сервер состояние «Failed» места не присылает — он называет упавшую команду. Свободный ПК на
+  // связи с упавшей командой — «Сбой команды», и сердцебиение этот сбой не снимает; с сессией тон
+  // остаётся «в сессии» (сбой панель покажет строкой), без связи — «нет связи».
+  it('turns a free online PC with a failed command into «Сбой команды», and a heartbeat keeps it', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [
+        createSeat({ state: 'Free', isDeviceOnline: true, lastFailedCommandType: 'reboot' }),
+        createSeat({ seatId: 'seat-2', state: 'Active', activeSessionId: 'session-2', lastFailedCommandType: 'unlock' }),
+        createSeat({ seatId: 'seat-3', state: 'Offline', isDeviceOnline: false, lastFailedCommandType: 'reboot' })
+      ]
+    }, t);
+
+    expect(state.seats.map((seat) => seat.tone)).toEqual(['failed', 'active', 'offline']);
+    expect(state.seats[0]).toMatchObject({ stateLabel: 'Сбой команды', lastFailedCommandType: 'reboot' });
+
+    const afterHeartbeat = applyDeviceStatusToSeats([state.seats[0]], {
+      organizationId, branchId, deviceId, machineName: 'ignored', isOnline: true, isLocked: true, observedAtUtc: '2026-05-21T10:00:00Z'
+    }, t);
+    expect(afterHeartbeat[0].tone).toBe('failed');
+  });
+
   it('a failed command on an OFFLINE PC still counts as «нет связи», not "failed"', () => {
     const state = mapFloorMapDtoToState({
       branchId,

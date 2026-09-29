@@ -1,6 +1,7 @@
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { LoadFailureState } from '../../../operatorPrimitives';
-import { DeferredSkeleton, SkeletonControl } from '../../../LoadingSkeleton';
+import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
 import type { ReferralSettingsController } from './useReferralSettings';
 
@@ -10,8 +11,8 @@ interface Props {
   hasBackend: boolean;
 }
 
-// «Приведи друга»: платит клуб, суммы назначает он же — как и кэшбэк рядом. Своя кнопка
-// сохранения внутри секции, глобального save-бара на экране нет.
+// «Приведи друга»: платит клуб, суммы назначает он же — как и кэшбэк рядом. Сохраняет общая
+// плашка экрана (PaymentsLoyaltyDestination).
 export function ReferralSection({ controller: c, currencyCode, hasBackend }: Props) {
   const { t } = useI18n();
 
@@ -32,7 +33,6 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
         <SetupSubheadSkeleton />
         <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.referral.limits.hint')}</p>
         <SetupFieldsSkeleton hints={[t('op.referral.minimumTopUpHint'), t('op.referral.claimWindowHint'), t('op.referral.maxRewardedHint')]} />
-        <div className="payset-foot"><SkeletonControl width="10rem" /></div>
       </DeferredSkeleton>
     );
   }
@@ -64,7 +64,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
       <div className="payset-subhead">{t('op.referral.amounts.title')}</div>
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="referral-referrer">{`${t('op.referral.referrerBonus')}, ${currencyCode}`}</label>
+          <label htmlFor="referral-referrer">{`${t('op.referral.referrerBonus')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="referral-referrer"
@@ -77,7 +77,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
           <p className="payset-field-hint">{t('op.referral.referrerBonusHint')}</p>
         </div>
         <div className="payset-field">
-          <label htmlFor="referral-invitee">{`${t('op.referral.inviteeBonus')}, ${currencyCode}`}</label>
+          <label htmlFor="referral-invitee">{`${t('op.referral.inviteeBonus')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="referral-invitee"
@@ -99,7 +99,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
       </p>
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="referral-minimum">{`${t('op.referral.minimumTopUp')}, ${currencyCode}`}</label>
+          <label htmlFor="referral-minimum">{`${t('op.referral.minimumTopUp')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="referral-minimum"
@@ -139,17 +139,6 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
           </div>
           <p className="payset-field-hint">{t('op.referral.maxRewardedHint')}</p>
         </div>
-      </div>
-
-      <div className="payset-foot">
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          disabled={c.disabled || !c.dirty}
-          onClick={() => void c.save()}
-        >
-          {t('op.referral.save')}
-        </button>
       </div>
     </>
   );

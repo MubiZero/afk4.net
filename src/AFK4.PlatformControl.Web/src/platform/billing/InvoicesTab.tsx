@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@afk4/ui/react';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
@@ -11,7 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { InvoiceListItem } from '@/api/types';
 import { useInvoices } from './useInvoices';
@@ -22,7 +23,7 @@ import {
 type Action = { kind: 'markPaid' | 'void'; invoice: InvoiceListItem };
 
 export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi; canManage?: boolean }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useInvoices(client);
   const [query, setQuery] = useState('');
@@ -106,7 +107,7 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
                 <TableCell className="pc-num">#{invoice.number}</TableCell>
                 <TableCell>{invoice.organizationName}</TableCell>
                 <TableCell>{INVOICE_KIND_LABEL[invoice.kind] !== undefined ? t(INVOICE_KIND_LABEL[invoice.kind]) : invoice.kind}</TableCell>
-                <TableCell className="pc-num">{formatCurrency(minorToMajor(invoice.amountMinorUnits), invoice.currencyCode)}</TableCell>
+                <TableCell className="pc-num">{formatMoney(invoice.amountMinorUnits, invoice.currencyCode)}</TableCell>
                 <TableCell>
                   <Badge variant={INVOICE_STATUS_VARIANT[invoice.status] ?? 'outline'}>
                     {INVOICE_STATUS_LABEL[invoice.status] !== undefined ? t(INVOICE_STATUS_LABEL[invoice.status]) : invoice.status}
@@ -117,7 +118,10 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
                   {canManage && actionable(invoice.status) ? (
                     <span className="pc-cell-actions">
                       <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'markPaid', invoice })}>{t('platform.billing.action.markPaid')}</Button>
-                      <Button variant="destructive" size="sm" onClick={() => setAction({ kind: 'void', invoice })}>{t('platform.billing.action.void')}</Button>
+                      <RowActions
+                        label={t('platform.row.more', { name: `${invoice.organizationName} №${invoice.number}` })}
+                        actions={[{ id: 'void', label: t('platform.billing.action.void'), danger: true, onSelect: () => setAction({ kind: 'void', invoice }) }]}
+                      />
                     </span>
                   ) : null}
                 </TableCell>

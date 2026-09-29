@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { MediaPurposeNames } from '@afk4/contracts';
 import { Archive, ArchiveRestore, Package, Pencil } from 'lucide-react';
-import { ManagementScreen } from '../ManagementScreen';
+import { ManagementScreen, ScreenAction } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
 import { MgmtDrawer } from '../kit/MgmtDrawer';
 import type { RowAction } from '../kit/types';
@@ -27,8 +27,9 @@ import {
 import type { PosProductDto } from '../../operatorApiClients';
 import { managementScreenState, type DestinationProps } from './types';
 import { deriveCategoryOptions, type CategoryOption } from './goods/categoryModel';
-import { CategoriesPanel } from './goods/CategoriesPanel';
-import { SkeletonLine, SkeletonRows, SkeletonTable } from '../../LoadingSkeleton';
+import { CategoriesPanel, categoriesGrid } from './goods/CategoriesPanel';
+import { Button } from '@afk4/ui/react';
+import { SkeletonTable } from '../../LoadingSkeleton';
 
 type Product = PosProductDto;
 
@@ -365,17 +366,13 @@ export function GoodsDestination({
   return (
     <ManagementScreen
       title={t('op.management.dest.goods')}
-      subtitle={t('op.management.dest.goods.subtitle')}
       contentWidth="full"
       state={managementScreenState(loadStatus)}
       skeleton={
         <>
-          <section className="mgmt-drawer-section">
-            <div className="mgmt-section-title"><SkeletonLine width="8em" /></div>
-            <SkeletonRows rows={3} rowClassName="mgmt-zone-row" trailing={canManagePosCatalog} />
-          </section>
+          <SkeletonTable gridTemplate={categoriesGrid(canManagePosCatalog)} rowActions={canManagePosCatalog} toolbar={{}} rows={3} />
           <div className="mgmt-master-detail">
-            <SkeletonTable gridTemplate={GOODS_GRID} rowActions={canManagePosCatalog} toolbar={{ action: canManagePosCatalog }} />
+            <SkeletonTable gridTemplate={GOODS_GRID} rowActions={canManagePosCatalog} toolbar={{}} />
           </div>
         </>
       }
@@ -435,21 +432,21 @@ export function GoodsDestination({
           selectedKey={selectedProductId}
           onSelectRow={(product) => setSelectedProductId(readString(product, 'productId'))}
           rowActions={rowActions}
-          toolbar={{
-            title: t('op.settings.pos.title'),
-            primary: canManagePosCatalog ? { label: t('op.management.goods.addProductCta'), onClick: openCreate } : undefined
-          }}
+          toolbar={{ title: t('op.settings.pos.title') }}
           empty={{
             icon: <Package size={22} aria-hidden="true" />,
             title: t('op.management.goods.productsEmpty.title'),
             description: t('op.management.goods.productsEmpty.description'),
             // Раздел открыт и тому, у кого есть только склад (старший смены): ему кнопки нет, но
             // сказано, кто заводит товары.
-            next: canManagePosCatalog
-              ? { kind: 'action', label: t('op.management.goods.addProductCta'), onClick: openCreate }
-              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+            next: canManagePosCatalog ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
+        {canManagePosCatalog && (
+          <ScreenAction>
+            <Button variant="primary" onClick={openCreate}>{t('op.management.goods.addProductCta')}</Button>
+          </ScreenAction>
+        )}
 
         {selectedProduct && (
           <MgmtDrawer

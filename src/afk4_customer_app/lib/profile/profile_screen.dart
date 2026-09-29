@@ -10,6 +10,11 @@ import '../shell/app_scaffold.dart';
 import '../shell/load_failure.dart';
 import '../theme/brand_mark.dart';
 import 'pin_sheet.dart';
+import '../shell/app_sheet.dart';
+import '../shell/actions.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
+import '../shell/group_header.dart';
 
 /// Профиль: кто вошёл, чем садиться за ПК, на каком языке говорить, в каком оформлении
 /// показываться, и выходы — из аккаунта и из клуба.
@@ -85,7 +90,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l.customerCommonCancel),
           ),
-          TextButton(
+          // Восстановить учётную запись нельзя — единственное по-настоящему необратимое действие
+          // в приложении, и подтверждение у него красное и залитое, а не тихая ссылка.
+          FilledButton(
+            style: irreversibleConfirmStyle(dialogContext),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l.customerProfileDeleteConfirm),
           ),
@@ -258,11 +266,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// и владение им доказывается прежде, чем он станет основным.
   Future<void> _verifyPhone(String? phoneNumber) async {
     final l = L.of(context);
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PhoneVerificationSheet(api: widget.api, initialPhone: phoneNumber),
+    final confirmed = await showAppSheet<bool>(
+      context,
+      (_) => PhoneVerificationSheet(api: widget.api, initialPhone: phoneNumber),
     );
     if (confirmed != true || !mounted) return;
 
@@ -275,11 +281,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// PIN задают здесь и только здесь: клуб сетевой PIN не назначает, а SMS на это не тратится.
   Future<void> _changePin(bool pinSet) async {
     final l = L.of(context);
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PinSheet(api: widget.api, pinSet: pinSet),
+    final saved = await showAppSheet<bool>(
+      context,
+      (_) => PinSheet(api: widget.api, pinSet: pinSet),
     );
     if (saved != true || !mounted) return;
 
@@ -342,13 +346,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           sliver: SliverList.list(
             children: switch (_state) {
               _Load.loading => [
-                  Semantics(
-                    label: l.a11yLoadingProfile,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
+                  ListSkeleton(rows: 4, rowHeight: 96, label: l.a11yLoadingProfile),
                 ],
               _Load.failed => [
                   if (_offline)
@@ -381,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _Group(
         children: [
           Text(displayName, style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 4),
+          const SizedBox(height: Space.s1),
           Text(
             phoneNumber ?? '—',
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -397,94 +395,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Сменить номер можно только там, где клуб уже знает игрока: подтверждение живёт
           // на клубной карточке, и до первого действия его негде поставить.
           if (profile != null) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton(
-                onPressed: _saving ? null : () => _verifyPhone(phoneNumber),
-                child: Text(phoneVerified
-                    ? l.customerProfileChangePhone
-                    : l.customerProfileVerifyPhone),
+            const SizedBox(height: Space.s3),
+            SecondaryButton(
+              action: AppAction(
+                phoneVerified ? l.customerProfileChangePhone : l.customerProfileVerifyPhone,
+                _saving ? null : () => _verifyPhone(phoneNumber),
               ),
             ),
           ],
         ],
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: Space.s3),
       // PIN — своей карточкой: это единственное место во всей системе, где его задают, и
       // выглядеть строкой настроек оно не должно.
       if (person != null) ...[
         _Group(
           children: [
             Text(l.customerPinTitle, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               pinSet ? l.customerPinStateSet : l.customerPinStateUnset,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: pinSet ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               l.customerPinIntro,
               style:
                   theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton(
-                onPressed: _saving ? null : () => _changePin(pinSet),
-                child: Text(pinSet ? l.customerPinChange : l.customerPinSet),
+            const SizedBox(height: Space.s3),
+            SecondaryButton(
+              action: AppAction(
+                pinSet ? l.customerPinChange : l.customerPinSet,
+                _saving ? null : () => _changePin(pinSet),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.s3),
       ],
       if (person != null) ...[
         _Group(
           children: [
             Text(l.customerProfileBirthdayTitle, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               person.birthDate != null
                   ? formatCalendarDate(person.birthDate!, current)
                   : l.customerProfileBirthdayUnset,
               style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               l.customerProfileBirthdayHint,
               style:
                   theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton(
-                  onPressed: _saving ? null : () => _chooseBirthDate(person.birthDate),
-                  child: Text(person.birthDate != null
-                      ? l.customerProfileBirthdayChange
-                      : l.customerProfileBirthdaySet),
-                ),
-                if (person.birthDate != null)
-                  TextButton(
-                    onPressed: _saving ? null : () => _saveBirthDate(null),
-                    child: Text(l.customerProfileBirthdayClear),
-                  ),
-              ],
+            const SizedBox(height: Space.s3),
+            SecondaryButton(
+              action: AppAction(
+                person.birthDate != null ? l.customerProfileBirthdayChange : l.customerProfileBirthdaySet,
+                _saving ? null : () => _chooseBirthDate(person.birthDate),
+              ),
             ),
+            if (person.birthDate != null)
+              TertiaryButton(
+                action: AppAction(
+                  l.customerProfileBirthdayClear,
+                  _saving ? null : () => _saveBirthDate(null),
+                ),
+              ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.s3),
       ],
       _Group(
         children: [
-          Text(l.customerProfileLanguage, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
+          GroupHeader(l.customerProfileLanguage),
           // Таджикский здесь наравне с остальными: приложение работает в Таджикистане, и
           // веб-версия, предлагавшая только русский и английский, просто теряла эту часть
           // аудитории.
@@ -499,14 +488,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: Space.s3),
       // Оформление — настройка этого телефона, а не человека: сервер о ней не знает, ждать
       // нечего. Поэтому переключатель не блокируется, пока сохраняется язык.
       if (widget.onThemeModeChanged case final onThemeModeChanged?) ...[
         _Group(
           children: [
-            Text(l.customerProfileTheme, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
+            GroupHeader(l.customerProfileTheme),
             SegmentedButton<ThemeMode>(
               segments: [
                 ButtonSegment(value: ThemeMode.system, label: Text(l.customerProfileThemeSystem)),
@@ -518,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.s3),
       ],
       // Рассылка — своей карточкой, а не хвостом языковой: заголовок «Язык» над переключателем
       // об акциях обещал не то, что под ним стоит.
@@ -537,7 +525,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.s3),
       ],
       // Рассылка — дело клуба: она про его акции, и до счёта в нём соглашаться не на что.
       if (profile != null) ...[
@@ -551,33 +539,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.s3),
       ],
       _Group(
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: widget.onChangeClub,
-              child: Text(l.customerClubPickerChange),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: widget.onSignOut,
-              style: OutlinedButton.styleFrom(foregroundColor: theme.colorScheme.error),
-              child: Text(l.customerProfileSignOut),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: _deleting ? null : _confirmDelete,
-              style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-              child: Text(l.customerProfileDeleteAccount),
+          SecondaryButton(action: AppAction(l.customerClubPickerChange, widget.onChangeClub)),
+          const SizedBox(height: Space.s2),
+          SecondaryButton(action: AppAction(l.customerProfileSignOut, widget.onSignOut)),
+          const SizedBox(height: Space.s2),
+          TertiaryButton(
+            action: AppAction(
+              l.customerProfileDeleteAccount,
+              _deleting ? null : _confirmDelete,
+              danger: true,
             ),
           ),
         ],
@@ -585,12 +559,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Чей это продукт. Приложение носит цвет и знак клуба — игрок пришёл к нему, а не к
       // нам, — поэтому наш знак стоит здесь: в самом низу настроек, где подпись платформы
       // никому не мешает и никого не путает.
-      const SizedBox(height: 24),
+      const SizedBox(height: Space.s6),
       Center(
         child: Column(
           children: [
             const BrandMark(size: 30),
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.s2),
             Text(
               l.customerProfilePoweredBy,
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -612,8 +586,8 @@ class _Group extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+          padding: const EdgeInsets.all(Space.s4),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
         ),
       );
 }

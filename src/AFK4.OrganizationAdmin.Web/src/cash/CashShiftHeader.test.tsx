@@ -38,17 +38,37 @@ function renderHeader(current: ShiftRevenueDto | null) {
 }
 
 describe('CashShiftHeader', () => {
-  it('открытая смена → статус «Смена открыта» + метрики кассы/выручки', async () => {
+  // Открытую смену говорят деньги в ней: отдельная строка «Смена открыта» рядом с «Касса»
+  // повторяла вкладку «Смена» и корзину — три раза одно и то же.
+  it('открытая смена → «Касса» с суммой в кассе и выручкой, без строки «Смена открыта»', async () => {
     renderHeader(openShift());
-    await waitFor(() => expect(screen.getByText('Смена открыта')).toBeInTheDocument());
-    expect(screen.getByText('В кассе')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('В кассе')).toBeInTheDocument());
+    expect(screen.getByRole('heading', { level: 1, name: 'Касса' })).toBeInTheDocument();
+    expect(screen.getByText('115 с.')).toBeInTheDocument();
     expect(screen.getByText('Выручка')).toBeInTheDocument();
+    expect(screen.queryByText('Смена открыта')).toBeNull();
   });
 
-  it('нет смены → статус «Смена не открыта», без метрик', async () => {
+  it('нет смены → счётчик «Смена · не открыта», без денег', async () => {
     renderHeader(null);
-    await waitFor(() => expect(screen.getByText('Смена не открыта')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('не открыта')).toBeInTheDocument());
+    expect(screen.getByText('Смена')).toBeInTheDocument();
     expect(screen.queryByText('В кассе')).not.toBeInTheDocument();
+  });
+
+  // До ответа шапка не знает, открыта ли смена, и не утверждает ни того, ни другого: раньше она
+  // успевала мигнуть «не открыта» и кнопкой «Открыть смену» у кассира с идущей сменой.
+  it('до ответа — без счётчиков и команд смены', () => {
+    render(
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <CashShiftHeader backend={backend} currencyCode="TJS" client={{ current: () => new Promise(() => {}) }} />
+        </ToastProvider>
+      </I18nProvider>
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Касса' })).toBeInTheDocument();
+    expect(screen.queryByText('не открыта')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('открытая смена + право shifts.close → кнопка «Закрыть смену» в шапке', async () => {
@@ -71,7 +91,20 @@ describe('CashShiftHeader', () => {
         </ToastProvider>
       </I18nProvider>
     );
-    await waitFor(() => expect(screen.getByText('Смена открыта')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument());
+  });
+
+  // Узкое право «закрыть свою смену»: шапка знает, кто открыл смену, и показывает кнопку тому,
+  // кто её открыл. Раньше этот человек находил «Закрыть смену» только на вкладке «Смена».
+  it('кассир с правом закрыть свою смену видит кнопку в шапке', async () => {
+    const session = { permissions: ['organization.shifts.close_own'], organizationId: 'o', staffUserId: 'u1' } as never;
+    render(
+      <I18nProvider initialLocale="ru">
+        <ToastProvider>
+          <CashShiftHeader backend={backend} currencyCode="TJS" session={session} client={{ current: async () => openShift() }} />
+        </ToastProvider>
+      </I18nProvider>
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument());
   });
 });

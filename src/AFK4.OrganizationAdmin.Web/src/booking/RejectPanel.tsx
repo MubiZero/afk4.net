@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
+import { Button } from '@afk4/ui/react';
 
 /**
  * Отказ в заявке с причиной. Отдельно от «Отменить» намеренно: игрок ничего не отменял, деньги
@@ -59,18 +60,12 @@ export function RejectPanel({ busy, onSend, onDismiss }: RejectPanelProps) {
         />
       </label>
       {needsWords && <p className="booking-reject-hint">{t('op.booking.reject.needWords')}</p>}
-      <div className="booking-action-grid">
-        <button
-          type="button"
-          className="danger"
-          disabled={busy || needsWords}
-          onClick={() => onSend(reasonCode, words.length > 0 ? words : null)}
-        >
+      {/* Отказ необратим — красная кнопка; «Не отказывать» — обычная. */}
+      <div className="booking-reject-actions">
+        <Button variant="danger" disabled={busy || needsWords} onClick={() => onSend(reasonCode, words.length > 0 ? words : null)}>
           {t('op.booking.reject.send')}
-        </button>
-        <button type="button" disabled={busy} onClick={onDismiss}>
-          {t('op.booking.reject.back')}
-        </button>
+        </Button>
+        <Button disabled={busy} onClick={onDismiss}>{t('op.booking.reject.back')}</Button>
       </div>
     </div>
   );

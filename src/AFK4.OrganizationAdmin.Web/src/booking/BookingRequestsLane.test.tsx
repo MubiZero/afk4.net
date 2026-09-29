@@ -26,7 +26,6 @@ const renderLane = (requests: BookingItem[]) =>
         requests={requests}
         busy={false}
         canManage
-        onCreate={() => {}}
         onAccept={() => {}}
         onClarify={() => {}}
         nowProvider={() => NOW}
@@ -50,6 +49,18 @@ describe('BookingRequestsLane', () => {
     const { container } = renderLane([request({ respondByMs: NOW - 5_000 })]);
     expect(container.querySelector('.booking-lane-card')).toHaveClass('is-overdue');
     expect(screen.getByText('Срок ответа истёк')).toBeInTheDocument();
+  });
+
+  // «Добавить бронь» — главная кнопка шапки раздела; без заявок полосе нечего показывать.
+  it('без заявок полосы нет вовсе', () => {
+    const { container } = renderLane([]);
+    expect(container.querySelector('.booking-requests-lane')).toBeNull();
+  });
+
+  it('«Принять» — главная кнопка, как в карточке брони', () => {
+    renderLane([request()]);
+    expect(screen.getByRole('button', { name: 'Принять' })).toHaveClass('ui-btn--primary');
+    expect(screen.getByRole('button', { name: 'Уточнить' })).not.toHaveClass('ui-btn--primary');
   });
 
   it('заявка без срока живёт как раньше — без пустой строки отсчёта', () => {

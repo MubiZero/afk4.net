@@ -9,6 +9,10 @@ import '../money/money.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import '../shell/load_failure.dart';
+import '../shell/group_header.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Проценты приходят в базисных пунктах: 500 — это 5%. Дробную часть показываем, только
 /// когда она есть, иначе «5,0%» выглядит как ошибка расчёта.
@@ -25,9 +29,13 @@ String formatBasisPoints(int basisPoints, {required String locale}) {
 /// Экран существует не ради красоты: кешбэк начислялся и раньше, но игрок его не видел, а
 /// невидимая лояльность никого не удерживает.
 class LoyaltyScreen extends StatefulWidget {
-  const LoyaltyScreen({super.key, required this.api});
+  const LoyaltyScreen({super.key, required this.api, this.place, this.placeLogoUrl});
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
 
   @override
   State<LoyaltyScreen> createState() => _LoyaltyScreenState();
@@ -62,7 +70,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerLoyaltyTitle)),
+      appBar: nestedAppBar(context, title: l.customerLoyaltyTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
       body: RefreshIndicator(onRefresh: _load, child: _body(l)),
     );
   }
@@ -74,24 +82,23 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     if (data == null) {
       return _failed
           ? LoadFailure(message: l.customerLoyaltyLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(label: l.customerCommonLoading);
     }
 
     final locale = Localizations.localeOf(context).languageCode;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       children: [
         _EarnedCard(total: data.totalEarned),
-        const SizedBox(height: 16),
+        const SizedBox(height: Space.s4),
         if (data.isOff)
           Text(
             l.customerLoyaltyOff,
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           )
         else ...[
-          Text(l.customerLoyaltyRules, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          GroupHeader(l.customerLoyaltyRules),
           if (data.topUpEnabled && data.topUpPercentBasisPoints > 0)
             _Rule(
               icon: Icons.account_balance_wallet_outlined,
@@ -110,22 +117,21 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
               text: l.customerLoyaltyRuleSession(
                   formatBasisPoints(data.sessionPercentBasisPoints, locale: locale)),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s2),
           // Главное о кешбэке: это не баллы, а деньги. Без этой строки игрок копит непонятно что.
           Text(
             l.customerLoyaltySpendNote,
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
-        const SizedBox(height: 24),
-        Text(l.customerLoyaltyHistory, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s6),
+        GroupHeader(l.customerLoyaltyHistory),
         if (data.recent.isEmpty)
           _EmptyHistory()
         else
           for (final entry in data.recent)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: Space.s2),
               child: _EntryRow(entry: entry),
             ),
       ],
@@ -163,7 +169,7 @@ class _EarnedCard extends StatelessWidget {
         ),
         boxShadow: dark ? AppTheme.accentGlow(income.withValues(alpha: 0.28)) : null,
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Space.s5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -171,7 +177,7 @@ class _EarnedCard extends StatelessWidget {
             l.customerLoyaltyEarned,
             style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: Space.s3),
           Text(
             formatMoney(total.minorUnits, total.currencyCode, locale: locale),
             style: theme.textTheme.displaySmall,
@@ -193,11 +199,11 @@ class _Rule extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: Space.s2),
       child: Row(
         children: [
           Icon(icon, size: 20, color: theme.colorScheme.primary),
-          const SizedBox(width: 10),
+          const SizedBox(width: Space.s3),
           Expanded(child: Text(text, style: theme.textTheme.bodyLarge)),
         ],
       ),
