@@ -25,7 +25,7 @@ export function BlockedOrganizationScreen({
         onDoubleClick={handleWindowTitleDoubleClick}
       >
         <div className="brand-block">
-          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
+          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.net" />
           <span>{t('op.auth.operator')}</span>
         </div>
         <WindowControls />
