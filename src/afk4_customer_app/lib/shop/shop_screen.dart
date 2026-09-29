@@ -19,6 +19,7 @@ import '../shell/quantity_stepper.dart';
 import '../shell/skeleton.dart';
 import '../theme/space.dart';
 import '../shell/status_badge.dart';
+import '../shell/app_scaffold.dart';
 
 /// Заказ еды и напитков за игровое место.
 ///
@@ -26,9 +27,19 @@ import '../shell/status_badge.dart';
 /// сидит. Экран живёт отдельным маршрутом, а не вкладкой, ровно поэтому — вкладка, которая
 /// половину времени пуста, выглядит сломанной.
 class ShopScreen extends StatefulWidget {
-  const ShopScreen({super.key, required this.api, this.sessionActive = true});
+  const ShopScreen({
+    super.key,
+    required this.api,
+    this.sessionActive = true,
+    this.place,
+    this.placeLogoUrl,
+  });
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
 
   /// Идёт ли сессия. Меню открыто всегда — цены смотрят и до игры, — но заказ несут за
   /// конкретный ПК, и без сессии нести его некуда. Об этом говорит кнопка, а не отказ
@@ -231,7 +242,7 @@ class _ShopScreenState extends State<ShopScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerShopTitle)),
+      appBar: nestedAppBar(context, title: l.customerShopTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
       body: _body(l),
       bottomNavigationBar: _order == null && (_catalog?.isNotEmpty ?? false) ? _checkout(l) : null,
     );

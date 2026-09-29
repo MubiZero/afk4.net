@@ -9,6 +9,7 @@ import '../shell/load_failure.dart';
 import '../shell/empty_state.dart';
 import '../shell/skeleton.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Чек одного визита: время, покупки и итог.
 class ReceiptScreen extends StatefulWidget {
@@ -60,7 +61,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerReceiptTotal)),
+      appBar: nestedAppBar(context, title: l.customerReceiptTotal),
       body: switch (_state) {
         _Load.loading => ListSkeleton(rows: 1, rowHeight: 280, label: l.a11yLoadingReceipt),
         _Load.missing => EmptyState(icon: Icons.receipt_long_outlined, title: l.customerReceiptNotFound),

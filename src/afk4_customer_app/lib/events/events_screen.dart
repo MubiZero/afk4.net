@@ -15,6 +15,7 @@ import '../shell/actions.dart';
 import '../shell/empty_state.dart';
 import '../shell/skeleton.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// События клуба: турнир по пятницам, ночь игры, чемпионат зала.
 ///
@@ -25,11 +26,17 @@ class EventsScreen extends StatefulWidget {
   const EventsScreen({
     super.key,
     required this.api,
+    this.place,
+    this.placeLogoUrl,
     required this.branchId,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
   final String branchId;
   final DateTime Function() clock;
 
@@ -182,7 +189,7 @@ class _EventsScreenState extends State<EventsScreen> {
         if (!didPop) Navigator.of(context).pop(_walletChanged);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(l.customerEventsTitle)),
+        appBar: nestedAppBar(context, title: l.customerEventsTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
         body: RefreshIndicator(onRefresh: _load, child: _body(l)),
       ),
     );

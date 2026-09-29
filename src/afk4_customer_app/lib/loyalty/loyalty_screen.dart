@@ -12,6 +12,7 @@ import '../shell/load_failure.dart';
 import '../shell/group_header.dart';
 import '../shell/skeleton.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Проценты приходят в базисных пунктах: 500 — это 5%. Дробную часть показываем, только
 /// когда она есть, иначе «5,0%» выглядит как ошибка расчёта.
@@ -28,9 +29,13 @@ String formatBasisPoints(int basisPoints, {required String locale}) {
 /// Экран существует не ради красоты: кешбэк начислялся и раньше, но игрок его не видел, а
 /// невидимая лояльность никого не удерживает.
 class LoyaltyScreen extends StatefulWidget {
-  const LoyaltyScreen({super.key, required this.api});
+  const LoyaltyScreen({super.key, required this.api, this.place, this.placeLogoUrl});
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
 
   @override
   State<LoyaltyScreen> createState() => _LoyaltyScreenState();
@@ -65,7 +70,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerLoyaltyTitle)),
+      appBar: nestedAppBar(context, title: l.customerLoyaltyTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
       body: RefreshIndicator(onRefresh: _load, child: _body(l)),
     );
   }

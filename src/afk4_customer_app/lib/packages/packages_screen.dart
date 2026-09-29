@@ -18,6 +18,7 @@ import '../shell/skeleton.dart';
 import '../shell/actions.dart';
 import '../shell/empty_state.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Часы пакета для показа. Секунды — единица сервера, человек считает часами, и «5 ч»
 /// читается там, где «18000 с» не значит ничего. Неполный час показывается с минутами,
@@ -43,11 +44,17 @@ class PackagesScreen extends StatefulWidget {
   const PackagesScreen({
     super.key,
     required this.api,
+    this.place,
+    this.placeLogoUrl,
     required this.branchId,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
   final String branchId;
   final DateTime Function() clock;
 
@@ -153,7 +160,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
         if (!didPop) Navigator.of(context).pop(_walletChanged);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(l.customerPackagesTitle)),
+        appBar: nestedAppBar(context, title: l.customerPackagesTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
         body: RefreshIndicator(onRefresh: _load, child: _body(l)),
       ),
     );

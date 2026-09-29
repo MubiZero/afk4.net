@@ -11,9 +11,13 @@ import '../theme/space.dart';
 
 /// Покупки в баре: когда, что и на сколько.
 class PurchasesTab extends StatefulWidget {
-  const PurchasesTab({super.key, required this.api});
+  const PurchasesTab({super.key, required this.api, this.onRefresh});
 
   final PlayerApiClient api;
+
+  /// Что ещё перечитать тем же жестом «потянуть вниз» — остаток над списком. Раньше жест
+  /// обновлял только сам список, а цифра баланса над ним оставалась прежней.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<PurchasesTab> createState() => _PurchasesTabState();
@@ -34,6 +38,7 @@ class _PurchasesTabState extends State<PurchasesTab> {
     final l = L.of(context);
     return CursorListView<PlayerPurchaseDto>(
       controller: _list,
+      onRefresh: widget.onRefresh,
       loadingLabel: l.a11yLoadingPurchases,
       errorText: l.customerHistoryPurchasesError,
       emptyText: l.customerHistoryNoPurchases,

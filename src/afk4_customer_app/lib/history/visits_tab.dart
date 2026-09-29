@@ -12,9 +12,13 @@ import '../theme/space.dart';
 
 /// Визиты игрока — где сидел, сколько пробыл, сколько заплатил.
 class VisitsTab extends StatefulWidget {
-  const VisitsTab({super.key, required this.api, this.clock = DateTime.now});
+  const VisitsTab({super.key, required this.api, this.clock = DateTime.now, this.onRefresh});
 
   final PlayerApiClient api;
+
+  /// Что ещё перечитать тем же жестом «потянуть вниз» — остаток над списком. Раньше жест
+  /// обновлял только сам список, а цифра баланса над ним оставалась прежней.
+  final Future<void> Function()? onRefresh;
   final DateTime Function() clock;
 
   @override
@@ -36,6 +40,7 @@ class _VisitsTabState extends State<VisitsTab> {
     final l = L.of(context);
     return CursorListView<PlayerVisitDto>(
       controller: _list,
+      onRefresh: widget.onRefresh,
       loadingLabel: l.a11yLoadingVisits,
       errorText: l.customerHistoryLoadError,
       emptyText: l.customerHistoryNoVisits,

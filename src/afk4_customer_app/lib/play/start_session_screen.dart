@@ -18,6 +18,7 @@ import '../shell/empty_state.dart';
 import '../shell/group_header.dart';
 import '../shell/skeleton.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Сколько играть. Три ходовых варианта вместо ввода минут: игрок стоит посреди зала с
 /// телефоном в руке, и лишний выбор здесь стоит ему времени, а клубу — очереди на стойке.
@@ -220,7 +221,7 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerPlayTitle)),
+      appBar: nestedAppBar(context, title: l.customerPlayTitle),
       body: _body(l),
       bottomNavigationBar: (_seats?.any((seat) => seat.isAvailable) ?? false) && _tariffs.isNotEmpty
           ? _footer(l)

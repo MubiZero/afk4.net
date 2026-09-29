@@ -13,6 +13,7 @@ import '../shell/skeleton.dart';
 import '../shell/actions.dart';
 import '../shell/empty_state.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// Друзья и «кто сейчас в зале».
 ///
@@ -135,7 +136,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final l = L.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerFriendsTitle)),
+      appBar: nestedAppBar(context, title: l.customerFriendsTitle),
       body: RefreshIndicator(onRefresh: _load, child: _body(l)),
     );
   }

@@ -129,6 +129,26 @@ void main() {
     expect(find.textContaining('000,00'), findsOneWidget);
   });
 
+  // Раздел денег на общем каркасе: потянуть вниз список трат — перечитать и остаток над ним.
+  // Раньше жест обновлял только список, а цифра баланса оставалась прежней.
+  testWidgets('потянуть список вниз — перечитывается и остаток', (tester) async {
+    var balance = 120050;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (_dashboard(wallet: balance), 200),
+          '/api/me/visits' => (_page([_visit()]), 200),
+          _ => (_page([]), 200),
+        });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('200,50'), findsOneWidget);
+
+    balance = 200000;
+    await tester.fling(find.text('PC-07'), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('000,00'), findsOneWidget);
+  });
+
   testWidgets('не загрузившийся остаток не ломает списки', (tester) async {
     final http = FakeHttpClient(
       (request) => switch (request.url.path) {
