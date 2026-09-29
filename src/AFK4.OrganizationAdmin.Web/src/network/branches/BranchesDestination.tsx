@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import type { JSX, ReactNode } from 'react';
+import type { JSX } from 'react';
+import { Pencil } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
-import { EmptyState, Money } from '../../operatorPrimitives';
-import { SkeletonCards, SkeletonControl, SkeletonLine, SkeletonTiles } from '../../LoadingSkeleton';
+import { Money } from '../../operatorPrimitives';
+import { SkeletonLine, SkeletonTable } from '../../LoadingSkeleton';
+import { MgmtTable } from '../../management/kit/MgmtTable';
+import type { BranchRollupRow } from './branchRollupModel';
 import { projectOperatorError } from '../../apiErrors';
+import { Num } from '@afk4/ui/react';
 import { createAuthenticatedOperatorClients, dashboardRangeQuery, toDateInputValue } from '../../operatorHelpers';
 import { mapProfileToForm, buildUpdateBranchProfileRequest } from '../../settings/club/branchProfileRequest';
 import type { ClubProfileForm } from '../../settings/club/ClubProfileFields';
@@ -13,6 +17,9 @@ import { useBranchRollup, type RollupClient } from './useBranchRollup';
 import { RenameBranchModal } from './RenameBranchModal';
 
 interface RenameTarget { branchId: string; form: ClubProfileForm; }
+
+// Колонки списка — одни на список и его заглушку.
+const BRANCHES_GRID = 'minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr)';
 
 // Свод по сети — Owner-эксклюзивный экран (гейт branches.view, см. networkNav.ts). Каждая
 // карточка = today-KPI одного филиала (та же формула диапазона, что и рейл-KPI шелла —
@@ -48,23 +55,11 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
       state={screenState}
       skeleton={
         <>
-          <SkeletonTiles
-            count={5}
-            className="network-branches-totals"
-            tileClassName="management-panel network-total"
-            labelClassName="network-total-label"
-            valueClassName="network-total-value"
-          />
-          <SkeletonCards count={3} className="network-branches-grid">
-            <section className="management-panel network-branch-card">
-              <header>
-                <h3><SkeletonLine width="9em" /></h3>
-                <span className="network-branch-city"><SkeletonLine width="6em" /></span>
-              </header>
-              <SkeletonTiles count={4} className="network-branch-kpis" tileClassName="network-stat" />
-              <div className="network-branch-actions"><SkeletonControl width="8rem" /></div>
-            </section>
-          </SkeletonCards>
+          <section className="management-panel network-branches-figure" aria-hidden="true">
+            <span className="ui-section-label">{t('op.network.branches.figure.label')}</span>
+            <span className="network-branches-figure-value"><SkeletonLine width="6em" /></span>
+          </section>
+          <SkeletonTable gridTemplate={BRANCHES_GRID} rowActions rows={3} />
         </>
       }
       failure={state.status === 'error' ? projectOperatorError(state.error, t) : undefined}
@@ -72,61 +67,83 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
     >
       {state.status === 'ready' && (
         <>
-          <div className="network-branches-totals">
-            <Totals label={t('op.network.branches.totals.branches')} value={formatNumber(state.data.totals.branches)} />
-            <Totals label={t('op.network.branches.kpi.devices')} value={`${formatNumber(state.data.totals.devicesOnline.online)} / ${formatNumber(state.data.totals.devicesOnline.total)}`} />
-            <Totals label={t('op.network.branches.kpi.sessions')} value={formatNumber(state.data.totals.activeSessions)} />
-            <Totals label={t('op.network.branches.kpi.revenue')} value={<Money minorUnits={state.data.totals.revenue.minorUnits} currencyCode={state.data.totals.revenue.currencyCode} />} />
-            <Totals label={t('op.network.branches.kpi.attention')} value={formatNumber(state.data.totals.attention)} />
-          </div>
+          {/* Одна главная цифра — выручка сети за сегодня, а остальное — списком по филиалам. Было
+              пять плиток итогов, и каждая повторялась ещё раз в карточке каждого филиала. */}
+          <section className="management-panel network-branches-figure">
+            <span className="ui-section-label">{t('op.network.branches.figure.label')}</span>
+            <Money className="network-branches-figure-value" minorUnits={state.data.totals.revenue.minorUnits} currencyCode={state.data.totals.revenue.currencyCode} />
+            <span className="network-branches-figure-hint">
+              {t('op.network.branches.figure.hint', {
+                branches: state.data.totals.branches,
+                online: state.data.totals.devicesOnline.online,
+                total: state.data.totals.devicesOnline.total
+              })}
+            </span>
+          </section>
 
-          {state.data.rows.length === 0 ? (
-            <EmptyState title={t('op.network.branches.empty')} next={{ kind: 'elsewhere', hint: t('op.network.branches.add.viaPlatform') }} />
-          ) : (
-            <div className="network-branches-grid">
-              {state.data.rows.map((row) => (
-                <section key={row.branchId} className="management-panel network-branch-card">
-                  <header>
-                    <h3>{row.name}</h3>
-                    <span className="network-branch-city">{row.city}</span>
-                  </header>
-                  {row.kpis === null ? (
-                    <p className="network-branch-error">{t('op.network.branches.card.error')}</p>
-                  ) : (
-                    <dl className="network-branch-kpis">
-                      <Stat label={t('op.network.branches.kpi.devices')} value={`${formatNumber(row.kpis.devicesOnline.online)} / ${formatNumber(row.kpis.devicesOnline.total)}`} />
-                      <Stat label={t('op.network.branches.kpi.sessions')} value={formatNumber(row.kpis.activeSessions)} />
-                      <Stat label={t('op.network.branches.kpi.revenue')} value={<Money minorUnits={row.kpis.revenue.minorUnits} currencyCode={row.kpis.revenue.currencyCode} />} />
-                      <Stat label={t('op.network.branches.kpi.attention')} value={formatNumber(row.kpis.attention)} />
-                    </dl>
-                  )}
-                  <div className="network-branch-actions">
-                    <button
-                      type="button"
-                      className="ui-btn"
-                      // updateBranchProfile is a full-record PATCH — renaming needs the branch's
-                      // complete profile (contacts/hours/etc.), not just name+city. If that
-                      // branch's profile fetch failed, honestly disable rename instead of
-                      // submitting a payload built from guessed defaults.
-                      disabled={state.profiles[row.branchId] == null}
-                      onClick={() => {
-                        const profile = state.profiles[row.branchId];
-                        if (profile == null) return;
-                        setRenameTarget({ branchId: row.branchId, form: mapProfileToForm(profile) });
-                      }}
-                    >
-                      {t('op.network.branches.rename')}
-                    </button>
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+          <MgmtTable<BranchRollupRow>
+            columns={[
+              {
+                key: 'name',
+                header: t('op.network.branches.col.branch'),
+                render: (row) => (
+                  <span className="network-branch-name">
+                    <strong>{row.name}</strong>
+                    {row.city && <span>{row.city}</span>}
+                  </span>
+                )
+              },
+              {
+                key: 'devices',
+                header: t('op.network.branches.kpi.devices'),
+                align: 'end',
+                render: (row) => row.kpis === null ? '—' : <Num>{t('op.network.branches.devicesOf', { online: formatNumber(row.kpis.devicesOnline.online), total: formatNumber(row.kpis.devicesOnline.total) })}</Num>
+              },
+              {
+                key: 'sessions',
+                header: t('op.network.branches.kpi.sessions'),
+                align: 'end',
+                render: (row) => row.kpis === null ? '—' : <Num>{formatNumber(row.kpis.activeSessions)}</Num>
+              },
+              {
+                key: 'revenue',
+                header: t('op.network.branches.kpi.revenue'),
+                align: 'end',
+                render: (row) => row.kpis === null
+                  ? <span className="network-branch-error">{t('op.network.branches.card.error')}</span>
+                  : <Money minorUnits={row.kpis.revenue.minorUnits} currencyCode={row.kpis.revenue.currencyCode} />
+              },
+              {
+                key: 'attention',
+                header: t('op.network.branches.kpi.attention'),
+                align: 'end',
+                render: (row) => row.kpis === null ? '—' : <Num>{formatNumber(row.kpis.attention)}</Num>
+              }
+            ]}
+            rows={state.data.rows}
+            rowKey={(row) => row.branchId}
+            gridTemplate={BRANCHES_GRID}
+            rowActions={(row) => [{
+              id: 'rename',
+              label: t('op.network.branches.rename'),
+              icon: <Pencil size={14} aria-hidden="true" />,
+              // updateBranchProfile is a full-record PATCH — renaming needs the branch's complete
+              // profile (contacts/hours/etc.), not just name+city. If that branch's profile fetch
+              // failed, honestly disable rename instead of submitting guessed defaults.
+              disabled: state.profiles[row.branchId] == null,
+              onSelect: () => {
+                const profile = state.profiles[row.branchId];
+                if (profile == null) return;
+                setRenameTarget({ branchId: row.branchId, form: mapProfileToForm(profile) });
+              }
+            }]}
+            empty={{ title: t('op.network.branches.empty'), next: { kind: 'elsewhere', hint: t('op.network.branches.add.viaPlatform') } }}
+          />
 
           {/* Кнопки здесь нет намеренно, и надпись объясняет почему, а не отговаривается словом
               «пока». Новый филиал меняет лимит ПК в тарифе и счёт клуба — это разговор с
               платформой, а не действие стойки, и вечно выключенная кнопка обещала обратное. */}
-          <p className="network-branches-add-note">{t('op.network.branches.add.viaPlatform')}</p>
+          {state.data.rows.length > 0 && <p className="network-branches-add-note">{t('op.network.branches.add.viaPlatform')}</p>}
 
           {renameTarget !== null && backend !== null && (
             <RenameBranchModal
@@ -146,23 +163,5 @@ export function BranchesDestination({ backend }: { backend: OperatorBackendConte
         </>
       )}
     </ManagementScreen>
-  );
-}
-
-function Totals({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="management-panel network-total">
-      <span className="network-total-label">{label}</span>
-      <span className="network-total-value">{value}</span>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="network-stat">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
   );
 }
