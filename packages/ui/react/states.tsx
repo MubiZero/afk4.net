@@ -103,7 +103,7 @@ function StatePanel({ icon, title, description, hint, role, className, children 
   return (
     <div className={cx('empty-state', className)} role={role}>
       {icon ? <div className="empty-state-icon" aria-hidden="true">{icon}</div> : null}
-      {title ? <strong>{title}</strong> : null}
+      {title ? <strong role="heading" aria-level={2}>{title}</strong> : null}
       {description ? <span>{description}</span> : null}
       {hint ? <span>{hint}</span> : null}
       {children}

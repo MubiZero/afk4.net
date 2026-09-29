@@ -74,6 +74,8 @@ describe('LoadFailure', () => {
     const onClick = mock(() => {});
     const { rerender } = render(<LoadFailure title="Счета не загрузились" detail="Сервер не ответил." retry={{ label: 'Повторить', onClick }} />);
     expect(screen.getByRole('alert')).toHaveTextContent('Счета не загрузилисьСервер не ответил.');
+    // Заголовок панели состояния — заголовок и для диктора: по нему прыгают, как по заголовкам страницы.
+    expect(screen.getByRole('heading', { level: 2, name: 'Счета не загрузились' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     expect(onClick).toHaveBeenCalledTimes(1);
     rerender(<LoadFailure title="Счета не загрузились" detail="Недостаточно прав." hint="Доступ выдаёт владелец." />);
