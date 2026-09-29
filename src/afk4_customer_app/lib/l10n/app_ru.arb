@@ -1119,6 +1119,8 @@
       }
     }
   },
+  "customerWalletDebtPayErrExceeds": "Долг уже меньше введённой суммы — обновите экран",
+  "customerWalletDebtPayErrFunds": "На кошельке не хватает денег на этот платёж",
   "customerWalletDebtPayError": "Не удалось погасить долг. Попробуйте ещё раз.",
   "customerWalletDebtPayNote": "Можно закрыть деньгами с кошелька или на стойке клуба.",
   "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите свой номер телефона.",

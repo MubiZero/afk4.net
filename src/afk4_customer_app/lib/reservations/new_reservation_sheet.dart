@@ -258,6 +258,9 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           // Тариф с расписанием на выбранный час не действует. Выход отсюда — другой тариф или
           // другое время, и общая «не удалось» не подсказывает ни того, ни другого.
           (_, 'tariff_outside_its_hours') => l.customerTariffOutsideHours,
+          // Тариф сняли с публикации между тем, как игрок открыл лист брони, и нажатием
+          // «Забронировать» — тот же случай, что и «тариф пропал» при обновлении цены.
+          (_, 'tariff_not_available') => l.customerTariffGone,
           // Решения клуба, а не сбои: у каждого свой выход — позвонить, пополнить,
           // дождаться своей брони.
           (_, 'booking_disabled') => l.customerReservationsErrDisabled,

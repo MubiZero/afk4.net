@@ -97,6 +97,20 @@ abstract final class AdModerationNames {
   static const String rejected = 'rejected';
 }
 
+/// Машинные имена отказов по деньгам игрока (возврат, ручная коррекция, гашение долга). См.
+/// Tariffs.TariffErrorCodeNames — та же причина: касса и приложение игрока работают
+/// на трёх языках, а английская фраза сервера в интерфейс попадать не должна.
+///
+/// Словарь: Billing/BillingErrorCodeNames.cs
+abstract final class BillingErrorCodeNames {
+  /// Уже вернули часть или всё — запрошенный возврат больше того, что осталось.
+  static const String refundExceedsRemaining = 'refund_exceeds_remaining';
+  /// Причина поправки вручную короче восьми символов — её потом никто не прочитает.
+  static const String correctionReasonTooShort = 'correction_reason_too_short';
+  /// Долг уже меньше суммы платежа — кто-то погасил его первым.
+  static const String debtPaymentExceedsBalance = 'debt_payment_exceeds_balance';
+}
+
 /// Словарь: Platform/Billing/BillingIntervalNames.cs
 abstract final class BillingIntervalNames {
   static const String monthly = 'monthly';
@@ -407,6 +421,20 @@ abstract final class InstallErrorCodeNames {
   static const String installCodeInvalid = 'install_code_invalid';
 }
 
+/// Машинные имена отказов по каталогу склада: категории, товары, штрихкоды. См.
+/// Pos.PosErrorCodeNames — та же причина: имя или код уже заняты соседней записью,
+/// и форма не проверяет это заранее.
+///
+/// Словарь: Inventory/InventoryErrorCodeNames.cs
+abstract final class InventoryErrorCodeNames {
+  /// Категория с таким именем в филиале уже есть.
+  static const String categoryNameTaken = 'product_category_name_taken';
+  /// Товар с таким артикулом в филиале уже есть.
+  static const String skuTaken = 'product_sku_taken';
+  /// Этот штрихкод уже привязан к другому товару.
+  static const String barcodeAlreadyBound = 'barcode_already_bound';
+}
+
 /// Словарь: Platform/Billing/InvoiceKindNames.cs
 abstract final class InvoiceKindNames {
   static const String subscription = 'subscription';
@@ -655,6 +683,15 @@ abstract final class OrganizationStatusNames {
   static const String purged = 'purged';
 }
 
+/// Машинные имена отказов по пакетам времени. См. Billing.BillingErrorCodeNames —
+/// та же причина: без кода отказ доезжает до Панели английской фразой сервера.
+///
+/// Словарь: Packages/PackageErrorCodeNames.cs
+abstract final class PackageErrorCodeNames {
+  /// Пакет с таким именем в филиале уже есть.
+  static const String nameTaken = 'package_name_taken';
+}
+
 /// Словарь: Payments/PaymentMethodNames.cs
 abstract final class PaymentMethodNames {
   static const String cash = 'cash';
@@ -867,6 +904,20 @@ abstract final class PlayerSignInClaimStatusNames {
   static const String expired = 'expired';
 }
 
+/// Машинные имена отказов по кассе. См. Sessions.SessionErrorCodeNames — та же
+/// причина: чек мог измениться между тем, что кассир видит на экране, и тем, что уже случилось
+/// на сервере.
+///
+/// Словарь: Pos/PosErrorCodeNames.cs
+abstract final class PosErrorCodeNames {
+  /// Аннулировать можно только черновик или ожидающий оплаты чек — этот уже оплачен или аннулирован.
+  static const String notVoidable = 'pos_sale_not_voidable';
+  /// Вернуть деньги можно только за оплаченный чек — этот уже возвращён или ещё не оплачен.
+  static const String notRefundable = 'pos_sale_not_refundable';
+  /// Категорию товара скрыли, пока чек уже собирали, — продать его нельзя.
+  static const String categoryHidden = 'product_category_hidden';
+}
+
 /// Словарь: Pos/PosSaleStateNames.cs
 abstract final class PosSaleStateNames {
   static const String draft = 'draft';
@@ -963,6 +1014,8 @@ abstract final class ReservationErrorCodeNames {
   static const String rejectReasonUnsupported = 'reservation_reject_reason_unsupported';
   /// Неявку отмечают у подтверждённой брони, время которой уже началось.
   static const String noShowNotAllowed = 'reservation_no_show_not_allowed';
+  /// На это время место уже занято другой активной бронью.
+  static const String seatBooked = 'reservation_seat_booked';
 }
 
 /// Словарь: Reservations/ReservationSourceNames.cs
@@ -1037,6 +1090,28 @@ abstract final class SeatStateNames {
   /// ПК не привязан к месту или не одобрен.
   static const String maintenance = 'Maintenance';
   static const String offline = 'Offline';
+}
+
+/// Машинные имена отказов по управлению сессией. См. Reservations.ReservationErrorCodeNames
+/// — та же причина: карта пола обновляется по SignalR, но между тем, что видит стойка, и тем, что
+/// уже случилось на сервере, всегда есть зазор в доли секунды, и отказ в него нужно назвать.
+///
+/// Словарь: Sessions/SessionErrorCodeNames.cs
+abstract final class SessionErrorCodeNames {
+  /// Продлить можно только идущую или на паузе сессию — эту уже закрыли или отменили.
+  static const String notExtendable = 'session_not_extendable';
+  /// Перенести можно только идущую сессию.
+  static const String notTransferable = 'session_not_transferable';
+  /// На паузу можно поставить только идущую сессию.
+  static const String notPausable = 'session_not_pausable';
+  /// Снять с паузы можно только сессию, которая на паузе.
+  static const String notResumable = 'session_not_resumable';
+  /// Закончить можно только идущую или на паузе сессию.
+  static const String notEndable = 'session_not_endable';
+  /// Рассчитать и закрыть счёт можно только по идущей сессии — эту уже закрыли.
+  static const String notCheckoutable = 'session_not_checkoutable';
+  /// Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться.
+  static const String checkoutSplitMismatch = 'checkout_split_mismatch';
 }
 
 /// С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
@@ -1334,6 +1409,10 @@ abstract final class SubscriptionStatusNames {
 abstract final class TariffErrorCodeNames {
   /// Тариф с таким именем в филиале уже есть.
   static const String nameTaken = 'tariff_name_taken';
+  /// Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию.
+  static const String versionInUse = 'tariff_version_in_use';
+  /// Выбранный тариф сняли с публикации или он принадлежит другому филиалу.
+  static const String notAvailable = 'tariff_not_available';
 }
 
 /// Словарь: Tips/TipContracts.cs

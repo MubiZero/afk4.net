@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Reservations;
@@ -150,7 +151,7 @@ public sealed class EfReservationService(
             cancellationToken);
         if (conflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict.Value.Message, conflict.Value.Code);
         }
 
         var source = NormalizeSource(request.Source);
@@ -241,7 +242,7 @@ public sealed class EfReservationService(
                 cancellationToken);
             if (conflict is not null)
             {
-                conflicts.Add(new ReservationGroupConflictDto(seatId, conflict));
+                conflicts.Add(new ReservationGroupConflictDto(seatId, conflict.Value.Message));
             }
         }
         if (conflicts.Count > 0)
@@ -376,7 +377,7 @@ public sealed class EfReservationService(
             cancellationToken);
         if (conflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict.Value.Message, conflict.Value.Code);
         }
 
         reservation.PlayerAccountId = nextPlayerAccountId;
@@ -448,7 +449,7 @@ public sealed class EfReservationService(
             cancellationToken);
         if (conflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict.Value.Message, conflict.Value.Code);
         }
 
         var answeredAt = timeProvider.GetUtcNow();
@@ -514,7 +515,7 @@ public sealed class EfReservationService(
             now.AddMinutes(Math.Max(1, DurationMinutes(reservation))),
             cancellationToken))
         {
-            return ReservationServiceResult<ReservationDto>.RequestConflict("Seat has an active, paused, or ending session.");
+            return ReservationServiceResult<ReservationDto>.RequestConflict("Seat has an active, paused, or ending session.", "seat_unavailable");
         }
 
         reservation.State = ReservationStateNames.Seated;
@@ -865,7 +866,7 @@ public sealed class EfReservationService(
         return null;
     }
 
-    private async Task<string?> FindConflictAsync(
+    private async Task<(string Message, string Code)?> FindConflictAsync(
         Guid organizationId,
         Guid branchId,
         Guid? seatId,
@@ -884,15 +885,18 @@ public sealed class EfReservationService(
             .AnyAsync(reservation => reservation.SeatId == seatId, cancellationToken);
         if (hasReservationConflict)
         {
-            return "Seat already has an overlapping active reservation.";
+            return ("Seat already has an overlapping active reservation.", ReservationErrorCodeNames.SeatBooked);
         }
 
         // Правило общее со списком свободных мест и с вместимостью: место с гостем без конца
         // сессии сегодня не закрыто для брони на завтра.
-        return await SeatOccupancy
+        var hasBlockingSession = await SeatOccupancy
             .BlockingSessions(dbContext.Sessions, organizationId, branchId, startsAtUtc, endsAtUtc, timeProvider.GetUtcNow())
-            .AnyAsync(session => session.SeatId == seatId.Value, cancellationToken)
-            ? "Seat has an active, paused, or ending session."
+            .AnyAsync(session => session.SeatId == seatId.Value, cancellationToken);
+        // Тот же код, что и при старте сессии на занятое место, — это одна и та же причина
+        // «место сейчас недоступно» разными словами клиента.
+        return hasBlockingSession
+            ? ("Seat has an active, paused, or ending session.", "seat_unavailable")
             : null;
     }
 
@@ -1143,7 +1147,7 @@ public sealed class EfReservationService(
 
         if (conflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict.Value.Message, conflict.Value.Code);
         }
 
         // Свободные машины считаются раньше денег: сказать «не хватает средств» про вечер, на
@@ -1278,7 +1282,8 @@ public sealed class EfReservationService(
         if (reservation.State is not ReservationStateNames.Pending and not ReservationStateNames.Confirmed and not ReservationStateNames.Cancelled)
         {
             return ReservationServiceResult<ReservationDto>.Invalid(
-                "Only pending or confirmed reservations can be cancelled.");
+                "Only pending or confirmed reservations can be cancelled.",
+                ReservationErrorCodeNames.NotCancellable);
         }
 
         if (reservation.State != ReservationStateNames.Cancelled)
@@ -1342,7 +1347,8 @@ public sealed class EfReservationService(
         if (!CanChange(reservation))
         {
             return ReservationServiceResult<ReservationDto>.Invalid(
-                "Only pending or confirmed reservations can be moved.");
+                "Only pending or confirmed reservations can be moved.",
+                ReservationErrorCodeNames.NotChangeable);
         }
 
         var durationMinutes = DurationMinutes(reservation);
@@ -1380,7 +1386,7 @@ public sealed class EfReservationService(
             cancellationToken);
         if (conflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict.Value.Message, conflict.Value.Code);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -1549,8 +1555,7 @@ public sealed class EfReservationService(
         // о деньгах.
         if (tariffVersion is null)
         {
-            return new OnlineBookingPricing(
-                "Selected tariff is not available in this branch.", null, null);
+            return new OnlineBookingPricing(TariffErrorCodeNames.NotAvailable, null, null);
         }
 
         // Расписание проверяется по времени брони, а не по «сейчас»: игрок в восемь вечера

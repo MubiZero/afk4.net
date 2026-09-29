@@ -323,6 +323,9 @@ public sealed class EfBillingCommandServiceTests
 
         Assert.False(result.Succeeded);
         Assert.False(result.Conflict);
+        // Кассир не видит, сколько уже вернули соседней сменой, — код, а не английская фраза,
+        // должен доехать до экрана.
+        Assert.Equal(BillingErrorCodeNames.RefundExceedsRemaining, result.Code);
         Assert.Empty(await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.Refund).ToListAsync());
     }
 
@@ -386,6 +389,7 @@ public sealed class EfBillingCommandServiceTests
         Assert.True(first.Succeeded);
         Assert.False(second.Succeeded);
         Assert.False(second.Conflict);
+        Assert.Equal(BillingErrorCodeNames.RefundExceedsRemaining, second.Code);
         Assert.Single(await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.Refund).ToListAsync());
     }
 
@@ -489,6 +493,8 @@ public sealed class EfBillingCommandServiceTests
         Assert.Equal(-300, result.Response.WalletBalance.MinorUnits);
         Assert.False(invalid.Succeeded);
         Assert.False(invalid.Conflict);
+        // Кассир вводит короткую причину сам — "почему" ещё не видно из статуса ответа.
+        Assert.Equal(BillingErrorCodeNames.CorrectionReasonTooShort, invalid.Code);
         Assert.Single(await db.LedgerEntries.ToListAsync());
     }
 
@@ -613,6 +619,9 @@ public sealed class EfBillingCommandServiceTests
         Assert.Equal(300, result.Response.DebtBalance.MinorUnits);
         Assert.False(overpayment.Succeeded);
         Assert.False(overpayment.Conflict);
+        // Долг мог уменьшиться с тех пор, как кассир открыл карточку игрока, — код должен назвать
+        // причину, а не только «данные не приняты».
+        Assert.Equal(BillingErrorCodeNames.DebtPaymentExceedsBalance, overpayment.Code);
         Assert.Single(await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment).ToListAsync());
     }
 

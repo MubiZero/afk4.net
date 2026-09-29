@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tests;
@@ -118,7 +119,7 @@ public sealed class EfReservationBillingChoiceTests
         var result = await BookAsync(options, TariffVersionId);
 
         Assert.False(result.Succeeded);
-        Assert.Contains("tariff", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(TariffErrorCodeNames.NotAvailable, result.Error);
     }
 
     // Снятая с публикации версия не заменяется «похожей»: игрок согласился на конкретную цену,
@@ -132,6 +133,7 @@ public sealed class EfReservationBillingChoiceTests
         var result = await BookAsync(options, TariffVersionId);
 
         Assert.False(result.Succeeded);
+        Assert.Equal(TariffErrorCodeNames.NotAvailable, result.Error);
     }
 
     // Бронь без выбора тарифа остаётся законной: её создаёт оператор на стойке, и цену там

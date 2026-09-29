@@ -81,7 +81,7 @@ public sealed class EfSessionCheckoutService(
 
         if (!CheckoutableStates.Contains(session.State))
         {
-            return SessionCheckoutResult.Invalid("Only an active session can be checked out.");
+            return SessionCheckoutResult.Invalid("Only an active session can be checked out.", SessionErrorCodeNames.NotCheckoutable);
         }
 
         if (request.ExpectedVersion is int expectedVersion && expectedVersion != session.Version)
@@ -130,7 +130,9 @@ public sealed class EfSessionCheckoutService(
 
         if (paidTotal != grandTotal)
         {
-            return SessionCheckoutResult.Invalid("Split payments must total the grand total.");
+            return SessionCheckoutResult.Invalid(
+                "Split payments must total the grand total.",
+                SessionErrorCodeNames.CheckoutSplitMismatch);
         }
 
         if (walletTotal > 0)
@@ -147,7 +149,9 @@ public sealed class EfSessionCheckoutService(
             var walletBalance = summary?.WalletBalance.MinorUnits ?? 0;
             if (walletTotal > walletBalance)
             {
-                return SessionCheckoutResult.Invalid("Wallet payment exceeds the player's wallet balance.");
+                // Машинный код, а не фраза: этот же отказ уже называется так в магазине, брони и
+                // старте сессии, и интерфейсы умеют его переводить.
+                return SessionCheckoutResult.Invalid("Wallet payment exceeds the player's wallet balance.", "insufficient_funds");
             }
         }
 
@@ -169,7 +173,7 @@ public sealed class EfSessionCheckoutService(
                 .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
             if (!CheckoutableStates.Contains(trackedSession.State))
             {
-                return SessionCheckoutResult.Invalid("Only an active session can be checked out.");
+                return SessionCheckoutResult.Invalid("Only an active session can be checked out.", SessionErrorCodeNames.NotCheckoutable);
             }
 
             var salesToSettle = await dbContext.PosSales
@@ -194,7 +198,7 @@ public sealed class EfSessionCheckoutService(
                         .SumAsync(movement => (int?)movement.QuantityDelta, cancellationToken) ?? 0;
                     if (stockOnHand - line.Quantity < 0)
                     {
-                        return SessionCheckoutResult.Invalid("Insufficient stock for tracked product.");
+                        return SessionCheckoutResult.Invalid("Insufficient stock for tracked product.", "out_of_stock");
                     }
                 }
             }
@@ -488,7 +492,7 @@ public sealed class EfSessionCheckoutService(
 
         if (!CheckoutableStates.Contains(session.State))
         {
-            return SessionCheckoutQuoteResult.Invalid("Only an active session can be checked out.");
+            return SessionCheckoutQuoteResult.Invalid("Only an active session can be checked out.", SessionErrorCodeNames.NotCheckoutable);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -644,7 +648,9 @@ public sealed class EfSessionCheckoutService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return SessionCheckoutResult.RequestConflict("Idempotency key was already used for a different checkout.");
+            return SessionCheckoutResult.RequestConflict(
+                "Idempotency key was already used for a different checkout.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<SessionCheckoutResponse>(existing.ResponseJson, JsonOptions);

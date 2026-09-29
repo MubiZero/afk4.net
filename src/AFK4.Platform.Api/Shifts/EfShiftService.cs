@@ -471,7 +471,9 @@ public sealed class EfShiftService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return BillingCommandServiceResult<TResponse>.RequestConflict("Idempotency key was already used for a different request.");
+            return BillingCommandServiceResult<TResponse>.RequestConflict(
+                "Idempotency key was already used for a different request.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<TResponse>(existing.ResponseJson, JsonOptions);

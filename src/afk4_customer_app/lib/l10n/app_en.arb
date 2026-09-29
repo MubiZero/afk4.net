@@ -1119,6 +1119,8 @@
       }
     }
   },
+  "customerWalletDebtPayErrExceeds": "The debt is already smaller than this amount — refresh the screen",
+  "customerWalletDebtPayErrFunds": "Your wallet doesn't cover this payment",
   "customerWalletDebtPayError": "The debt could not be cleared. Try again.",
   "customerWalletDebtPayNote": "You can clear it from your wallet or at the club counter.",
   "customerWalletGate": "To top up your wallet online, confirm your phone number.",

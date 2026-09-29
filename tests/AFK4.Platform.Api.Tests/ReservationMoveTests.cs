@@ -161,6 +161,30 @@ public sealed class ReservationMoveTests
 
         Assert.False(moved.Succeeded);
         Assert.True(moved.Conflict);
+        Assert.Equal(ReservationErrorCodeNames.SeatBooked, moved.Code);
+    }
+
+    // Игрок сидит за местом уже сейчас — бронь дальше не отменить своими силами, приложение
+    // должно назвать причину, а не только «не получилось».
+    [Fact]
+    public async Task CancellingASeatedReservation_ReturnsNotCancellableCode()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, walletMinor: 5_000);
+        var booked = await BookAsync(options);
+        await using (var db = new PlatformDbContext(options))
+        {
+            var reservation = await db.Reservations.SingleAsync(candidate => candidate.ReservationId == booked.ReservationId);
+            reservation.State = ReservationStateNames.Seated;
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = new PlatformDbContext(options);
+        var service = new EfReservationService(readDb, TimeProvider.System);
+        var cancelled = await service.CancelOnlineAsync(booked.ReservationId, PlayerId, CancellationToken.None);
+
+        Assert.False(cancelled.Succeeded);
+        Assert.Equal(ReservationErrorCodeNames.NotCancellable, cancelled.Code);
     }
 
     // Чужая бронь отвечает «не найдено», а не «нельзя»: иначе отказ подсказывал бы, что она есть.
@@ -192,6 +216,7 @@ public sealed class ReservationMoveTests
 
         Assert.False(moved.Succeeded);
         Assert.False(moved.NotFound);
+        Assert.Equal(ReservationErrorCodeNames.NotChangeable, moved.Code);
     }
 
     // Перенос на то же время и место — не ошибка, а «ничего не изменилось».

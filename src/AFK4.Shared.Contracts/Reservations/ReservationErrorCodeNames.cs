@@ -39,4 +39,7 @@ public static class ReservationErrorCodeNames
 
     /// <summary>Неявку отмечают у подтверждённой брони, время которой уже началось.</summary>
     public const string NoShowNotAllowed = "reservation_no_show_not_allowed";
+
+    /// <summary>На это время место уже занято другой активной бронью.</summary>
+    public const string SeatBooked = "reservation_seat_booked";
 }

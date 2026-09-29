@@ -121,7 +121,8 @@ public sealed class EfPosService(
             {
                 // Имя категории в отказе нарочно: кассиру надо знать, что именно включить обратно.
                 return BillingCommandServiceResult<PosSaleDto>.Invalid(
-                    $"Product category \"{hiddenCategoryName}\" is hidden and cannot be sold.");
+                    $"Product category \"{hiddenCategoryName}\" is hidden and cannot be sold.",
+                    PosErrorCodeNames.CategoryHidden);
             }
 
             var currencyCode = products.Values.First().CurrencyCode;
@@ -254,7 +255,7 @@ public sealed class EfPosService(
 
             if (sale.State is not PosSaleStateNames.Draft and not PosSaleStateNames.PendingPayment)
             {
-                return BillingCommandServiceResult<PosSaleDto>.Invalid("Only draft POS sales can be voided.");
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("Only draft POS sales can be voided.", PosErrorCodeNames.NotVoidable);
             }
 
             var now = timeProvider.GetUtcNow();
@@ -415,7 +416,9 @@ public sealed class EfPosService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return BillingCommandServiceResult<TResponse>.RequestConflict("Idempotency key was already used for a different request.");
+            return BillingCommandServiceResult<TResponse>.RequestConflict(
+                "Idempotency key was already used for a different request.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<TResponse>(existing.ResponseJson, JsonOptions);

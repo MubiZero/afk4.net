@@ -312,6 +312,40 @@ void main() {
     expect(sent['idempotencyKey'], isA<String>());
   });
 
+  // Экран считает сумму платежа из показанных остатков долга и кошелька; пока запрос летит, оба
+  // могли уже измениться на сервере — отказ несёт код причины, а не только «не удалось».
+  testWidgets('долг уже погашен кем-то другим — сервер называет причину кодом', (tester) async {
+    final http = FakeHttpClient((request) {
+      if (request.method == 'POST' && request.url.path.endsWith('/debt-payment')) {
+        return (jsonEncode({'error': 'debt_payment_exceeds_balance'}), 409);
+      }
+      return ('[]', 200);
+    });
+    await tester.pumpWidget(harness(clientWith(http), wallet: 10000, debt: 3000));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Погасить 30,00 с.'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Долг уже меньше введённой суммы — обновите экран'), findsOneWidget);
+  });
+
+  testWidgets('на кошельке не хватает — сервер называет причину кодом', (tester) async {
+    final http = FakeHttpClient((request) {
+      if (request.method == 'POST' && request.url.path.endsWith('/debt-payment')) {
+        return (jsonEncode({'error': 'insufficient_funds'}), 409);
+      }
+      return ('[]', 200);
+    });
+    await tester.pumpWidget(harness(clientWith(http), wallet: 10000, debt: 3000));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Погасить 30,00 с.'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('На кошельке не хватает денег на этот платёж'), findsOneWidget);
+  });
+
   // Долг больше остатка — закрывается то, что есть. Иначе долг в две тысячи при тысяче на
   // кошельке нельзя было бы тронуть вовсе.
   testWidgets('когда денег меньше долга, предлагается закрыть остаток', (tester) async {

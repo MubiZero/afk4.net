@@ -92,6 +92,32 @@ const codeMessageKeys = {
   shift_sign_off_not_authorized: 'op.error.code.shiftSignOffNotAuthorized',
   cash_movement_needs_open_shift: 'op.error.code.cashMovementNeedsOpenShift',
   tariff_name_taken: 'op.error.code.tariffNameTaken',
+  tariff_version_in_use: 'op.error.code.tariffVersionInUse',
+  // Деньги игрока: возврат больше остатка, короткая причина коррекции, платёж больше долга,
+  // повторное имя пакета — до сих пор эти отказы шли на экран английской фразой сервера.
+  refund_exceeds_remaining: 'op.error.code.refundExceedsRemaining',
+  correction_reason_too_short: 'op.error.code.correctionReasonTooShort',
+  debt_payment_exceeds_balance: 'op.error.code.debtPaymentExceedsBalance',
+  package_name_taken: 'op.error.code.packageNameTaken',
+  // Действия над идущей сессией: карта пола обновляется по SignalR, но между тем, что видит
+  // стойка, и тем, что уже случилось на сервере, есть зазор — до сих пор отказ там был просто
+  // «данные не приняты».
+  session_not_extendable: 'op.error.code.sessionNotExtendable',
+  session_not_transferable: 'op.error.code.sessionNotTransferable',
+  session_not_pausable: 'op.error.code.sessionNotPausable',
+  session_not_resumable: 'op.error.code.sessionNotResumable',
+  session_not_endable: 'op.error.code.sessionNotEndable',
+  session_not_checkoutable: 'op.error.code.sessionNotCheckoutable',
+  checkout_split_mismatch: 'op.error.code.checkoutSplitMismatch',
+  // Касса: чек могли оплатить или аннулировать в другом окне, категорию скрыли, пока чек
+  // собирали. Каталог склада: имя категории, артикул или штрихкод уже заняты.
+  pos_sale_not_voidable: 'op.error.code.posSaleNotVoidable',
+  pos_sale_not_refundable: 'op.error.code.posSaleNotRefundable',
+  product_category_hidden: 'op.error.code.productCategoryHidden',
+  sale_not_payable: 'op.error.code.saleNotPayable',
+  product_category_name_taken: 'op.error.code.productCategoryNameTaken',
+  product_sku_taken: 'op.error.code.productSkuTaken',
+  barcode_already_bound: 'op.error.code.barcodeAlreadyBound',
   // Брони: отказ почти всегда про состояние, которое успело измениться, — сосед подтвердил её
   // раньше, гость уже сидит, заявку уже отклонили. Дальше оператор делает разное, поэтому
   // отличать их нужно, а не сводить к одному «не получилось».
@@ -104,7 +130,9 @@ const codeMessageKeys = {
   reservation_not_rejectable: 'op.error.code.reservationNotRejectable',
   reservation_refusal_note_required: 'op.error.code.reservationRefusalNoteRequired',
   reservation_reject_reason_unsupported: 'op.error.code.reservationRejectReasonUnsupported',
-  reservation_no_show_not_allowed: 'op.error.code.reservationNoShowNotAllowed'
+  reservation_no_show_not_allowed: 'op.error.code.reservationNoShowNotAllowed',
+  // Соседняя смена подтвердила бронь на то же место и время быстрее, чем этот экран.
+  reservation_seat_booked: 'op.error.code.reservationSeatBooked'
 } as const satisfies Record<string, MessageKey>;
 
 /**

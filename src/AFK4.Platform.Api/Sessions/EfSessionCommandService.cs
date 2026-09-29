@@ -180,7 +180,9 @@ public sealed class EfSessionCommandService(
 
         if (session.State is not SessionStateNames.Active and not SessionStateNames.Paused)
         {
-            return SessionCommandServiceResult.Invalid("Only active or paused sessions can be extended.");
+            return SessionCommandServiceResult.Invalid(
+                "Only active or paused sessions can be extended.",
+                SessionErrorCodeNames.NotExtendable);
         }
 
         if (CheckExpectedVersion(session, request.ExpectedVersion) is { } extendStale)
@@ -316,7 +318,9 @@ public sealed class EfSessionCommandService(
 
         if (session.State != SessionStateNames.Active)
         {
-            return SessionCommandServiceResult.Invalid("Only active sessions can be transferred.");
+            return SessionCommandServiceResult.Invalid(
+                "Only active sessions can be transferred.",
+                SessionErrorCodeNames.NotTransferable);
         }
 
         if (CheckExpectedVersion(session, request.ExpectedVersion) is { } transferStale)
@@ -359,7 +363,7 @@ public sealed class EfSessionCommandService(
             excludedSessionId: session.SessionId,
             cancellationToken))
         {
-            return SessionCommandServiceResult.Invalid("Target seat or device already has an active session.");
+            return SessionCommandServiceResult.Invalid("Target seat or device already has an active session.", "seat_unavailable");
         }
 
         var commandsToNotify = new List<(Guid DeviceId, DeviceCommandDto Command)>();
@@ -455,7 +459,7 @@ public sealed class EfSessionCommandService(
 
         if (session.State != SessionStateNames.Active)
         {
-            return SessionCommandServiceResult.Invalid("Only an active session can be paused.");
+            return SessionCommandServiceResult.Invalid("Only an active session can be paused.", SessionErrorCodeNames.NotPausable);
         }
 
         if (CheckExpectedVersion(session, request.ExpectedVersion) is { } pauseStale)
@@ -546,7 +550,7 @@ public sealed class EfSessionCommandService(
 
         if (session.State != SessionStateNames.Paused)
         {
-            return SessionCommandServiceResult.Invalid("Only a paused session can be resumed.");
+            return SessionCommandServiceResult.Invalid("Only a paused session can be resumed.", SessionErrorCodeNames.NotResumable);
         }
 
         if (CheckExpectedVersion(session, request.ExpectedVersion) is { } resumeStale)
@@ -666,7 +670,7 @@ public sealed class EfSessionCommandService(
 
         if (session.State is not SessionStateNames.Active and not SessionStateNames.Paused)
         {
-            return SessionCommandServiceResult.Invalid("Only active or paused sessions can be ended.");
+            return SessionCommandServiceResult.Invalid("Only active or paused sessions can be ended.", SessionErrorCodeNames.NotEndable);
         }
 
         if (CheckExpectedVersion(session, request.ExpectedVersion) is { } endStale)
@@ -793,7 +797,9 @@ public sealed class EfSessionCommandService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return SessionCommandServiceResult.RequestConflict("Idempotency key was already used for a different request.");
+            return SessionCommandServiceResult.RequestConflict(
+                "Idempotency key was already used for a different request.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<SessionCommandResponse>(existing.ResponseJson, JsonOptions);

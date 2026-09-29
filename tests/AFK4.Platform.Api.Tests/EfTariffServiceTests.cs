@@ -269,6 +269,9 @@ public sealed class EfTariffServiceTests
 
         Assert.False(result.Succeeded);
         Assert.False(result.NotFound);
+        // Управляющий видит только карточку тарифа, не то, что версию уже отбиллили сессии, —
+        // код должен сказать, почему правка отклонена.
+        Assert.Equal(TariffErrorCodeNames.VersionInUse, result.Code);
         var persisted = await db.TariffVersions.SingleAsync(candidate => candidate.TariffVersionId == version.TariffVersionId);
         Assert.Equal(50, persisted.PricePerMinuteMinorUnits);
     }

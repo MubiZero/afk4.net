@@ -8,4 +8,10 @@ public static class TariffErrorCodeNames
 {
     /// <summary>Тариф с таким именем в филиале уже есть.</summary>
     public const string NameTaken = "tariff_name_taken";
+
+    /// <summary>Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию.</summary>
+    public const string VersionInUse = "tariff_version_in_use";
+
+    /// <summary>Выбранный тариф сняли с публикации или он принадлежит другому филиалу.</summary>
+    public const string NotAvailable = "tariff_not_available";
 }

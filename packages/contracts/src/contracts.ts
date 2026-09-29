@@ -124,6 +124,23 @@ export const AdModerationNames = {
 } as const;
 export type AdModerationName = (typeof AdModerationNames)[keyof typeof AdModerationNames];
 
+/**
+ * Машинные имена отказов по деньгам игрока (возврат, ручная коррекция, гашение долга). См.
+ * Tariffs.TariffErrorCodeNames — та же причина: касса и приложение игрока работают
+ * на трёх языках, а английская фраза сервера в интерфейс попадать не должна.
+ *
+ * Словарь: Billing/BillingErrorCodeNames.cs
+ */
+export const BillingErrorCodeNames = {
+  /** Уже вернули часть или всё — запрошенный возврат больше того, что осталось. */
+  RefundExceedsRemaining: 'refund_exceeds_remaining',
+  /** Причина поправки вручную короче восьми символов — её потом никто не прочитает. */
+  CorrectionReasonTooShort: 'correction_reason_too_short',
+  /** Долг уже меньше суммы платежа — кто-то погасил его первым. */
+  DebtPaymentExceedsBalance: 'debt_payment_exceeds_balance',
+} as const;
+export type BillingErrorCodeName = (typeof BillingErrorCodeNames)[keyof typeof BillingErrorCodeNames];
+
 /** Словарь: Platform/Billing/BillingIntervalNames.cs */
 export const BillingIntervalNames = {
   Monthly: 'monthly',
@@ -492,6 +509,23 @@ export const InstallErrorCodeNames = {
 } as const;
 export type InstallErrorCodeName = (typeof InstallErrorCodeNames)[keyof typeof InstallErrorCodeNames];
 
+/**
+ * Машинные имена отказов по каталогу склада: категории, товары, штрихкоды. См.
+ * Pos.PosErrorCodeNames — та же причина: имя или код уже заняты соседней записью,
+ * и форма не проверяет это заранее.
+ *
+ * Словарь: Inventory/InventoryErrorCodeNames.cs
+ */
+export const InventoryErrorCodeNames = {
+  /** Категория с таким именем в филиале уже есть. */
+  CategoryNameTaken: 'product_category_name_taken',
+  /** Товар с таким артикулом в филиале уже есть. */
+  SkuTaken: 'product_sku_taken',
+  /** Этот штрихкод уже привязан к другому товару. */
+  BarcodeAlreadyBound: 'barcode_already_bound',
+} as const;
+export type InventoryErrorCodeName = (typeof InventoryErrorCodeNames)[keyof typeof InventoryErrorCodeNames];
+
 /** Словарь: Platform/Billing/InvoiceKindNames.cs */
 export const InvoiceKindNames = {
   Subscription: 'subscription',
@@ -792,6 +826,18 @@ export const OrganizationStatusNames = {
 } as const;
 export type OrganizationStatusName = (typeof OrganizationStatusNames)[keyof typeof OrganizationStatusNames];
 
+/**
+ * Машинные имена отказов по пакетам времени. См. Billing.BillingErrorCodeNames —
+ * та же причина: без кода отказ доезжает до Панели английской фразой сервера.
+ *
+ * Словарь: Packages/PackageErrorCodeNames.cs
+ */
+export const PackageErrorCodeNames = {
+  /** Пакет с таким именем в филиале уже есть. */
+  NameTaken: 'package_name_taken',
+} as const;
+export type PackageErrorCodeName = (typeof PackageErrorCodeNames)[keyof typeof PackageErrorCodeNames];
+
 /** Словарь: Payments/PaymentMethodNames.cs */
 export const PaymentMethodNames = {
   Cash: 'cash',
@@ -1040,6 +1086,23 @@ export const PlayerSignInClaimStatusNames = {
 } as const;
 export type PlayerSignInClaimStatusName = (typeof PlayerSignInClaimStatusNames)[keyof typeof PlayerSignInClaimStatusNames];
 
+/**
+ * Машинные имена отказов по кассе. См. Sessions.SessionErrorCodeNames — та же
+ * причина: чек мог измениться между тем, что кассир видит на экране, и тем, что уже случилось
+ * на сервере.
+ *
+ * Словарь: Pos/PosErrorCodeNames.cs
+ */
+export const PosErrorCodeNames = {
+  /** Аннулировать можно только черновик или ожидающий оплаты чек — этот уже оплачен или аннулирован. */
+  NotVoidable: 'pos_sale_not_voidable',
+  /** Вернуть деньги можно только за оплаченный чек — этот уже возвращён или ещё не оплачен. */
+  NotRefundable: 'pos_sale_not_refundable',
+  /** Категорию товара скрыли, пока чек уже собирали, — продать его нельзя. */
+  CategoryHidden: 'product_category_hidden',
+} as const;
+export type PosErrorCodeName = (typeof PosErrorCodeNames)[keyof typeof PosErrorCodeNames];
+
 /** Словарь: Pos/PosSaleStateNames.cs */
 export const PosSaleStateNames = {
   Draft: 'draft',
@@ -1151,6 +1214,8 @@ export const ReservationErrorCodeNames = {
   RejectReasonUnsupported: 'reservation_reject_reason_unsupported',
   /** Неявку отмечают у подтверждённой брони, время которой уже началось. */
   NoShowNotAllowed: 'reservation_no_show_not_allowed',
+  /** На это время место уже занято другой активной бронью. */
+  SeatBooked: 'reservation_seat_booked',
 } as const;
 export type ReservationErrorCodeName = (typeof ReservationErrorCodeNames)[keyof typeof ReservationErrorCodeNames];
 
@@ -1245,6 +1310,31 @@ export const SeatStateNames = {
   Offline: 'Offline',
 } as const;
 export type SeatStateName = (typeof SeatStateNames)[keyof typeof SeatStateNames];
+
+/**
+ * Машинные имена отказов по управлению сессией. См. Reservations.ReservationErrorCodeNames
+ * — та же причина: карта пола обновляется по SignalR, но между тем, что видит стойка, и тем, что
+ * уже случилось на сервере, всегда есть зазор в доли секунды, и отказ в него нужно назвать.
+ *
+ * Словарь: Sessions/SessionErrorCodeNames.cs
+ */
+export const SessionErrorCodeNames = {
+  /** Продлить можно только идущую или на паузе сессию — эту уже закрыли или отменили. */
+  NotExtendable: 'session_not_extendable',
+  /** Перенести можно только идущую сессию. */
+  NotTransferable: 'session_not_transferable',
+  /** На паузу можно поставить только идущую сессию. */
+  NotPausable: 'session_not_pausable',
+  /** Снять с паузы можно только сессию, которая на паузе. */
+  NotResumable: 'session_not_resumable',
+  /** Закончить можно только идущую или на паузе сессию. */
+  NotEndable: 'session_not_endable',
+  /** Рассчитать и закрыть счёт можно только по идущей сессии — эту уже закрыли. */
+  NotCheckoutable: 'session_not_checkoutable',
+  /** Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться. */
+  CheckoutSplitMismatch: 'checkout_split_mismatch',
+} as const;
+export type SessionErrorCodeName = (typeof SessionErrorCodeNames)[keyof typeof SessionErrorCodeNames];
 
 /**
  * С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
@@ -1597,6 +1687,10 @@ export type SubscriptionStatusName = (typeof SubscriptionStatusNames)[keyof type
 export const TariffErrorCodeNames = {
   /** Тариф с таким именем в филиале уже есть. */
   NameTaken: 'tariff_name_taken',
+  /** Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию. */
+  VersionInUse: 'tariff_version_in_use',
+  /** Выбранный тариф сняли с публикации или он принадлежит другому филиалу. */
+  NotAvailable: 'tariff_not_available',
 } as const;
 export type TariffErrorCodeName = (typeof TariffErrorCodeNames)[keyof typeof TariffErrorCodeNames];
 

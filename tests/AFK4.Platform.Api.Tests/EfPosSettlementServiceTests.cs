@@ -412,6 +412,24 @@ public sealed class EfPosSettlementServiceTests
         Assert.Equal(2, await db.BillingCommandIdempotency.CountAsync());
     }
 
+    // Кассир мог открыть чек, который в другом окне уже вернули или который ещё не оплатили.
+    [Fact]
+    public async Task RefundAsync_SaleNotPaid_ReturnsNotRefundableCode()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "return", "draft-refund"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(PosErrorCodeNames.NotRefundable, result.Code);
+    }
+
     [Fact]
     public async Task RefundAsync_PaidSaleWithPriorRefundEffect_FailsClosedWithoutDuplicatingIt()
     {
