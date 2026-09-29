@@ -77,6 +77,9 @@ export function TipsSection({ backend, client: injected }: { backend: OperatorBa
           </div>
         </div>
       </div>
+      {/* Единственный мгновенный переключатель на экране с общей плашкой сохранения — и он
+          говорит об этом сам, иначе его щелчок читался бы как ещё одна несохранённая правка. */}
+      <p className="payset-field-hint">{t('op.tips.appliesAtOnce')}</p>
       <p className="payset-field-hint">{t('op.tips.moneyHint')}</p>
       {saveError && <p className="ui-inline-error" role="alert">{saveError}</p>}
     </>

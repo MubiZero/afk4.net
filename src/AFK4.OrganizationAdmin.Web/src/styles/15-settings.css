@@ -165,6 +165,13 @@
   overflow: hidden;
 }
 
+/* Внутри «Управления» и «Сети» экран занимает ровно колонку, а не «окно минус шапка и полоса
+   статуса»: та формула разошлась с шапкой в 32px и с полосой демо, и плашка «Сохранить» уезжала
+   под нижний край — кнопку было видно наполовину. */
+.management-active-pane > .management-screen {
+  height: 100%;
+}
+
 /* Error state — same raised-card chrome as .management-panel so the swap doesn't read as a
    different surface; EmptyState supplies the centered icon/title/detail/retry layout. The
    concrete errorDetail (from projectOperatorError/feedback.detail) renders as EmptyState's

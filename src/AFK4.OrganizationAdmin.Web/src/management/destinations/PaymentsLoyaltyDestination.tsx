@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { ManagementScreen } from '../ManagementScreen';
+import { ManagementScreen, type SaveState } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { useOrganizationFeatures } from '../../useOrganizationFeatures';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
@@ -16,8 +16,13 @@ import type { DestinationProps } from './types';
 
 // «Платежи и лояльность» — спокойный setup-экран, куда заходят раз в несколько месяцев. Две ясные
 // секции с человеческим лидом: «Как игрок платит вам» (приём) и «Как вы возвращаете» (кэшбэк).
-// Приоритет — ясность и воздух, а не плотность рабочих вкладок. Каждая секция самодостаточна
-// (своя кнопка сохранения), глобального save-бара нет. Зоны гейтятся по правам.
+// Зоны гейтятся по правам.
+//
+// Сохранение одно на экран — плашка ManagementScreen, как у остальных экранов настроек (решение
+// владельца 29.09). Было три кнопки «Сохранить» под кэшбэком, приглашением и подарком: поправил
+// процент в одной секции и срок в другой — и не ясно, какая кнопка что запишет. Плашка пишет все
+// изменённые секции разом. Свои кнопки остались у двух мест, и оба подписаны: чаевые включаются
+// сразу по щелчку, а реквизиты шлюза — отдельная форма за «Настроить».
 export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onDirtyChange }: DestinationProps) {
   const { t } = useI18n();
   const canGateways = hasPermission(session, permissionNames.managePaymentGateways);
@@ -41,10 +46,26 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
     onDirtyChange?.(loyalty.dirty || referral.dirty || birthdayGift.dirty);
   }, [loyalty.dirty, referral.dirty, birthdayGift.dirty, onDirtyChange]);
 
+  const settings = showLoyalty ? [loyalty, referral, birthdayGift] : [];
+  const changed = settings.filter((section) => section.dirty);
+  const saveState: SaveState = settings.some((section) => section.saveState === 'saving')
+    ? 'saving'
+    : changed.length > 0
+      ? 'dirty'
+      : settings.some((section) => section.saveState === 'saved') ? 'saved' : 'clean';
+
   return (
     <ManagementScreen
       title={t('op.management.dest.payments')}
       contentWidth="wide"
+      save={settings.length === 0 ? undefined : {
+        state: saveState,
+        onSave: () => void Promise.all(changed.map((section) => section.save())),
+        // «Отменить» перечитывает изменённые секции с сервера: у контроллеров нет своего снимка, а
+        // последнее сохранённое и есть то, к чему возвращаются.
+        onDiscard: () => { for (const section of changed) section.retry(); },
+        disabled: backend === null
+      }}
     >
       {/* Две половины одного экрана: приём слева, возврат справа. auto-fit сам сводит в одну
           колонку, если видна лишь одна зона (по правам) или окно узкое. */}

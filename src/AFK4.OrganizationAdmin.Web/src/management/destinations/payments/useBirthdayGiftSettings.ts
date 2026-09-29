@@ -29,7 +29,7 @@ export interface BirthdayGiftSettingsController {
 }
 
 // Подарок на день рождения (владелец, 26.09): рядом с кэшбэком и «приведи друга», по тем же
-// правилам — платит клуб, сумму назначает он же, своя кнопка сохранения внутри секции.
+// правилам — платит клуб, сумму назначает он же; сохраняет общая плашка экрана.
 export function useBirthdayGiftSettings(
   backend: OperatorBackendContext | null,
   enabled = true

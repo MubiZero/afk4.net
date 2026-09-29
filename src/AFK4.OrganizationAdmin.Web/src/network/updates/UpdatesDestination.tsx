@@ -135,14 +135,13 @@ export function UpdatesDestination({
         <label><SkeletonLine width="4em" /><SkeletonControl /></label>
         <div className="mgmt-meta-row"><SkeletonLine width="10em" /></div>
       </div>
-      <div className="network-updates-actions" aria-hidden="true"><SkeletonControl width="10rem" /></div>
     </>
   );
 
   return (
     <ManagementScreen
       title={t('op.network.dest.updates')}
-      contentWidth="form"
+      contentWidth="wide"
       state={screenState}
       skeleton={
         <>
@@ -160,6 +159,14 @@ export function UpdatesDestination({
       }
       failure={rollouts.status === 'error' ? projectOperatorError(rollouts.error, t) : undefined}
       onRetry={retryAll}
+      // Окно обновлений сохраняет общая плашка экрана, как у остальных экранов настроек, а не своя
+      // кнопка внутри карточки.
+      save={preferenceSection.status !== 'ready' ? undefined : {
+        state: saving ? 'saving' : windowDirty ? 'dirty' : 'clean',
+        onSave: () => void saveWindow(),
+        onDiscard: () => setDraft(null),
+        disabled: !isWindowValid(start, end)
+      }}
     >
       {screenState === 'ready' && (
         <>
@@ -240,19 +247,9 @@ export function UpdatesDestination({
                       <span className="mgmt-meta-value">{preferenceSection.data.timeZone || '—'}</span>
                     </div>
                   </div>
-                  <div className="network-updates-actions">
-                    <button
-                      type="button"
-                      className="ui-btn ui-btn--primary"
-                      disabled={!windowDirty || !isWindowValid(start, end) || saving}
-                      onClick={() => void saveWindow()}
-                    >
-                      {t('op.network.updates.window.save')}
-                    </button>
-                    {!isWindowValid(start, end) && (
-                      <span className="network-updates-hint">{t('op.network.updates.window.invalid')}</span>
-                    )}
-                  </div>
+                  {!isWindowValid(start, end) && (
+                    <p className="network-updates-hint" role="alert">{t('op.network.updates.window.invalid')}</p>
+                  )}
                 </>
               )}
             </div>

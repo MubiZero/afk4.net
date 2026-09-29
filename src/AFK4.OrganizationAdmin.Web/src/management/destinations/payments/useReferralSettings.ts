@@ -38,7 +38,7 @@ export interface ReferralSettingsController {
 }
 
 // Настройки «приведи друга». Живут рядом с кэшбэком и по тем же правилам: платит клуб, суммы
-// назначает он же, своя кнопка сохранения внутри секции.
+// назначает он же; сохраняет общая плашка экрана.
 export function useReferralSettings(
   backend: OperatorBackendContext | null,
   enabled = true
