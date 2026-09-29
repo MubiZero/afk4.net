@@ -1,15 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { CloseButton } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useDialogFocus } from './dialogFocus';
 
 // Модальное окно панели — та же .panel-modal из @afk4/ui, что и в Organization Admin: портал в
 // body, закрытие по Escape и по клику вне окна.
 //
-// Обёртка написана здесь, а не в @afk4/ui: пакет сознательно оставлен CSS-только (общий ВИД),
-// иначе он тянет React в сборку обоих приложений. Если появится третье приложение — обёртки
-// пора выносить в @afk4/ui/react, пока цена дублирования ниже цены общей React-зависимости.
+// Кнопка закрытия — общий ✕ кита (@afk4/ui/react). Сама обёртка окна пока живёт здесь и в Панели
+// своей копией: у окон разная работа с фокусом, и сводить их — отдельная задача, не эта.
 export function Dialog({ open, title, description, tone, onClose, children, footer }: {
   open: boolean;
   title: string;
@@ -47,9 +46,7 @@ export function Dialog({ open, title, description, tone, onClose, children, foot
             <strong>{title}</strong>
             {description !== undefined ? <span>{description}</span> : null}
           </div>
-          <button type="button" className="panel-modal-close" aria-label={t('common.close')} onClick={onClose}>
-            <X size={16} aria-hidden="true" />
-          </button>
+          <CloseButton label={t('common.close')} onClick={onClose} data-dialog-close="" />
         </header>
         <div className="panel-modal-body">{children}</div>
         {footer !== undefined ? <div className="panel-modal-foot">{footer}</div> : null}

@@ -178,8 +178,8 @@
     "spacing": 3
   },
   "src/AFK4.PlatformControl.Web/src/styles/13-forms.css": {
-    "font-size": 13,
-    "spacing": 6,
+    "font-size": 12,
+    "spacing": 5,
     "mono": 3
   },
   "src/AFK4.PlatformControl.Web/src/styles/14-games.css": {

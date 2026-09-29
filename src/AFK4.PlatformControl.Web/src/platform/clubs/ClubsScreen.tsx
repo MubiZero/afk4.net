@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
-import { Tabs } from '@/components/ui/tabs';
+import { Tabs } from '@afk4/ui/react';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { Loading, SkeletonLine } from '@/components/ui/skeletons';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
@@ -41,26 +41,26 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization, on
     <Page
       width="full"
       title={t('platform.clubs.title')}
-      description={t('platform.clubs.subtitle')}
       actions={onCreateOrganization !== undefined ? (
         <Button onClick={onCreateOrganization}>
           <Plus size={16} aria-hidden="true" />
           {t('platform.clubs.create')}
         </Button>
       ) : undefined}
+      tabs={(
+        <Tabs
+          label={t('platform.clubs.view.label')}
+          value={view}
+          onChange={onViewChange}
+          items={VIEWS.map(candidate => ({ value: candidate, label: t(VIEW_LABEL_KEY[candidate]) }))}
+        />
+      )}
     >
       {/* На какой момент то, что на экране. Раздел называется «Сейчас», держат его открытым весь
           день, и без этой строки снимок часовой давности читается как положение дел сию минуту. */}
       {state.status === 'ready' ? (
         <p className="mgmt-drawer-hint">{t('platform.clubs.snapshotAt', { time: formatDate(state.data.generatedAtUtc) })}</p>
       ) : null}
-
-      <Tabs
-        label={t('platform.clubs.view.label')}
-        value={view}
-        onChange={onViewChange}
-        items={VIEWS.map(candidate => ({ value: candidate, label: t(VIEW_LABEL_KEY[candidate]) }))}
-      />
 
       {state.status === 'loading' ? (
         <Loading><ClubsListSkeleton /></Loading>
