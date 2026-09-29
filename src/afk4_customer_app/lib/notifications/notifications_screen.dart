@@ -102,14 +102,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             SliverToBoxAdapter(child: ListSkeleton(rows: 4, label: l.customerCommonLoading))
           else if (_state == _Load.failed)
             SliverFillRemaining(
-              hasScrollBody: false,
               child: _offline
                   ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
                   : LoadFailure(message: l.customerNotificationsError, onRetry: _load),
             )
           else if (_items.isEmpty)
             SliverFillRemaining(
-              hasScrollBody: false,
               child: EmptyState(icon: Icons.notifications_none_outlined, title: l.customerNotificationsEmpty),
             )
           else

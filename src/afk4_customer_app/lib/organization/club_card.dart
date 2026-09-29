@@ -598,9 +598,13 @@ class _Chip extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: Space.s2),
-            Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(color: color),
+            // На крупном шрифте длинная подпись переносится внутри ярлыка, а не вылезает за
+            // карточку.
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(color: color),
+              ),
             ),
           ],
         ),

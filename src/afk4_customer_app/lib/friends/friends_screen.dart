@@ -315,11 +315,24 @@ class _RequestRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         border: Border.all(color: theme.colorScheme.outline),
       ),
-      child: Row(
+      // Имя сверху, ответы под ним — во всю ширину: в одну строку с именем две кнопки не
+      // помещались уже на полуторном шрифте.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: Text(name, style: theme.textTheme.titleSmall)),
-          TextButton(onPressed: busy ? null : onDecline, child: Text(l.customerFriendsDecline)),
-          FilledButton(onPressed: busy ? null : onAccept, child: Text(l.customerFriendsAccept)),
+          Text(name, style: theme.textTheme.titleSmall),
+          const SizedBox(height: Space.s2),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(onPressed: busy ? null : onDecline, child: Text(l.customerFriendsDecline)),
+              ),
+              const SizedBox(width: Space.s2),
+              Expanded(
+                child: FilledButton(onPressed: busy ? null : onAccept, child: Text(l.customerFriendsAccept)),
+              ),
+            ],
+          ),
         ],
       ),
     );

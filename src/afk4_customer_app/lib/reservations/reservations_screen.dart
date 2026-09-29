@@ -42,10 +42,15 @@ class ReservationsScreen extends StatefulWidget {
     this.onPhoneVerified,
     this.onAccountOpened,
     this.active = true,
+    this.bookingEnabled = true,
     this.place,
     this.placeLogoUrl,
     this.clock = DateTime.now,
   });
+
+  /// Принимает ли клуб брони из приложения. Нет — раздел остаётся (в нём уже сделанные брони),
+  /// но без кнопки «Забронировать» и со строкой о том, где бронируют.
+  final bool bookingEnabled;
 
   /// Клуб, в котором игрок сейчас, — над заголовком раздела.
   final String? place;
@@ -301,7 +306,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       placeLogoUrl: widget.placeLogoUrl,
       // Бронировать можно только с подтверждённым телефоном; без него кнопка не появляется,
       // а объяснение стоит на месте списка.
-      floatingActionButton: widget.phoneVerified
+      floatingActionButton: widget.phoneVerified && widget.bookingEnabled
           ? FloatingActionButton.extended(
               onPressed: _openForm,
               icon: const Icon(Icons.add),
@@ -315,7 +320,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
           padding: sectionPadding,
           sliver: SliverList.list(
             children: [
-            if (!widget.phoneVerified) ...[
+            if (!widget.bookingEnabled) ...[
+              Text(
+                l.customerReservationsRuleOff,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: Space.s4),
+            ] else if (!widget.phoneVerified) ...[
               _gate(l, theme),
               const SizedBox(height: Space.s4),
             ],
@@ -595,17 +606,19 @@ class _ReservationCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            // Место и состояние — в строку, пока помещаются; на крупном шрифте бейдж уходит
+            // под название, а не выдавливает его за край.
+            Wrap(
+              spacing: Space.s2,
+              runSpacing: Space.s1,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
+                Text(
                   entry.isCompany
                       ? l.customerReservationsCompanySeats(entry.seatCount)
                       : reservation.seatName ?? l.customerReservationsNoSeat,
                   style: theme.textTheme.titleMedium,
-                  ),
                 ),
-                const SizedBox(width: Space.s2),
                 StatusBadge(label: _stateLabel(l), tone: _stateTone),
               ],
             ),
@@ -633,7 +646,7 @@ class _ReservationCard extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
               ),
             if (entry.isCancellable)
-              Row(
+              Wrap(
                 children: [
                   if (onMove != null)
                     TextButton(

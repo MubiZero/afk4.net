@@ -42,11 +42,19 @@ SliverAppBar appHeader(
     );
   }
 
+  // Раскрытая высота считается от строк, которые в ней стоят: пустая полоса над текстом
+  // выглядит как недогрузившийся экран, а не как воздух. Строки растут вместе с системным
+  // шрифтом — и высота тоже: на двукратном шрифте строка клуба иначе наезжала на заголовок.
+  final scale = MediaQuery.textScalerOf(context);
+  final titleBlock = 14 + scale.scale(36);
+
   return SliverAppBar(
     pinned: true,
-    // Раскрытая высота считается от строк, которые в ней стоят: пустая полоса над текстом
-    // выглядит как недогрузившийся экран, а не как воздух.
-    expandedHeight: 104 + (eyebrow == null ? 0 : 20) + (place == null ? 0 : 22) + tabsHeight,
+    expandedHeight: 54 +
+        titleBlock +
+        (eyebrow == null ? 0 : scale.scale(20)) +
+        (place == null ? 0 : scale.scale(22)) +
+        tabsHeight,
     actions: actions,
     bottom: tabs,
     flexibleSpace: _HeaderBackground(
@@ -66,7 +74,11 @@ SliverAppBar appHeader(
                 child: Align(
                   alignment: Alignment.bottomLeft,
                   child: Padding(
-                    padding: EdgeInsets.only(left: Space.s5, right: Space.s5, bottom: 50 + tabsHeight),
+                    padding: EdgeInsets.only(
+                      left: Space.s5,
+                      right: Space.s5,
+                      bottom: titleBlock + tabsHeight,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
