@@ -28,5 +28,5 @@ it('formats money the way a person reads it: short sign, no fraction on whole am
   expect(formatMoney(1200, 'TJS').replace(nbsp, ' ')).toBe('12 с.');
   expect(formatMoney(1250, 'TJS').replace(nbsp, ' ')).toBe('12,5 с.');
   expect(formatMoney(120000, 'TJS').replace(nbsp, ' ')).toBe('1 200 с.');
-  expect(formatMoney(-500, 'TJS').replace(nbsp, ' ')).toBe('-5 с.');
+  expect(formatMoney(-500, 'TJS').replace(nbsp, ' ')).toBe('\u22125 с.');
 });

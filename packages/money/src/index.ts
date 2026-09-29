@@ -37,5 +37,7 @@ export function formatMoney(minorUnits: number, currencyCode: string, locale = '
     maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
     minimumFractionDigits: 0
   }).format(majorUnits);
-  return `${formatted} ${currencySymbol(currencyCode)}`;
+  // Настоящий минус, а не дефис, который отдаёт Intl: «−50 с.» рядом с «+50 с.» одной ширины, и
+  // сумма не выглядит переносом строки.
+  return `${formatted.replace('-', '\u2212')} ${currencySymbol(currencyCode)}`;
 }

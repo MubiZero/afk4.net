@@ -991,8 +991,11 @@ export function parseNonNegativeMoneyInputMinorUnits(value: string): number | nu
   return Number.isFinite(majorUnits) && majorUnits >= 0 ? majorToMinor(majorUnits) : null;
 }
 
+// Сумма в поле ввода — тем же знаком дроби, что и в тексте рядом («54,5 с.»), без хвостовых нулей.
+// Было «54.50»: точка в поле и запятая в строке под ним читались как две разные суммы. Разбор
+// (`parseMoneyInputMinorUnits`) принимает и запятую, и точку.
 export function formatMoneyInputMinorUnits(minorUnits: number): string {
-  return minorToMajor(minorUnits).toFixed(2);
+  return String(minorToMajor(minorUnits)).replace('.', ',');
 }
 
 // Reason inputs render empty with a placeholder (§7.5) so a quick top-up/debt-payment

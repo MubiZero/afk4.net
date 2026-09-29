@@ -1,5 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { Unlock } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import { PanelModal } from '../PanelModal';
 
 // Презентационная модалка открытия смены: старт наличных + комментарий. Реальный вызов
@@ -47,10 +48,11 @@ export function OpenShiftModal({
           disabled={busy}
           onChange={(event) => onChangeNote(event.currentTarget.value)}
         />
-        <button type="submit" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action" disabled={busy}>
+        <Button type="submit" variant="primary" size="lg" block disabled={busy}>
           <Unlock size={15} aria-hidden="true" />
           {t('op.cash.open.submit')}
-        </button>
+        </Button>
+        <Button variant="ghost" block disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
       </form>
     </PanelModal>
   );

@@ -20,7 +20,7 @@
 }
 .review-request-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
 .review-request-head strong { color: var(--text-primary); font-weight: 600; }
-.review-request-head b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-base); }
+.review-request-head b { color: var(--text-primary); font-variant-numeric: tabular-nums; font-size: var(--text-base); }
 .review-request-row em { color: var(--text-secondary); font-style: normal; }
 .review-request-meta { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: 12px; color: var(--text-tertiary); }
 .review-request-actions { display: flex; gap: var(--space-2); }
@@ -57,10 +57,10 @@
   font-size: 13px;
 }
 .review-audit-row:first-child { border-top: 0; }
-.review-audit-row span { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.review-audit-row span { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .review-audit-row strong { color: var(--text-primary); font-weight: 600; }
 .review-audit-row em { color: var(--text-secondary); font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.review-audit-row b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.review-audit-row b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 .review-empty { color: var(--text-secondary); font-size: 13px; padding: var(--space-2) 0; }
 
@@ -87,7 +87,7 @@
 .review-embed > .cash-terminal-split { flex: 1; min-height: 380px; }
 .review-approval-row { display: grid; grid-template-columns: 92px 90px minmax(0, 1fr) 110px auto; align-items: center; gap: var(--space-3); min-height: 54px; padding: var(--space-2) var(--space-3); }
 .review-approval-row > span { color: var(--text-primary); font-size: 12px; font-weight: 650; }
-.review-approval-row > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.review-approval-row > strong { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
 .review-approval-row > em { overflow: hidden; color: var(--text-secondary); font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .review-approval-row > small { overflow: hidden; color: var(--text-tertiary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .review-approval-row > b { color: var(--text-tertiary); font-size: 10px; font-weight: 650; white-space: nowrap; }
@@ -96,7 +96,7 @@
 .review-approval-inspector { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
 .review-approval-inspector > p { margin: 0; color: var(--accent-text); font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
 .review-approval-inspector h2 { margin: 0; color: var(--text-primary); font-size: var(--text-lg); line-height: 1.35; }
-.review-approval-inspector > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.review-approval-inspector > strong { color: var(--text-primary); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
 .review-approval-inspector dl { display: flex; flex-direction: column; margin: 0; border-top: 1px solid var(--border-soft); }
 .review-approval-inspector dl > div { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft); font-size: 11px; }
 .review-approval-inspector dt { color: var(--text-tertiary); }

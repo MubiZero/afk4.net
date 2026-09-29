@@ -71,8 +71,7 @@
     "spacing": 78
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/11-pos.css": {
-    "font-size": 8,
-    "mono": 13
+    "font-size": 8
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/12-players.css": {
     "font-size": 40,
@@ -103,8 +102,7 @@
   "src/AFK4.OrganizationAdmin.Web/src/styles/18-review.css": {
     "font-size": 12,
     "radius": 1,
-    "spacing": 1,
-    "mono": 5
+    "spacing": 1
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/19-account-panel.css": {
     "font-size": 10,
@@ -119,10 +117,8 @@
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/21-cash.css": {
     "font-size": 65,
-    "radius": 6,
-    "spacing": 5,
-    "hex": 1,
-    "mono": 28
+    "radius": 4,
+    "spacing": 5
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/22-stock.css": {
     "font-size": 38,

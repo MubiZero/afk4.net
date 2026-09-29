@@ -1504,7 +1504,7 @@ describe('App', () => {
     fireEvent.change(within(movementDialog).getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
     const revenueCallsBeforeMovement = fetchMock.mock.calls.filter(([input]) =>
       String(input).includes('/shifts/revenue/current')).length;
-    fireEvent.click(within(movementDialog).getByRole('button', { name: 'Подтвердить' }));
+    fireEvent.click(within(movementDialog).getByRole('button', { name: 'Внести' }));
 
     expect(await screen.findByText('Внесение наличных: подтверждено')).toBeInTheDocument();
     const movementCall = fetchMock.mock.calls.find(([input, init]) =>

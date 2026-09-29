@@ -128,7 +128,7 @@ describe('CashShiftWorkspace', () => {
     fireEvent.click(await screen.findByRole('row', { name: /20\.05\.2026/ }));
     const inspector = document.querySelector('.cash-shift-history-detail')!;
     expect(inspector).toHaveTextContent('2 340 с.');
-    expect(inspector).toHaveTextContent('-50 с.');
+    expect(inspector).toHaveTextContent('−50 с.');
     expect(screen.queryByLabelText('Детали выбранной записи')).toBeNull();
   });
 

@@ -3,7 +3,7 @@
    приподнятые мягкой слоистой тенью + hairline-ободок; глубина = подъём, не «утопление»).
    Плитки товаров — ячейки, всплывают тенью на hover. Ось оплаты подсвечена.
    Emerald — только GO/активное. Янтарь (--warning) — только деньги-герой (тоталайзер).
-   Все цифры — моно (--font-mono). */
+   Цифры — основным шрифтом с цифрами одной ширины (tabular-nums): моно — только для кодов. */
 
 .pos-head {
   margin-bottom: var(--space-2);
@@ -95,7 +95,6 @@
 .pos-order-seat {
   flex: none;
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -168,7 +167,6 @@
 }
 .pos-order-detail-head strong {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
 }
@@ -208,7 +206,6 @@
 .pos-order-detail-lines b {
   flex: none;
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
 }
@@ -227,7 +224,6 @@
 }
 .pos-order-detail-total b {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-md);
   font-weight: 600;
@@ -426,7 +422,6 @@
 
 .pos-panel-metrics b {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: normal;
   font-size: var(--text-xs);
@@ -539,7 +534,6 @@
 
 .pos-product-card > em {
   color: var(--text-secondary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 10px;
   font-style: normal;
@@ -547,7 +541,6 @@
 
 .pos-product-card > b {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-base);
   font-weight: 600;
@@ -698,7 +691,6 @@
 .pos-client-candidates span,
 .pos-client-candidates p {
   color: var(--text-secondary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 10px;
 }
@@ -750,7 +742,6 @@
 
 .pos-cart-row b {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   white-space: nowrap;
@@ -782,7 +773,6 @@
 
 .pos-tender-total strong {
   color: var(--text-strong);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-2xl);
   font-weight: 700;
@@ -799,12 +789,8 @@
   transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
-/* GO — единственная заливка-emerald, крупная, со свечением на наведении.
-   height/border-color/background/color/font-size/font-weight — из .ui-btn--lg + .ui-btn--primary. */
-.pos-primary-action {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
+/* GO — единственная заливка-emerald, крупная, со свечением на наведении; вид — .ui-btn--lg +
+   .ui-btn--primary, текст без капса, как у всех кнопок. */
 
 /* Единый блок hover+focus-visible: border-color/background/box-shadow отличаются по значению
    от atom-эквивалентов ТОЛЬКО в focus-visible-без-hover состоянии (там сработал бы другой атом-селектор
@@ -848,14 +834,12 @@
 }
 
 .pos-receipt-row > span {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
 
 .pos-receipt-row b {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   text-align: right;
@@ -907,7 +891,6 @@
 
 .pos-sale-detail b {
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   grid-row: span 2;

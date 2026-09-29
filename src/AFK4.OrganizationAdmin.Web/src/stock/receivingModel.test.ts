@@ -11,9 +11,10 @@ const product = (over: Record<string, unknown> = {}) => ({
 
 describe('receivingModel', () => {
   it('prefillUnitCostText форматирует avgCost, не ниже 0', () => {
-    expect(prefillUnitCostText(product())).toBe('4.00');
-    expect(prefillUnitCostText(product({ avgCostMinorUnits: -5 }))).toBe('0.00');
-    expect(prefillUnitCostText(product({ avgCostMinorUnits: undefined }))).toBe('0.00');
+    // Без хвостовых нулей и с запятой — как сумма в тексте рядом.
+    expect(prefillUnitCostText(product())).toBe('4');
+    expect(prefillUnitCostText(product({ avgCostMinorUnits: -5 }))).toBe('0');
+    expect(prefillUnitCostText(product({ avgCostMinorUnits: undefined }))).toBe('0');
   });
 
   it('lineUnitCostMinorUnits парсит текст, невалидный/пустой → 0', () => {
@@ -25,7 +26,7 @@ describe('receivingModel', () => {
   it('addOrAccumulate: новый товар → строка qty=1 с преподставленной себестоимостью, fresh=true', () => {
     const lines = addOrAccumulate([], product());
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({ productId: 'p1', name: 'Cola 0.5', sku: 'COLA-05', quantity: 1, unitCostText: '4.00', fresh: true });
+    expect(lines[0]).toMatchObject({ productId: 'p1', name: 'Cola 0.5', sku: 'COLA-05', quantity: 1, unitCostText: '4', fresh: true });
   });
 
   it('addOrAccumulate: повтор того же товара → +1 к количеству, остальные fresh=false', () => {
