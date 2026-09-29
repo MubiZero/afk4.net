@@ -93,7 +93,6 @@ export function SeatTile({
               поэтому видно целиком, а статус-слово несут точка и тело плитки, не отдельный чип. */}
           <span className="seat-dot" aria-hidden="true" />
           <strong>{seat.name}</strong>
-          {clientName && <span className="seat-client">{clientName}</span>}
         </span>
         {callingForSeconds !== null && (
           <span className="seat-calling" aria-label={t('op.map.seatCalling')}>
@@ -110,13 +109,10 @@ export function SeatTile({
         {sessionOffline && (
           <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />
         )}
-        {lead.kind === 'postpaid' && (
-          <span className="seat-amount" aria-label={t('op.map.seatRising')}>
-            {lead.amount}
-            <TrendingUp size={12} aria-hidden="true" />
-          </span>
-        )}
       </header>
+      {/* Кто за местом — своей строкой под именем ПК. В шапке рядом с колокольчиком, паузой или
+          суммой имя игрока сжималось до пары букв, а следом и имя ПК. */}
+      {clientName && <span className="seat-client">{clientName}</span>}
 
       {lead.kind === 'free' ? (
         // Свободное место — приглашение: крупный «＋» по центру + подпись-аффорданс.
@@ -144,9 +140,14 @@ export function SeatTile({
           </span>
         </div>
       ) : lead.kind === 'postpaid' ? (
-        // Открытый счёт: сумма наверху (в шапке), в теле — честный ярлык состояния оплаты.
+        // Открытый счёт: сумма — герой тела, как время у предоплаты. Раньше она стояла в шапке
+        // рядом с именем игрока и сжимала его до пары букв.
         <div className="seat-body seat-body--metric">
           <span className="seat-open-tab">{t('op.map.seatOpenTab')}</span>
+          <strong className="seat-clock seat-amount" title={t('op.map.seatRising')}>
+            {lead.amount}
+            <TrendingUp size={13} aria-hidden="true" />
+          </strong>
         </div>
       ) : (
         // Проблемное / ожидающее место: иконка типа проблемы + человеческая строка состояния.

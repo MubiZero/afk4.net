@@ -60,15 +60,21 @@ describe('SeatTile', () => {
     expect(container.textContent).not.toContain('0.4');
   });
 
-  it('leads with the rising amount up top for an open tab', () => {
+  // Сумма открытого счёта — герой тела, как время у предоплаты. В шапке она стояла рядом с именем
+  // игрока и сжимала его до пары букв (аудит 29.09), поэтому в шапку она больше не попадает.
+  it('leads with the rising amount in the body for an open tab, leaving the header to the player', () => {
     const { container } = renderTile(
-      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: null, accruedCostMinorUnits: 5400, remaining: '≈ 54 с.' })
+      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: null, accruedCostMinorUnits: 5400, remaining: '≈ 54 с.', playerDisplayName: 'Юсуф А.' })
     );
     const head = container.querySelector('.seat-head');
     const amount = container.querySelector('.seat-amount');
     expect(amount).not.toBeNull();
     expect(amount?.textContent).toContain('≈ 54 с.');
-    expect(head?.contains(amount)).toBe(true);
+    expect(head?.contains(amount)).toBe(false);
+    expect(container.querySelector('.seat-body')?.contains(amount)).toBe(true);
+    expect(container.querySelector('.seat-client')?.textContent).toBe('Юсуф А.');
+    // Игрок — своей строкой, не в шапке: там ему не хватало места рядом с колокольчиком и паузой.
+    expect(head?.querySelector('.seat-client')).toBeNull();
     // No state-chip when the amount takes the lead slot.
     expect(container.querySelector('.seat-head .state-chip')).toBeNull();
   });

@@ -107,7 +107,6 @@
   text-align: right;
 }
 
-.filter-row button,
 .screen-actions button,
 .pc-control-actions button,
 .billing-mode button {
@@ -123,7 +122,6 @@
   font-size: 12px;
 }
 
-.filter-row button.active,
 .billing-mode button.active {
   border-color: var(--accent);
   background: var(--surface-accent-soft);
@@ -144,7 +142,6 @@
   background: var(--surface-accent-soft);
 }
 
-.filter-row button:focus-visible,
 .screen-actions button:focus-visible,
 .pc-control-actions button:focus-visible,
 .billing-mode button:focus-visible,
@@ -408,119 +405,11 @@
   margin-bottom: 8px;
 }
 
-/* Шапка карты: заголовок зала + фильтры-статусы в одной строке на мягкой подложке —
-   единый блок-якорь (зеркало .booking-header), а не голый заголовок над фильтрами. */
-.map-header {
-  box-sizing: border-box;
+/* Фильтры карты — чипы кита (FilterChip), как на остальных экранах, а не свой сегмент-трек. */
+.map-filters {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: var(--map-toolbar-h);
-  margin-bottom: 6px;
-  padding: 3px 9px;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
-}
-
-.map-header h1 {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Название зала — жирным акцентом, подзаголовок-пояснение тише. */
-.map-header-name {
-  font-weight: 700;
-}
-
-.map-header-tagline {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-/* В шапке фильтры-сегмент сжимаются и скроллятся при тесноте, не выдавливая заголовок. */
-.map-header .map-filter-row {
-  flex: 0 1 auto;
-}
-
-/* Фильтры и переключатель вида — единый сегмент-контрол: один трек, активный сегмент залит
-   акцентом, а не россыпь отдельных пилюль (легаси-вид). */
-.map-filter-row,
-.map-view-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 2px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--surface-sunken);
-}
-
-.map-filter-row {
-  justify-self: start;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.map-view-switch {
-  flex: 0 0 auto;
-}
-
-.map-filter-row button,
-.map-view-switch button {
-  height: 24px;
-  min-width: 0;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 10px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.map-filter-row button {
-  gap: 7px;
-  justify-content: space-between;
-}
-
-.map-filter-row button:hover,
-.map-view-switch button:hover {
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.map-filter-row button.active,
-.map-view-switch button.active {
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-}
-
-/* Счётчик в фильтре — компактный бейдж, тише подписи. */
-.map-filter-row button strong {
-  min-width: 17px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.map-filter-row button.active strong {
-  color: var(--accent-bright);
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* Баннер снимка зала: спокойный info-ряд (не pending-спиннер). Реальный обрыв связи —
@@ -1115,9 +1004,12 @@
   font-size: 11px;
 }
 
-
 /* Внутри группы сеткой владеет .seat-zones — свой скролл/паддинг не нужен. */
 .zone-group .seat-grid {
+  /* Плитки тянутся: колонок — столько, сколько мест в самом длинном зале (--seat-cols), но не уже
+     148px и не шире 260px. У auto-fill с голым минимумом на 1920 оставались пустые колонки справа,
+     и зал из шести ПК занимал левую половину доски. Одна формула на все залы — плитки одной ширины. */
+  grid-template-columns: repeat(auto-fill, minmax(max(148px, min(260px, (100% - (var(--seat-cols, 1) - 1) * 8px) / var(--seat-cols, 1))), 1fr));
   height: auto;
   padding: 0;
   overflow: visible;
@@ -1302,17 +1194,23 @@
   background: var(--seat-color);
 }
 
-/* Клиент за местом — справа от имени ПК, вторичным весом. Тянется на остаток ширины и
-   усекается многоточием: имена бывают длинными, плитка не должна разъезжаться. */
+/* Клиент за местом — своей строкой под именем ПК, вторичным весом, во всю ширину плитки; длинное
+   имя усекается многоточием. Рядом с именем ПК, колокольчиком и паузой ему доставалось 6px. */
 .seat-client {
-  flex: 1;
+  display: block;
   min-width: 0;
+  margin-top: calc(-1 * var(--space-1));
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 11px;
-  line-height: 1;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Имя ПК — главная идентификация места: не сжимается никогда. */
+.seat-id strong {
+  flex: none;
 }
 
 /* Активная сессия — живое состояние: зелёная точка, хотя кант остаётся нейтральным
@@ -1365,17 +1263,12 @@
   font-weight: 600;
 }
 
-/* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
+/* Постоплата / открытый счёт: набегающая сумма героем тела, со стрелкой роста. */
 .seat-amount {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  max-width: 96px;
-  overflow: hidden;
+  gap: 4px;
   color: var(--warning-text);
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .seat-amount svg {
@@ -1402,16 +1295,18 @@
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 800;
+  /* Цифры одной ширины: таймер тикает каждую минуту, и без этого строка дрожала. */
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Открытый счёт: честный ярлык состояния оплаты под суммой из шапки. */
+/* Открытый счёт: подпись над набегающей суммой, как «осталось» у предоплаты. */
 .seat-open-tab {
-  color: var(--accent-bright);
-  font-size: 12px;
+  color: var(--text-secondary);
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1736,30 +1631,11 @@
 }
 
 /* Выбор нескольких мест для общей команды (P6a). Выбранное для команды — отдельно от места,
-   открытого в карточке: у открытого ободок, у выбранного — отметка в углу. */
+   открытого в карточке: у открытого ободок, у выбранного — отметка в углу.
+   «Выбрать зал» — чип кита рядом с названием зала: у правого края доски до него тянулись через
+   весь экран, и цель была 19px. */
 .zone-group-pick {
-  margin-left: auto;
-  padding: 2px 9px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease;
-}
-
-.zone-group-pick:hover,
-.zone-group-pick:focus-visible {
-  border-color: var(--border-strong);
-  color: var(--text-strong);
-  outline: none;
-}
-
-.zone-group-pick[aria-pressed='true'] {
-  border-color: var(--border-accent);
-  color: var(--accent-text);
+  margin-left: var(--space-1);
 }
 
 .seat-tile.picked {
