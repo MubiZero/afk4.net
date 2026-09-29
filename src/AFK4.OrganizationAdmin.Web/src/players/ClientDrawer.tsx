@@ -1,4 +1,5 @@
 import { useI18n } from '@afk4/i18n';
+import { displayPhone } from '@afk4/formatting';
 import { Cake, Smartphone } from 'lucide-react';
 import { Button, Inspector, Money, StatusBadge, type Fact } from '@afk4/ui/react';
 import { describeBirthday, type PlayerClientItem } from '../operatorHelpers';
@@ -140,7 +141,7 @@ export function ClientDrawer({
           )}
         </>
       )}
-      subtitle={client.phoneNumber || t('op.pos.cart.clientNoPhone')}
+      subtitle={client.phoneNumber ? displayPhone(client.phoneNumber) : t('op.pos.cart.clientNoPhone')}
       menu={{
         label: t('op.players.menu.open'),
         actions: clientMenuActions(t, {

@@ -96,7 +96,7 @@ export function OrganizationSupportNotesSection({ client, organizationId, canWri
               <li key={n.organizationSupportNoteId} className="pc-note">
                 <div className="pc-note-head">
                   <span>{n.authorDisplayName.length === 0 ? n.authorPlatformAdminId : n.authorDisplayName}</span>
-                  <span className="pc-num">{formatDate(n.createdAtUtc)}</span>
+                  <span className="ui-num">{formatDate(n.createdAtUtc)}</span>
                 </div>
                 {editingId === n.organizationSupportNoteId ? (
                   <div>

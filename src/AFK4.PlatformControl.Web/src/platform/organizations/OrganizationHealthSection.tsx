@@ -65,7 +65,7 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
                 <TableBody>
                   {state.data.recentErrors.map((entry, index) => (
                     <TableRow key={`${entry.createdAtUtc}-${index}`}>
-                      <TableCell className="pc-num">{formatDate(entry.createdAtUtc)}</TableCell>
+                      <TableCell className="ui-num">{formatDate(entry.createdAtUtc)}</TableCell>
                       <TableCell>{auditSourceLabel(entry.source, t)}</TableCell>
                       <TableCell><AuditAction action={entry.action} /></TableCell>
                       <TableCell>{auditOutcomeLabel(entry.outcome, t)}</TableCell>

@@ -639,7 +639,7 @@
   "customerProfileMarketing": "Receive promo emails",
   "customerProfilePhoneNote": "Number confirmed — codes and notifications go here",
   "customerProfilePhoneUnverified": "Number not confirmed — online top-up and booking are closed",
-  "customerProfilePoweredBy": "Powered by AFK4.net",
+  "customerProfilePoweredBy": "Powered by AFK4.NET",
   "customerProfilePush": "Phone notifications",
   "customerProfilePushNote": "Session end, booking, top-up and orders",
   "customerProfileSaveError": "Couldn't save",
@@ -1183,7 +1183,7 @@
   "ledgerAccountBonusTime": "Bonus time",
   "ledgerAccountDebt": "Debt",
   "ledgerAccountPackageTime": "Package time",
-  "ledgerAccountWallet": "Wallet",
+  "ledgerAccountWallet": "Balance",
   "ledgerBalanceAfter": "Balance {amount}",
   "@ledgerBalanceAfter": {
     "placeholders": {
@@ -1218,5 +1218,5 @@
   "ledgerTypeTopUp": "Top-up",
   "ledgerTypeTournamentEntryFee": "Event entry fee",
   "ledgerTypeTournamentEntryRefund": "Entry fee returned",
-  "ledgerTypeWalletPayment": "Wallet payment"
+  "ledgerTypeWalletPayment": "Balance payment"
 }

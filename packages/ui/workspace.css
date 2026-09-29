@@ -174,7 +174,7 @@
 }
 
 /* Пульс — движение, и выключившему анимацию он не нужен: заглушка стоит ровной полосой. В Панели
-   AFK4.net это делало и общее правило reduced-motion, в Platform Control такого правила нет. */
+   AFK4.NET это делало и общее правило reduced-motion, в Platform Control такого правила нет. */
 @media (prefers-reduced-motion: reduce) {
   .skeleton-block,
   .skeleton-line::before {

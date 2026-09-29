@@ -206,7 +206,7 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <span className="pc-num">{t('platform.announcements.readers', { count: announcement.readCount })}</span>
+                    <span className="ui-num">{t('platform.announcements.readers', { count: announcement.readCount })}</span>
                     {announcement.emailDispatched
                       ? <Badge variant="outline">{t('platform.announcements.emailSent')}</Badge>
                       : null}

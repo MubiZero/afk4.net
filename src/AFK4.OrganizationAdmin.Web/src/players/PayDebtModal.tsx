@@ -38,7 +38,7 @@ export function PayDebtModal({
           <input
             id="paydebt-amount"
             inputMode="decimal"
-            placeholder="0.00"
+            placeholder="0,00"
             value={amount}
             disabled={busy}
             onChange={(event) => onChangeAmount(event.currentTarget.value)}

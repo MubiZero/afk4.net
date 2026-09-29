@@ -4,7 +4,6 @@ import { MediaPurposeNames } from '@afk4/contracts';
 import { Archive, ArchiveRestore, Package, Pencil } from 'lucide-react';
 import { ManagementScreen, ScreenAction } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
-import { MgmtDrawer } from '../kit/MgmtDrawer';
 import type { RowAction } from '../kit/types';
 import { PanelModal } from '../../PanelModal';
 import { CriticalActionConfirmation, Money } from '../../operatorPrimitives';
@@ -28,7 +27,7 @@ import type { PosProductDto } from '../../operatorApiClients';
 import { managementScreenState, type DestinationProps } from './types';
 import { deriveCategoryOptions, type CategoryOption } from './goods/categoryModel';
 import { CategoriesPanel, categoriesGrid } from './goods/CategoriesPanel';
-import { Button } from '@afk4/ui/react';
+import { Button, Inspector } from '@afk4/ui/react';
 import { SkeletonTable } from '../../LoadingSkeleton';
 
 type Product = PosProductDto;
@@ -84,7 +83,7 @@ export function GoodsDestination({
   const [categories, setCategories] = useState<unknown[]>([]);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
-  const [price, setPrice] = useState('0.00');
+  const [price, setPrice] = useState('0,00');
   const [trackStock, setTrackStock] = useState(true);
   const [allowNegativeStock, setAllowNegativeStock] = useState(false);
   const [availableInShell, setAvailableInShell] = useState(false);
@@ -147,7 +146,7 @@ export function GoodsDestination({
     setSelectedCategoryId(categoryOptions[0]?.categoryId ?? '');
     setName('');
     setSku('');
-    setPrice('0.00');
+    setPrice('0,00');
     setTrackStock(true);
     setAllowNegativeStock(false);
     setAvailableInShell(false);
@@ -449,11 +448,11 @@ export function GoodsDestination({
         )}
 
         {selectedProduct && (
-          <MgmtDrawer
+          <Inspector
             title={readString(selectedProduct, 'name', t('op.settings.pos.productFallback'))}
             subtitle={selectedProductIsActive ? t('op.management.goods.statusActive') : t('op.management.goods.statusDelisted')}
-            actions={drawerActions}
-            onClose={() => setSelectedProductId(null)}
+            menu={drawerActions.length > 0 ? { label: t('op.management.crud.rowMenu'), actions: drawerActions } : undefined}
+            close={{ label: t('common.close'), onClose: () => setSelectedProductId(null) }}
             footer={
               canManagePosCatalog ? (
                 <div className="mgmt-form-actions">
@@ -532,7 +531,7 @@ export function GoodsDestination({
                 canManage={canManageInventoryStock}
               />
             </div>
-          </MgmtDrawer>
+          </Inspector>
         )}
       </div>
 

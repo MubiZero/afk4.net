@@ -101,11 +101,11 @@ describe('FinishedScreen', () => {
   // На рабочем месте управляющего ставится панель, а не оболочка игрока: одна строка на обе роли
   // обещала управляющему то, чего у него не будет.
   // И называет её тем же именем, что строка ниже: «Устанавливаем Organization Admin» и тут же
-  // «Откройте панель клуба» — два имени одного места на одном экране. Теперь оба — Панель AFK4.net.
+  // «Откройте панель клуба» — два имени одного места на одном экране. Теперь оба — Панель AFK4.NET.
   it('называет то приложение, которое ставится этой роли', () => {
     renderFinished('manager_workstation');
 
-    expect(screen.getByText('Не удалось установить Панель AFK4.net.')).toBeInTheDocument();
+    expect(screen.getByText('Не удалось установить Панель AFK4.NET.')).toBeInTheDocument();
   });
 
   // Имя стоит в фразе, а не в списке компонентов: «установить Оболочка игрока» было списком.
@@ -185,7 +185,7 @@ describe('FinishedScreen', () => {
 
     const steps = screen.getAllByRole('listitem').map((item) => item.textContent ?? '');
     expect(steps).toHaveLength(2);
-    expect(steps[0]).toMatch(/^Подтвердите этот ПК в Панели AFK4.net/);
+    expect(steps[0]).toMatch(/^Подтвердите этот ПК в Панели AFK4.NET/);
     expect(steps[1]).toMatch(/^Перезагрузите ПК/);
   });
 

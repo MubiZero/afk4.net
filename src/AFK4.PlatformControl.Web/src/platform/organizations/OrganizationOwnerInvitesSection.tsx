@@ -186,8 +186,8 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
                     </TableCell>
                     <TableCell><code className="pc-mono">{code !== undefined ? code : `•••• ${inv.codeSuffix}`}</code></TableCell>
                     <TableCell>{inv.ownerUserName ?? '—'}</TableCell>
-                    <TableCell className="pc-num">{formatDate(inv.expiresAtUtc)}</TableCell>
-                    <TableCell className="pc-num">
+                    <TableCell className="ui-num">{formatDate(inv.expiresAtUtc)}</TableCell>
+                    <TableCell className="ui-num">
                       {canResendOwnerInvite(inv) && (
                         <Button
                           variant="ghost"

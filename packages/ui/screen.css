@@ -126,6 +126,14 @@
   overflow-y: auto;
 }
 
+/* Кнопка формы — третьей строкой флекс-колонки панели, вне прокрутки тела: всегда на виду внизу,
+   а не последней строкой длинной формы (см. .mgmt-drawer-footer — тот же приём). */
+.ui-inspector-footer {
+  flex: none;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-soft);
+}
+
 .ui-inspector-figure {
   display: grid;
   gap: var(--space-1);
@@ -196,17 +204,17 @@
   font-size: var(--text-sm);
 }
 
+/* Длинное значение переносится, а не обрезается многоточием: факт — то, ради чего открыли
+   карточку, и «не выдан — клуб ещё не откры…» прятал ровно ту часть, что объясняла причину. */
 .ui-facts-row > dd {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .management-screen-body {

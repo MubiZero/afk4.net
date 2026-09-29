@@ -639,7 +639,7 @@
   "customerProfileMarketing": "Получать рассылку об акциях",
   "customerProfilePhoneNote": "Номер подтверждён — по нему приходят коды и уведомления",
   "customerProfilePhoneUnverified": "Номер не подтверждён — онлайн-пополнение и брони закрыты",
-  "customerProfilePoweredBy": "Работает на AFK4.net",
+  "customerProfilePoweredBy": "Работает на AFK4.NET",
   "customerProfilePush": "Уведомления на телефон",
   "customerProfilePushNote": "Конец сессии, бронь, зачисление и заказ",
   "customerProfileSaveError": "Не удалось сохранить",
@@ -1183,7 +1183,7 @@
   "ledgerAccountBonusTime": "Бонусное время",
   "ledgerAccountDebt": "Долг",
   "ledgerAccountPackageTime": "Пакетное время",
-  "ledgerAccountWallet": "Кошелёк",
+  "ledgerAccountWallet": "Баланс",
   "ledgerBalanceAfter": "Остаток {amount}",
   "@ledgerBalanceAfter": {
     "placeholders": {
@@ -1218,5 +1218,5 @@
   "ledgerTypeTopUp": "Пополнение",
   "ledgerTypeTournamentEntryFee": "Взнос за событие",
   "ledgerTypeTournamentEntryRefund": "Возврат взноса",
-  "ledgerTypeWalletPayment": "Оплата с кошелька"
+  "ledgerTypeWalletPayment": "Оплата с баланса"
 }

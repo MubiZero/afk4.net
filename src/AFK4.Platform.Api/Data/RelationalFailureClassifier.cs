@@ -33,6 +33,16 @@ internal static class RelationalFailureClassifier
         return false;
     }
 
+    /// <summary>
+    /// Пауза перед повтором проигравшей серийной транзакции. Postgres отменяет сразу нескольких
+    /// соперников, и без паузы они повторяли в ту же миллисекунду и снова сталкивались: на
+    /// медленной машине три игрока на последнее место турнира исчерпали три попытки, и запись
+    /// ответила ошибкой сервера. Случайная часть разводит их по времени, растущая — даёт
+    /// победителю закоммитить.
+    /// </summary>
+    public static Task BackoffBeforeRetryAsync(int attempt, CancellationToken cancellationToken) =>
+        Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(5, 25) * attempt), cancellationToken);
+
     public static async Task RollbackIfActiveAsync(
         IDbContextTransaction transaction,
         CancellationToken cancellationToken)

@@ -52,7 +52,8 @@ public sealed class TournamentRegistrationPostgresTests
                 {
                     BranchId = Branch, OrganizationId = Org, Slug = "main", Name = "На Рудаки", City = "Душанбе", CreatedAtUtc = Now
                 });
-                for (var i = 0; i < 3; i++)
+                // Пятеро на одно место: при трёх соперниках повтор без паузы уже исчерпывал попытки на CI.
+                for (var i = 0; i < 5; i++)
                 {
                     var playerAccountId = Guid.NewGuid();
                     players.Add(playerAccountId);

@@ -42,7 +42,7 @@ it('выдаёт доступ и открывает админку клиент�
   fireEvent.change(screen.getByLabelText('Причина'), {
     target: { value: 'Клуб сообщает, что не открывается смена' }
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Войти в Панель AFK4.net' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Войти в Панель AFK4.NET' }));
 
   await waitFor(() => expect(issueGrant).toHaveBeenCalledWith('o1', 'Клуб сообщает, что не открывается смена', 30));
   expect(opened).toEqual(['https://admin.example/support-access?ticket=t1']);

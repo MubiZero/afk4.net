@@ -755,3 +755,11 @@
 @media (prefers-reduced-motion: reduce) {
   .recv-step button:active { transform: none; }
 }
+
+/* Стоимость склада, когда себестоимость известна не у всех товаров: «≈» и пунктирная подчёркнутая
+   строка — сумма настоящая, но приблизительная, и это не спрятано только во всплывающей подсказке. */
+.op-stock-total-partial {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}

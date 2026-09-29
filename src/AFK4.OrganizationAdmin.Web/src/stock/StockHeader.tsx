@@ -48,7 +48,17 @@ export function StockHeader({
   return (
     <SectionHeader
       title={t('op.stock.title')}
-      counts={summary ? [{ label: t('op.stock.summary.totalValue'), value: <Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} /> }] : []}
+      counts={summary ? [{
+        label: t('op.stock.summary.totalValue'),
+        value: summary.partial ? (
+          // Себестоимость известна не у всех товаров на полке — сумма настоящая, но не по всему
+          // складу; «≈» и подсказка говорят об этом рядом с цифрой, а не только в тексте, который
+          // легко пролистать.
+          <span className="op-stock-total-partial" title={t('op.stock.summary.totalValuePartialHint')}>
+            ≈ <Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} />
+          </span>
+        ) : <Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} />
+      }] : []}
       tabs={tabs}
     />
   );

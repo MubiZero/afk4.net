@@ -639,7 +639,7 @@
   "customerProfileMarketing": "Гирифтани хабарнома дар бораи аксияҳо",
   "customerProfilePhoneNote": "Рақам тасдиқ шуд — рамзҳо ва огоҳиномаҳо ба ҳамин рақам меоянд",
   "customerProfilePhoneUnverified": "Рақам тасдиқ нашудааст — пур кардани онлайн ва брон баста аст",
-  "customerProfilePoweredBy": "Дар AFK4.net кор мекунад",
+  "customerProfilePoweredBy": "Дар AFK4.NET кор мекунад",
   "customerProfilePush": "Огоҳиномаҳо ба телефон",
   "customerProfilePushNote": "Анҷоми бозӣ, ҷойгирӣ, пуркунӣ ва фармоиш",
   "customerProfileSaveError": "Нигоҳ доштан муяссар нашуд",
@@ -1183,7 +1183,7 @@
   "ledgerAccountBonusTime": "Вақти бонус",
   "ledgerAccountDebt": "Қарз",
   "ledgerAccountPackageTime": "Вақти пакет",
-  "ledgerAccountWallet": "Ҳамён",
+  "ledgerAccountWallet": "Тавозун",
   "ledgerBalanceAfter": "Бақия {amount}",
   "@ledgerBalanceAfter": {
     "placeholders": {
@@ -1218,5 +1218,5 @@
   "ledgerTypeTopUp": "Пуркунӣ",
   "ledgerTypeTournamentEntryFee": "Пардохти чорабинӣ",
   "ledgerTypeTournamentEntryRefund": "Баргардонидани пардохт",
-  "ledgerTypeWalletPayment": "Пардохт аз ҳамён"
+  "ledgerTypeWalletPayment": "Пардохт аз тавозун"
 }

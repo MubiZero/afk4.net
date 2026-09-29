@@ -1,4 +1,4 @@
-import type { MessageKey } from '@afk4/i18n';
+import { dictionaryLabel, type MessageKey } from '@afk4/i18n';
 import { formatDateParts } from '@afk4/formatting';
 import type { OrgAuditRecordDto } from '../../api/clients/orgAudit';
 import { knownAuditActionLabel, type TFunc } from '../../operatorHelpers';
@@ -67,12 +67,12 @@ const TARGET_LABELS: Readonly<Record<string, MessageKey>> = {
 
 // Откуда пришло действие.
 const SOURCE_LABELS: Readonly<Record<string, MessageKey>> = {
-  OrganizationAdmin: 'op.network.journal.source.admin',
-  PlatformApi: 'op.network.journal.source.server',
-  Agent: 'op.network.journal.source.pc',
-  PlatformBilling: 'op.network.journal.source.billing',
-  SetupWizard: 'op.network.journal.source.wizard',
-  PlatformControl: 'op.network.journal.source.platform'
+  organizationadmin: 'op.network.journal.source.admin',
+  platformapi: 'op.network.journal.source.server',
+  agent: 'op.network.journal.source.pc',
+  platformbilling: 'op.network.journal.source.billing',
+  setupwizard: 'op.network.journal.source.wizard',
+  platformcontrol: 'op.network.journal.source.platform'
 };
 
 // Подробности — JSON записи. На экране — развёрнутым для чтения и только по «Подробнее»: строкой в
@@ -121,20 +121,20 @@ export function toAuditRows(
   const { t } = fmt;
   return records.map((r) => {
     const action = knownAuditActionLabel(r.action, t);
-    const targetKey = TARGET_LABELS[r.targetType.toLowerCase()];
-    const outcomeKey = OUTCOME_LABELS[r.outcome.toLowerCase()];
-    const sourceKey = SOURCE_LABELS[r.sourceApp];
+    const target = dictionaryLabel(TARGET_LABELS, r.targetType, t);
+    const outcome = dictionaryLabel(OUTCOME_LABELS, r.outcome, t);
+    const source = dictionaryLabel(SOURCE_LABELS, r.sourceApp, t);
     return {
       id: r.auditRecordId,
       date: fmt.formatDate(r.createdAtUtc),
       actor: r.actorDisplayName ?? (r.actorStaffUserId ?? r.actorPlatformAdminUserId)?.slice(0, 8) ?? systemLabel,
       action: action ?? r.action,
       actionIsCode: action === null,
-      target: targetKey === undefined ? r.targetType : t(targetKey),
-      targetIsCode: targetKey === undefined,
-      outcome: outcomeKey === undefined ? r.outcome : t(outcomeKey),
+      target: target ?? r.targetType,
+      targetIsCode: target === null,
+      outcome: outcome ?? r.outcome,
       outcomeTone: outcomeChipTone(r.outcome),
-      source: sourceKey === undefined ? (r.sourceApp ?? '') : t(sourceKey),
+      source: source ?? (r.sourceApp ?? ''),
       details: readableDetails(r.targetId, r.detailsJson)
     };
   });

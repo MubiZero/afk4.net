@@ -151,7 +151,7 @@ export function DcTopUpDialog({
             <input
               id="dc-topup-amount"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="0,00"
               value={amount}
               disabled={creating}
               onChange={(event) => setAmount(event.currentTarget.value)}

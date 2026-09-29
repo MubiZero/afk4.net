@@ -18,7 +18,7 @@ export function ReputationCard({ controller }: { controller: ReputationControlle
 
       {(state.status === 'idle' || state.status === 'loading') && (
         <div className="reputation-ask">
-          <Button size="sm" disabled={state.status === 'loading'} onClick={ask}>
+          <Button variant="ghost" size="sm" disabled={state.status === 'loading'} onClick={ask}>
             {state.status === 'loading' ? t('op.reputation.asking') : t('op.reputation.ask')}
           </Button>
           <p className="reputation-note">{t('op.reputation.auditNote')}</p>
@@ -27,7 +27,7 @@ export function ReputationCard({ controller }: { controller: ReputationControlle
 
       {state.status === 'failed' && (
         <div className="reputation-ask">
-          <Button size="sm" onClick={ask}>{t('op.reputation.retry')}</Button>
+          <Button variant="ghost" size="sm" onClick={ask}>{t('op.reputation.retry')}</Button>
           <p className="reputation-note reputation-note--failed" role="alert">{state.detail}</p>
         </div>
       )}

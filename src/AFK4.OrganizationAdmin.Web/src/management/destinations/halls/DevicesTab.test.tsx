@@ -132,6 +132,24 @@ describe('DevicesTab', () => {
     expect(container.querySelector('.mgmt-status-pair')?.textContent).toContain('онлайн');
   });
 
+  // Пять фактов одной строкой («Версия · приложений · в работе · ошибок · время») обрезались на
+  // «ошибо…» и прятали как раз то, ради чего смотрят колонку. Теперь в строке — время связи и
+  // отметки только о зависших и упавших командах; версия и приложения — в карточке ПК.
+  it('в колонке состояния — время связи и отметки только о командах, которые ждут или упали', () => {
+    const props = { ...baseProps, backend: null, canAssignDeviceSeat: false, canViewDeviceDetail: false, canRotateDeviceCredential: false, canRevokeDeviceCredential: false };
+    const { container, unmount } = wrap(<DevicesTab {...props} />);
+    const quiet = container.querySelectorAll('.mgmt-status-pair')[1];
+    expect(quiet?.querySelectorAll('.ui-chip')).toHaveLength(0);
+    expect(quiet?.textContent).not.toContain('1.2.3');
+    unmount();
+
+    const troubled = [{ ...deviceInventory[0], pendingCommandCount: 2, failedCommandCount: 5 } as never];
+    const again = wrap(<DevicesTab {...props} deviceInventory={troubled} />);
+    const cell = again.container.querySelectorAll('.mgmt-status-pair')[1];
+    expect(within(cell as HTMLElement).getByText('2 команды в работе')).toBeTruthy();
+    expect(within(cell as HTMLElement).getByText('5 ошибок').className).toContain('is-danger');
+  });
+
   it('has no "+ Подключить устройство" enrollment CTA anywhere — provisioning moved to the Setup Wizard', () => {
     wrap(
       <DevicesTab

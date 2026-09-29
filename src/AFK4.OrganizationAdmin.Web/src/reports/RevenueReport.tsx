@@ -1,6 +1,7 @@
 import { useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { downloadTextFile, formatMinorUnits } from '../operatorHelpers';
+import { downloadTextFile } from '../operatorHelpers';
+import { Money } from '@afk4/ui/react';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { ReportBody, ReportFiguresSkeleton, ReportRangeControls, ReportScreen } from './ReportRangeControls';
 import { SkeletonLine } from '../LoadingSkeleton';
@@ -23,12 +24,12 @@ export function RevenueReport({ backend }: { backend: OperatorBackendContext | n
   }
   return <ReportScreen state={state} skeleton={<RevenueSkeleton />} failure={error} onRetry={reload}
     controls={<ReportRangeControls range={range} onChange={setRange} onRefresh={reload} onExport={() => void exportCsv()} refreshing={refreshing} />}>
-    <ReportBody refreshing={refreshing}>{data ? <div className="reports-revenue"><dl className="reports-figures"><div><dt>{t('op.reports.revenue.total')}</dt><dd>{formatMinorUnits(data.netRevenue.minorUnits, data.netRevenue.currencyCode)}</dd></div><div><dt>{t('op.reports.revenue.refunds')}</dt><dd>{formatMinorUnits(data.refunds.minorUnits, data.refunds.currencyCode)}</dd></div><div><dt>{t('op.reports.gameplay.total')}</dt><dd>{formatNumber(Math.round(data.gameplaySeconds / 360) / 10)}</dd></div></dl><section className="reports-comparison"><span>{t('op.reports.revenue.comparison')}</span><strong>{data.comparison.changePercent == null ? '—' : `${data.comparison.changePercent >= 0 ? '+' : ''}${formatNumber(data.comparison.changePercent)}%`}</strong><small>{formatMinorUnits(data.comparison.previousNetRevenue.minorUnits, data.comparison.previousNetRevenue.currencyCode)}</small></section><div className="reports-source-split">{data.sources.map((source) => <section key={source.source}><span>{source.source === 'gameplay' ? t('op.reports.gameplay.revenue') : t('op.reports.revenue.pos')}</span><strong>{formatMinorUnits(source.revenue.minorUnits, source.revenue.currencyCode)}</strong></section>)}</div><div className="reports-breakdowns"><Breakdown title={t('op.reports.revenue.paymentMethods')} rows={data.paymentMethods} /><Breakdown title={t('op.reports.revenue.operators')} rows={data.operators} /></div></div> : null}</ReportBody>
+    <ReportBody refreshing={refreshing}>{data ? <div className="reports-revenue"><dl className="reports-figures"><div><dt>{t('op.reports.revenue.total')}</dt><dd><Money minorUnits={data.netRevenue.minorUnits} currencyCode={data.netRevenue.currencyCode} /></dd></div><div><dt>{t('op.reports.revenue.refunds')}</dt><dd><Money minorUnits={data.refunds.minorUnits} currencyCode={data.refunds.currencyCode} /></dd></div><div><dt>{t('op.reports.gameplay.total')}</dt><dd>{formatNumber(Math.round(data.gameplaySeconds / 360) / 10)}</dd></div></dl><section className="reports-comparison"><span>{t('op.reports.revenue.comparison')}</span><strong>{data.comparison.changePercent == null ? '—' : `${data.comparison.changePercent >= 0 ? '+' : ''}${formatNumber(data.comparison.changePercent)}%`}</strong><small><Money minorUnits={data.comparison.previousNetRevenue.minorUnits} currencyCode={data.comparison.previousNetRevenue.currencyCode} /></small></section><div className="reports-source-split">{data.sources.map((source) => <section key={source.source}><span>{source.source === 'gameplay' ? t('op.reports.gameplay.revenue') : t('op.reports.revenue.pos')}</span><strong><Money minorUnits={source.revenue.minorUnits} currencyCode={source.revenue.currencyCode} /></strong></section>)}</div><div className="reports-breakdowns"><Breakdown title={t('op.reports.revenue.paymentMethods')} rows={data.paymentMethods} /><Breakdown title={t('op.reports.revenue.operators')} rows={data.operators} /></div></div> : null}</ReportBody>
   </ReportScreen>;
 }
 
 function Breakdown({ title, rows }: { title: string; rows: Array<{ key: string; label: string; revenue: { currencyCode: string; minorUnits: number } }> }) {
-  return <section><h2>{title}</h2>{rows.length ? <dl>{rows.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{formatMinorUnits(row.revenue.minorUnits, row.revenue.currencyCode)}</dd></div>)}</dl> : <p>—</p>}</section>;
+  return <section><h2>{title}</h2>{rows.length ? <dl>{rows.map((row) => <div key={row.key}><dt>{row.label}</dt><dd><Money minorUnits={row.revenue.minorUnits} currencyCode={row.revenue.currencyCode} /></dd></div>)}</dl> : <p>—</p>}</section>;
 }
 
 // Цифры, сравнение, два источника и две разбивки — в тех же блоках, что и настоящий отчёт.

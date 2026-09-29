@@ -30,6 +30,18 @@
 
 .booking-inspector { animation: soft-enter 140ms ease-out; }
 
+/* Кнопка формы создания брони приклеена к низу панели (тело инспектора прокручивается — см.
+   .ui-inspector-body): при 1280×800 форма выше окна, и без этого «Создать бронь» была видна
+   только после прокрутки до конца. */
+.booking-drawer-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: var(--space-3);
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-soft);
+}
+
 /* ── Навигатор дат ────────────────────────────────────────────────────────── */
 .booking-date-nav {
   display: inline-flex;

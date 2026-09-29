@@ -78,7 +78,7 @@ update channel according to the enrolled device role.
 For a hall installed from a deployment script — no wizard window, no staff
 sign-in on each PC (plan P5f-2):
 
-1. In the AFK4.net Panel: **Сеть → Установка → Весь зал разом**. Pick the
+1. In the AFK4.NET Panel: **Сеть → Установка → Весь зал разом**. Pick the
    branch, the lifetime (a day, three days or a week) and how many new PCs the
    code may install (1–200), then **Выдать код**. The code is shown once, with
    the ready command; the list keeps only its expiry and the count installed.

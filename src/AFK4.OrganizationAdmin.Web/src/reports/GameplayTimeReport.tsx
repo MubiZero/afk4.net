@@ -1,9 +1,10 @@
 import { useState, type JSX } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { MgmtTable } from '../management/kit/MgmtTable';
-import { downloadTextFile, formatMinorUnits } from '../operatorHelpers';
+import { downloadTextFile } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { PartialLoadFailure } from '../operatorPrimitives';
+import { Money } from '@afk4/ui/react';
 import type { FloorMapDto } from '../operatorApiClients';
 import type { GameplayTimeReportResultDto } from '../api/clients/shifts';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -90,7 +91,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
             <div><dt>{t('op.reports.gameplay.bonus')}</dt><dd>{hours(data.totalBonusSeconds)}</dd></div>
             <div>
               <dt>{t('op.reports.gameplay.revenue')}</dt>
-              <dd>{formatMinorUnits(data.gameplayRevenueTotal.minorUnits, data.gameplayRevenueTotal.currencyCode)}</dd>
+              <dd><Money minorUnits={data.gameplayRevenueTotal.minorUnits} currencyCode={data.gameplayRevenueTotal.currencyCode} /></dd>
             </div>
           </dl>
           <MgmtTable<GameplayTimeReportResultDto['rows'][number]>
@@ -103,7 +104,7 @@ export function GameplayTimeReport({ backend }: { backend: OperatorBackendContex
                 key: 'revenue',
                 header: t('op.reports.gameplay.col.revenue'),
                 align: 'end',
-                render: (row) => formatMinorUnits(row.gameplayRevenue.minorUnits, row.gameplayRevenue.currencyCode)
+                render: (row) => <Money minorUnits={row.gameplayRevenue.minorUnits} currencyCode={row.gameplayRevenue.currencyCode} />
               }
             ]}
             rows={data.rows}

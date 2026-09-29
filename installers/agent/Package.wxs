@@ -103,7 +103,7 @@
     <Component Id="SetupWizardShortcut" Directory="AFK4ProgramsFolder" Guid="{59BDDD1E-D67F-4721-89D5-16D9D8690C94}">
       <Shortcut
           Id="SetupWizardStartMenuShortcut"
-          Name="AFK4.NET Setup Wizard"
+          Name="Мастер установки AFK4.NET"
           Description="Enroll this PC with AFK4.NET."
           Target="[SetupWizardFolder]AFK4.SetupWizard.exe"
           WorkingDirectory="SetupWizardFolder" />

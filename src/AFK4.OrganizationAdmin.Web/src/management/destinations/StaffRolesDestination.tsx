@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
+import { groupCode } from '@afk4/formatting';
 import { KeyRound, Pencil, Power, PowerOff, UserMinus, Users } from 'lucide-react';
 import { ManagementScreen, ScreenAction } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
-import { MgmtDrawer } from '../kit/MgmtDrawer';
 import type { RowAction } from '../kit/types';
 import { PanelModal } from '../../PanelModal';
 import { CriticalActionConfirmation } from '../../operatorPrimitives';
@@ -22,12 +22,11 @@ import {
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import type { StaffUserDto } from '../../operatorApiClients';
-import { Button, useBlockedReason } from '@afk4/ui/react';
+import { Button, Inspector, useBlockedReason } from '@afk4/ui/react';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
 import { SkeletonTable } from '../../LoadingSkeleton';
 import { StaffFromNetworkModal } from './StaffFromNetworkModal';
 import { PendingStaffInvites } from './staff/PendingStaffInvites';
-import { groupCode } from './staff/firstSignInCode';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
@@ -459,10 +458,10 @@ export function StaffRolesDestination({
         )}
 
         {selectedStaffUser && (
-          <MgmtDrawer
+          <Inspector
             title={operatorDisplayNameLabel(readString(selectedStaffUser, 'displayName'), t)}
             subtitle={selectedStaffIsActive ? t('op.settings.staff.active') : t('op.settings.staff.inactive')}
-            onClose={() => setSelectedStaffUserId(null)}
+            close={{ label: t('common.close'), onClose: () => setSelectedStaffUserId(null) }}
           >
             <div className="mgmt-drawer-section">
               <div className="mgmt-section-title"><span>{t('op.management.staff.profileSection.title')}</span></div>
@@ -571,7 +570,7 @@ export function StaffRolesDestination({
                 </div>
               </div>
             )}
-          </MgmtDrawer>
+          </Inspector>
         )}
       </div>
 

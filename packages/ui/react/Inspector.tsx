@@ -14,7 +14,7 @@ import { cx } from './cx';
 // Опасное и редкое — в «⋯», а не пятой кнопкой в колонке: в инспекторе игрока их было пять видов.
 // Чего нельзя по правам — не рисуется; чего нельзя по состоянию — одна строка причины рядом
 // (useBlockedReason).
-export function Inspector({ title, status, subtitle, menu, close, figure, className, children }: {
+export function Inspector({ title, status, subtitle, menu, close, figure, footer, className, children }: {
   title: ReactNode;
   status?: ReactNode;
   subtitle?: ReactNode;
@@ -22,6 +22,9 @@ export function Inspector({ title, status, subtitle, menu, close, figure, classN
   /** `disabled` — пока идёт команда: закрыть карточку посреди записи значит потерять её исход. */
   close?: { label: string; onClose: () => void; disabled?: boolean };
   figure?: { label: string; value: ReactNode; hint?: ReactNode };
+  /** Кнопка формы (обычно «Сохранить») — вне прокрутки тела, всегда на виду внизу панели, а не
+   *  последней строкой под длинной формой, до которой надо доскроллить. */
+  footer?: ReactNode;
   className?: string;
   children?: ReactNode;
 }) {
@@ -53,6 +56,7 @@ export function Inspector({ title, status, subtitle, menu, close, figure, classN
         ) : null}
         {children}
       </div>
+      {footer !== undefined ? <div className="ui-inspector-footer">{footer}</div> : null}
     </aside>
   );
 }
