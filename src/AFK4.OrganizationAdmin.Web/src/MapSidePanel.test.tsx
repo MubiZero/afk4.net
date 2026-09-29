@@ -538,6 +538,48 @@ describe('MapSidePanel: одна главная кнопка по положен
   });
 });
 
+// Сбой команды — своё положение места: главное — повторить именно ту команду, что упала, тем же
+// путём, что из «Ещё» (с ключом повтора и, для опасной, с «точно?»); гостя посадить тоже можно.
+describe('MapSidePanel: «Повторить» упавшую команду', () => {
+  const failed = (type: string) => free({ tone: 'failed', stateLabel: 'Сбой команды', lastFailedCommandType: type });
+
+  it('упавшая разблокировка — «Повторить разблокировку» уходит сразу, рядом «Посадить гостя»', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(failed('unlock'), { onPcControlAction });
+    expect(primaryButton()?.textContent).toBe('Повторить разблокировку');
+    expect(screen.getByRole('button', { name: 'Посадить гостя' })).not.toHaveClass('ui-btn--primary');
+    fireEvent.click(primaryButton()!);
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('unlock');
+  });
+
+  it('упавшая перезагрузка повторяется только после «точно?»', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(failed('reboot'), { onPcControlAction });
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить перезагрузку' }));
+    expect(onPcControlAction).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Перезагрузить' }));
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('reboot');
+  });
+
+  it('без права на команды ПК повтора нет — остаётся «Посадить гостя»', () => {
+    renderWith(failed('unlock'), { permissions: ['organization.sessions.start'] });
+    expect(primaryButton()?.textContent).toBe('Посадить гостя');
+  });
+
+  // С игроком за ПК главная — сессия, а упавшая команда — строкой с «Повторить».
+  it('в сессии упавшая команда — строкой с «Повторить», главная остаётся сессии', async () => {
+    const onPcControlAction = mock(async () => ({ detail: '' }));
+    renderWith(seat({ remainingSeconds: 1800, lastFailedCommandType: 'unlock' }), { onPcControlAction });
+    expect(primaryButton()?.textContent).toBe('Завершить и рассчитать');
+    expect(screen.getByText('Не прошла команда: Разблокировка')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    await waitFor(() => expect(onPcControlAction).toHaveBeenCalledTimes(1));
+    expect((onPcControlAction.mock.calls[0] as unknown[])[1]).toBe('unlock');
+  });
+});
+
 describe('MapSidePanel: «Ещё» — всё остальное, с причинами', () => {
   const openMore = () => fireEvent.click(screen.getByRole('button', { name: 'Ещё действия' }));
 

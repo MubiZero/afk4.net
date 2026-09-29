@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
@@ -73,6 +74,7 @@ public sealed class EfFloorMapReadService(
             .AsNoTracking()
             .Where(session => session.BranchId == branchId && ProjectedSessionStates.Contains(session.State))
             .ToListAsync(cancellationToken);
+        var lastFailedCommands = await GetLastFailedCommandsAsync(assignedDeviceIds, cancellationToken);
 
         var assignmentsBySeat = activeAssignments
             .GroupBy(assignment => assignment.SeatId)
@@ -117,7 +119,7 @@ public sealed class EfFloorMapReadService(
 
         var allowance = await PlanDevices.ForOrganizationAsync(dbContext, branch.OrganizationId, cancellationToken);
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, allowance, now))
+            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, allowance, lastFailedCommands, now))
             .OrderBy(seat => zonesById.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
@@ -151,6 +153,7 @@ public sealed class EfFloorMapReadService(
         IReadOnlyDictionary<Guid, TariffEntity> tariffsById,
         IReadOnlyDictionary<Guid, PlayerAccountEntity> playerAccountsById,
         PlanDevices.Allowance allowance,
+        IReadOnlyDictionary<Guid, string> lastFailedCommands,
         DateTimeOffset now)
     {
         zones.TryGetValue(seat.ZoneId, out var zone);
@@ -192,7 +195,67 @@ public sealed class EfFloorMapReadService(
             AssistanceRequestedAtUtc: device?.AssistanceRequestedAtUtc,
             MaintenanceSinceUtc: device?.MaintenanceSinceUtc,
             IsConsole: isConsole,
-            IsOutsidePlan: device is not null && allowance.Outside.Contains(device.DeviceId));
+            IsOutsidePlan: device is not null && allowance.Outside.Contains(device.DeviceId),
+            LastFailedCommandType: device is not null && lastFailedCommands.TryGetValue(device.DeviceId, out var failedType) ? failedType : null);
+    }
+
+    // Команды, которые администратор шлёт ПК сам и может повторить той же кнопкой. Служебные
+    // (продление аренды, предупреждение, профиль защиты) карта не повторяет, пробуждение уходит
+    // соседнему ПК, а сообщение без текста повторить нечем.
+    private static readonly string[] RetryableCommandTypes =
+    [
+        DeviceCommandTypeNames.Lock,
+        DeviceCommandTypeNames.Unlock,
+        DeviceCommandTypeNames.Reboot,
+        DeviceCommandTypeNames.Shutdown,
+        DeviceCommandTypeNames.SignOut,
+        DeviceCommandTypeNames.MaintenanceOn,
+        DeviceCommandTypeNames.MaintenanceOff
+    ];
+
+    private static readonly string[] SettledCommandStatuses =
+    [
+        DeviceCommandStatusNames.Accepted,
+        DeviceCommandStatusNames.Completed,
+        DeviceCommandStatusNames.Failed
+    ];
+
+    /// <summary>
+    /// Какая команда упала на ПК последней: смотрим последнюю завершённую повторяемую команду
+    /// устройства, и если она — провал, это и есть сбой. Любой следующий успех (та же команда
+    /// повтором или разблокировка при старте сессии) сбой снимает сам.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, string>> GetLastFailedCommandsAsync(
+        IReadOnlyCollection<Guid> deviceIds,
+        CancellationToken cancellationToken)
+    {
+        if (deviceIds.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        var settled = dbContext.DeviceCommands
+            .AsNoTracking()
+            .Where(command =>
+                deviceIds.Contains(command.DeviceId) &&
+                RetryableCommandTypes.Contains(command.Type) &&
+                SettledCommandStatuses.Contains(command.Status));
+        // Два простых запроса вместо «последней строки в группе»: время последней завершённой
+        // команды по каждому ПК и сами провалы (их мало) — сводим в памяти. Карту опрашивают
+        // часто, а история команд растёт с каждой сессией, поэтому всю историю сюда не тянем.
+        var latestAt = await settled
+            .GroupBy(command => command.DeviceId)
+            .Select(group => new { DeviceId = group.Key, At = group.Max(command => command.UpdatedAtUtc) })
+            .ToDictionaryAsync(entry => entry.DeviceId, entry => entry.At, cancellationToken);
+        var failures = await settled
+            .Where(command => command.Status == DeviceCommandStatusNames.Failed)
+            .Select(command => new { command.DeviceId, command.Type, command.UpdatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        return failures
+            .Where(failure => latestAt.TryGetValue(failure.DeviceId, out var at) && failure.UpdatedAtUtc == at)
+            .GroupBy(failure => failure.DeviceId)
+            .ToDictionary(group => group.Key, group => group.First().Type);
     }
 
     private static string? GetPlayerDisplayName(

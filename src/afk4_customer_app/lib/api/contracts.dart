@@ -17302,6 +17302,7 @@ class SeatStatusDto {
     this.maintenanceSinceUtc,
     this.isConsole,
     this.isOutsidePlan,
+    this.lastFailedCommandType,
   });
 
   final String seatId;
@@ -17357,6 +17358,11 @@ class SeatStatusDto {
   /// ПК сверх предела бесплатного тарифа: новые сессии на нём не запускаются, идущая доживает.
   final bool? isOutsidePlan;
 
+  /// Какая команда администратора (DeviceCommandTypeNames) упала на ПК последней и с тех пор не
+  /// сменилась успешной. Null — сбоя нет. По ней карта показывает «Сбой команды» и кнопку
+  /// «Повторить …»: без неё было видно, что что-то не прошло, но не что именно повторять.
+  final String? lastFailedCommandType;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -17383,6 +17389,7 @@ class SeatStatusDto {
         maintenanceSinceUtc: json['maintenanceSinceUtc'] == null ? null : DateTime.parse(json['maintenanceSinceUtc'] as String),
         isConsole: json['isConsole'] == null ? null : json['isConsole'] as bool,
         isOutsidePlan: json['isOutsidePlan'] == null ? null : json['isOutsidePlan'] as bool,
+        lastFailedCommandType: json['lastFailedCommandType'] == null ? null : json['lastFailedCommandType'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -17411,6 +17418,7 @@ class SeatStatusDto {
         'maintenanceSinceUtc': maintenanceSinceUtc?.toIso8601String(),
         'isConsole': isConsole,
         'isOutsidePlan': isOutsidePlan,
+        'lastFailedCommandType': lastFailedCommandType,
       };
 }
 

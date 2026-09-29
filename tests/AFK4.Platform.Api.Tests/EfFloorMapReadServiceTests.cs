@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.FloorMap;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -710,6 +711,72 @@ public sealed class EfFloorMapReadServiceTests
         Assert.Null(guest.PlayerDisplayName);
         Assert.Null(guest.TariffName);
         Assert.Equal(startedAt, guest.SessionStartedAtUtc);
+    }
+
+    // Карта называет, какая команда упала на ПК последней, — чтобы «Повторить» знало, что слать.
+    // Считается только последняя завершённая повторяемая команда: следующий успех сбой снимает,
+    // а служебные команды и те, что ещё в пути, его не трогают.
+    [Fact]
+    public async Task GetFloorMapAsync_NamesTheLastFailedCommandUntilASuccessClearsIt()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var zoneId = Guid.NewGuid();
+        var now = DateTimeOffset.Parse("2026-09-29T10:00:00Z");
+        var failedSeat = Guid.NewGuid();
+        var recoveredSeat = Guid.NewGuid();
+        var quietSeat = Guid.NewGuid();
+        var failedDevice = Guid.NewGuid();
+        var recoveredDevice = Guid.NewGuid();
+        var quietDevice = Guid.NewGuid();
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Branch", CreatedAtUtc = now });
+            db.Zones.Add(new ZoneEntity { ZoneId = zoneId, OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, Name = "Hall", CreatedAtUtc = now });
+            var sort = 0;
+            foreach (var (seatId, deviceId) in new[] { (failedSeat, failedDevice), (recoveredSeat, recoveredDevice), (quietSeat, quietDevice) })
+            {
+                sort += 10;
+                db.Seats.Add(new SeatEntity { SeatId = seatId, OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, ZoneId = zoneId, Name = $"PC-{sort}", SortOrder = sort, CreatedAtUtc = now });
+                db.Devices.Add(new DeviceEntity { DeviceId = deviceId, OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, MachineName = $"PC-{sort}", EnrolledAtUtc = now, LastHeartbeatAtUtc = now, IsOnline = true, IsLocked = true });
+                db.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity { DeviceSeatAssignmentId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, SeatId = seatId, DeviceId = deviceId, AttachedAtUtc = now });
+            }
+
+            DeviceCommandEntity Command(Guid deviceId, string type, string status, int minutesAgo) => new()
+            {
+                CommandId = Guid.NewGuid(),
+                DeviceId = deviceId,
+                Type = type,
+                Status = status,
+                CreatedAtUtc = now.AddMinutes(-minutesAgo),
+                UpdatedAtUtc = now.AddMinutes(-minutesAgo)
+            };
+
+            db.DeviceCommands.AddRange(
+                // Разблокировка прошла, потом упала перезагрузка — повторять перезагрузку; сервисное
+                // продление аренды и команда в пути после неё сбой не прячут.
+                Command(failedDevice, DeviceCommandTypeNames.Unlock, DeviceCommandStatusNames.Completed, 30),
+                Command(failedDevice, DeviceCommandTypeNames.Reboot, DeviceCommandStatusNames.Failed, 20),
+                Command(failedDevice, DeviceCommandTypeNames.RefreshSessionLease, DeviceCommandStatusNames.Completed, 10),
+                Command(failedDevice, DeviceCommandTypeNames.Lock, DeviceCommandStatusNames.Pending, 5),
+                // Блокировка упала, повтор прошёл — сбоя больше нет.
+                Command(recoveredDevice, DeviceCommandTypeNames.Lock, DeviceCommandStatusNames.Failed, 20),
+                Command(recoveredDevice, DeviceCommandTypeNames.Lock, DeviceCommandStatusNames.Completed, 10),
+                // Упало только сообщение — его без текста не повторить, карте сказать нечего.
+                Command(quietDevice, DeviceCommandTypeNames.Message, DeviceCommandStatusNames.Failed, 10));
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = new PlatformDbContext(options);
+        var result = await new EfFloorMapReadService(readDb, new FixedTimeProvider(now)).GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        var seats = result.FloorMap.Seats.ToDictionary(seat => seat.SeatId);
+        Assert.Equal(DeviceCommandTypeNames.Reboot, seats[failedSeat].LastFailedCommandType);
+        Assert.Null(seats[recoveredSeat].LastFailedCommandType);
+        Assert.Null(seats[quietSeat].LastFailedCommandType);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
