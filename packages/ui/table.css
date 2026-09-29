@@ -8,6 +8,8 @@
   background: var(--surface-elevated);
   box-shadow: var(--shadow-card);
 }
+/* Подписи колонок — обычным регистром: капс на строку из шести-семи слов подряд читается как
+   крик, а не как заголовок (в отличие от одной капс-подписи над секцией — .ui-section-label). */
 .ctable-head {
   display: grid;
   flex: none;
@@ -18,8 +20,7 @@
   border-bottom: 1px solid var(--border-soft);
   color: var(--text-tertiary);
   font-size: var(--text-xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 .ctable-head .r {
   justify-self: end;

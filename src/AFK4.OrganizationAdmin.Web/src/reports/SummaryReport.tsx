@@ -1,7 +1,7 @@
 import { useState, type JSX } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { formatDateParts } from '@afk4/formatting';
-import { formatMinorUnits } from '../operatorHelpers';
+import { Money } from '@afk4/ui/react';
 import type { OperatorBackendContext, WorkspaceId } from '../operatorTypes';
 import { ReportBody, ReportFiguresSkeleton, ReportRangeControls, ReportScreen } from './ReportRangeControls';
 import { SkeletonLine } from '../LoadingSkeleton';
@@ -42,16 +42,16 @@ export function SummaryReport({ backend, onNavigate }: { backend: OperatorBacken
               жёлтым заголовком громче денег. Деньги за игру подписаны как деньги: «Игровое время
               13 911,3 с.» читалось как время. Имена цифр — те же, что во вкладке «Выручка». */}
           <dl className="reports-figures">
-            <div><dt>{t('op.reports.summary.netRevenue')}</dt><dd>{formatMinorUnits(data.figures.netRevenue.minorUnits, data.figures.netRevenue.currencyCode)}</dd></div>
-            <div><dt>{t('op.reports.gameplay.revenue')}</dt><dd>{formatMinorUnits(data.figures.gameplayRevenue.minorUnits, data.figures.gameplayRevenue.currencyCode)}</dd></div>
-            <div><dt>{t('op.reports.revenue.pos')}</dt><dd>{formatMinorUnits(data.figures.posNetSales.minorUnits, data.figures.posNetSales.currencyCode)}</dd></div>
+            <div><dt>{t('op.reports.summary.netRevenue')}</dt><dd><Money minorUnits={data.figures.netRevenue.minorUnits} currencyCode={data.figures.netRevenue.currencyCode} /></dd></div>
+            <div><dt>{t('op.reports.gameplay.revenue')}</dt><dd><Money minorUnits={data.figures.gameplayRevenue.minorUnits} currencyCode={data.figures.gameplayRevenue.currencyCode} /></dd></div>
+            <div><dt>{t('op.reports.revenue.pos')}</dt><dd><Money minorUnits={data.figures.posNetSales.minorUnits} currencyCode={data.figures.posNetSales.currencyCode} /></dd></div>
           </dl>
           <section className={`reports-day-state ${data.attentionTotalCount ? 'warning' : 'ok'}`}>
             <h2>{data.attentionTotalCount ? t('op.reports.summary.attention', { count: data.attentionTotalCount }) : t('op.reports.summary.ok')}</h2>
-            {data.attentionItems.length ? <div className="reports-attention-list">{data.attentionItems.map((item) => <button key={`${item.kind}-${item.targetId}`} type="button" onClick={() => onNavigate('cash')}><span>{item.title}</span><strong>{item.amount ? formatMinorUnits(item.amount.minorUnits, item.amount.currencyCode) : item.detail}</strong></button>)}</div> : null}
+            {data.attentionItems.length ? <div className="reports-attention-list">{data.attentionItems.map((item) => <button key={`${item.kind}-${item.targetId}`} type="button" onClick={() => onNavigate('cash')}><span>{item.title}</span><strong>{item.amount ? <Money minorUnits={item.amount.minorUnits} currencyCode={item.amount.currencyCode} /> : item.detail}</strong></button>)}</div> : null}
             {data.attentionTotalCount > data.attentionItems.length ? <p>{t('op.reports.summary.more', { count: data.attentionTotalCount - data.attentionItems.length })}</p> : null}
           </section>
-          <section className="reports-trend"><div><strong>{t('op.reports.summary.trend')}</strong></div><div className="reports-trend-points">{data.trend.map((point) => <div key={point.date}><span>{trendDayLabel(point.date, locale)}</span><strong>{formatMinorUnits(point.netRevenue.minorUnits, point.netRevenue.currencyCode)}</strong></div>)}</div></section>
+          <section className="reports-trend"><div><strong>{t('op.reports.summary.trend')}</strong></div><div className="reports-trend-points">{data.trend.map((point) => <div key={point.date}><span>{trendDayLabel(point.date, locale)}</span><strong><Money minorUnits={point.netRevenue.minorUnits} currencyCode={point.netRevenue.currencyCode} /></strong></div>)}</div></section>
           {data.activeShift ? <section className="reports-active-shift"><div><span>{t('op.reports.summary.provisional')}</span><strong>{t('op.reports.summary.activeShift')}</strong><small>{formatDate(data.activeShift.openedAtUtc)}</small></div><button type="button" className="ui-btn" onClick={() => onNavigate('cash')}>{t('op.reports.summary.goToShift')}</button></section> : null}
         </div> : null}
       </ReportBody>
