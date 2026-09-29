@@ -4,6 +4,8 @@ import { Newspaper } from 'lucide-react';
 import { MediaPurposeNames } from '@afk4/contracts';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
+import { ScreenAction } from './management/ManagementScreen';
+import { Button } from '@afk4/ui/react';
 import { CriticalActionConfirmation, EmptyState, PartialLoadFailure } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
@@ -224,7 +226,7 @@ export function NewsWorkspace({
     return (
       <DeferredSkeleton>
         <div className="mgmt-master-detail">
-          <SkeletonTable gridTemplate={NEWS_GRID} toolbar={{ action: canManage }} />
+          <SkeletonTable gridTemplate={NEWS_GRID} />
         </div>
       </DeferredSkeleton>
     );
@@ -278,19 +280,19 @@ export function NewsWorkspace({
         gridTemplate={NEWS_GRID}
         selectedKey={isCreate ? null : selectedId}
         onSelectRow={(n) => edit(n)}
-        toolbar={{
-          title: t('op.management.dest.news'),
-          primary: canManage ? { label: t('op.news.addCta'), onClick: openCreate } : undefined
-        }}
         empty={{
           icon: <Newspaper size={22} aria-hidden="true" />,
           title: t('op.news.empty'),
           description: t('op.news.emptyDescription'),
-          next: canManage
-            ? { kind: 'action', label: t('op.news.addCta'), onClick: openCreate }
-            : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+          next: canManage ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
         }}
       />
+      {/* Главная кнопка раздела — в шапке экрана; у пустого списка второй такой же нет. */}
+      {canManage && (
+        <ScreenAction>
+          <Button variant="primary" onClick={openCreate}>{t('op.news.addCta')}</Button>
+        </ScreenAction>
+      )}
 
       {isDrawerOpen && (
         <MgmtDrawer

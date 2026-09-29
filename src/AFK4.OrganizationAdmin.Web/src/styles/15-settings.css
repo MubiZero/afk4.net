@@ -45,6 +45,19 @@
   height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px));
 }
 
+/* Шапка экрана: тот же правый зазор, что у прокручиваемого тела под ней (.management-screen-body),
+   чтобы правый край шапки и колонки содержимого совпадал. */
+.management-screen-head {
+  flex-shrink: 0;
+  padding-right: 16px;
+}
+
+/* Место под главную кнопку раздела в шапке (ScreenAction ставит её сюда порталом). Само место
+   раскладки не имеет: кнопки встают в ряд шапки с её же зазором. */
+.management-screen-action {
+  display: contents;
+}
+
 /* Eskhata Merchant — блок реквизитов во вкладке «Платёжные шлюзы», секцией под dcgate-картами. */
 .eskhata-gateway {
   display: flex;

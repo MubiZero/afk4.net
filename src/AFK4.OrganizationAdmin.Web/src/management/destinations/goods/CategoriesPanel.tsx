@@ -1,12 +1,17 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, EyeOff, Pencil, Tags } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { Button, IconButton } from '@afk4/ui/react';
 import { projectOperatorError } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, requireBackend } from '../../../operatorHelpers';
-import { EmptyState } from '../../../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
+import { MgmtTable } from '../../kit/MgmtTable';
 import type { CategoryOption } from './categoryModel';
 import { moveCategory } from './categoryOrder';
+
+// Колонки списка — одни на список и его заглушку: стрелки порядка (у того, кто может менять) и
+// название.
+export const categoriesGrid = (canManage: boolean) => (canManage ? '72px minmax(0, 1fr)' : 'minmax(0, 1fr)');
 
 /**
  * Справочник категорий товара: посмотреть, переименовать, скрыть и переставить.
@@ -22,6 +27,11 @@ import { moveCategory } from './categoryOrder';
  *
  * Порядок — не вкусовщина: на стойке он определяет, сколько кассир ищет «Напитки», которые берут
  * в десять раз чаще, чем «Батарейки». Алфавит расставлял их случайно.
+ *
+ * Строка — строка общего списка: название и действия вместе, а не текст столбиком с кнопками,
+ * прижатыми к правому краю через всю ширину. Стрелки порядка стоят на виду слева от названия: их
+ * жмут подряд («Напитки» на три места вверх), и в меню каждое нажатие стоило бы двух. Остальное —
+ * переименовать, скрыть — в «⋯».
  */
 export function CategoriesPanel({ backend, categories, canManage, onChanged, onFeedback }: {
   backend: OperatorBackendContext | null;
@@ -97,79 +107,88 @@ export function CategoriesPanel({ backend, categories, canManage, onChanged, onF
   };
 
   return (
-    <section className="mgmt-drawer-section">
-      <div className="mgmt-section-title"><span>{t('op.management.goods.category.title')}</span></div>
-      {categories.length === 0 ? (
-        <EmptyState
-          inline
-          className="mgmt-drawer-hint"
-          title={t('op.management.goods.category.empty')}
-          next={{ kind: 'elsewhere', hint: t('op.management.goods.category.emptyHint') }}
-        />
-      ) : (
-        <ul>
-          {categories.map((category, index) => (
-            <li key={category.categoryId} className="mgmt-zone-row">
-              {editingId === category.categoryId ? (
-                <>
-                  <input
-                    type="text"
-                    aria-label={t('op.management.goods.category.newName')}
-                    value={draftName}
-                    disabled={busy}
-                    onChange={(event) => setDraftName(event.currentTarget.value)}
-                  />
-                  <span className="mgmt-status-pair">
-                    <button type="button" className="ui-btn ui-btn--primary ui-btn--sm" disabled={busy || draftName.trim().length === 0} onClick={() => void submitRename()}>
-                      {t('op.management.goods.category.save')}
-                    </button>
-                    <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => setEditingId(null)}>
-                      {t('common.cancel')}
-                    </button>
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className={category.isActive ? undefined : 'mgmt-row-muted'}>
-                    {category.label}
-                    {!category.isActive && <> · {t('op.management.goods.category.hiddenMark')}</>}
-                  </span>
-                  {canManage && (
-                    <span className="mgmt-status-pair">
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn--icon ui-btn--sm"
-                        disabled={busy || index === 0}
-                        aria-label={t('op.management.goods.category.moveUp', { name: category.label })}
-                        onClick={() => void move(category.categoryId, -1)}
-                      >
-                        <ChevronUp aria-hidden size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn--icon ui-btn--sm"
-                        disabled={busy || index === categories.length - 1}
-                        aria-label={t('op.management.goods.category.moveDown', { name: category.label })}
-                        onClick={() => void move(category.categoryId, 1)}
-                      >
-                        <ChevronDown aria-hidden size={16} />
-                      </button>
-                      <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => void toggleVisibility(category)}>
-                        {category.isActive
-                          ? t('op.management.goods.category.hide')
-                          : t('op.management.goods.category.show')}
-                      </button>
-                      <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => startRename(category)}>
-                        {t('op.management.goods.category.rename')}
-                      </button>
-                    </span>
-                  )}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <MgmtTable<CategoryOption>
+      columns={[
+        ...(canManage ? [{
+          key: 'order',
+          header: '',
+          render: (category: CategoryOption) => {
+            const index = categories.indexOf(category);
+            return (
+              <span className="mgmt-order-arrows">
+                <IconButton
+                  size="sm"
+                  icon={<ChevronUp aria-hidden size={16} />}
+                  label={t('op.management.goods.category.moveUp', { name: category.label })}
+                  disabled={busy || index === 0}
+                  onClick={() => void move(category.categoryId, -1)}
+                />
+                <IconButton
+                  size="sm"
+                  icon={<ChevronDown aria-hidden size={16} />}
+                  label={t('op.management.goods.category.moveDown', { name: category.label })}
+                  disabled={busy || index === categories.length - 1}
+                  onClick={() => void move(category.categoryId, 1)}
+                />
+              </span>
+            );
+          }
+        }] : []),
+        {
+          key: 'name',
+          header: '',
+          render: (category) => editingId === category.categoryId ? (
+            <span className="mgmt-inline-edit">
+              <input
+                type="text"
+                aria-label={t('op.management.goods.category.newName')}
+                value={draftName}
+                disabled={busy}
+                autoFocus
+                onChange={(event) => setDraftName(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void submitRename();
+                  if (event.key === 'Escape') setEditingId(null);
+                }}
+              />
+              <Button size="sm" variant="primary" disabled={busy || draftName.trim().length === 0} onClick={() => void submitRename()}>
+                {t('op.management.goods.category.save')}
+              </Button>
+              <Button size="sm" disabled={busy} onClick={() => setEditingId(null)}>{t('common.cancel')}</Button>
+            </span>
+          ) : (
+            <span className={category.isActive ? undefined : 'mgmt-row-muted'}>
+              {category.label}
+              {!category.isActive && <> · {t('op.management.goods.category.hiddenMark')}</>}
+            </span>
+          )
+        }
+      ]}
+      rows={[...categories]}
+      rowKey={(category) => category.categoryId}
+      gridTemplate={categoriesGrid(canManage)}
+      rowActions={canManage ? (category) => editingId === category.categoryId ? [] : [
+        {
+          id: 'rename',
+          label: t('op.management.goods.category.rename'),
+          icon: <Pencil size={14} aria-hidden="true" />,
+          disabled: busy,
+          onSelect: () => startRename(category)
+        },
+        {
+          id: 'visibility',
+          label: category.isActive ? t('op.management.goods.category.hide') : t('op.management.goods.category.show'),
+          icon: category.isActive ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />,
+          disabled: busy,
+          onSelect: () => void toggleVisibility(category)
+        }
+      ] : undefined}
+      toolbar={{ title: t('op.management.goods.category.title') }}
+      empty={{
+        icon: <Tags size={22} aria-hidden="true" />,
+        title: t('op.management.goods.category.empty'),
+        next: { kind: 'elsewhere', hint: t('op.management.goods.category.emptyHint') }
+      }}
+    />
   );
 }

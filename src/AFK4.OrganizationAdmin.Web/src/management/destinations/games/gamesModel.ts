@@ -136,11 +136,15 @@ export function buildGameRequest(organizationId: string, form: GameForm): Upsert
   };
 }
 
-/** «Steam · 730», «Свой exe · C:\Games\…». */
+/**
+ * «Steam», «Программа на ПК · C:\Games\…». Номер игры в лаунчере (AppID 730) человеку в списке
+ * ничего не говорит — он в карточке игры; путь к программе говорит: по нему техник узнаёт, что
+ * запустится на ПК.
+ */
 export function launchSummary(game: BranchGameDto, kindLabel: (kind: LaunchKind) => string): string {
   const kind = asKind(game.launchKind);
-  const target = game.executablePath ?? game.launchTarget;
-  return target ? `${kindLabel(kind)} · ${target}` : kindLabel(kind);
+  const path = game.executablePath ?? (kind === GameLaunchKindNames.Executable ? game.launchTarget : null);
+  return path ? `${kindLabel(kind)} · ${path}` : kindLabel(kind);
 }
 
 export function moved(ids: string[], id: string, delta: -1 | 1): string[] | null {

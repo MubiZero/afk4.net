@@ -363,7 +363,7 @@ describe('StaffRolesDestination', () => {
         onStaffUsersChange={onStaffUsersChange}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Из сети' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Сотрудник из сети' }));
 
     expect(await screen.findByText('Работает: Филиал Север')).toBeTruthy();
     expect(screen.getByText('Без филиала — войти ему некуда')).toBeTruthy();
@@ -385,7 +385,7 @@ describe('StaffRolesDestination', () => {
         staffUsers={staffUsers}
       />
     );
-    expect(screen.queryByRole('button', { name: 'Из сети' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ Сотрудник из сети' })).toBeNull();
     fireEvent.click(screen.getByText('Марина Сидорова'));
     expect(screen.queryByRole('button', { name: 'Снять с филиала' })).toBeNull();
   });

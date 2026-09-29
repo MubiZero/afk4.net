@@ -4,6 +4,8 @@ import { majorToMinor, minorToMajor } from '@afk4/money';
 import { Trophy } from 'lucide-react';
 import { MgmtTable } from './management/kit/MgmtTable';
 import { MgmtDrawer } from './management/kit/MgmtDrawer';
+import { ScreenAction } from './management/ManagementScreen';
+import { Button } from '@afk4/ui/react';
 import { CriticalActionConfirmation, EmptyState, LoadFailureState } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
@@ -245,7 +247,7 @@ export function EventsWorkspace({
     return (
       <DeferredSkeleton>
         <div className="mgmt-master-detail">
-          <SkeletonTable gridTemplate={EVENTS_GRID} toolbar={{ action: canManage }} />
+          <SkeletonTable gridTemplate={EVENTS_GRID} />
         </div>
       </DeferredSkeleton>
     );
@@ -282,19 +284,19 @@ export function EventsWorkspace({
         gridTemplate={EVENTS_GRID}
         selectedKey={isCreate ? null : selectedId}
         onSelectRow={(item) => edit(item)}
-        toolbar={{
-          title: t('op.management.dest.events'),
-          primary: canManage ? { label: t('op.events.addCta'), onClick: openCreate } : undefined
-        }}
         empty={{
           icon: <Trophy size={22} aria-hidden="true" />,
           title: t('op.events.empty'),
           description: t('op.events.emptyDescription'),
-          next: canManage
-            ? { kind: 'action', label: t('op.events.addCta'), onClick: openCreate }
-            : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+          next: canManage ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
         }}
       />
+      {/* Главная кнопка раздела — в шапке экрана; у пустого списка второй такой же нет. */}
+      {canManage && (
+        <ScreenAction>
+          <Button variant="primary" onClick={openCreate}>{t('op.events.addCta')}</Button>
+        </ScreenAction>
+      )}
 
       {isDrawerOpen && (
         <MgmtDrawer

@@ -134,14 +134,15 @@ describe('GoodsDestination', () => {
     expect(onDirtyChange).toHaveBeenCalledWith(false);
   });
 
-  // Категории списком и каталог таблицей в шесть колонок; без права на каталог — без меню строки.
+  // Категории и каталог — два списка одного вида, и заглушка повторяет оба; каталог в шесть
+  // колонок, без права на каталог — без меню строки.
   it('shows the categories list and a six-column catalog table as its loading shape', async () => {
     const { container } = wrap(
       <GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} loadStatus="loading" />
     );
     await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
-    expect(container.querySelector('[data-skeleton="list"]')).toBeTruthy();
-    expect(container.querySelectorAll('[data-skeleton="table"] .ctable-head > span')).toHaveLength(6);
+    expect(container.querySelectorAll('[data-skeleton="table"]')).toHaveLength(2);
+    expect(container.querySelectorAll('.mgmt-master-detail [data-skeleton="table"] .ctable-head > span')).toHaveLength(6);
     expect(screen.queryByText('Cola 0.5')).toBeNull();
   });
 
@@ -241,11 +242,14 @@ describe('GoodsDestination', () => {
     expect(screen.getByText('Нет товаров')).toBeTruthy();
   });
 
-  // Пустой каталог ведёт туда, где товар заводится, — в тот же диалог, что и кнопка в шапке.
-  it('the empty catalog opens the new-product dialog from the empty state itself', () => {
+  // У пустого каталога кнопка создания одна — в шапке раздела, прямо над пустым состоянием; вторая
+  // такая же в самом пустом состоянии её только повторяла. Заголовков колонок над пустотой нет.
+  it('the empty catalog has a single create button — in the section header', () => {
     const { container } = wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[]} />);
-    const empty = container.querySelector('.empty-state') as HTMLElement;
-    fireEvent.click(within(empty).getByRole('button', { name: '+ Товар' }));
+    expect(container.querySelector('.mgmt-master-detail .empty-state button')).toBeNull();
+    expect(container.querySelector('.mgmt-master-detail .ctable-head')).toBeNull();
+    expect(screen.getAllByRole('button', { name: '+ Товар' })).toHaveLength(1);
+    fireEvent.click(within(container.querySelector('.ui-section-header') as HTMLElement).getByRole('button', { name: '+ Товар' }));
     expect(screen.getByRole('dialog', { name: 'Новый товар' })).toBeTruthy();
   });
 
@@ -401,12 +405,20 @@ describe('GoodsDestination', () => {
 // Переименования категории не существовало ни на сервере, ни в интерфейсе: опечатка, сделанная
 // при заведении первого товара, оставалась в меню бара навсегда — завести заново и перевесить на
 // новую категорию каждый товар по одному было единственным выходом.
+// Категории — строки общего списка: переименовать и скрыть живут в «⋯» строки, на виду только стрелки
+// порядка. Список категорий на экране первый, раньше каталога.
+async function openCategoryMenu() {
+  const list = (await screen.findByText('Категории')).closest('.mgmt-table') as HTMLElement;
+  fireEvent.click((await within(list).findAllByRole('button', { name: 'Действия' }))[0]);
+}
+
 describe('GoodsDestination categories', () => {
   it('переименовывает категорию и перечитывает справочник', async () => {
     listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: true, sortOrder: 0 }]);
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Переименовать' }));
+    await openCategoryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Переименовать' }));
     fireEvent.change(screen.getByLabelText('Новое название категории'), { target: { value: ' Напитки и соки ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
@@ -428,7 +440,7 @@ describe('GoodsDestination categories', () => {
 
     await screen.findByText('Категорий пока нет.');
     expect(screen.getByText('Первая заводится вместе с товаром.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Переименовать' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Переименовать' })).toBeNull();
   });
 
   // Удаления нет и не будет: скрытие убирает категорию со стойки, но оставляет товары и историю чеков.
@@ -436,7 +448,8 @@ describe('GoodsDestination categories', () => {
     listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: true, sortOrder: 0 }]);
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Скрыть' }));
+    await openCategoryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Скрыть' }));
 
     await waitFor(() => expect(updateProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
       organizationId: 'o1',
@@ -449,9 +462,9 @@ describe('GoodsDestination categories', () => {
     listProductCategories.mockImplementation(async () => [{ categoryId: 'cat1', name: 'Напитки', isActive: false, sortOrder: 0 }]);
     wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
 
-    expect(await screen.findByRole('button', { name: 'Показать' })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Показать' }));
+    expect(await screen.findByText('скрыта', { exact: false })).toBeTruthy();
+    await openCategoryMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Показать' }));
     await waitFor(() => expect(updateProductCategory).toHaveBeenCalledWith('b1', 'cat1', {
       organizationId: 'o1',
       isActive: true

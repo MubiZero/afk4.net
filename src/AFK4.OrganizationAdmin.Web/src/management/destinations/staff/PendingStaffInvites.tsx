@@ -7,6 +7,8 @@ import { createAuthenticatedOperatorClients, staffRoleLabel } from '../../../ope
 import type { Feedback } from '../../../operatorTypes';
 import type { DestinationProps } from '../types';
 import { groupCode } from './firstSignInCode';
+import { displayPhone } from '../../../phoneFormat';
+import { RowActionsMenu } from '../../kit/RowActionsMenu';
 
 /**
  * «Ждут первого входа» — добавленные сотрудники, которые ещё не входили. Без этого списка
@@ -91,22 +93,28 @@ export function PendingStaffInvites({ backend, refreshKey, onFeedback }: {
             <li key={invite.staffInviteId} data-status={invite.status}>
               <div className="staff-pending-who">
                 <strong>{invite.displayName}</strong>
-                <span>{invite.phoneNumber} · {invite.roleNames.map((role) => staffRoleLabel(role, t)).join(', ')}</span>
+                <span>{displayPhone(invite.phoneNumber)} · {invite.roleNames.map((role) => staffRoleLabel(role, t)).join(', ')}</span>
               </div>
               <div className="staff-pending-state">
                 {fresh
                   ? <span className="staff-pending-code">{t('op.management.staff.pending.freshCode', { code: groupCode(fresh) })}</span>
                   : <span>{statusText(invite)}</span>}
               </div>
+              {/* Одно частое действие на виду — новый код, если старый потерян или истёк; отзыв
+                  (код перестаёт пускать) — в «⋯», как у строк таблицы сотрудников выше. */}
               <div className="staff-pending-actions">
                 <button type="button" className="ui-btn" disabled={busyId !== null} onClick={() => void reissue(invite)}>
                   <KeyRound size={14} aria-hidden="true" />
                   {t('op.management.staff.pending.reissue')}
                 </button>
-                <button type="button" className="ui-btn" disabled={busyId !== null} onClick={() => void revoke(invite)}>
-                  <Trash2 size={14} aria-hidden="true" />
-                  {t('op.management.staff.pending.revoke')}
-                </button>
+                <RowActionsMenu actions={[{
+                  id: 'revoke',
+                  label: t('op.management.staff.pending.revoke'),
+                  icon: <Trash2 size={14} aria-hidden="true" />,
+                  danger: true,
+                  disabled: busyId !== null,
+                  onSelect: () => void revoke(invite)
+                }]} />
               </div>
             </li>
           );

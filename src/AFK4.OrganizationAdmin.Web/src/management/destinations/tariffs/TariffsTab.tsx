@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Button } from '@afk4/ui/react';
+import { ScreenAction } from '../../ManagementScreen';
 import { Archive, Pencil, Tag } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonTable } from '../../../LoadingSkeleton';
@@ -40,7 +42,7 @@ const FALLBACK_ROUNDING_MINUTES = 5;
 export function TariffsTabSkeleton({ canManageTariffs }: { canManageTariffs: boolean }) {
   return (
     <div className="mgmt-master-detail">
-      <SkeletonTable gridTemplate={TARIFFS_GRID} rowActions={canManageTariffs} toolbar={{ action: canManageTariffs }} />
+      <SkeletonTable gridTemplate={TARIFFS_GRID} rowActions={canManageTariffs} />
     </div>
   );
 }
@@ -362,8 +364,10 @@ export function TariffsTab({
               align: 'end',
               render: (tariff) => <Money minorUnits={readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60} currencyCode={readString(tariff, 'currencyCode', currencyCode)} />
             },
-            { key: 'min', header: t('op.management.tariffs.col.minMinutes'), align: 'end', render: (tariff) => String(readNumber(tariff, 'minimumBillableMinutes', FALLBACK_MINIMUM_MINUTES)) },
-            { key: 'rounding', header: t('op.management.tariffs.col.rounding'), align: 'end', render: (tariff) => String(readNumber(tariff, 'roundingIncrementMinutes', FALLBACK_ROUNDING_MINUTES)) },
+            // «Мин. минуты 15» и «Округление 5» — голые числа без единиц: «минимум 15 мин» и
+            // «по 5 мин» читаются без расшифровки.
+            { key: 'min', header: t('op.management.tariffs.col.minMinutes'), align: 'end', render: (tariff) => t('op.management.tariffs.minutesValue', { minutes: readNumber(tariff, 'minimumBillableMinutes', FALLBACK_MINIMUM_MINUTES) }) },
+            { key: 'rounding', header: t('op.management.tariffs.col.rounding'), align: 'end', render: (tariff) => t('op.management.tariffs.roundingValue', { minutes: readNumber(tariff, 'roundingIncrementMinutes', FALLBACK_ROUNDING_MINUTES) }) },
             {
               key: 'schedule',
               header: t('op.management.tariffs.col.schedule'),
@@ -387,19 +391,18 @@ export function TariffsTab({
           selectedKey={selectedTariffVersionId}
           onSelectRow={(tariff) => setSelectedTariffVersionId(readString(tariff, 'tariffVersionId'))}
           rowActions={rowActions}
-          toolbar={{
-            title: t('op.settings.tariffs.title'),
-            primary: canManageTariffs ? { label: t('op.management.tariffs.addTariffCta'), onClick: openCreate } : undefined
-          }}
           empty={{
             icon: <Tag size={22} aria-hidden="true" />,
             title: t('op.management.tariffs.tariffsEmpty.title'),
             description: t('op.management.tariffs.tariffsEmpty.description'),
-            next: canManageTariffs
-              ? { kind: 'action', label: t('op.management.tariffs.addTariffCta'), onClick: openCreate }
-              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+            next: canManageTariffs ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
+        {canManageTariffs && (
+          <ScreenAction>
+            <Button variant="primary" onClick={openCreate}>{t('op.management.tariffs.addTariffCta')}</Button>
+          </ScreenAction>
+        )}
 
         {selectedTariff && (
           <MgmtDrawer

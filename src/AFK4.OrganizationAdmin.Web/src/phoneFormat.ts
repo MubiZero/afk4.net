@@ -1,4 +1,4 @@
 /** Ре-экспорт общего кода из `@afk4/formatting`. Здесь лежала копия, побайтно совпадавшая с
  * копией мастера установки: одно и то же поле телефона в трёх местах расходилось бы на первой
  * же правке маски. Путь модуля оставлен прежним — его знают все экраны входа и сброса. */
-export { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
+export { localPhoneDigits, formatLocal, fullPhoneDigits, displayPhone } from '@afk4/formatting';

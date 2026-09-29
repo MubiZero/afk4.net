@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, isTajikLocale, localPhoneDigits } from './index';
+import { displayPhone, formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, isTajikLocale, localPhoneDigits } from './index';
 
 it('formats numbers with locale grouping and options', () => {
   // ru-RU groups thousands with a non-breaking space (U+00A0); normalise any
@@ -41,6 +41,13 @@ describe('телефон Таджикистана', () => {
     expect(formatLocal('937380070')).toBe('93 738 00 70');
     expect(formatLocal('93')).toBe('93');
     expect(formatLocal('')).toBe('');
+  });
+
+  it('для чтения номер делится на группы, а чужой или неполный остаётся как есть', () => {
+    expect(displayPhone('+992930000010')).toBe('+992 93 000 00 10');
+    expect(displayPhone('992937380070')).toBe('+992 93 738 00 70');
+    expect(displayPhone('+7 916 000-00-00')).toBe('+7 916 000-00-00');
+    expect(displayPhone('93738')).toBe('93738');
   });
 
   it('на сервер уходит код страны и девять цифр', () => {

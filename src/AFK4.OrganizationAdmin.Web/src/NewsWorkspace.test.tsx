@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { NewsWorkspace } from './NewsWorkspace';
+import { ManagementScreen } from './management/ManagementScreen';
 import type { NewsItemDto, NewsItemInput, NewsScopeDto } from './operatorApiClients';
 import { PlatformApiError } from './platformApi';
 
@@ -34,7 +35,8 @@ function client(initial: NewsItemDto[] = []) {
 }
 
 function renderWorkspace(c: ReturnType<typeof client>, canManage?: boolean) {
-  render(<I18nProvider><NewsWorkspace backend={null} canManage={canManage} client={c as never} /></I18nProvider>);
+  // Кнопка «+ Новость» живёт в шапке экрана (ScreenAction), поэтому список рендерится внутри него.
+  render(<I18nProvider><ManagementScreen title="Новости"><NewsWorkspace backend={null} canManage={canManage} client={c as never} /></ManagementScreen></I18nProvider>);
 }
 
 describe('NewsWorkspace', () => {
@@ -43,8 +45,8 @@ describe('NewsWorkspace', () => {
   it('creates a news item via the drawer', async () => {
     const c = client();
     renderWorkspace(c);
-    await waitFor(() => screen.getAllByRole('button', { name: /создать новость/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    await waitFor(() => screen.getAllByRole('button', { name: '+ Новость' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Новость' })[0]);
     fireEvent.change(screen.getByLabelText(/заголовок/i), { target: { value: 'Турнир' } });
     fireEvent.change(screen.getByLabelText(/текст/i), { target: { value: 'В субботу' } });
     fireEvent.click(screen.getByRole('button', { name: /сохранить/i }));
@@ -55,8 +57,8 @@ describe('NewsWorkspace', () => {
   it('marks the news for the PC screen', async () => {
     const c = client();
     renderWorkspace(c);
-    await screen.findAllByRole('button', { name: /создать новость/i });
-    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    await screen.findAllByRole('button', { name: '+ Новость' });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Новость' })[0]);
     fireEvent.change(screen.getByLabelText(/заголовок/i), { target: { value: 'Турнир' } });
     fireEvent.change(screen.getByLabelText(/текст/i), { target: { value: 'В субботу' } });
     fireEvent.click(screen.getByLabelText('Показывать на экране ПК'));
@@ -68,8 +70,8 @@ describe('NewsWorkspace', () => {
   it('rejects an empty title in the drawer', async () => {
     const c = client();
     renderWorkspace(c);
-    await screen.findAllByRole('button', { name: /создать новость/i });
-    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    await screen.findAllByRole('button', { name: '+ Новость' });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Новость' })[0]);
     fireEvent.click(screen.getByRole('button', { name: /сохранить/i }));
     await waitFor(() => screen.getByText(/заголовок и текст обязательны/i));
     expect(c.created).toHaveLength(0);
@@ -97,7 +99,7 @@ describe('NewsWorkspace', () => {
     renderWorkspace(c, false);
 
     await screen.findByText('Старая');
-    expect(screen.queryByRole('button', { name: /создать новость/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Новость' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Старая'));
     expect(screen.queryByRole('button', { name: /сохранить/i })).not.toBeInTheDocument();
@@ -151,8 +153,8 @@ describe('NewsWorkspace', () => {
       ...c,
       scope: async () => ({ branches: [{ branchId: 'b1', name: 'Центр' }], canPublishToAllBranches: false })
     });
-    await screen.findAllByRole('button', { name: /создать новость/i });
-    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    await screen.findAllByRole('button', { name: '+ Новость' });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Новость' })[0]);
 
     const where = screen.getByLabelText(/филиал/i) as HTMLSelectElement;
     expect(where.value).toBe('b1');
@@ -166,8 +168,8 @@ describe('NewsWorkspace', () => {
       release = () => reject(new PlatformApiError('boom', 500, 'Internal Server Error', ''));
     }));
     renderWorkspace({ ...c, create });
-    await screen.findAllByRole('button', { name: /создать новость/i });
-    fireEvent.click(screen.getAllByRole('button', { name: /создать новость/i })[0]);
+    await screen.findAllByRole('button', { name: '+ Новость' });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Новость' })[0]);
     fireEvent.change(screen.getByLabelText(/заголовок/i), { target: { value: 'Турнир' } });
     fireEvent.change(screen.getByLabelText(/текст/i), { target: { value: 'В субботу' } });
 

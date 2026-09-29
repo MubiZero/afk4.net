@@ -72,7 +72,7 @@ describe('GamesDestination', () => {
     renderScreen();
     await screen.findByText('Библиотека пуста');
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Добавить из каталога' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: '+ Игра из каталога' }));
     fireEvent.click(await screen.findByRole('button', { name: /Counter-Strike 2/ }));
     expect(screen.getByDisplayValue('730')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -85,7 +85,7 @@ describe('GamesDestination', () => {
   it('игру, которая уже в библиотеке, из каталога второй раз не добавить', async () => {
     library = [libraryGame({ branchGameId: 'g9', catalogGameId: 'c1', name: 'Counter-Strike 2' })];
     renderScreen();
-    fireEvent.click(await screen.findByRole('button', { name: 'Добавить из каталога' }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Игра из каталога' }));
 
     // В таблице библиотеки та же игра тоже есть — берём пункт каталога в ящике.
     const item = await waitFor(() => {
@@ -101,7 +101,7 @@ describe('GamesDestination', () => {
     renderScreen();
     await screen.findByText('Библиотека пуста');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Своя игра' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Своя игра' }));
     fireEvent.change(screen.getByLabelText('Название на ПК'), { target: { value: 'Dota 2' } });
     fireEvent.change(screen.getByLabelText('AppID в Steam'), { target: { value: 'dota' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -114,8 +114,11 @@ describe('GamesDestination', () => {
     library = [libraryGame(), libraryGame({ branchGameId: 'g2', name: 'Steam', availableWithoutSession: true, launchKind: 'exe', executablePath: 'C:\\Steam\\steam.exe', launchTarget: null })];
     renderScreen();
 
-    expect(await screen.findByText('Steam · 570')).toBeInTheDocument();
-    expect(screen.getByText('Свой exe · C:\\Steam\\steam.exe')).toBeInTheDocument();
+    // Номер игры в Steam — в карточке игры, а в списке только чем запускается; путь к программе
+    // остаётся: по нему видно, что запустится.
+    expect(await screen.findAllByText('Steam')).toHaveLength(2); // имя второй игры и запуск первой
+    expect(screen.queryByText(/570/)).toBeNull();
+    expect(screen.getByText('Программа на ПК · C:\\Steam\\steam.exe')).toBeInTheDocument();
     expect(screen.getByText('Всегда')).toBeInTheDocument();
   });
 
@@ -123,6 +126,6 @@ describe('GamesDestination', () => {
     renderScreen([]);
 
     await screen.findByText('Библиотека пуста');
-    expect(screen.queryByRole('button', { name: 'Своя игра' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ Своя игра' })).toBeNull();
   });
 });
