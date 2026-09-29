@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ShieldCheck } from 'lucide-react';
 import { CriticalActionConfirmation, EmptyState, PartialLoadFailure, Skeleton } from '../../../operatorPrimitives';
+import { RowActionsMenu } from '../../kit/RowActionsMenu';
+import type { RowAction } from '../../kit/types';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
@@ -197,9 +199,16 @@ export function PendingDevicesSection({
                   <button type="button" className="ui-btn ui-btn--primary ui-btn--sm" disabled={busy} onClick={() => void approve(device)}>
                     {t('op.management.halls.pending.approve')}
                   </button>
-                  <button type="button" className="ui-btn ui-btn--sm" disabled={busy} onClick={() => setRejectTarget(device)}>
-                    {t('op.management.halls.pending.reject')}
-                  </button>
+                  <RowActionsMenu
+                    size="sm"
+                    actions={[{
+                      id: 'reject',
+                      label: t('op.management.halls.pending.reject'),
+                      danger: true,
+                      disabled: busy,
+                      onSelect: () => setRejectTarget(device)
+                    } satisfies RowAction]}
+                  />
                 </span>
               )}
             </li>

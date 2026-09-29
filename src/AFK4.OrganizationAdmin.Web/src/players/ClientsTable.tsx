@@ -1,4 +1,5 @@
 import { useI18n } from '@afk4/i18n';
+import { displayPhone } from '@afk4/formatting';
 import { Package, Play, Search, Users } from 'lucide-react';
 import { initials, type PlayerClientItem } from '../operatorHelpers';
 import { Skeleton, EmptyState, Money } from '../operatorPrimitives';
@@ -125,7 +126,7 @@ export function ClientsTable({
                       {isNewClient(client.createdAtUtc, nowMs) && <span className="cc-tag cc-tag--new">{t('op.players.tag.new')}</span>}
                       {isInactive && <span className="cc-tag">{playerStatusLabel(client.status, t)}</span>}
                     </span>
-                    <span className="cc-phone">{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</span>
+                    <span className="cc-phone">{client.phoneNumber ? displayPhone(client.phoneNumber) : t('op.pos.cart.clientNoPhone')}</span>
                   </span>
                 </span>
                 <span className={`cc-num${client.balanceMinorUnits === 0 ? ' zero' : ''}`}>

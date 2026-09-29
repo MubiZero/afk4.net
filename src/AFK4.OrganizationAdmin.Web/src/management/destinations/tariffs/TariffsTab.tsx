@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Button } from '@afk4/ui/react';
+import { Button, Inspector } from '@afk4/ui/react';
 import { ScreenAction } from '../../ManagementScreen';
 import { Archive, Pencil, Tag } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonTable } from '../../../LoadingSkeleton';
-import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
 import { CriticalActionConfirmation, Money } from '../../../operatorPrimitives';
@@ -405,11 +404,11 @@ export function TariffsTab({
         )}
 
         {selectedTariff && (
-          <MgmtDrawer
+          <Inspector
             title={readString(selectedTariff, 'name', t('op.settings.tariffs.tariffFallback'))}
             subtitle={readBoolean(selectedTariff, 'isActive', true) ? t('op.settings.tariffs.active') : t('op.settings.tariffs.inactive')}
-            actions={drawerActions}
-            onClose={() => setSelectedTariffVersionId(null)}
+            menu={drawerActions.length > 0 ? { label: t('op.management.crud.rowMenu'), actions: drawerActions } : undefined}
+            close={{ label: t('common.close'), onClose: () => setSelectedTariffVersionId(null) }}
             footer={
               canManageTariffs ? (
                 <div className="mgmt-form-actions">
@@ -459,7 +458,7 @@ export function TariffsTab({
                 <p className="mgmt-drawer-hint mgmt-form-wide">{t('op.management.tariffs.featuredOnPcsHint')}</p>
               </div>
             </form>
-          </MgmtDrawer>
+          </Inspector>
         )}
       </div>
 

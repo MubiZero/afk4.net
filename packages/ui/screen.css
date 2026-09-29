@@ -126,6 +126,14 @@
   overflow-y: auto;
 }
 
+/* Кнопка формы — третьей строкой флекс-колонки панели, вне прокрутки тела: всегда на виду внизу,
+   а не последней строкой длинной формы (см. .mgmt-drawer-footer — тот же приём). */
+.ui-inspector-footer {
+  flex: none;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-soft);
+}
+
 .ui-inspector-figure {
   display: grid;
   gap: var(--space-1);

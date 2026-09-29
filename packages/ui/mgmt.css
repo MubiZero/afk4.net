@@ -474,17 +474,21 @@
 
 /* В узком drawer форма подаётся вертикально: поля — одной колонкой, а кнопка действия секции —
    во всю ширину. Иначе маленькая кнопка отлетает к правому краю с большим пустым зазором и
-   форма выглядит «враскидку». Модалки (PanelModal) — вне .mgmt-drawer, там остаётся 2-колоночная
-   сетка и правое выравнивание пары кнопок Отмена/Сохранить. */
-.mgmt-drawer .mgmt-form-grid {
+   форма выглядит «враскидку». Модалки (PanelModal) — вне .mgmt-drawer/.ui-inspector, там остаётся
+   2-колоночная сетка и правое выравнивание пары кнопок Отмена/Сохранить. .ui-inspector — тот же
+   узкий правый борт кита (карточка товара/тарифа/сотрудника), .mgmt-drawer — его прежний вариант. */
+.mgmt-drawer .mgmt-form-grid,
+.ui-inspector .mgmt-form-grid {
   grid-template-columns: 1fr;
 }
 
-.mgmt-drawer .mgmt-form-actions {
+.mgmt-drawer .mgmt-form-actions,
+.ui-inspector .mgmt-form-actions {
   justify-content: stretch;
 }
 
-.mgmt-drawer .mgmt-form-actions .ui-btn {
+.mgmt-drawer .mgmt-form-actions .ui-btn,
+.ui-inspector .mgmt-form-actions .ui-btn {
   flex: 1;
 }
 

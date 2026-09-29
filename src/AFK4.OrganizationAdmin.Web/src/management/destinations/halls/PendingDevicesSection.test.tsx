@@ -98,7 +98,10 @@ describe('PendingDevicesSection', () => {
   it('отклоняет ПК только после подтверждения и передаёт причину', async () => {
     renderSection();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Отклонить' }));
+    // «Отклонить» — редкое, необратимое (ключи ПК отзываются) действие; живёт в «⋯», а не второй
+    // кнопкой рядом с «Подтвердить».
+    fireEvent.click(await screen.findByRole('button', { name: 'Действия' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Отклонить' }));
     expect(rejectDevice).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText('Причина (необязательно)'), { target: { value: 'Не наш ПК' } });
@@ -115,7 +118,7 @@ describe('PendingDevicesSection', () => {
 
     await screen.findByText('PC-NEW-07');
     expect(screen.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Отклонить' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Действия' })).toBeNull();
   });
 
   // Запись настроек заменяется целиком. Если собрать её из одного переключателя, язык филиала
