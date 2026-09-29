@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/toast';
 import { Inspector, Money, useBlockedReason, type Fact, type RowAction } from '@afk4/ui/react';
 import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
+import { formatDateParts } from '@afk4/formatting';
 import type { DebtApi } from '@/api/platformClients/debt';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
@@ -50,7 +51,7 @@ type DialogKind = 'profile' | 'subscription' | 'grace' | 'ownerTransfer' | null;
 type StatusTarget = 'active' | 'suspended' | 'deletion_pending';
 
 export function ClientPassport({ client, organization, access, onUpdated }: Props) {
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, locale } = useI18n();
   const { toast } = useToast();
 
   const [openDialog, setOpenDialog] = useState<DialogKind>(null);
@@ -164,9 +165,11 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   const priceValue = subscriptionPart.status === 'loading' ? <Skeleton className="pc-skel-value" />
     : subscription === null ? t('platform.organization.passport.unknownValue')
     : <Money minorUnits={subscription.amountMinorUnits} currencyCode={subscription.currencyCode} />;
+  // Дата счёта — какой день, не какая минута: биллинг гоняет счета пакетом, и «05:00» рядом с
+  // датой читалось как обещание точного времени, которого нет.
   const nextInvoiceHint = subscription === null ? undefined
     : subscription.nextInvoiceUtc !== null
-      ? t('platform.organization.passport.nextInvoiceOn', { date: formatDate(subscription.nextInvoiceUtc) })
+      ? t('platform.organization.passport.nextInvoiceOn', { date: formatDateParts(subscription.nextInvoiceUtc, locale, { dateStyle: 'medium' }) })
       : t('platform.organization.passport.noNextInvoice');
 
   const facts: Fact[] = [

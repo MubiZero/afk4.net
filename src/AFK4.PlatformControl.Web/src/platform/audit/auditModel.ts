@@ -1,4 +1,5 @@
 import type { MessageKey } from '@/i18n/messages';
+import { CLUB_AUDIT_ACTION_LABELS, dictionaryLabel } from '@afk4/i18n';
 
 type Translate = (key: MessageKey) => string;
 
@@ -10,13 +11,15 @@ type Translate = (key: MessageKey) => string;
  * Действие (`action`) — словами для того, что делают сами сотрудники платформы (клубы, счета,
  * подписки, доступ, реклама, обновления; решение владельца 29.09: сырые коды — не на экране).
  * Код при этом остаётся мелкой строкой под словами: по нему ищут в фильтре и в логах. Действия
- * из клубов (продажи, сессии, смены) — словарь Панели, их здесь около полутора сотен; у них
- * пока виден код.
+ * из клубов (продажи, сессии, смены, команды ПК) — тот же словарь, что у Панели
+ * (CLUB_AUDIT_ACTION_LABELS из @afk4/i18n): карточка клуба на Пульте платформы показывает записи
+ * из клуба (отказы прав, команды устройств) тем же кодом, и раньше для них словаря здесь не
+ * было вовсе — «devices.commands.dispatch» так и оставался на экране кодом.
  */
 export function auditActionLabel(action: string, t: Translate): string | null {
   const key = `platform.audit.action.${action}` as MessageKey;
   const label = t(key);
-  return label === key ? null : label;
+  return label === key ? dictionaryLabel(CLUB_AUDIT_ACTION_LABELS, action, t) : label;
 }
 
 export function auditTargetLabel(targetType: string, t: Translate): string {
