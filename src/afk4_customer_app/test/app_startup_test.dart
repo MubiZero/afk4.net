@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -166,6 +167,10 @@ Future<void> signOut(WidgetTester tester) async {
 /// Вход по коду из SMS — единственный, который есть. Кнопки ищутся по типу, а не по
 /// подписи: тест языка запускает приложение на английском.
 Future<void> signIn(WidgetTester tester) async {
+  // Витрина прокручивается целиком: на крупном шрифте карточка клуба ниже первого экрана, а к
+  // верху прилипает поиск — карточку ставим в середину, а не под него.
+  unawaited(Scrollable.ensureVisible(tester.element(find.text('CyberX')), alignment: 0.5));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('CyberX'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).first, '+992900000000');

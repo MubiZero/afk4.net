@@ -25,8 +25,11 @@ enum AppSection { home, reservations, wallet, profile }
 
 /// Оболочка вошедшего игрока: разделы внизу, содержимое сверху.
 ///
-/// Раздел «Брони» появляется, только если клуб принимает онлайн-брони: вкладка, ведущая в
-/// невозможное действие, хуже её отсутствия.
+/// Разделы всегда одни и те же — четыре. Раньше «Брони» появлялись, только если клуб принимает
+/// онлайн-брони, и пока список возможностей не пришёл, вкладка стояла, а потом исчезала: панель
+/// перестраивалась под пальцем, и «Баланс» уезжал на место «Броней». Теперь у клуба без
+/// онлайн-броней раздел остаётся — с уже сделанными бронями и строкой о том, что новую делают
+/// на стойке, — а не пропадает.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
@@ -168,7 +171,7 @@ class _AppShellState extends State<AppShell> {
       case PushDestination.home:
         _open(AppSection.home);
       case PushDestination.reservations:
-        if (_enabled('online_booking')) _open(AppSection.reservations);
+        _open(AppSection.reservations);
       case PushDestination.wallet:
         _open(AppSection.wallet);
       case PushDestination.shop:
@@ -284,10 +287,10 @@ class _AppShellState extends State<AppShell> {
           label: l.customerNavDashboard,
         ),
       ),
-      if (booking)
-        (
+      (
           AppSection.reservations,
           ReservationsScreen(
+            bookingEnabled: booking,
             api: widget.api,
             phoneVerified: _phoneVerified,
             accountOpen: _accountOpen,

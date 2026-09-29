@@ -214,11 +214,18 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('клуб без онлайн-броней не показывает раздел броней', (tester) async {
+  // Раздел не исчезает: раньше вкладка стояла, пока возможности не пришли, и пропадала под
+  // пальцем, сдвигая соседей. У клуба без онлайн-броней раздел остаётся — без кнопки
+  // «Забронировать» и со строкой о том, где бронируют.
+  testWidgets('клуб без онлайн-броней оставляет раздел, но без кнопки брони', (tester) async {
     await tester.pumpWidget(harness(_serve(features: '{"features":["online_topup"]}')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Брони'), findsNothing);
+    expect(find.text('Брони'), findsOneWidget);
+    await tester.tap(find.text('Брони'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('не принимает брони из приложения'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

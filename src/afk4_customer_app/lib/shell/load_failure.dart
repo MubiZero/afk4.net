@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/space.dart';
+import 'empty_state.dart';
 
 /// Экран не загрузился — и у человека есть выход.
 ///
@@ -29,8 +30,8 @@ class LoadFailure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
+    return centeredState(
+      Padding(
         padding: const EdgeInsets.symmetric(horizontal: Space.s6, vertical: Space.s8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
