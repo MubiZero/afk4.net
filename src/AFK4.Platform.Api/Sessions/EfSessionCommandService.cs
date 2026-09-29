@@ -84,6 +84,7 @@ public sealed class EfSessionCommandService(
                 when (RelationalFailureClassifier.IsSerializationFailure(exception) && attempt < MaxStartAttempts)
             {
                 dbContext.ChangeTracker.Clear();
+                await RelationalFailureClassifier.BackoffBeforeRetryAsync(attempt, cancellationToken);
                 continue;
             }
             catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))

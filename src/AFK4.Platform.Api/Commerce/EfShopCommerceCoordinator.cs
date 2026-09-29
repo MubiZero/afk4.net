@@ -479,6 +479,7 @@ public sealed class EfShopCommerceCoordinator(
                     exception,
                     "Retrying serialized shop commerce attempt {Attempt}.",
                     attempt + 1);
+                await RelationalFailureClassifier.BackoffBeforeRetryAsync(attempt, cancellationToken);
             }
         }
 

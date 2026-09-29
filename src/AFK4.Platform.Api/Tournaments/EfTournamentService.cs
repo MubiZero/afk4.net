@@ -14,7 +14,7 @@ namespace AFK4.Platform.Api.Tournaments;
 /// </summary>
 public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvider timeProvider)
 {
-    private const int MaxSerializationAttempts = 3;
+    private const int MaxSerializationAttempts = 5;
 
     public async Task<IReadOnlyList<TournamentDto>> ListForClubAsync(
         Guid organizationId, Guid branchId, CancellationToken ct)
@@ -267,6 +267,7 @@ public sealed class EfTournamentService(PlatformDbContext dbContext, TimeProvide
             {
                 await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, ct);
                 dbContext.ChangeTracker.Clear();
+                await RelationalFailureClassifier.BackoffBeforeRetryAsync(attempt, ct);
             }
         }
     }
