@@ -411,7 +411,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
   }
 
   List<Widget> _buildBody(L l) {
-    Widget fill(Widget child) => SliverFillRemaining(hasScrollBody: false, child: child);
+    Widget fill(Widget child) => SliverFillRemaining(child: child);
     return switch (_load) {
       _Loading() => [SliverToBoxAdapter(child: ListSkeleton(rows: 2, rowHeight: 180, label: l.customerCommonLoading))],
       _Failed(offline: final offline) => [

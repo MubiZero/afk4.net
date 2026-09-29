@@ -231,6 +231,12 @@ class _WalletScreenState extends State<WalletScreen> {
               delegate: _TabBarHeader(
                 background: theme.canvasColor,
                 tabBar: TabBar(
+                  // На крупном шрифте три подписи в ширину не помещаются и обрезались до
+                  // «Визиты»/«Покупк»: тогда вкладки прокручиваются, а не режутся.
+                  isScrollable: MediaQuery.textScalerOf(context).scale(1) > 1.3,
+                  tabAlignment: MediaQuery.textScalerOf(context).scale(1) > 1.3
+                      ? TabAlignment.start
+                      : null,
                   tabs: [
                     Tab(text: l.customerHistoryVisits),
                     Tab(text: l.customerHistoryPurchases),

@@ -2,6 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../theme/space.dart';
 
+/// Состояние экрана по центру доступного места — и с прокруткой, если места не хватает.
+///
+/// Пусто и ошибка встают и в низкую вкладку, и в список без границ. На двукратном шрифте текст
+/// с кнопкой в низкую вкладку не помещался и вылезал за край; прокрутка появляется только там,
+/// где высота ограничена, — в списке без границ она не нужна и сломала бы его.
+Widget centeredState(Widget child) => LayoutBuilder(
+      builder: (context, constraints) => constraints.hasBoundedHeight
+          ? SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(child: child),
+              ),
+            )
+          : Center(child: child),
+    );
+
 /// Пусто — и что с этим делать.
 ///
 /// Пустота жила в трёх видах и четырёх копиях: значок с заголовком по центру, серая строка без
@@ -21,8 +37,8 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Center(
-      child: Padding(
+    return centeredState(
+      Padding(
         padding: const EdgeInsets.symmetric(horizontal: Space.s6, vertical: Space.s8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
