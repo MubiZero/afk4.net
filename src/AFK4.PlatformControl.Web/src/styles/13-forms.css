@@ -11,40 +11,7 @@
 }
 
 /* ── Таблица ─────────────────────────────────────────────────────────────────────────── */
-.pc-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.pc-table th {
-  padding: 0 16px;
-  height: 34px;
-  border-bottom: 1px solid var(--border-soft);
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-align: left;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.pc-table td {
-  padding: 0 16px;
-  height: 52px;
-  border-bottom: 1px solid var(--border-soft);
-  color: var(--text-primary);
-  vertical-align: middle;
-}
-
-.pc-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.pc-table tbody tr:hover td {
-  background: var(--surface-hover);
-}
+/* .pc-table сама и живёт в ките (packages/ui/table.css) — здесь была её копия. */
 
 /* Числа, даты и суммы — основным шрифтом с цифрами одной ширины (решение владельца 29.09:
    моноширинный — только для кодов, .ui-code). Выравнивания вправо нет: заголовки колонок стоят

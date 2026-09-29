@@ -86,3 +86,41 @@
   height: 56px;
   border-radius: var(--radius-md);
 }
+
+/* Настоящая <table> — списки Пульта платформы (счета, тарифы, журнал), где нужна табличная
+   семантика, а не карточки .ctable-row: приподнятая панель кита (.table-panel), тихая шапка
+   обычным регистром (капс на строку из нескольких слов — крик, см. .ctable-head выше), строка
+   высотой 52px. Жила своей копией в 13-forms.css Пульта — здесь она одна на любую <table>. */
+.pc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.pc-table th {
+  padding: 0 16px;
+  height: 34px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pc-table td {
+  padding: 0 16px;
+  height: 52px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.pc-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.pc-table tbody tr:hover td,
+.pc-table tbody tr:focus-within td {
+  background: var(--surface-hover);
+}
