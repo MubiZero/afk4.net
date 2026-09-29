@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../shell/app_sheet.dart';
 import '../shell/pressable.dart';
 import '../theme/app_theme.dart';
 import '../theme/space.dart';
@@ -20,17 +21,58 @@ class QuickAction {
 /// из плиток читается взглядом за один заход — иконка и короткое слово вместо абзаца, — и
 /// занимает вдвое меньше высоты.
 ///
-/// Действий бывает от двух до четырёх: клуб может не принимать брони, не иметь меню или
-/// выключить кешбэк. Плитки просто не появляются — заглушек «недоступно» здесь нет, звать
-/// в невозможное хуже, чем не звать.
+/// Плиток не больше четырёх. Когда у клуба включено всё, их набиралось восемь одного веса, и
+/// «Забронировать» стояло вровень со «Стажем» — главная переставала отвечать на вопрос «что
+/// здесь главное». Сверх четырёх — первые три и «Ещё»: остальное в листе, одним касанием дальше.
+///
+/// Недоступное не рисуется вовсе: клуб может не принимать брони, не иметь меню или выключить
+/// кешбэк. Заглушек «недоступно» здесь нет — звать в невозможное хуже, чем не звать.
 class QuickActions extends StatelessWidget {
-  const QuickActions({super.key, required this.actions});
+  const QuickActions({super.key, required this.actions, required this.moreLabel});
 
+  /// В порядке важности: первые — на главной, хвост — в «Ещё».
   final List<QuickAction> actions;
+
+  final String moreLabel;
+
+  static const int _max = 4;
+
+  void _openMore(BuildContext context, List<QuickAction> rest) {
+    showAppSheet<void>(
+      context,
+      (sheetContext) => AppSheet(
+        title: moreLabel,
+        content: [
+          for (final action in rest)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(action.icon, color: Theme.of(sheetContext).colorScheme.primary),
+              title: Text(action.label),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                action.onOpen();
+              },
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (actions.isEmpty) return const SizedBox.shrink();
+    if (this.actions.isEmpty) return const SizedBox.shrink();
+    final overflow = this.actions.length > _max;
+    final actions = overflow
+        ? [
+            ...this.actions.take(_max - 1),
+            QuickAction(
+              icon: Icons.more_horiz,
+              label: moreLabel,
+              onOpen: () => _openMore(context, this.actions.skip(_max - 1).toList()),
+            ),
+          ]
+        : this.actions;
 
     // По две в ряд: плитка шире половины экрана перестаёт быть плиткой, уже — не оставляет
     // места подписи на длинных языках.
