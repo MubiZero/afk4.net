@@ -16,6 +16,11 @@ export const contracts = [
   // «Нет прав» без слов, у кого они есть, — тупик.
   // @ts-expect-error hint обязателен для denied
   <EmptyState title="Пусто" next={{ kind: 'denied' }} />,
+  // «Делается в другом месте» обязано назвать где, «пусто, и это нормально» — что здесь появится.
+  // @ts-expect-error hint обязателен для elsewhere
+  <EmptyState title="Пусто" next={{ kind: 'elsewhere' }} />,
+  // @ts-expect-error hint обязателен для calm
+  <EmptyState title="Пусто" next={{ kind: 'calm' }} />,
   // @ts-expect-error подпись меню обязательна
   <RowActions actions={[]} />,
   // @ts-expect-error подпись полосы вкладок обязательна
