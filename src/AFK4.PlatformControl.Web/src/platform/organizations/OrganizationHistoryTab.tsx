@@ -6,6 +6,7 @@ import { Loading, SkeletonTable } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useLoadable } from '../useLoadable';
 import { auditOutcomeLabel, auditOutcomeVariant, auditSourceLabel, auditTargetLabel } from '@/platform/audit/auditModel';
+import { AuditAction } from '@/platform/audit/AuditAction';
 
 export function OrganizationHistoryTab({ client, organizationId }: {
   client: Pick<AuditApi, 'listOrganizationHistory'>;
@@ -28,8 +29,8 @@ export function OrganizationHistoryTab({ client, organizationId }: {
     </TableRow></TableHeader>
     <TableBody>{state.data.records.map(record => <TableRow key={record.auditRecordId}>
       <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell>
-      <TableCell><code>{record.action}</code></TableCell>
-      <TableCell>{auditTargetLabel(record.targetType, t)}{record.targetId !== null ? ` · ${record.targetId}` : ''}</TableCell>
+      <TableCell><AuditAction action={record.action} /></TableCell>
+      <TableCell>{auditTargetLabel(record.targetType, t)}</TableCell>
       <TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell>
       <TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
     </TableRow>)}</TableBody>

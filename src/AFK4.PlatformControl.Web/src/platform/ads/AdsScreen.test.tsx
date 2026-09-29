@@ -583,7 +583,9 @@ describe('AdsScreen — жалобы', () => {
     expect(await screen.findByText('Кибер Арена')).toBeInTheDocument();
     expect(screen.getByText('Не подходит детям')).toBeInTheDocument();
     expect(screen.getByText('Ночью у детей')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Открыть кампанию' }));
+    // У открытой жалобы на виду — ответ, а кампания — в «⋯» строки.
+    await userEvent.click(screen.getByRole('button', { name: /^Ещё действия/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Открыть кампанию' }));
     expect(onOpenCampaign).toHaveBeenCalledWith(CAMPAIGN_ID);
 
     await userEvent.click(screen.getByRole('button', { name: 'Закрыть жалобу' }));

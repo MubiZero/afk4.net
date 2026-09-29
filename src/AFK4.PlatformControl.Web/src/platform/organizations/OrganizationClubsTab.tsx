@@ -104,7 +104,8 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
                 ) : null}
               </CardHeader>
               <CardContent>
-                <div className="pc-kv"><span>{branch.city}</span><code>{branch.slug}</code></div>
+                {/* Короткий адрес филиала (slug) — служебный ключ ссылок; по нему филиал не узнают. */}
+                <div className="pc-kv"><span>{branch.city}</span></div>
                 {club === undefined && pulsePending ? (
                   <div className="pc-kv"><Skeleton className="pc-skel-value" /></div>
                 ) : null}

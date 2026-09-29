@@ -247,7 +247,7 @@ it('includes the platform admin keys', () => {
 
 it('includes the organization card keys', () => {
   for (const key of [
-    'platform.organization.status.suspended', 'platform.organization.subscription.pastDue', 'platform.organization.section.status',
+    'platform.organization.status.suspended', 'platform.organization.subscription.pastDue',
     'platform.organization.limitsForm.maxBranches', 'platform.organization.action.error'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();

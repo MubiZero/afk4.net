@@ -95,7 +95,9 @@ describe('UpdatesScreen', () => {
     const { updates } = setup('validated', [rolloutRow('paused')]);
     await screen.findByText('Остановлена');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Пометить к откату' }));
+    // Откат необратим и живёт в «⋯» строки; на виду — следующий обычный шаг «Возобновить».
+    fireEvent.click(screen.getByRole('button', { name: /^Ещё действия/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Пометить к откату' }));
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Версия ломает кассу' } });
     // Подпись кнопки подтверждения намеренно отличается от подписи в строке: одинаковые подписи в
     // одном дереве означают, что ни тест, ни человек с клавиатуры не отличают «открыть» от «сделать».
@@ -197,7 +199,9 @@ describe('UpdatesScreen', () => {
   // раскатки. Раньше их видел каждый, кто открыл раздел.
   it('без права на раскатки не предлагает публиковать', async () => {
     setup('validated', [], { canManageRollouts: false });
-    expect(await screen.findByRole('button', { name: 'Снять пакет' })).toBeInTheDocument();
+    // «Снять пакет» — необратимое, в «⋯» строки.
+    fireEvent.click(await screen.findByRole('button', { name: /^Ещё действия/ }));
+    expect(screen.getByRole('menuitem', { name: 'Снять пакет' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();
   });
 

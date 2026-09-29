@@ -3,7 +3,7 @@
    верху: статус и деньги обязаны быть на виду в момент, когда дёргаешь рычаги. */
 .pc-client {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) var(--inspector-w);
   align-items: start;
   gap: 12px;
 }
@@ -20,73 +20,17 @@
   }
 }
 
+/* Паспорт — инспектор кита (.ui-inspector); своего здесь только «прилипнуть к верху». */
 .pc-passport {
   position: sticky;
   top: 0;
-  border: 1px solid var(--border-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 10px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
 }
 
 @media (max-width: 1100px) {
   .pc-passport {
     position: static;
+    width: 100%;
   }
-}
-
-.pc-passport-id {
-  display: grid;
-  gap: 2px;
-}
-
-.pc-passport-id strong {
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.pc-passport-id span {
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.pc-passport-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.pc-passport-facts {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-soft);
-}
-
-.pc-passport-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.pc-passport-row dt {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.pc-passport-row dd {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
 }
 
 .pc-skel-value {
@@ -112,18 +56,6 @@
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 500;
-}
-
-.pc-passport-actions {
-  display: grid;
-  gap: 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-soft);
-}
-
-/* Приостановка отделена от остальных рычагов: это не «ещё одно действие в списке». */
-.pc-passport-danger {
-  margin-top: 6px;
 }
 
 .pc-client-main {

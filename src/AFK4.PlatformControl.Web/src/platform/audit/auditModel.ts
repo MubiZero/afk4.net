@@ -7,10 +7,18 @@ type Translate = (key: MessageKey) => string;
  * «у нас пропала подписка». Три из четырёх колонок были машинными именами сервера
  * («OrganizationOwnerInvite», «Denied», «PlatformApi»), и читать их приходилось по памяти.
  *
- * Действие (`action`) намеренно остаётся машинным: их около двух сотен, они совпадают с тем, что
- * пишется в логи, и по ним же ищут. Перевести половину и оставить половину кодами — хуже, чем
- * честный код везде; полный перевод — отдельная работа с продуктовым решением.
+ * Действие (`action`) — словами для того, что делают сами сотрудники платформы (клубы, счета,
+ * подписки, доступ, реклама, обновления; решение владельца 29.09: сырые коды — не на экране).
+ * Код при этом остаётся мелкой строкой под словами: по нему ищут в фильтре и в логах. Действия
+ * из клубов (продажи, сессии, смены) — словарь Панели, их здесь около полутора сотен; у них
+ * пока виден код.
  */
+export function auditActionLabel(action: string, t: Translate): string | null {
+  const key = `platform.audit.action.${action}` as MessageKey;
+  const label = t(key);
+  return label === key ? null : label;
+}
+
 export function auditTargetLabel(targetType: string, t: Translate): string {
   return translateOrKeep(`platform.audit.target.${targetType}` as MessageKey, targetType, t);
 }

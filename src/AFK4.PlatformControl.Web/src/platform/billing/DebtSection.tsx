@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RowActions, type RowAction } from '@afk4/ui/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { ErrorState } from '@/components/ui/states';
@@ -48,6 +49,41 @@ export interface DebtSectionAccess {
 // Очередь отвечает на «какие счета не оплачены», этот раздел — на более крупный вопрос
 // «какие клубы вообще требуют решения», включая тех, кто уже расплатился, но остался
 // отключён: приостановку никто не снимает автоматически.
+// Строка должника — одна кнопка следующего шага и «⋯» для остального. Раньше в строке стояли
+// четыре кнопки, из них «Приостановить» красным посередине, вплотную к «Отсрочке».
+// Следующий шаг: у должника — отметить оплату, у расплатившегося, но отключённого — вернуть его в
+// работу (ради этого он в списке и стоит).
+function DebtRowActions({ row, access, onAct, onGrace }: {
+  row: DebtRow;
+  access: DebtSectionAccess;
+  onAct: (action: Action) => void;
+  onGrace: (row: DebtRow) => void;
+}) {
+  const { t } = useI18n();
+  const canPay = access.canMarkPaid && row.oldestOverdueInvoiceId !== null;
+  const reactivateFirst = !canPay && access.canToggleStatus && row.organizationStatus !== 'active';
+  const menu: RowAction[] = [
+    ...(access.canGrantGrace && !row.settledButSuspended ? [{ id: 'grace', label: t('platform.debt.action.grace'), onSelect: () => onGrace(row) }] : []),
+    ...(access.canAddNote ? [{ id: 'note', label: t('platform.debt.action.note'), onSelect: () => onAct({ kind: 'note', row }) }] : []),
+    ...(access.canToggleStatus && !reactivateFirst ? [{
+      id: 'status',
+      label: row.organizationStatus === 'active' ? t('platform.organization.passport.action.suspend') : t('platform.organization.passport.action.activate'),
+      danger: row.organizationStatus === 'active',
+      onSelect: () => onAct({ kind: 'toggleStatus', row })
+    }] : [])
+  ];
+  return (
+    <span className="pc-cell-actions">
+      {canPay ? (
+        <Button variant="outline" size="sm" onClick={() => onAct({ kind: 'markPaid', row })}>{t('platform.billing.action.markPaid')}</Button>
+      ) : reactivateFirst ? (
+        <Button variant="outline" size="sm" onClick={() => onAct({ kind: 'toggleStatus', row })}>{t('platform.organization.passport.action.activate')}</Button>
+      ) : null}
+      <RowActions label={t('platform.row.more', { name: row.organizationName })} actions={menu} />
+    </span>
+  );
+}
+
 export function DebtSection({ client, access }: { client: DebtSectionClients; access: DebtSectionAccess }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
@@ -153,36 +189,7 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
                     {formatCurrency(minorToMajor(row.outstandingMinorUnits), row.currencyCode)}
                   </span>
                 ) : null}
-                {canManageAny ? (
-                  <span className="pc-cell-actions">
-                    {access.canMarkPaid && row.oldestOverdueInvoiceId !== null ? (
-                      <Button size="sm" onClick={() => setAction({ kind: 'markPaid', row })}>
-                        {t('platform.billing.action.markPaid')}
-                      </Button>
-                    ) : null}
-                    {access.canGrantGrace && !row.settledButSuspended ? (
-                      <Button variant="outline" size="sm" onClick={() => setGraceRow(row)}>
-                        {t('platform.debt.action.grace')}
-                      </Button>
-                    ) : null}
-                    {access.canToggleStatus ? (
-                      <Button
-                        variant={row.organizationStatus === 'active' ? 'destructive' : 'default'}
-                        size="sm"
-                        onClick={() => setAction({ kind: 'toggleStatus', row })}
-                      >
-                        {row.organizationStatus === 'active'
-                          ? t('platform.organization.passport.action.suspend')
-                          : t('platform.organization.passport.action.activate')}
-                      </Button>
-                    ) : null}
-                    {access.canAddNote ? (
-                      <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'note', row })}>
-                        {t('platform.debt.action.note')}
-                      </Button>
-                    ) : null}
-                  </span>
-                ) : null}
+                {canManageAny ? <DebtRowActions row={row} access={access} onAct={setAction} onGrace={setGraceRow} /> : null}
               </li>
             ))}
           </ul>

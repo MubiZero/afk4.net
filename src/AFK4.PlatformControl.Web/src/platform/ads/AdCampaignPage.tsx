@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonLine, SkeletonTable } from '@/components/ui/skeletons';
-import { useBlockedReason } from '@afk4/ui/react';
+import { RowActions, useBlockedReason } from '@afk4/ui/react';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
@@ -259,7 +259,6 @@ export function AdCampaignPage({ client, organizationsClient, campaignId, onBack
               <CreativesTable
                 creatives={current.creatives}
                 pending={pending}
-                editBlockedBy={editBlocked.describedBy}
                 onEdit={creative => open({ kind: 'creative', creativeId: creative.creativeId, form: formFromCreative(creative) })}
                 onModerate={(creative, mode) => open({ kind: 'moderation', mode, creative })}
                 onArchive={creative => open({ kind: 'archive', creative })}
@@ -373,11 +372,9 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function CreativesTable({ creatives, pending, editBlockedBy, onEdit, onModerate, onArchive }: {
+function CreativesTable({ creatives, pending, onEdit, onModerate, onArchive }: {
   creatives: readonly AdCreativeDto[];
   pending: boolean;
-  /** id причины, почему «Изменить» у одобренного погашена. */
-  editBlockedBy: string | undefined;
   onEdit: (creative: AdCreativeDto) => void;
   onModerate: (creative: AdCreativeDto, mode: 'approve' | 'reject') => void;
   onArchive: (creative: AdCreativeDto) => void;
@@ -419,28 +416,21 @@ function CreativesTable({ creatives, pending, editBlockedBy, onEdit, onModerate,
                 </span>
               </TableCell>
               <TableCell>
-                {/* «Изменить» стоит последней — на одном месте во всех строках; у одобренного она погашена. */}
+                {/* На виду — следующий шаг модерации («Одобрить»), остальное — в «⋯»: отклонить, изменить,
+                    снять с показа. Одобренный креатив не правят (закон хранит показанную рекламу), и
+                    пункта «Изменить» у него нет — почему, говорит строка над таблицей. */}
                 <span className="pc-cell-actions">
                   {actions.includes('approve') ? (
-                    <Button size="sm" disabled={pending} onClick={() => onModerate(creative, 'approve')}>{t('platform.ads.moderation.approve')}</Button>
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => onModerate(creative, 'approve')}>{t('platform.ads.moderation.approve')}</Button>
                   ) : null}
-                  {actions.includes('reject') ? (
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => onModerate(creative, 'reject')}>{t('platform.ads.moderation.reject')}</Button>
-                  ) : null}
-                  {actions.includes('archive') ? (
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => onArchive(creative)}>{t('platform.ads.creative.archive')}</Button>
-                  ) : null}
-                  {actions.includes('edit') ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pending || !editable}
-                      aria-describedby={editable ? undefined : editBlockedBy}
-                      onClick={() => onEdit(creative)}
-                    >
-                      {t('platform.ads.edit')}
-                    </Button>
-                  ) : null}
+                  <RowActions
+                    label={t('platform.row.more', { name: creative.title })}
+                    actions={[
+                      ...(actions.includes('reject') ? [{ id: 'reject', label: t('platform.ads.moderation.reject'), disabled: pending, onSelect: () => onModerate(creative, 'reject') }] : []),
+                      ...(actions.includes('edit') && editable ? [{ id: 'edit', label: t('platform.ads.edit'), disabled: pending, onSelect: () => onEdit(creative) }] : []),
+                      ...(actions.includes('archive') ? [{ id: 'archive', label: t('platform.ads.creative.archive'), danger: true, disabled: pending, onSelect: () => onArchive(creative) }] : [])
+                    ]}
+                  />
                 </span>
               </TableCell>
             </TableRow>

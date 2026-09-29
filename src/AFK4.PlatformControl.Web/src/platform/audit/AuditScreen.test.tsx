@@ -53,11 +53,31 @@ it('объект, исход и источник записи названы с�
   render(<I18nProvider><AuditScreen client={{ search }} organizationsClient={{ listOrganizations: mock().mockResolvedValue([{ organizationId: 'o1', name: 'Orion Gaming' }]) }} filters={{ organizationId: '', action: '', outcome: '', from: '', to: '' }} onFiltersChange={mock()} /></I18nProvider>);
 
   const table = within(await screen.findByRole('table'));
-  expect(table.getByText('Код приглашения владельца · inv-1')).toBeVisible();
+  // Объект — словами, без идентификатора записи.
+  expect(table.getByText('Код приглашения владельца')).toBeVisible();
+  expect(table.queryByText(/inv-1/)).toBeNull();
   expect(table.getByText('Отказано')).toBeVisible();
   expect(table.getByText('Сервер платформы')).toBeVisible();
   // Клуб назван именем: идентификатор в этой колонке опознать нечем.
   expect(table.getByText('Orion Gaming')).toBeVisible();
-  // Действие остаётся машинным намеренно: по нему ищут и сверяются с логами.
+  // Незнакомое действие — кодом как есть: выдумывать за сервер название события нельзя.
   expect(table.getByText('organizations.owner_invites.revoke')).toBeVisible();
+});
+
+// Действие сотрудника платформы — словами, а код остаётся под ним: по коду ищут в фильтре.
+it('называет действие платформы словами и оставляет код мелкой строкой', async () => {
+  const search = mock().mockResolvedValue({
+    records: [{
+      auditRecordId: 'a2', organizationId: 'o1', organizationName: 'Orion Gaming', branchId: null,
+      actorStaffUserId: null, actorPlatformAdminUserId: 'pa1', action: 'billing.invoice.mark_paid',
+      targetType: 'Invoice', targetId: 'i-1', outcome: 'Succeeded', sourceApp: 'PlatformApi',
+      detailsJson: '{}', amountMinorUnits: null, createdAtUtc: '2026-09-18T10:00:00Z'
+    }],
+    limit: 100
+  });
+  render(<I18nProvider><AuditScreen client={{ search }} organizationsClient={{ listOrganizations: mock().mockResolvedValue([]) }} filters={{ organizationId: '', action: '', outcome: '', from: '', to: '' }} onFiltersChange={mock()} /></I18nProvider>);
+
+  const table = within(await screen.findByRole('table'));
+  expect(table.getByText('Счёт отмечен оплаченным')).toBeVisible();
+  expect(table.getByText('billing.invoice.mark_paid')).toBeVisible();
 });

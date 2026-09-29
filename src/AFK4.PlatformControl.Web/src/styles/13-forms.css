@@ -295,3 +295,20 @@
 .pc-filters .ui-select {
   height: 34px;
 }
+
+/* Человек в строке: имя и под ним тихо — логин. */
+.pc-person {
+  display: grid;
+  gap: 2px;
+}
+
+/* Действие журнала: словами, а под ним тихо — код, по которому ищут в фильтре и в логах. */
+.pc-audit-action {
+  display: grid;
+  gap: 2px;
+}
+
+.pc-audit-action > .ui-code {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}

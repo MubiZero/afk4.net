@@ -105,10 +105,12 @@ it('shows the status block only with the status right and the limits block only 
   expect(screen.queryByText('Изменить статус')).toBeNull();
 });
 
-it('opens the limits tab with the status right alone, without the limits form', async () => {
-  setup('limits', mock(), { ...allAccess, canManageLimits: false, canManageStatus: true });
-  expect(await screen.findByRole('tab', { name: 'Лимиты' })).toBeInTheDocument();
-  expect(await screen.findByText('Изменить статус')).toBeInTheDocument();
+// Статус клуба меняется в паспорте (решение владельца 29.09), поэтому вкладка «Лимиты» — только
+// про лимиты: с одним правом на статус её нет, а рычаг статуса — в меню паспорта.
+it('без права на лимиты вкладки «Лимиты» нет, даже с правом на статус', async () => {
+  setup('clubs', mock(), { ...allAccess, canManageLimits: false, canManageStatus: true });
+  await screen.findByRole('tab', { name: 'Филиалы' });
+  expect(screen.queryByRole('tab', { name: 'Лимиты' })).toBeNull();
 });
 
 it('hides the limits tab with neither right', async () => {

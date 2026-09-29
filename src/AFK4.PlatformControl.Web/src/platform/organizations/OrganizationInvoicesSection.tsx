@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@afk4/ui/react';
 import { Badge } from '@/components/ui/badge';
 import { ErrorState, EmptyState } from '@/components/ui/states';
 import { Loading, SkeletonRows } from '@/components/ui/skeletons';
@@ -111,9 +112,10 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
                     <Button variant="outline" size="sm" disabled={pending} onClick={() => setAction({ kind: 'markPaid', invoice: inv })}>
                       {t('platform.billing.action.markPaid')}
                     </Button>
-                    <Button variant="destructive" size="sm" disabled={pending} onClick={() => setAction({ kind: 'void', invoice: inv })}>
-                      {t('platform.billing.action.void')}
-                    </Button>
+                    <RowActions
+                      label={t('platform.row.more', { name: `№${inv.number}` })}
+                      actions={[{ id: 'void', label: t('platform.billing.action.void'), danger: true, disabled: pending, onSelect: () => setAction({ kind: 'void', invoice: inv }) }]}
+                    />
                   </>
                 ) : null}
               </span>

@@ -9,7 +9,7 @@ import { Loading, SkeletonCard, SkeletonTable } from '@/components/ui/skeletons'
 import { Dialog } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
-import { useBlockedReason } from '@afk4/ui/react';
+import { RowActions, useBlockedReason, type RowAction } from '@afk4/ui/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdminsApi } from '@/api/platformClients/admins';
 import type { TwoFactorApi } from '@/api/platformClients/twoFactor';
@@ -167,8 +167,11 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
                 return (
                   <TableRow key={item.platformAdminUserId}>
                     <TableCell>
-                      <strong>{item.displayName}</strong>{' '}
-                      <code className="mgmt-drawer-hint">{item.userName}</code>
+                      {/* Логин нужен: по нему сотрудник входит. Вторичной строкой, а не кодом. */}
+                      <span className="pc-person">
+                        <strong>{item.displayName}</strong>
+                        <span className="mgmt-drawer-hint">{item.userName}</span>
+                      </span>
                     </TableCell>
                     <TableCell><Badge variant="outline">{t(roleLabelKey(item.role))}</Badge></TableCell>
                     <TableCell>
@@ -295,10 +298,10 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
   );
 }
 
-/// Действия над сотрудником в строке таблицы. Причина, по которой роль или отключение недоступны,
-/// раньше жила во всплывающей подсказке — на неактивной кнопке браузер её не показывает. Теперь
-/// это строка в ячейке. Обе кнопки гасит одно и то же правило (своя учётная запись, последний
-/// администратор с полным доступом), поэтому одинаковую причину пишем один раз.
+/// Действия над сотрудником в строке таблицы — в «⋯»: в строке стояли три кнопки разного веса, и
+/// «Отключить» красным соседствовала с «Сбросить 2FA». Чего нельзя по правилу (своя учётная
+/// запись, последний администратор с полным доступом), в меню нет, а причина — строкой в ячейке:
+/// на неактивной кнопке браузер подсказку не показывает. Одинаковую причину пишем один раз.
 function AdminActions({ item, busy, roleReason, disableReason, onChangeRole, onToggleActive, onResetTwoFactor }: {
   item: PlatformAdminListItem;
   busy: boolean;
@@ -312,40 +315,26 @@ function AdminActions({ item, busy, roleReason, disableReason, onChangeRole, onT
   const { t } = useI18n();
   const role = useBlockedReason(roleReason);
   const disable = useBlockedReason(disableReason === roleReason ? null : disableReason);
-  const disableDescribedBy = disableReason === null ? undefined : disableReason === roleReason ? role.describedBy : disable.describedBy;
+  const actions: RowAction[] = [
+    ...(roleReason === null ? [{
+      id: 'role',
+      label: item.role === ROLE_PLATFORM_ADMIN ? t('platform.settings.action.makeSupport') : t('platform.settings.action.makeAdmin'),
+      disabled: busy,
+      onSelect: onChangeRole
+    }] : []),
+    ...(item.twoFactorEnabled ? [{ id: 'reset2fa', label: t('platform.settings.action.resetTwoFactor'), disabled: busy, onSelect: onResetTwoFactor }] : []),
+    ...(disableReason === null ? [{
+      id: 'active',
+      label: item.isActive ? t('platform.settings.action.disable') : t('platform.settings.action.enable'),
+      danger: item.isActive,
+      disabled: busy,
+      onSelect: onToggleActive
+    }] : [])
+  ];
 
   return (
     <>
-      <span className="pc-cell-actions">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy || roleReason !== null}
-          aria-describedby={role.describedBy}
-          onClick={onChangeRole}
-        >
-          {item.role === ROLE_PLATFORM_ADMIN ? t('platform.settings.action.makeSupport') : t('platform.settings.action.makeAdmin')}
-        </Button>
-        <Button
-          size="sm"
-          variant={item.isActive ? 'destructive' : 'outline'}
-          disabled={busy || disableReason !== null}
-          aria-describedby={disableDescribedBy}
-          onClick={onToggleActive}
-        >
-          {item.isActive ? t('platform.settings.action.disable') : t('platform.settings.action.enable')}
-        </Button>
-        {item.twoFactorEnabled ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={onResetTwoFactor}
-          >
-            {t('platform.settings.action.resetTwoFactor')}
-          </Button>
-        ) : null}
-      </span>
+      <RowActions label={t('platform.row.more', { name: item.displayName })} actions={actions} />
       {role.hint}
       {disable.hint}
     </>

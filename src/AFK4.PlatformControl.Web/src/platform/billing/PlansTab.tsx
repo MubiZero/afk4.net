@@ -83,7 +83,8 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
             <TableBody>
               {state.data.map(plan => (
                 <TableRow key={plan.planCode}>
-                  <TableCell><strong>{plan.name}</strong> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
+                  {/* Код тарифа — служебный ключ; он виден в форме тарифа, где его и сверяют. */}
+                  <TableCell><strong>{plan.name}</strong></TableCell>
                   <TableCell className="pc-num">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
                   <TableCell className="pc-num">
                     {(plan.pricePerDeviceMinorUnits ?? 0) > 0

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Page } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@afk4/ui/react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -211,22 +212,26 @@ export function AnnouncementsScreen({ client }: { client: Client }) {
                       : null}
                   </TableCell>
                   <TableCell>
+                    {/* Следующий шаг сообщения на виду: черновик — опубликовать, опубликованное —
+                        поправить; снять с показа — в «⋯». В строке было две кнопки, и у черновика
+                        главной заливкой шла «Опубликовать», а у соседнего — обводкой «Снять». */}
                     <span className="pc-cell-actions">
-                      {announcement.status === 'withdrawn' ? null : (
+                      {announcement.status === 'draft' ? (
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => setPublishTarget(announcement)}>
+                          {t('platform.announcements.publish')}
+                        </Button>
+                      ) : announcement.status === 'published' ? (
                         <Button size="sm" variant="outline" disabled={pending} onClick={() => setDraft(draftFrom(announcement))}>
                           {t('platform.announcements.edit')}
                         </Button>
-                      )}
-                      {announcement.status === 'draft' ? (
-                        <Button size="sm" disabled={pending} onClick={() => setPublishTarget(announcement)}>
-                          {t('platform.announcements.publish')}
-                        </Button>
                       ) : null}
-                      {announcement.status === 'published' ? (
-                        <Button size="sm" variant="outline" disabled={pending} onClick={() => setWithdrawTarget(announcement)}>
-                          {t('platform.announcements.withdraw')}
-                        </Button>
-                      ) : null}
+                      <RowActions
+                        label={t('platform.row.more', { name: announcement.title })}
+                        actions={[
+                          ...(announcement.status === 'draft' ? [{ id: 'edit', label: t('platform.announcements.edit'), disabled: pending, onSelect: () => setDraft(draftFrom(announcement)) }] : []),
+                          ...(announcement.status === 'published' ? [{ id: 'withdraw', label: t('platform.announcements.withdraw'), danger: true, disabled: pending, onSelect: () => setWithdrawTarget(announcement) }] : [])
+                        ]}
+                      />
                     </span>
                   </TableCell>
                 </TableRow>
