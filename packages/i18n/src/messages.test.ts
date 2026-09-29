@@ -64,7 +64,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'platform.audit.target', 'platform.organization.history.target',
     'roles.technician',
     'op.network.billing.col.number',
-    'account.phone.placeholder', 'clients.field.phone', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone', 'op.network.branches.kpi.devices', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
+    'account.phone.placeholder', 'clients.field.phone', 'customer.profile.langEn', 'customer.receipt.openLink', 'customer.signin.phone', 'platform.analytics.month.3', 'platform.analytics.month.5', 'journal.actor.system',
     'journal.col.target', 'op.network.dest.journal', 'op.network.journal.actor.system', 'op.network.journal.col.target',
     'op.management.dest.club', 'platform.dynamics.branch.label',
     // Группы меню «Управления»: «Клуб» — то же заимствование, «ПК» — канон терминов, одинаков во всех языках.
