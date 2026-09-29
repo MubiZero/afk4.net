@@ -783,9 +783,9 @@ finding checked in code before fixing.
   shop refund looking a sale up by id (organization is checked upstream).
 
 **Named, not done — needs the owner or a live PC.**
-- ~217 refusals in the money services carry an English phrase and no machine
-  code (3 have one); the Panel can only say «the server refused». A per-module
-  pass, not a quick fix.
+- Money refusals without a machine code — closed on 2026-09-28 (#543–#546):
+  till, floor map, POS and stock, reservations and shifts now send a code and
+  the Panel names the reason in words.
 - Silent install by code always reports success to msiexec (async on purpose,
   against nested-installer deadlocks); a failed PC is visible only as «28 of
   30» on the code in the Panel. Reporting failures needs a new anonymous route.
@@ -794,7 +794,43 @@ finding checked in code before fixing.
 - Idempotency rows and platform media are never cleaned — deferred to launch.
 - Shell design pass by the concept — waits for the owner (unchanged).
 
+## Design Pass of Every Part (2026-09-29)
+
+The owner asked for a separate design audit of every part: adult UX, nothing
+overloaded, the same look from screen to screen (the owner's example: the floor-map and
+player side panels crowded with buttons of different shapes). Six audits found
+the same classes everywhere: one button role in many shapes, five section-header
+templates, inspectors of five widths with 8–12 buttons, numbers printed twice,
+mono and regular digits mixed, several words for one thing.
+
+- **Behaviour bugs the audit found** — #556.
+- **One kit `@afk4/ui/react`** with a literal ratchet test — #559.
+- **Screens, one class per PR** (#560–#588, one deploy #587): floor map and seat
+  panel (one primary by seat state, «Завершить и рассчитать» in a session, PC
+  commands under «Ещё», «Повторить» repeats the failed command), clients and
+  bookings on the kit inspector, till/stock/reports under one header, the
+  Management menu grouped Клуб · ПК · Деньги · Люди, Platform Control speaks of
+  «клуб» and «филиал», the setup wizard and the shell use the Panel's words, the
+  player app has one «Сесть за ПК» entry, one header and text scale up to 200%.
+- **Tails** — #589: brand «AFK4.net», comma in money placeholders, the last
+  «кошелёк/депозит», Platform Control tables on the kit, audit codes in words,
+  Management side panels on the kit inspector.
+
+Owner decisions: numbers in the regular font with tabular digits (mono only for
+codes); player money is «баланс» everywhere; Platform Control customer is «клуб»,
+its location «филиал». Defaults taken (owner may change): underline tabs,
+inspector width 360, no slogans in headers, 13px button text.
+
+Named, not done: the logo wordmark stays `AFK4.NET` per `brand/README.md`; the
+shell redesign by the concept (choreography, sign-in window size) still waits for
+the owner; nothing here was seen in the native WebView2 or on a live PC.
+
 ## Latest Verification
+
+- Design pass merged (2026-09-29). #587 (screens of every part) passed
+  `scripts/verify.sh --all` — API 3325 on real PostgreSQL, Agent 445 (+30
+  WindowsOnly), Setup Wizard 138 (+5), web and Flutter with builds — and green
+  CI including Windows. #589 (tails) passed the web and Flutter lanes.
 
 - Audit merged (2026-09-28). The ponytail pass (#511–#521 via #522) and the
   three-pass audit fixes (#523–#541, one integration branch) — see the section
