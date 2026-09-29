@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { AuditApi } from '@/api/platformClients/audit';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import { Button } from '@/components/ui/button';
+import { Page } from '@/components/layout/Page';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +47,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
 
   useEffect(() => setDraft(filters), [filters]);
 
-  return <div>
+  return <Page width="full" title={t('nav.platform.journal')} tools={(
     <form className="pc-filters" onSubmit={event => { event.preventDefault(); onFiltersChange(draft); }}>
       <Filter label={t('platform.audit.organization')}>
         {/* Пока список клубов в пути или не доехал, остаётся ввод идентификатора: фильтр по ссылке
@@ -77,6 +78,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
       <Filter label={t('platform.audit.to')}><Input type="date" value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })} /></Filter>
       <div><Button type="submit">{t('platform.audit.apply')}</Button></div>
     </form>
+  )}>
     {state.status === 'error' ? <ErrorState title={t('platform.audit.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       : state.status === 'loading' ? <Loading><SkeletonTable columns={6} rows={6} /></Loading>
       // Пустой журнал и фильтр, под который ничего не подошло, — разные ответы: у второго есть выход.
@@ -88,7 +90,7 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
         </TableRow></TableHeader><TableBody>{(state.data.records ?? []).map(record => <TableRow key={record.auditRecordId}>
           <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell>{record.organizationName ?? <code>{record.organizationId}</code>}</TableCell><TableCell><code>{record.action}</code></TableCell><TableCell>{auditTargetLabel(record.targetType, t)}{record.targetId ? ` · ${record.targetId}` : ''}</TableCell><TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell><TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
         </TableRow>)}</TableBody></Table></div>}
-  </div>;
+  </Page>;
 }
 
 function Filter({ label, children }: { label: string; children: ReactNode }) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AdComplaintReasonName } from '@afk4/contracts';
 import type { MessageKey } from '@afk4/i18n';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -48,15 +48,13 @@ export function ComplaintsTab({ client, onOpenCampaign }: {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.ads.complaints.title')}</CardTitle>
+      <CardToolbar hint={t('platform.ads.complaints.description')}>
         <label className="pc-check-row">
           <Switch checked={showClosed} onCheckedChange={setShowClosed} />
           {t('platform.ads.complaints.showClosed')}
         </label>
-      </CardHeader>
+      </CardToolbar>
       <CardContent>
-        <p className="mgmt-drawer-hint">{t('platform.ads.complaints.description')}</p>
         {complaints.status === 'error' ? (
           <ErrorState title={t('platform.ads.complaints.error.load')} message={complaints.message} retryLabel={complaints.canRetry ? t('state.retry') : undefined} onRetry={complaints.canRetry ? complaints.retry : undefined} />
         ) : complaints.status === 'loading' ? (

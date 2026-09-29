@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -60,11 +60,8 @@ export function ReportTab({ client, now = new Date() }: {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.ads.report.title')}</CardTitle>
-      </CardHeader>
+      <CardToolbar hint={t('platform.ads.report.description')} />
       <CardContent>
-        <p className="mgmt-drawer-hint">{t('platform.ads.report.description')}</p>
 
         <form className="pc-filters" onSubmit={event => { event.preventDefault(); apply(draft); }}>
           <Filter label={t('platform.ads.report.from')}>

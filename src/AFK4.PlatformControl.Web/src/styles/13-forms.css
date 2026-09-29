@@ -259,6 +259,24 @@
   min-width: 0;
 }
 
+/* Капитель заголовка секции — только для самого заголовка: чип и сумма справа от него
+   («2 клуба · 450 с.») читались заглавными «2 КЛУБА». */
+.mgmt-section-title .ui-chip,
+.mgmt-section-title .ui-money {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Строка над содержимым вкладки: пояснение слева, кнопка вкладки справа (CardToolbar). */
+.pc-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pc-card-toolbar > .mgmt-drawer-hint { max-width: 72ch; }
+
 /* Шапка экрана: подзаголовок над заголовком (общий .management-screen-head) плюс место
    под действия справа — у оператора кнопка экрана живёт в save-баре, здесь её носит шапка. */
 .pc-screen {

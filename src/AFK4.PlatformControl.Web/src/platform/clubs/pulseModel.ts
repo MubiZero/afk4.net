@@ -48,6 +48,13 @@ export function alertRank(level: PulseAlertLevel): number {
   return RANK[level];
 }
 
+/** Сколько клубов ждут человека: у кого есть хоть одна тревога (нет связи, смена не закрыта,
+ * просрочен платёж, обновление не встало). Это первая строка утра — «2 из 14 требуют внимания»,
+ * — и считается она так же, как вид «Сейчас» поднимает клубы наверх. */
+export function countNeedingAttention(organizations: readonly PulseOrganization[]): number {
+  return organizations.filter(organization => organization.alertLevel !== 'normal').length;
+}
+
 export function resolveDensity(clientCount: number): PulseDensity {
   return clientCount > 5 ? 'dense' : 'roomy';
 }

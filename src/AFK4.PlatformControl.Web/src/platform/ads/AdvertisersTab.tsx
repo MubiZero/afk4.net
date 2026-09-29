@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -89,12 +89,10 @@ export function AdvertisersTab({ client }: { client: AdvertisersClient }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.ads.advertisers.title')}</CardTitle>
+      <CardToolbar hint={t('platform.ads.advertisers.description')}>
         <Button onClick={createNew}>{t('platform.ads.advertisers.create')}</Button>
-      </CardHeader>
+      </CardToolbar>
       <CardContent>
-        <p className="mgmt-drawer-hint">{t('platform.ads.advertisers.description')}</p>
 
         {advertisers.length === 0 ? (
           <EmptyState message={t('platform.ads.advertisers.empty')} next={{ label: t('platform.ads.advertisers.createFirst'), onClick: createNew }} />

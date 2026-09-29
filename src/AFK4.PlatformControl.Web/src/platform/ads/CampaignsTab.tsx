@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardToolbar } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -99,14 +99,12 @@ export function CampaignsTab({ client, organizationsClient, onOpenCampaign, onOp
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('platform.ads.campaigns.title')}</CardTitle>
+      <CardToolbar hint={t('platform.ads.campaigns.description')}>
         {noAdvertisers ? null : (
           <Button disabled={advertiserList === null} onClick={openNew}>{t('platform.ads.campaigns.create')}</Button>
         )}
-      </CardHeader>
+      </CardToolbar>
       <CardContent>
-        <p className="mgmt-drawer-hint">{t('platform.ads.campaigns.description')}</p>
 
         {advertisers.status === 'error' ? (
           <PartialFailure title={t('platform.ads.campaigns.error.advertisers')} retryLabel={t('state.retry')} onRetry={advertisers.retry} />
