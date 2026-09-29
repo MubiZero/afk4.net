@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { KeyRound, Trash2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { StaffInviteStatusNames, type StaffInviteSummaryDto } from '@afk4/contracts';
+import { groupCode } from '@afk4/formatting';
 import { projectOperatorError } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, staffRoleLabel } from '../../../operatorHelpers';
 import type { Feedback } from '../../../operatorTypes';
 import type { DestinationProps } from '../types';
-import { groupCode } from './firstSignInCode';
 import { displayPhone } from '../../../phoneFormat';
 import { RowActionsMenu } from '../../kit/RowActionsMenu';
 

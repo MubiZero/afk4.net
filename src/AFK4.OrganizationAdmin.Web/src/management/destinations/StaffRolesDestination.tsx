@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
+import { groupCode } from '@afk4/formatting';
 import { KeyRound, Pencil, Power, PowerOff, UserMinus, Users } from 'lucide-react';
 import { ManagementScreen, ScreenAction } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
@@ -27,7 +28,6 @@ import { ViewOnlyNotice } from '../ViewOnlyNotice';
 import { SkeletonTable } from '../../LoadingSkeleton';
 import { StaffFromNetworkModal } from './StaffFromNetworkModal';
 import { PendingStaffInvites } from './staff/PendingStaffInvites';
-import { groupCode } from './staff/firstSignInCode';
 
 // Настоящий тип, а не `Record<string, unknown>`: поле, которого в ответе сервера нет, теперь заметит компилятор.
 type StaffUser = StaffUserDto;
