@@ -1,6 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { LoadFailureState, Money } from '../../../operatorPrimitives';
-import { DeferredSkeleton, SkeletonControl } from '../../../LoadingSkeleton';
+import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
 import type { LoyaltySettingsController } from './useLoyaltySettings';
 
@@ -73,7 +73,7 @@ function RuleCard({
   );
 }
 
-// Содержимое секции «Как вы возвращаете»: правила кэшбэка + лимиты со своей кнопкой сохранения.
+// Содержимое секции «Как вы возвращаете»: правила кэшбэка + лимиты; сохраняет общая плашка экрана.
 // Обёртку-секцию с заголовком/лидом даёт PaymentsSetupSection. Loading/error рисуются внутри
 // секции, чтобы не подменять весь экран (у соседней зоны приёма своя жизнь).
 export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Props) {
@@ -98,7 +98,6 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
         <SetupSubheadSkeleton />
         <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.loyalty.limits.hint')}</p>
         <SetupFieldsSkeleton hints={[t('op.loyalty.capHint'), t('op.loyalty.minimumHint')]} />
-        <div className="payset-foot"><SkeletonControl width="10rem" /></div>
       </DeferredSkeleton>
     );
   }
@@ -176,17 +175,6 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
           </div>
           <p className="payset-field-hint">{t('op.loyalty.minimumHint')}</p>
         </div>
-      </div>
-
-      <div className="payset-foot">
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          disabled={c.disabled || !c.dirty}
-          onClick={() => void c.save()}
-        >
-          {t('op.loyalty.save')}
-        </button>
       </div>
     </>
   );

@@ -1,6 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { LoadFailureState } from '../../../operatorPrimitives';
-import { DeferredSkeleton, SkeletonControl } from '../../../LoadingSkeleton';
+import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
 import type { ReferralSettingsController } from './useReferralSettings';
 
@@ -10,8 +10,8 @@ interface Props {
   hasBackend: boolean;
 }
 
-// «Приведи друга»: платит клуб, суммы назначает он же — как и кэшбэк рядом. Своя кнопка
-// сохранения внутри секции, глобального save-бара на экране нет.
+// «Приведи друга»: платит клуб, суммы назначает он же — как и кэшбэк рядом. Сохраняет общая
+// плашка экрана (PaymentsLoyaltyDestination).
 export function ReferralSection({ controller: c, currencyCode, hasBackend }: Props) {
   const { t } = useI18n();
 
@@ -32,7 +32,6 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
         <SetupSubheadSkeleton />
         <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.referral.limits.hint')}</p>
         <SetupFieldsSkeleton hints={[t('op.referral.minimumTopUpHint'), t('op.referral.claimWindowHint'), t('op.referral.maxRewardedHint')]} />
-        <div className="payset-foot"><SkeletonControl width="10rem" /></div>
       </DeferredSkeleton>
     );
   }
@@ -139,17 +138,6 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
           </div>
           <p className="payset-field-hint">{t('op.referral.maxRewardedHint')}</p>
         </div>
-      </div>
-
-      <div className="payset-foot">
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          disabled={c.disabled || !c.dirty}
-          onClick={() => void c.save()}
-        >
-          {t('op.referral.save')}
-        </button>
       </div>
     </>
   );
