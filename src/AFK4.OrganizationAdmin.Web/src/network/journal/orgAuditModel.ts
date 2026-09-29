@@ -39,7 +39,7 @@ export function toAuditRows(
     date: fmt.formatDate(r.createdAtUtc),
     actor: r.actorDisplayName ?? (r.actorStaffUserId ?? r.actorPlatformAdminUserId)?.slice(0, 8) ?? systemLabel,
     action: r.action,
-    target: r.targetId === null ? r.targetType : `${r.targetType} (${r.targetId})`,
+    target: r.targetId == null ? r.targetType : `${r.targetType} (${r.targetId})`,
     outcome: r.outcome,
     outcomeTone: outcomeChipTone(r.outcome),
     source: r.sourceApp,

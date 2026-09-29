@@ -381,10 +381,12 @@ const previewMoneyActions: Array<Record<string, unknown>> = [{
   createdAtUtc: minutesAgoUtc(15), expiresAtUtc: new Date(Date.now() + 75 * 60_000).toISOString()
 }];
 
+// targetId: null явно — контракт (AuditRecordDto.cs) шлёт его всегда, пропавшего ключа реальный
+// сервер не отдаёт; фикстура без него однажды маскировала разбор `undefined` как `null`.
 const previewAuditRecords: Array<Record<string, unknown>> = [
-  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
-  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
-  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
+  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', targetId: null, amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
+  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', targetId: null, amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
+  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', targetId: null, amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
 ];
 
 function previewAudit(searchParams: URLSearchParams) {

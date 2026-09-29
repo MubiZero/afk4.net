@@ -32,6 +32,13 @@ describe('orgAuditModel', () => {
     expect(rows[0].target).toBe('Organization');
   });
 
+  // targetId приходил undefined (ключ отсутствовал в ответе), а сравнение было строго с null —
+  // строка выходила «shift (undefined)» вместо простого «shift».
+  it('renders the target type alone when targetId is missing, not just null', () => {
+    const rows = toAuditRows([{ ...rec, targetType: 'shift', targetId: undefined } as never], { formatDate: (s) => s }, 'система');
+    expect(rows[0].target).toBe('shift');
+  });
+
   // Журнал открывают, чтобы ответить «кто трогал подписку», — столбец GUID на это не отвечал.
   it('names the actor the server resolved', () => {
     const rows = toAuditRows([{ ...rec, actorStaffUserId: 'staff-1', actorDisplayName: 'Фаррух' }], { formatDate: (s) => s }, 'система');
