@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Lock, ArrowDownToLine, ArrowUpFromLine, Unlock, FileText } from 'lucide-react';
+import { Button } from '@afk4/ui/react';
 import {
   createAuthenticatedOperatorClients,
   parseMoneyInputMinorUnits,
@@ -255,29 +256,30 @@ export function CashShiftCommandBar({
   return (
     <div className="cash-head-commands">
       {canOpen && (
-        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('open')}>
+        // Смены нет — касса ничего не продаёт, и открыть её — единственный следующий шаг.
+        <Button variant="primary" size="sm" onClick={() => setActiveModal('open')}>
           <Unlock size={14} aria-hidden="true" />{t('op.cash.action.open')}
-        </button>
+        </Button>
       )}
       {canCash && (
         <>
-          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('cash_in')}>
+          <Button variant="ghost" size="sm" onClick={() => setActiveModal('cash_in')}>
             <ArrowDownToLine size={14} aria-hidden="true" />{t('op.cash.action.cashIn')}
-          </button>
-          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('cash_out')}>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setActiveModal('cash_out')}>
             <ArrowUpFromLine size={14} aria-hidden="true" />{t('op.cash.action.cashOut')}
-          </button>
+          </Button>
         </>
       )}
       {canClose && (
-        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger cash-command-btn danger" onClick={openCloseModal}>
+        <Button variant="danger" size="sm" onClick={openCloseModal}>
           <Lock size={14} aria-hidden="true" />{t('op.cash.action.close')}
-        </button>
+        </Button>
       )}
       {canXReport && revenue && (
-        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
+        <Button variant="ghost" size="sm" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
           <FileText size={14} aria-hidden="true" />{t('op.cash.action.xReport')}
-        </button>
+        </Button>
       )}
       {activeModal === 'open' && (
         <OpenShiftModal

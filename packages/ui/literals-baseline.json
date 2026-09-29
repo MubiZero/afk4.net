@@ -101,8 +101,8 @@
     "spacing": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/18-review.css": {
-    "font-size": 13,
-    "radius": 4,
+    "font-size": 12,
+    "radius": 1,
     "spacing": 1,
     "mono": 5
   },
@@ -118,11 +118,11 @@
     "hex": 2
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/21-cash.css": {
-    "font-size": 72,
+    "font-size": 65,
     "radius": 6,
-    "spacing": 6,
+    "spacing": 5,
     "hex": 1,
-    "mono": 29
+    "mono": 28
   },
   "src/AFK4.OrganizationAdmin.Web/src/styles/22-stock.css": {
     "font-size": 38,

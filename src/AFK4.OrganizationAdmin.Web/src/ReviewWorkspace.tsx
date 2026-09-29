@@ -2,23 +2,22 @@ import { useEffect, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorError, type OperatorErrorProjection } from './apiErrors';
 import type { AuditRecordDto, AuditSearchResultDto, MoneyActionRequestDto } from './operatorApiClients';
-import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
+import type { Feedback, OperatorBackendContext } from './operatorTypes';
 import {
   auditActionLabel,
   auditActorLabel,
   createAuthenticatedOperatorClients,
   emptyFeedback,
-  formatMinorUnits,
   formatTime,
   operatorDisplayNameLabel,
   readArray,
   readString,
-  requireBackend,
-  workspaceLoadStatusLabel
+  requireBackend
 } from './operatorHelpers';
 import { useFeedbackToasts } from './useFeedbackToasts';
-import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './cash/CashTerminalFrame';
-import { EmptyState, PartialLoadFailure } from './operatorPrimitives';
+import { CashRegisterRows, CashTerminalSplit } from './cash/CashTerminalFrame';
+import { EmptyState, Money, PartialLoadFailure } from './operatorPrimitives';
+import { Button, Tabs } from '@afk4/ui/react';
 
 type ReviewSegment = 'queue' | 'history' | 'audit';
 
@@ -50,12 +49,12 @@ function reviewExpiryBadge(expiresAtUtc: string, nowMs: number, t: (key: Message
   return null;
 }
 
-export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { currencyCode: string; backend: OperatorBackendContext | null; embedded?: boolean }) {
+// Вкладка «Согласования» кассы: очередь заявок, история решений и журнал денежных действий.
+export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
   const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [requests, setRequests] = useState<MoneyActionRequestDto[]>([]);
@@ -80,21 +79,14 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   };
 
   const loadQueue = async (nextBackend = backend, shared?: ReturnType<typeof createAuthenticatedOperatorClients>) => {
-    if (nextBackend === null) {
-      setLoadStatus('fixture');
-      setLoadError(null);
-      return;
-    }
-    setLoadStatus('loading');
     setLoadError(null);
+    if (nextBackend === null) return;
     try {
       const apiClients = shared ?? createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const feed = await apiClients.moneyActions.listPending(nextBackend.branchId);
       setRequests(readArray<MoneyActionRequestDto>(feed, 'requests'));
-      setLoadStatus('backend');
     } catch (error) {
       const detail = projectOperatorError(error, t).detail;
-      setLoadStatus('failed');
       setLoadError(detail);
       setFeedback({ label: t('op.review.feedbackLoad'), state: 'failed', detail });
     }
@@ -211,38 +203,31 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   const decisionRecords = auditRecords.filter((record) => /approv|reject|money.action/i.test(record.action));
   const staffOptions = Object.entries(staffNames);
   const selectedRequest = requests.find((request) => request.moneyActionRequestId === selectedRequestId) ?? null;
-  const expiringCount = requests.filter((request) => reviewExpiryBadge(request.expiresAtUtc, Date.now(), t)?.tone === 'soon').length;
-  const overdueCount = requests.filter((request) => reviewExpiryBadge(request.expiresAtUtc, Date.now(), t)?.tone === 'overdue').length;
+  // Число заявок — на вкладке очереди, а «истекает скоро» и «просрочена» — меткой на самой заявке.
+  // Три карточки «Заявки 1 · Истекают 1 · Просрочены 0» над одной заявкой повторяли её же трижды.
+  const selectSegment = (segment: ReviewSegment) => {
+    setActiveSegment(segment);
+    if (segment === 'history' || (segment === 'audit' && auditResult === null)) void applyAuditSearch();
+  };
 
-  const body = (
-    <>
-      {!embedded && (
-        <section className="screen-head review-head">
-          <div>
-            <span>{t('op.review.title')}</span>
-            <h1>{t('op.review.heading')}</h1>
-          </div>
-          <div className="screen-actions">
-            <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.review.loadedLabel'), t)}</span>
-          </div>
-        </section>
-      )}
-
-      <CashMetricStrip ariaLabel={t('op.review.summaryLabel')} items={[
-        { label: t('op.review.flagRequests'), value: requests.length, tone: requests.length ? 'attention' : 'default' },
-        { label: t('op.review.expiringCount'), value: expiringCount, tone: expiringCount ? 'attention' : 'default' },
-        { label: t('op.review.overdueCount'), value: overdueCount, tone: overdueCount ? 'danger' : 'default' }
-      ]} />
+  return (
+    <section className="review-embed">
 
       {staffLoadError !== null && (
         <PartialLoadFailure text={t('op.review.staffNamesFailed', { reason: staffLoadError.detail })} failure={staffLoadError} onRetry={() => void loadStaffNames()} />
       )}
 
-      <div className="review-segments" role="tablist">
-        <button type="button" role="tab" aria-selected={activeSegment === 'queue'} className={activeSegment === 'queue' ? 'active' : undefined} onClick={() => setActiveSegment('queue')}>{t('op.review.tabQueue')}</button>
-        <button type="button" role="tab" aria-selected={activeSegment === 'history'} className={activeSegment === 'history' ? 'active' : undefined} onClick={() => { setActiveSegment('history'); void applyAuditSearch(); }}>{t('op.review.tabHistory')}</button>
-        <button type="button" role="tab" aria-selected={activeSegment === 'audit'} className={activeSegment === 'audit' ? 'active' : undefined} onClick={() => { setActiveSegment('audit'); if (auditResult === null) void applyAuditSearch(); }}>{t('op.review.tabAudit')}</button>
-      </div>
+      <Tabs
+        className="review-segments"
+        label={t('op.cash.journal.segReview')}
+        value={activeSegment}
+        onChange={selectSegment}
+        items={[
+          { value: 'queue', label: t('op.review.tabQueue'), count: requests.length > 0 ? requests.length : undefined },
+          { value: 'history', label: t('op.review.tabHistory') },
+          { value: 'audit', label: t('op.review.tabAudit') }
+        ]}
+      />
 
       {activeSegment === 'queue' && (
         <CashTerminalSplit
@@ -254,19 +239,19 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
             ? <p className="review-empty">{loadError}</p>
             : <EmptyState inline className="review-empty" title={t('op.review.emptyQueue')} next={{ kind: 'calm', hint: t('op.review.emptyQueueHint') }} />) : <CashRegisterRows rows={requests} selectedId={selectedRequestId} getId={(request) => request.moneyActionRequestId} onSelect={setSelectedRequestId} ariaLabel={t('op.review.queueAria')} renderRow={(request) => {
             const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now(), t);
-            return <div className="review-approval-row"><span>{reviewActionTypeLabel(request.actionType, t)}</span><strong>{formatMinorUnits(request.amountMinorUnits, request.currencyCode || currencyCode)}</strong><em>{request.reason}</em><small>{resolveStaffName(request.requestedByStaffUserId)}</small>{expiryBadge ? <b className={expiryBadge.tone}>{expiryBadge.label}</b> : null}</div>;
+            return <div className="review-approval-row"><span>{reviewActionTypeLabel(request.actionType, t)}</span><strong><Money minorUnits={request.amountMinorUnits} currencyCode={request.currencyCode || currencyCode} /></strong><em>{request.reason}</em><small>{resolveStaffName(request.requestedByStaffUserId)}</small>{expiryBadge ? <b className={expiryBadge.tone}>{expiryBadge.label}</b> : null}</div>;
           }} />}
           inspector={selectedRequest ? <div className="review-approval-inspector">
             <p>{reviewActionTypeLabel(selectedRequest.actionType, t)}</p>
             <h2>{selectedRequest.reason}</h2>
-            <strong>{formatMinorUnits(selectedRequest.amountMinorUnits, selectedRequest.currencyCode || currencyCode)}</strong>
+            <strong><Money minorUnits={selectedRequest.amountMinorUnits} currencyCode={selectedRequest.currencyCode || currencyCode} /></strong>
             <dl><div><dt>{t('op.review.requestedByLabel')}</dt><dd>{resolveStaffName(selectedRequest.requestedByStaffUserId)}</dd></div><div><dt>{t('op.review.createdLabel')}</dt><dd>{formatTime(selectedRequest.createdAtUtc)}</dd></div><div><dt>{t('op.review.expiresLabel')}</dt><dd>{formatTime(selectedRequest.expiresAtUtc)} {reviewExpiryBadge(selectedRequest.expiresAtUtc, Date.now(), t)?.label ?? ''}</dd></div></dl>
-            {rejectingId === selectedRequest.moneyActionRequestId ? <div className="review-reject-form"><label>{t('op.review.rejectReasonLabel')}<input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} /></label><div className="review-request-actions"><button type="button" disabled={deciding} onClick={() => void confirmReject(selectedRequest)}>{t('op.review.confirmRejectBtn')}</button><button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</button></div></div> : <div className="review-request-actions"><button type="button" disabled={deciding} onClick={() => void approveRequest(selectedRequest)}>{t('op.review.approveBtn')}</button><button type="button" disabled={deciding} onClick={() => { setRejectingId(selectedRequest.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</button></div>}
+            {rejectingId === selectedRequest.moneyActionRequestId ? <div className="review-reject-form"><label>{t('op.review.rejectReasonLabel')}<input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} /></label><div className="review-request-actions"><Button variant="primary" disabled={deciding} onClick={() => void confirmReject(selectedRequest)}>{t('op.review.confirmRejectBtn')}</Button><Button variant="ghost" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</Button></div></div> : <div className="review-request-actions"><Button variant="primary" disabled={deciding} onClick={() => void approveRequest(selectedRequest)}>{t('op.review.approveBtn')}</Button><Button disabled={deciding} onClick={() => { setRejectingId(selectedRequest.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</Button></div>}
           </div> : <p className="cash-inspector-empty">{t('op.review.selectHint')}</p>}
         />
       )}
 
-      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <EmptyState inline className="review-empty" title={t('op.review.emptyHistory')} next={{ kind: 'calm', hint: t('op.review.emptyHistoryHint') }} /> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={record.auditRecordId} className="review-audit-row"><span>{formatTime(record.createdAtUtc)}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(record.action, t)}</em><b>{record.amountMinorUnits ? formatMinorUnits(record.amountMinorUnits, currencyCode) : '—'}</b></article>)}</div>}</section>}
+      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <EmptyState inline className="review-empty" title={t('op.review.emptyHistory')} next={{ kind: 'calm', hint: t('op.review.emptyHistoryHint') }} /> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={record.auditRecordId} className="review-audit-row"><span>{formatTime(record.createdAtUtc)}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(record.action, t)}</em><b><Money minorUnits={record.amountMinorUnits || null} currencyCode={currencyCode} /></b></article>)}</div>}</section>}
 
       {activeSegment === 'audit' && (
         <section className="review-panel review-audit-panel">
@@ -282,7 +267,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
             </label>
             <label>{t('op.review.amountFrom')}<input inputMode="numeric" value={auditMinAmount} onChange={(event) => setAuditMinAmount(event.currentTarget.value)} placeholder={t('op.review.amountMin')} /></label>
             <label>{t('op.review.amountTo')}<input inputMode="numeric" value={auditMaxAmount} onChange={(event) => setAuditMaxAmount(event.currentTarget.value)} placeholder={t('op.review.amountMax')} /></label>
-            <button type="button" onClick={() => void applyAuditSearch()}>{t('op.review.applyFilter')}</button>
+            <Button onClick={() => void applyAuditSearch()}>{t('op.review.applyFilter')}</Button>
           </div>
           <div className="review-audit-list">
             {auditRecords.length === 0 ? (
@@ -300,14 +285,13 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
                   <span>{formatTime(record.createdAtUtc)}</span>
                   <strong>{reviewAuditActorLabel(record)}</strong>
                   <em>{auditActionLabel(record.action, t)}</em>
-                  <b>{(record.amountMinorUnits ?? 0) > 0 ? formatMinorUnits(record.amountMinorUnits ?? 0, currencyCode) : '—'}</b>
+                  <b><Money minorUnits={(record.amountMinorUnits ?? 0) > 0 ? record.amountMinorUnits ?? 0 : null} currencyCode={currencyCode} /></b>
                 </article>
               ))
             )}
           </div>
         </section>
       )}
-    </>
+    </section>
   );
-  return embedded ? <section className="review-embed">{body}</section> : <main className="workspace-screen review-screen">{body}</main>;
 }

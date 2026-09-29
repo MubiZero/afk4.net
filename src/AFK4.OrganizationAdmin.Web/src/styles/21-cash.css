@@ -1,4 +1,6 @@
-/* Раздел «Касса»: шапка-якорь (зеркало .booking-header) + под-вкладки раздела. */
+/* Раздел «Касса»: шапка — SectionHeader кита, вкладки — Tabs кита; здесь только тело вкладок. */
+
+/* Шапка и вкладки Склада пока на старом шаблоне «имя · чипы» — уйдут вместе с ним. */
 .cash-head {
   box-sizing: border-box;
   flex: none;
@@ -158,14 +160,13 @@
   flex-direction: column;
 }
 .cash-shift-screen,
-.cash-journal-screen,
 .cash-stock-screen {
   flex: 1;
   min-height: 0;
   overflow: auto;
 }
 
-/* S1: командная панель смены в шапке-якоре + формы модалок смены. */
+/* Команды смены в шапке раздела + формы модалок смены. */
 .cash-head-commands { display: flex; align-items: center; flex: none; gap: var(--space-2); }
 /* НЕ дедуплено с .ui-btn: .cash-command-btn также несётся САМОСТОЯТЕЛЬНО, без атом-классов,
    на кнопке экспорта Журнала склада (stock/JournalWorkspace.tsx .journal-export) — там она
@@ -293,15 +294,13 @@
 /* S4: «Смена» — выбранное направление Shift Command Center. */
 .cash-shift-screen { display: flex; min-height: 0; flex-direction: column; gap: var(--space-2); color: var(--text-primary); }
 .cash-shift-status-card,
-.cash-shift-reconcile-band,
 .cash-shift-revenue-strip,
 .cash-shift-movement-ledger,
 .cash-shift-history-panel,
 .cash-shift-no-open { border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-elevated); }
-.cash-shift-status-card,
-.cash-shift-reconcile-band { flex: none; }
+.cash-shift-status-card { flex: none; }
 
-.cash-shift-status-card { display: grid; grid-template-columns: minmax(190px, .8fr) repeat(3, minmax(170px, 1fr)) minmax(420px, auto); align-items: stretch; min-height: 92px; }
+.cash-shift-status-card { display: grid; grid-template-columns: minmax(190px, .8fr) repeat(3, minmax(170px, 1fr)) auto; align-items: stretch; min-height: 92px; }
 .cash-shift-status-block { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 5px; padding: var(--space-3) var(--space-4); border-left: 1px solid var(--border-soft); }
 .cash-shift-status-block > span { color: var(--text-secondary); font-size: 13px; }
 .cash-shift-status-block > strong { overflow: hidden; color: var(--text-primary); font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
@@ -309,8 +308,6 @@
 .cash-shift-status-lead > svg { position: absolute; left: var(--space-4); color: var(--text-tertiary); }
 .cash-shift-status-lead > strong { color: var(--accent-text); font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
 .cash-shift-status-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3); border-left: 1px solid var(--border-soft); }
-.cash-shift-status-actions .cash-head-commands { flex-wrap: wrap; justify-content: flex-end; }
-.cash-shift-status-actions .cash-command-btn { min-height: var(--control-md); padding-right: var(--space-3); padding-left: var(--space-3); font-size: 13px; }
 
 .cash-shift-export-menu { position: relative; flex: none; }
 .cash-shift-export-menu > summary { display: inline-flex; min-height: var(--control-md); align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 13px; cursor: pointer; list-style: none; }
@@ -321,25 +318,15 @@
 .cash-shift-export-popover button { display: flex; min-height: var(--control-md); align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-primary); font-size: 13px; text-align: left; cursor: pointer; }
 .cash-shift-export-popover button:hover { background: var(--surface-hover); color: var(--accent-bright); }
 
-.cash-shift-reconcile-band { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: 126px; }
-.cash-shift-reconcile-band > div { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 6px; padding: var(--space-4) var(--space-5); border-left: 1px solid var(--border-soft); }
-.cash-shift-reconcile-band > div:first-child { border-left: 0; }
-.cash-shift-reconcile-band span { color: var(--text-secondary); font-size: 14px; }
-.cash-shift-reconcile-band strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.cash-shift-reconcile-band strong .ui-money { color: inherit; font-size: inherit; }
-.cash-shift-reconcile-band small { color: var(--text-tertiary); font-size: 12px; }
-.cash-shift-reconcile-band > div:first-child strong { color: var(--accent-text); }
-.cash-shift-reconcile-band .cash-shift-reconcile-pending strong { color: var(--danger-text); font-family: inherit; }
-
 .cash-shift-main-grid { display: grid; min-height: 0; flex: 1; grid-template-columns: minmax(0, 1fr) minmax(360px, 24%); gap: var(--space-2); }
 .cash-shift-main-column { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: var(--space-2); }
-.cash-shift-revenue-strip { display: grid; grid-template-columns: 1.35fr repeat(5, minmax(110px, 1fr)); min-height: 84px; align-items: stretch; }
+.cash-shift-revenue-strip { display: grid; grid-auto-columns: minmax(96px, 1fr); grid-auto-flow: column; grid-template-columns: max-content; min-height: 84px; align-items: stretch; }
 .cash-shift-revenue-strip > div { display: grid; align-content: center; gap: 4px; padding: var(--space-3) var(--space-4); border-left: 1px solid var(--border-soft); }
 .cash-shift-revenue-strip > div:first-child { border-left: 0; }
 .cash-shift-revenue-strip span { color: var(--text-secondary); font-size: 13px; }
 .cash-shift-revenue-strip strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
 .cash-shift-revenue-strip small { color: var(--text-tertiary); font-size: 12px; }
-.cash-shift-revenue-total strong { font-size: 23px; }
+.cash-shift-revenue-total strong { font-family: inherit; font-size: var(--text-sm); font-weight: 700; }
 
 .cash-shift-movement-ledger { display: flex; min-height: 320px; flex: 1; flex-direction: column; overflow: hidden; }
 .cash-shift-movement-ledger > header,
@@ -348,10 +335,7 @@
 .cash-shift-history-panel h2 { margin: 0; font-size: 16px; font-weight: 700; }
 .cash-shift-movement-ledger > header > span,
 .cash-shift-history-panel > header > span { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 12px; }
-.cash-shift-movement-head,
 .cash-shift-movements li { display: grid; grid-template-columns: 82px 150px minmax(220px, 1fr) minmax(140px, .55fr) 120px; align-items: center; column-gap: var(--space-3); }
-.cash-shift-movement-head { min-height: 38px; padding: 0 var(--space-4); border-bottom: 1px solid var(--border-soft); color: var(--text-tertiary); font-size: 12px; }
-.cash-shift-movement-head span:last-child { text-align: right; }
 .cash-shift-movements { gap: 0; }
 .cash-shift-movements li { min-height: 52px; padding: 0 var(--space-4); border-top: 1px solid var(--border-soft); font-size: 15px; }
 .cash-shift-movements li:first-child { border-top: 0; }
@@ -392,44 +376,19 @@
 .cash-shift-last-closed > b { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 1500px) {
-  .cash-shift-status-card { grid-template-columns: repeat(4, minmax(170px, 1fr)); }
-  .cash-shift-status-actions { grid-column: 1 / -1; border-top: 1px solid var(--border-soft); border-left: 0; }
   .cash-shift-main-grid { grid-template-columns: minmax(0, 1fr) 360px; }
-  .cash-shift-revenue-strip { grid-template-columns: 1.2fr repeat(5, minmax(92px, 1fr)); }
 }
 
 @media (max-width: 1180px) {
   .cash-shift-status-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cash-shift-status-actions { grid-column: 1 / -1; border-top: 1px solid var(--border-soft); border-left: 0; }
+  .cash-shift-revenue-strip { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .cash-shift-status-block:nth-child(odd) { border-left: 0; }
   .cash-shift-status-block:nth-child(n + 3) { border-top: 1px solid var(--border-soft); }
-  .cash-shift-reconcile-band { grid-template-columns: 1fr; }
-  .cash-shift-reconcile-band > div { border-top: 1px solid var(--border-soft); border-left: 0; }
-  .cash-shift-reconcile-band > div:first-child { border-top: 0; }
   .cash-shift-main-grid { flex: none; grid-template-columns: 1fr; }
   .cash-shift-history-panel { min-height: 280px; }
 }
 
-/* S2: вкладка «Журнал кассы» — сегменты, лента операций, встроенная проверка. */
-.cash-journal-segments {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-}
-.cash-journal-segments button {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-1) var(--space-2);
-  min-height: var(--control-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.cash-journal-segments button:hover { color: var(--text-primary); }
-.cash-journal-segments button.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
-.cash-journal-segments button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .review-embed { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: var(--space-2); }
 
 /* Лента операций — парящая панель ограниченной ширины: сумма рядом с описанием, сканируется. */

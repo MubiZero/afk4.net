@@ -8,7 +8,7 @@ import { playersSnapshotCache } from './players/playersSnapshot';
 // одиночные — клик по кнопке рельса; вкладочные — сперва открыть раздел, затем вкладку (клик
 // по вкладке скоупим внутри полоски раздела, чтобы не задеть одноимённые внутренние вкладки экранов).
 const TAB_SECTION: Record<string, string> = {
-  'Продажи': 'Касса', 'Смена': 'Касса', 'Журнал кассы': 'Касса',
+  'Продажи': 'Касса', 'Смена': 'Касса', 'Кассовые операции': 'Касса', 'Чеки': 'Касса', 'Согласования': 'Касса',
   'Сводка': 'Отчёты', 'Смены и касса': 'Отчёты', 'Выручка': 'Отчёты',
   'Настройки': 'Управление', 'Платежи и лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
 };
@@ -1104,8 +1104,8 @@ describe('App', () => {
 
     gotoWorkspace('Смена');
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
-    expect(screen.getByText('Фактически в кассе')).toBeInTheDocument();
+    // «Ожидается в кассе» — счётчик «В кассе» шапки раздела: вкладка его не повторяет.
+    expect(screen.getByText('В кассе')).toBeInTheDocument();
     expect(screen.getByText('Прошлые смены')).toBeInTheDocument();
     // дренаж: CashShiftHeader делает отдельный фетч /shifts/revenue/current независимо от Workspace;
     // ждём завершения обоих (>= 2 вызовов сделано И ответы обработаны) перед уходом со вкладки
@@ -1322,7 +1322,8 @@ describe('App', () => {
     expect(await screen.findByLabelText('ПК зала')).toBeInTheDocument();
   });
 
-  it('renders the shift tab without errors on empty reports', async () => {
+  // Движение наличных живёт во вкладке «Кассовые операции»: пустой отчёт — её спокойное «операций нет».
+  it('renders the cash operations tab without errors on empty reports', async () => {
     installSessionBridge();
     const zero = { currencyCode: 'TJS', minorUnits: 0 };
     fetchMock.mockImplementation((input, init) => {
@@ -1335,9 +1336,8 @@ describe('App', () => {
 
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
-    gotoWorkspace('Смена');
-    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Движений нет')).toBeInTheDocument();
+    gotoWorkspace('Кассовые операции');
+    expect(await screen.findByText('Кассовых операций нет')).toBeInTheDocument();
   });
 
   it('does not replace an empty backend POS catalog with demo products', async () => {
@@ -1392,14 +1392,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
-    // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку + сверку.
+    // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку; ожидаемое в ящике —
+    // счётчиком «В кассе» в шапке раздела.
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
-    expect(screen.getByText('Фактически в кассе')).toBeInTheDocument();
+    expect(screen.getByText('В кассе')).toBeInTheDocument();
     // Проверяем, что реальные данные смены из мока доехали до кокпита (нет generic заглушек).
     expect(screen.queryByText('Нет открытой смены')).not.toBeInTheDocument();
-    // Движение наличных — одна строка из createCashReport (operationType=opening, reason='test').
-    expect(screen.getByText('Движение наличных')).toBeInTheDocument();
   });
 
   it('downloads shift tab CSV exports from the backend', async () => {
@@ -1937,37 +1935,38 @@ describe('App', () => {
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it('hides the cash journal tab without cash/review permissions', async () => {
-    installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay'] }));
+  it('hides the cash ledger tabs without cash/review permissions', async () => {
+    installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay', 'organization.shifts.view'] }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
 
-    // Без прав cash/approve раздел «Касса» открывается, но вкладка «Журнал кассы» в нём отсутствует.
+    // Без прав на чеки и согласования раздел «Касса» открывается, но этих вкладок в нём нет.
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
     const strip = screen.getByRole('tablist', { name: 'Касса' });
     expect(within(strip).getByRole('tab', { name: 'Продажи' })).toBeInTheDocument();
-    expect(within(strip).queryByRole('tab', { name: 'Журнал кассы' })).toBeNull();
+    expect(within(strip).queryByRole('tab', { name: 'Чеки' })).toBeNull();
+    expect(within(strip).queryByRole('tab', { name: 'Согласования' })).toBeNull();
   });
 
-  it('opens journal receipts for receipt-only staff', async () => {
+  // Одна доступная вкладка — полоски вкладок нет, касса сразу открыта на чеках.
+  it('opens receipts for receipt-only staff', async () => {
     installSessionBridge(createSession({ permissions: ['organization.receipts.view'] }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
-    const cashTabs = screen.getByRole('tablist', { name: 'Касса' });
-    fireEvent.click(within(cashTabs).getByRole('tab', { name: 'Журнал кассы' }));
-    expect(await screen.findByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tablist', { name: 'Касса' })).toBeNull();
+    expect(await screen.findByText('Продажи на сумму')).toBeInTheDocument();
   });
 
-  it('opens the cash journal for a manager', async () => {
+  it('opens cash operations and approvals for a manager', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
 
-    gotoWorkspace('Журнал кассы');
-    expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));
+    gotoWorkspace('Кассовые операции');
+    expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toHaveAttribute('aria-selected', 'true');
+    gotoWorkspace('Согласования');
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
   });
 
@@ -1975,8 +1974,7 @@ describe('App', () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
-    gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
+    gotoWorkspace('Согласования');
 
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
     expect(screen.getByText(/Возврат/)).toBeInTheDocument();
@@ -1996,8 +1994,7 @@ describe('App', () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
-    gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
+    gotoWorkspace('Согласования');
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('row', { name: /Возврат.*120/ }));
@@ -2021,8 +2018,7 @@ describe('App', () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
-    gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
+    gotoWorkspace('Согласования');
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Журнал операций' }));
@@ -2041,13 +2037,12 @@ describe('App', () => {
     });
   });
 
-  it('shows the cash operations ledger in the cash journal', async () => {
+  it('shows the cash operations ledger as a cash tab', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: 'Карта зала' });
 
-    gotoWorkspace('Журнал кассы');
-    // По умолчанию активен сегмент «Кассовые операции» (первый сегмент)
+    gotoWorkspace('Кассовые операции');
     expect(await screen.findByText('Итого по кассе')).toBeInTheDocument();
   });
 

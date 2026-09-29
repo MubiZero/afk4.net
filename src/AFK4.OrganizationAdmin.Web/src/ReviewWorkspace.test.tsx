@@ -46,7 +46,7 @@ afterEach(() => {
 
 const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't' }, branchId: 'b1' } as never;
 function renderReview() {
-  render(<I18nProvider initialLocale="ru"><ToastProvider><ReviewWorkspace currencyCode="TJS" backend={backend} embedded /></ToastProvider></I18nProvider>);
+  render(<I18nProvider initialLocale="ru"><ToastProvider><ReviewWorkspace currencyCode="TJS" backend={backend} /></ToastProvider></I18nProvider>);
 }
 
 describe('ReviewWorkspace', () => {
