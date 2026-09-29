@@ -94,7 +94,7 @@ async function signIn() {
 
 function chooseRole(name: RegExp) {
   fireEvent.click(screen.getByRole('radio', { name }));
-  fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 }
 
 describe('App · поток мастера', () => {
@@ -312,7 +312,7 @@ describe('App · «Назад» не теряет введённое', () => {
 
     back();
     await screen.findByText('Для кого это устройство?');
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
 
     await screen.findByRole('button', { name: 'Зарегистрировать' });
     expect(screen.getByLabelText('Имя ПК')).toHaveValue('ПК-12');
@@ -358,7 +358,7 @@ describe('App · «Назад» не теряет введённое', () => {
     back();
     fireEvent.click(await screen.findByRole('button', { name: /Южный/ }));
     await screen.findByText('Для кого это устройство?');
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     await screen.findByText('Как выглядит клуб');
     fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }));
 

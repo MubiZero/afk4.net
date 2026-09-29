@@ -13,6 +13,7 @@ import {
 import { isHostBridgeUnavailableError } from './hostBridge';
 import type { SignInPrefill } from './ForgotPasswordScreen';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from '@afk4/formatting';
+import { WizardStepLayout } from './WizardStepLayout';
 
 interface PhoneLoginScreenProps {
   /// `signedInAs` — под каким номером или логином вошли: при «Назад» к входу поле встречает им,
@@ -149,11 +150,12 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
 
   if (clubChoices !== null) {
     return (
-      <section className="wizard-screen is-narrow is-static">
-        <div className="wizard-screen-head">
-          <h1>{t('setup.wizard.phoneLogin.chooseClub.title')}</h1>
-          <p>{t('setup.wizard.phoneLogin.chooseClub.subtitle')}</p>
-        </div>
+      <WizardStepLayout
+        stepNumber={1}
+        title={t('setup.wizard.phoneLogin.chooseClub.title')}
+        subtitle={t('setup.wizard.phoneLogin.chooseClub.subtitle')}
+        onBack={() => { setClubChoices(null); setRequest({ kind: 'idle' }); }}
+      >
 
         {request.kind === 'error' && (
           <div role="alert" className="ui-alert">{request.message}</div>
@@ -172,15 +174,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
             </button>
           ))}
         </div>
-
-        <button
-          type="button"
-          className="wizard-link-action"
-          onClick={() => { setClubChoices(null); setRequest({ kind: 'idle' }); }}
-        >
-          {t('setup.wizard.common.back')}
-        </button>
-      </section>
+      </WizardStepLayout>
     );
   }
 
@@ -191,14 +185,13 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
       : null;
 
   return (
-    <section className="wizard-screen is-narrow is-static">
-      <div className="wizard-screen-head is-centered">
-        <div className="wizard-screen-title-row">
-          <span className="wizard-screen-step" aria-hidden>1</span>
-          <h1>{t('setup.wizard.phoneLogin.title')}</h1>
-        </div>
-        <p>{t('setup.wizard.phoneLogin.subtitle')}</p>
-      </div>
+    // Вход — форма входа, а не шаг с «Назад» и «Дальше»: «Войти» стоит во всю ширину под полями,
+    // как на любом экране входа. Шапка — та же, что у шагов.
+    <WizardStepLayout
+      stepNumber={1}
+      title={t('setup.wizard.phoneLogin.title')}
+      subtitle={t('setup.wizard.phoneLogin.subtitle')}
+    >
 
       <form className="wizard-form" onSubmit={submit} noValidate>
         <label className="ui-field">
@@ -311,7 +304,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
         </button>
       </form>
       {footer}
-    </section>
+    </WizardStepLayout>
   );
 }
 

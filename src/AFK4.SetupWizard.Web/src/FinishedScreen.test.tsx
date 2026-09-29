@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { FinishedScreen } from './FinishedScreen';
 import { HostBridgeRequestError, HostBridgeUnavailableError } from './hostBridge';
-import type { WizardEnrollResult, WizardRole, WizardShellOutcome } from './wizardApi';
+import type { WizardEnrollResult, WizardRole, WizardSeat, WizardShellOutcome } from './wizardApi';
 
 function enrolled(role: WizardRole, shell: WizardShellOutcome): WizardEnrollResult {
   return {
@@ -35,14 +35,16 @@ function renderFinished(
   shell: WizardShellOutcome = failedShell,
   provisionShell = mock(async (_role: WizardRole) => installed),
   reboot = mock(async () => {}),
+  options: { pending?: boolean; seat?: WizardSeat | null } = {},
 ) {
   const onClose = mock(() => {});
+  const result = { ...enrolled(role, shell), ...(options.pending ? { enrollmentState: 'pending' } : {}) };
   render(
     <I18nProvider initialLocale="ru">
       <FinishedScreen
-        result={enrolled(role, shell)}
+        result={result}
         branchName="Главный зал"
-        selectedSeat={null}
+        selectedSeat={options.seat ?? null}
         stepNumber={5}
         provisionShell={provisionShell}
         reboot={reboot}
@@ -60,7 +62,7 @@ describe('FinishedScreen', () => {
   it('после киоска просит перезагрузить ПК и перезагружает по кнопке', async () => {
     const { reboot } = renderFinished('gaming_pc', { ...installed, kiosk: { status: 'ready', message: null } });
 
-    expect(screen.getByText(/Перезагрузите ПК — Windows войдёт в неё сама/)).toBeInTheDocument();
+    expect(screen.getByText(/Перезагрузите ПК — Windows сама войдёт в учётку игрока/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Перезагрузить сейчас' }));
 
     await waitFor(() => expect(reboot).toHaveBeenCalledTimes(1));
@@ -162,5 +164,39 @@ describe('FinishedScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Завершить' }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Главная на экране одна. Раньше «Перезагрузить сейчас» и «Завершить» были обе залиты: какая
+  // из них следующий шаг, экран не говорил.
+  it('с киоском главная — перезагрузка, а закрыть можно тихой ссылкой', () => {
+    const { onClose, reboot } = renderFinished('gaming_pc', { ...installed, kiosk: { status: 'ready', message: null } });
+
+    const primaries = screen.getAllByRole('button').filter((button) => button.classList.contains('ui-btn--primary'));
+    expect(primaries.map((button) => button.textContent)).toEqual(['Перезагрузить сейчас']);
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть без перезагрузки' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(reboot).not.toHaveBeenCalled();
+  });
+
+  // Две плашки спорили: зелёная звала перезагрузить сейчас, жёлтая — сначала подтвердить ПК в
+  // Панели. Теперь это один список по порядку.
+  it('ждущий подтверждения ПК: сначала подтвердить, потом перезагрузить', () => {
+    renderFinished('gaming_pc', { ...installed, kiosk: { status: 'ready', message: null } }, undefined, undefined, { pending: true });
+
+    const steps = screen.getAllByRole('listitem').map((item) => item.textContent ?? '');
+    expect(steps).toHaveLength(2);
+    expect(steps[0]).toMatch(/^Подтвердите этот ПК в Панели AFK4.net/);
+    expect(steps[1]).toMatch(/^Перезагрузите ПК/);
+  });
+
+  // По одному залу ПК не найти: итог называет место так же, как карта зала.
+  it('итог игрового ПК называет место — зал и имя места', () => {
+    const seat: WizardSeat = {
+      seatId: 'seat-5', pcName: 'ПК-5', zoneId: 'zone-1', zoneName: 'Общий зал', sortOrder: 5,
+      status: 'free', deviceId: null, deviceName: null, isOnline: null,
+    };
+    renderFinished('gaming_pc', installed, undefined, undefined, { seat });
+
+    expect(screen.getByText('Общий зал · ПК-5')).toBeInTheDocument();
   });
 });

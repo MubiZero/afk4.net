@@ -14,7 +14,7 @@ export type WizardStep =
   | 'device'
   | 'finished';
 
-const STEP_LABELS: Record<WizardStep, MessageKey> = {
+export const STEP_LABELS: Record<WizardStep, MessageKey> = {
   phoneLogin: 'setup.wizard.stepper.signIn',
   // Сброс пароля — ответвление от входа, своей позиции в степпере у него нет.
   forgotPassword: 'setup.wizard.stepper.signIn',
@@ -45,16 +45,20 @@ export function Stepper({ steps, current }: StepperProps) {
   return (
     <ol className="wizard-stepper" aria-label={t('setup.wizard.stepper.label')}>
       {steps.map((step, index) => {
-        const status = stateForIndex(index, currentIndex);
+        // «Готово» — последний шаг, и на нём он уже сделан: галка, а не номер «ещё впереди».
+        const status = step === 'finished' && index === currentIndex ? 'done' : stateForIndex(index, currentIndex);
         const isLast = index === steps.length - 1;
         return (
           <Fragment key={step}>
             <li
               className={`wizard-stepper-item ${status}`}
-              aria-current={status === 'active' ? 'step' : undefined}
+              aria-current={index === currentIndex ? 'step' : undefined}
             >
+              {/* Номер — только у текущего шага. Будущие шаги зависят от ответов впереди: после
+                  «Игровой ПК» настройка клуба уходит из списка, и номер, уже показанный у
+                  «ПК», сменился бы с восьмого на четвёртый. У текущего он окончательный. */}
               <span className="wizard-stepper-dot" aria-hidden>
-                {status === 'done' ? <Check size={14} strokeWidth={3} /> : index + 1}
+                {status === 'done' ? <Check size={12} strokeWidth={3} /> : status === 'active' ? index + 1 : null}
               </span>
               <span className="wizard-stepper-label">{t(STEP_LABELS[step])}</span>
             </li>
