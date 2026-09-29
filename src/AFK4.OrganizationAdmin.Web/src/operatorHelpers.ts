@@ -22,7 +22,7 @@ import type {
   SessionBillingModeId,
   SessionBillingSelection
 } from './operatorTypes';
-import type { MessageKey } from '@afk4/i18n';
+import { dictionaryLabel, type MessageKey } from '@afk4/i18n';
 import type { DeviceCommandTypeName } from '@afk4/contracts';
 
 export type TFunc = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -1600,8 +1600,7 @@ const AUDIT_ACTION_LABELS: Readonly<Record<string, MessageKey>> = {
  * выглядела бы ответом, которого нет.
  */
 export function knownAuditActionLabel(action: string, t: TFunc): string | null {
-  const key = AUDIT_ACTION_LABELS[action.toLowerCase()];
-  return key === undefined ? null : t(key);
+  return dictionaryLabel(AUDIT_ACTION_LABELS, action, t);
 }
 
 export function auditActionLabel(action: string, t: TFunc): string {
