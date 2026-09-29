@@ -7,6 +7,8 @@ import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { StockHero } from './StockHero';
+import { signedCount } from './stockModel';
+import { Button } from '@afk4/ui/react';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
@@ -181,10 +183,10 @@ export function JournalWorkspace({
               onChange={(event) => setSearch(event.currentTarget.value)}
             />
           </div>
-          <button type="button" className="cash-command-btn journal-export" onClick={exportCsv} disabled={rows.length === 0}>
+          <Button size="sm" className="journal-export" onClick={exportCsv} disabled={rows.length === 0}>
             <ArrowDownToLine size={14} aria-hidden="true" />
             {t('op.stock.journal.export')}
-          </button>
+          </Button>
         </div>
 
         {catalogError !== null && (
@@ -226,7 +228,7 @@ export function JournalWorkspace({
                         </span>
                       </div>
                       <span className="ui-ledger-aside">
-                        <span className="ui-money">{row.quantityDelta > 0 ? '+' : ''}{row.quantityDelta} {t('op.stock.journal.unit')}</span>
+                        <span className="ui-num">{signedCount(row.quantityDelta)} {t('op.stock.journal.unit')}</span>
                         {row.sumMinorUnits > 0
                           ? <Money minorUnits={row.quantityDelta < 0 ? -row.sumMinorUnits : row.sumMinorUnits} currencyCode={currencyCode} signed />
                           : <span className="ui-money ui-money--muted">—</span>}
@@ -260,7 +262,7 @@ export function JournalWorkspace({
 
         <StockHero
           label={t('op.stock.journal.summary.net')}
-          value={summary.netQty > 0 ? `+${summary.netQty}` : String(summary.netQty)}
+          value={`${signedCount(summary.netQty)} ${t('op.stock.journal.unit')}`}
           tone={summary.netQty > 0 ? 'ok' : summary.netQty < 0 ? 'warning' : 'muted'}
         />
 

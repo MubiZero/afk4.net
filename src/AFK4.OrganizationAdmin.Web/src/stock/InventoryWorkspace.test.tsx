@@ -55,7 +55,8 @@ describe('InventoryWorkspace', () => {
     view();
     await screen.findByText('Cola 0.5');
     fireEvent.change(factInput('Cola 0.5'), { target: { value: '10' } });
-    expect(await screen.findByText('-2')).toBeInTheDocument();
+    // Минус — настоящий «−», как у денег.
+    expect(await screen.findByText('\u22122')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Провести инвентаризацию' })).not.toBeDisabled();
   });
 

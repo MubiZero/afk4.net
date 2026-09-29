@@ -35,7 +35,7 @@ describe('StockLevelsWorkspace', () => {
     expect(container.querySelectorAll('.ui-chip--status.is-warning')).toHaveLength(1);
     expect(container.querySelectorAll('.ui-chip--status.is-danger')).toHaveLength(0);
     // фильтр-кнопка тоже видна как реальный текст в DOM
-    expect(screen.getByRole('button', { name: /на исходе/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /на исходе/i })).toHaveAttribute('aria-pressed', 'false');
   });
 
   // Подпись категории на карточке читалась у товара полем `categoryName`, которого сервер не
@@ -48,35 +48,34 @@ describe('StockLevelsWorkspace', () => {
     expect(screen.queryByText('cat-gone')).toBeNull();
   });
 
-  it('два героя сводки: «Стоимость склада» нейтральный, «Нужно дозаказать» тонирован по худшему статусу', async () => {
+  // Стоимость склада — в шапке раздела, счётчики состояний — в фильтрах: две карточки справа
+  // повторяли их же. Справа остаётся только то, что заказать, — каждое своим словом состояния.
+  it('справа — только список к дозаказу, без карточек-повторов', async () => {
     const { container } = view();
     await screen.findByText('Cola 0.5');
-    const heroes = container.querySelectorAll('.stock-hero');
-    expect(heroes).toHaveLength(2);
-    expect(heroes[0]).toHaveClass('stock-hero--neutral');
-    expect(within(heroes[0] as HTMLElement).getByText('Стоимость склада')).toBeInTheDocument();
-    // Red Bull (low, 8/10) + Вода (out, 0) → худший статус out → tone attention, счётчик = 2
-    expect(heroes[1]).toHaveClass('stock-hero--attention');
-    expect(within(heroes[1] as HTMLElement).getByText('2')).toBeInTheDocument();
+    expect(container.querySelectorAll('.stock-hero')).toHaveLength(0);
+    const aside = container.querySelector('.stock-summary') as HTMLElement;
+    expect(within(aside).getByText('Дозаказать')).toBeInTheDocument();
+    expect(within(aside).getByText('8 из 10')).toBeInTheDocument();
+    expect(within(aside).getByText('Нет в наличии')).toBeInTheDocument();
   });
 
-  it('фильтр «На исходе» оставляет low И out, скрывает ok', async () => {
+  // Одно слово — одно состояние: «На исходе» — мало, но есть; ноль — это «Нет в наличии».
+  // Раньше «На исходе» считал оба, а карточка рядом делила их на «мало» и «нет».
+  it('фильтр «На исходе» оставляет только low', async () => {
     const { container } = view();
     await screen.findByText('Cola 0.5');
-    // кнопка теперь содержит реальный текст «На исходе · N»
     fireEvent.click(screen.getByRole('button', { name: /на исходе/i }));
-    // ok-товар скрыт
     expect(screen.queryByText('Cola 0.5')).not.toBeInTheDocument();
-    // low и out — видны в списке
     const list = container.querySelector('.cash-stock-list') as HTMLElement;
     expect(within(list).getAllByText('Энергетик Red Bull').length).toBeGreaterThan(0);
-    expect(within(list).getAllByText('Вода 0.5').length).toBeGreaterThan(0);
+    expect(within(list).queryAllByText('Вода 0.5').length).toBe(0);
   });
 
-  it('фильтр «Нет» оставляет только out', async () => {
+  it('фильтр «Нет в наличии» оставляет только out', async () => {
     const { container } = view();
     await screen.findByText('Cola 0.5');
-    fireEvent.click(screen.getByRole('button', { name: /^нет/i }));
+    fireEvent.click(screen.getByRole('button', { name: /нет в наличии/i }));
     expect(screen.queryByText('Cola 0.5')).not.toBeInTheDocument();
     // Вода 0 → out, должна быть в списке
     const list = container.querySelector('.cash-stock-list') as HTMLElement;
@@ -122,6 +121,16 @@ describe('StockLevelsWorkspace', () => {
     // «Оформить приёмку» (есть товары «на исходе» → блок виден)
     fireEvent.click(screen.getByRole('button', { name: 'Оформить приёмку' }));
     expect(onReceive).toHaveBeenCalledWith();
+  });
+
+  // Строка — одно частое действие на виду (принять товар) и «⋯» со списанием. Корзина была
+  // списанием и читалась как «удалить товар». Без права на приёмку «+» нет вовсе, а не погашен.
+  it('списание — в меню строки; без права на приёмку «+» не рисуется', async () => {
+    view();
+    await screen.findByText('Cola 0.5');
+    expect(screen.queryByRole('button', { name: 'Приёмка товара' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с «Cola 0.5»' }));
+    expect(screen.getByRole('menuitem', { name: 'Списание товара' })).toBeInTheDocument();
   });
 
   // Справочник категорий нужен остаткам только ради подписи. Раньше его отказ молча превращался

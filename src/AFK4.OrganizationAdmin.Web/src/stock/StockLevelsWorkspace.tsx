@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { AlertTriangle, Boxes, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Boxes, PackageMinus, Plus } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
@@ -18,9 +18,8 @@ import {
   summarize,
   type StockItem,
 } from './stockLevels';
-import { StockHero } from './StockHero';
 import { WriteOffDialog } from './WriteOffDialog';
-import { useBlockedReason } from '@afk4/ui/react';
+import { FilterChip, IconButton, RowActions, StatusBadge, useBlockedReason } from '@afk4/ui/react';
 
 type FilterMode = 'all' | 'low' | 'out';
 
@@ -126,11 +125,9 @@ export function StockLevelsWorkspace({
     );
   }
 
-  const filtered = items.filter((item) => {
-    if (filter === 'low') { const s = stockStatus(item); return s === 'low' || s === 'out'; }
-    if (filter === 'out') return stockStatus(item) === 'out';
-    return true;
-  }).filter((item) => {
+  // Одно слово — одно состояние: «На исходе» — мало, но есть; «Нет в наличии» — ноль. Раньше
+  // фильтр «На исходе» считал оба, а карточка рядом делила их на «мало» и «нет».
+  const filtered = items.filter((item) => filter === 'all' || stockStatus(item) === filter).filter((item) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q);
@@ -138,39 +135,22 @@ export function StockLevelsWorkspace({
 
   const summary = summarize(items);
   const orderItems = items.filter((i) => stockStatus(i) !== 'ok');
-
+  const filters: { value: FilterMode; label: string; count: number }[] = [
+    { value: 'all', label: t('op.stock.filter.all'), count: items.length },
+    { value: 'low', label: t('op.stock.status.low'), count: summary.lowCount },
+    { value: 'out', label: t('op.stock.status.out'), count: summary.outCount },
+  ];
 
   return (
     <div className="stock-layout">
       {/* ── Список ── */}
       <section className="cash-stock-levels">
+        {/* Имя вкладки «Остатки» уже в шапке раздела — здесь его не повторяем. */}
         <div className="levels-head">
-          <h2>{t('op.stock.levels.title')}</h2>
           <div className="seg">
-            <button
-              type="button"
-              className={`ui-chip ui-chip--filter${filter === 'all' ? ' is-active' : ''}`}
-              aria-pressed={filter === 'all'}
-              onClick={() => setFilter('all')}
-            >
-              {t('op.stock.filter.all')} · {items.length}
-            </button>
-            <button
-              type="button"
-              className={`ui-chip ui-chip--filter${filter === 'low' ? ' is-active' : ''}`}
-              aria-pressed={filter === 'low'}
-              onClick={() => setFilter('low')}
-            >
-              {t('op.stock.filter.low')} · {summary.lowCount + summary.outCount}
-            </button>
-            <button
-              type="button"
-              className={`ui-chip ui-chip--filter${filter === 'out' ? ' is-active' : ''}`}
-              aria-pressed={filter === 'out'}
-              onClick={() => setFilter('out')}
-            >
-              {t('op.stock.filter.out')} · {summary.outCount}
-            </button>
+            {filters.map((option) => (
+              <FilterChip key={option.value} label={option.label} count={option.count} pressed={filter === option.value} onClick={() => setFilter(option.value)} />
+            ))}
           </div>
           <div className="ui-field panel-search">
             <input
@@ -196,7 +176,7 @@ export function StockLevelsWorkspace({
             <span>{t('op.stock.col.cost')}</span>
             <span>{t('op.stock.col.price')}</span>
             <span>{t('op.stock.col.value')}</span>
-            <span>{t('op.stock.col.actions')}</span>
+            <span />
           </div>
         </div>
 
@@ -238,11 +218,7 @@ export function StockLevelsWorkspace({
                         {item.stockOnHand}
                         <span className="u"> {t('op.stock.col.unit')}</span>
                       </span>
-                      {status === 'low' && (
-                        <span className="ui-chip ui-chip--status is-warning">
-                          {t('op.stock.status.low')}
-                        </span>
-                      )}
+                      {status === 'low' && <StatusBadge tone="warning">{t('op.stock.status.low')}</StatusBadge>}
                     </div>
                     {/* Себест */}
                     <div className="money">
@@ -262,24 +238,24 @@ export function StockLevelsWorkspace({
                         ? <Money minorUnits={stockVal} currencyCode={currencyCode} />
                         : <span className="ui-money ui-money--muted">—</span>}
                     </div>
-                    {/* Действия */}
+                    {/* Одно частое действие на виду — принять товар; списание — в «⋯». Корзина
+                        была списанием и читалась как «удалить товар». Без права на приёмку
+                        кнопки нет вовсе, а не погашенной. */}
                     <div className="rowact">
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn--sm ui-btn--ghost"
-                        disabled={!onReceive}
-                        title={t('op.stock.action.receive')}
-                        aria-label={t('op.stock.action.receive')}
-                        onClick={() => onReceive?.(item.productId)}
-                      ><Plus size={15} aria-hidden="true" /></button>
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn--sm ui-btn--danger"
-                        disabled={item.stockOnHand <= 0}
-                        title={t('op.stock.action.writeOff')}
-                        aria-label={t('op.stock.action.writeOff')}
-                        onClick={() => setWriteOffItem(item)}
-                      ><Trash2 size={15} aria-hidden="true" /></button>
+                      {onReceive ? (
+                        <IconButton size="sm" label={t('op.stock.action.receive')} icon={<Plus size={15} aria-hidden="true" />} onClick={() => onReceive(item.productId)} />
+                      ) : null}
+                      <RowActions
+                        size="sm"
+                        label={t('op.stock.row.more', { name: item.name })}
+                        actions={[{
+                          id: 'writeOff',
+                          label: t('op.stock.action.writeOff'),
+                          icon: <PackageMinus size={15} aria-hidden="true" />,
+                          disabled: item.stockOnHand <= 0,
+                          onSelect: () => setWriteOffItem(item),
+                        }]}
+                      />
                     </div>
                   </div>
                 </li>
@@ -299,30 +275,17 @@ export function StockLevelsWorkspace({
         />
       )}
 
-      {/* ── Сводка: два героя + список к заказу ── */}
+      {/* ── Что дозаказать ── Стоимость склада — в шапке раздела, счётчики состояний — в фильтрах:
+          две карточки здесь повторяли их же. Остаётся то, чего нет больше нигде: что заказать. */}
+      {orderItems.length > 0 && (
       <aside className="stock-summary">
-        <StockHero
-          label={t('op.stock.summary.totalValue')}
-          value={<Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} />}
-          sub={t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
-          tone="neutral"
-        />
-
-        <StockHero
-          label={t('op.stock.summary.reorderTitle')}
-          value={orderItems.length}
-          sub={t('op.stock.summary.reorderSub', { low: summary.lowCount, out: summary.outCount })}
-          tone={summary.outCount > 0 ? 'attention' : summary.lowCount > 0 ? 'warning' : 'muted'}
-        />
-
-        {orderItems.length > 0 && (
           <section className="stock-section">
             <h3 className="ctx-title">{t('op.stock.summary.orderTitle')}</h3>
             {orderItems.map((item) => {
               const s = stockStatus(item);
               // Порог не задан (0) → дробь "0/0" ничего не говорит, показываем статус словом.
-              const qtyLabel = item.reorderThreshold > 0
-                ? `${item.stockOnHand}/${item.reorderThreshold}`
+              const qtyLabel = s === 'low' && item.reorderThreshold > 0
+                ? t('op.stock.summary.lowOf', { count: item.stockOnHand, threshold: item.reorderThreshold })
                 : t(s === 'out' ? 'op.stock.status.out' : 'op.stock.status.low');
               return (
                 <div key={item.productId} className="order-item" title={item.name}>
@@ -336,8 +299,8 @@ export function StockLevelsWorkspace({
             </button>
             {receiveBlocked.hint}
           </section>
-        )}
       </aside>
+      )}
     </div>
   );
 }
