@@ -78,7 +78,7 @@ describe('GameplayTimeReport', () => {
   it('показывает итоги за период и сессии', async () => {
     render(<I18nProvider initialLocale="ru"><GameplayTimeReport backend={backend} /></I18nProvider>);
 
-    expect(await screen.findByText('Часов игры')).toBeInTheDocument();
+    expect(await screen.findByText('Часы игры')).toBeInTheDocument();
     expect(screen.getByText('Выручка за игру')).toBeInTheDocument();
     // 7200 секунд — это два часа, а не «7200».
     expect(screen.getAllByText('2').length).toBeGreaterThan(0);
@@ -99,7 +99,7 @@ describe('GameplayTimeReport', () => {
     floorMapFailures = 1;
     render(<I18nProvider initialLocale="ru"><GameplayTimeReport backend={backend} /></I18nProvider>);
 
-    expect(await screen.findByText('Часов игры')).toBeInTheDocument();
+    expect(await screen.findByText('Часы игры')).toBeInTheDocument();
     expect(await screen.findByText(/Не удалось загрузить названия мест/)).toHaveTextContent('Сервер вернул ошибку. Повторите позже.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));

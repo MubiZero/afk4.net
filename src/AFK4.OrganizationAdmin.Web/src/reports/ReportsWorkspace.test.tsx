@@ -41,8 +41,12 @@ describe('ReportsWorkspace', () => {
     render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Сводка', 'Смены и касса', 'Выручка', 'Время игры', 'Действия сотрудников', 'Рассылки']);
+    // «Рассылки» и «Отчёты на почту» были одним экраном под двумя именами — осталось второе.
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Сводка', 'Смены и касса', 'Выручка', 'Время игры', 'Действия сотрудников', 'Отчёты на почту']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    // Шапка раздела — «Отчёты»; имя вкладки внутри не повторяется заголовком с подписью.
+    expect(screen.getByRole('heading', { level: 1, name: 'Отчёты' })).toBeInTheDocument();
+    expect(screen.queryByText('Главное за выбранный день')).toBeNull();
     expect(screen.queryByText('Журнал')).not.toBeInTheDocument();
     expect(screen.queryByText('Действия операторов')).not.toBeInTheDocument();
     expect(await screen.findByText('Требуют проверки: 1')).toBeInTheDocument();
@@ -50,14 +54,29 @@ describe('ReportsWorkspace', () => {
     expect(screen.getByText('7 дней')).toBeInTheDocument();
   });
 
+  // Сводка: главные цифры первыми, «требуют проверки» — компактным списком под ними; деньги за игру
+  // подписаны как деньги, а кнопка у идущей смены не обещает открыть новую.
+  it('ставит выручку над списком проверки и называет деньги и переход честно', async () => {
+    const { container } = render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
+    await screen.findByText('Требуют проверки: 1');
+    const summary = container.querySelector('.reports-summary')!;
+    expect(summary.firstElementChild).toHaveClass('reports-figures');
+    expect(screen.getByText('Выручка за игру')).toBeInTheDocument();
+    expect(screen.getByText('Товары и услуги')).toBeInTheDocument();
+    expect(screen.queryByText('Игровое время')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Перейти к смене' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Открыть смену' })).toBeNull();
+  });
+
   it('switches between the three report panels', async () => {
     render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Смены и касса' }));
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'reports-tab-shiftsCash');
+    expect(screen.getByRole('tabpanel', { name: 'Смены и касса' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Выручка' }));
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'reports-tab-revenue');
-    expect(await screen.findByText('Игровые часы')).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: 'Выручка' })).toBeInTheDocument();
+    // «Игровые часы» здесь и «Часов игры» во вкладке «Время игры» — одно число под одним именем.
+    expect(await screen.findByText('Часы игры')).toBeInTheDocument();
     expect(screen.getByText('+25%')).toBeInTheDocument();
   });
 
@@ -83,7 +102,7 @@ describe('ReportsWorkspace', () => {
     }) as typeof fetch;
 
     render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
-    fireEvent.click(screen.getByRole('tab', { name: 'Рассылки' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Отчёты на почту' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Завести рассылку' }));
 
@@ -110,7 +129,7 @@ describe('ReportsWorkspace', () => {
     }) as typeof fetch;
 
     render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
-    fireEvent.click(screen.getByRole('tab', { name: 'Рассылки' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Отчёты на почту' }));
 
     // Проверяется атрибут, а не сам элемент: при провале toBeDisabled печатает найденный узел
     // вместе с привязанной к нему фиброй React, и вывод сообщения об ошибке подвешивает прогон.
