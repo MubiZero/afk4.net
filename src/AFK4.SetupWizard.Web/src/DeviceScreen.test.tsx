@@ -57,7 +57,7 @@ function renderScreen(props: Partial<Parameters<typeof DeviceScreen>[0]> = {}) {
   return { onEnrolled, onBack };
 }
 
-const submit = () => fireEvent.click(screen.getByRole('button', { name: /зарегистрировать/i }));
+const submit = () => fireEvent.click(screen.getByRole('button', { name: /подключить пк/i }));
 
 describe('DeviceScreen (create-only)', () => {
   beforeEach(() => {
@@ -102,7 +102,7 @@ describe('DeviceScreen (create-only)', () => {
 
   it('blocks enroll when the name is too short', async () => {
     renderScreen({ defaultDisplayName: 'PC' });
-    expect((screen.getByRole('button', { name: /зарегистрировать/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /подключить пк/i }) as HTMLButtonElement).disabled).toBe(true);
     submit();
     expect(createSeat).not.toHaveBeenCalled();
     expect(enrollDevice).not.toHaveBeenCalled();
@@ -216,6 +216,6 @@ describe('выбор уже заведённого места', () => {
     renderScreen({ branch: { ...BRANCH, zones: [] } });
 
     expect(screen.getByRole('alert')).toHaveTextContent(/ещё нет ни одного зала/i);
-    expect(screen.getByRole('button', { name: /зарегистрировать/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /подключить пк/i })).toBeDisabled();
   });
 });

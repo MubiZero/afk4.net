@@ -96,3 +96,11 @@ export function displayPhone(value: string): string {
   const digits = value.replace(/\D/g, '');
   return digits.length === 12 && digits.startsWith('992') ? `+992 ${formatLocal(digits)}` : value;
 }
+
+/**
+ * Шестизначный код — «418 207»: так его читают вслух и переписывают с экрана без ошибок. Код
+ * первого входа, код посадки за ПК — одинаково во всех приложениях.
+ */
+export function groupCode(code: string): string {
+  return /^\d{6}$/.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+}
