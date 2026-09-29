@@ -299,11 +299,15 @@ export function BookingDrawer(props: BookingDrawerProps) {
             </div>
           </div>
         )}
-        {isGroup ? (
-          <Button variant="primary" block disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}>{t('op.booking.create.submitGroup', { count: groupSeats.length })}</Button>
-        ) : (
-          <Button variant="primary" block disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || seatConflict} onClick={props.onCreate}>{t('op.booking.create.submit')}</Button>
-        )}
+        {/* Форма длиннее видимой области при 1280×800 — без этого «Создать бронь» было видно,
+            только прокрутив её до конца. Кнопка приклеена к низу панели, форма прокручивается под ней. */}
+        <div className="booking-drawer-footer">
+          {isGroup ? (
+            <Button variant="primary" block disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}>{t('op.booking.create.submitGroup', { count: groupSeats.length })}</Button>
+          ) : (
+            <Button variant="primary" block disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || seatConflict} onClick={props.onCreate}>{t('op.booking.create.submit')}</Button>
+          )}
+        </div>
       </Inspector>
     );
   }
