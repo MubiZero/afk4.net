@@ -51,10 +51,10 @@ it('пока выбран текущий статус, говорит об эт�
 
   const apply = screen.getByRole('button', { name: 'Изменить статус' });
   expect(apply).toBeDisabled();
-  expect(apply.getAttribute('aria-describedby')).toBe(screen.getByText('У организации уже этот статус. Выберите другой.').id);
+  expect(apply.getAttribute('aria-describedby')).toBe(screen.getByText('У клуба уже этот статус. Выберите другой.').id);
 
   fireEvent.change(screen.getByLabelText('Новый статус'), { target: { value: 'suspended' } });
   expect(apply).toBeEnabled();
   expect(apply.getAttribute('aria-describedby')).toBeNull();
-  expect(screen.queryByText('У организации уже этот статус. Выберите другой.')).toBeNull();
+  expect(screen.queryByText('У клуба уже этот статус. Выберите другой.')).toBeNull();
 });

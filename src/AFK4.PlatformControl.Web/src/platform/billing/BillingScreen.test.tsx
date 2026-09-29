@@ -24,12 +24,12 @@ describe('BillingScreen', () => {
     expect(screen.getByText('Подписки')).toBeInTheDocument();
     expect(screen.getByText('Счета')).toBeInTheDocument();
     expect(screen.getByText('Тарифы')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('Подписок пока нет. Подписка появляется вместе с организацией, а тариф ей меняют в карточке организации.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Подписок пока нет. Подписка появляется вместе с клубом, а тариф ей меняют в карточке клуба.')).toBeInTheDocument());
   });
 
   it('keeps plan mutations out of a read-only billing session', async () => {
     render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="plans" onTabChange={() => {}} canManageInvoices={false} canManagePlans={false} debtAccess={{ canMarkPaid: false, canGrantGrace: false, canToggleStatus: false, canAddNote: false }} /></ToastProvider></I18nProvider>);
-    await waitFor(() => expect(screen.getByText('Тарифов пока нет. Без тарифа организации не назначить подписку.')).toBeVisible());
+    await waitFor(() => expect(screen.getByText('Тарифов пока нет. Без тарифа клубу не назначить подписку.')).toBeVisible());
     expect(screen.queryByRole('button', { name: 'Создать тариф' })).not.toBeInTheDocument();
     // Условия оплаты видны, но без права менять тарифы — только для чтения.
     expect(await screen.findByLabelText('Пробный период, дней')).toBeDisabled();

@@ -81,11 +81,11 @@ describe('UpdatesScreen', () => {
   // уезжала на весь парк, и прекратить раздачу было нечем.
   it('stops a rollout that is already going out, with a reason for the journal', async () => {
     const { updates } = setup('validated', [rolloutRow('active')]);
-    await screen.findByText('Раскатывается');
+    await screen.findByText('Раздаётся');
 
     fireEvent.click(screen.getByRole('button', { name: 'Остановить' }));
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Клубы сообщают о падениях' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Остановить раскатку' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить раздачу' }));
 
     await waitFor(() => expect(updates.changeRolloutState)
       .toHaveBeenCalledWith('r1', 'paused', 'Клубы сообщают о падениях'));
@@ -99,7 +99,7 @@ describe('UpdatesScreen', () => {
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Версия ломает кассу' } });
     // Подпись кнопки подтверждения намеренно отличается от подписи в строке: одинаковые подписи в
     // одном дереве означают, что ни тест, ни человек с клавиатуры не отличают «открыть» от «сделать».
-    fireEvent.click(screen.getByRole('button', { name: 'Пометить раскатку к откату' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить и отметить к откату' }));
 
     await waitFor(() => expect(updates.changeRolloutState)
       .toHaveBeenCalledWith('r1', 'rollback-requested', 'Версия ломает кассу'));
@@ -120,10 +120,10 @@ describe('UpdatesScreen', () => {
   // Причина обязательна на сервере: без неё запрос вернётся отказом, а человек не поймёт почему.
   it('will not send a state change without a reason', async () => {
     const { updates } = setup('validated', [rolloutRow('active')]);
-    await screen.findByText('Раскатывается');
+    await screen.findByText('Раздаётся');
 
     fireEvent.click(screen.getByRole('button', { name: 'Остановить' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Остановить раскатку' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить раздачу' }));
 
     expect(updates.changeRolloutState).not.toHaveBeenCalled();
   });
@@ -144,7 +144,7 @@ describe('UpdatesScreen', () => {
 
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '1.5.0' } });
     fireEvent.change(screen.getByLabelText('Размер файла, байт'), { target: { value: '2048' } });
-    fireEvent.change(screen.getByLabelText('URL installer'), { target: { value: 'https://updates.afk4.net/admin.msi' } });
+    fireEvent.change(screen.getByLabelText('Ссылка на установщик'), { target: { value: 'https://updates.afk4.net/admin.msi' } });
     fireEvent.change(screen.getByLabelText('Отпечаток SHA-256'), { target: { value: 'b'.repeat(64) } });
     fireEvent.change(screen.getByLabelText('Подпись'), { target: { value: 'sig' } });
     fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Ничего страшного.' } });
@@ -163,7 +163,7 @@ describe('UpdatesScreen', () => {
       .mockResolvedValue([]) });
 
     expect(await screen.findByText('Панель AFK4.net')).toBeInTheDocument();
-    expect(await screen.findByText('Не удалось загрузить раскатки — пока их нет, публиковать и менять раскатки нельзя')).toBeInTheDocument();
+    expect(await screen.findByText('Не удалось загрузить раздачи — пока их нет, публиковать и менять раздачу нельзя')).toBeInTheDocument();
     expect(screen.getByText('Сервер платформы вернул ошибку. Повторите позже.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();
     const packageCalls = updates.listPackages.mock.calls.length;

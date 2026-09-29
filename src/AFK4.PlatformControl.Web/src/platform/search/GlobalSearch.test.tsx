@@ -13,7 +13,7 @@ it('searches after the minimum query and exposes canonical result links', async 
   await new Promise(resolve => setTimeout(resolve, 220));
   expect(search).not.toHaveBeenCalled();
   fireEvent.change(input, { target: { value: 'orion' } });
-  const option = await screen.findByRole('option', { name: /Orion Gaming.*организация/i });
+  const option = await screen.findByRole('option', { name: /Orion Gaming.*клуб/i });
   expect(option).toHaveAttribute('data-href', '/admin/organizations/org-orion');
 });
 

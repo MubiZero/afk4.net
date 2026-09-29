@@ -42,7 +42,7 @@ it('выдаёт доступ и открывает админку клиент�
   fireEvent.change(screen.getByLabelText('Причина'), {
     target: { value: 'Клуб сообщает, что не открывается смена' }
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Войти под клиента' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Войти в Панель AFK4.net' }));
 
   await waitFor(() => expect(issueGrant).toHaveBeenCalledWith('o1', 'Клуб сообщает, что не открывается смена', 30));
   expect(opened).toEqual(['https://admin.example/support-access?ticket=t1']);
@@ -81,7 +81,7 @@ it('обрывает доступ и обновляет список', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отзыв' }));
 
   await waitFor(() => expect(revokeGrant).toHaveBeenCalledWith('g1'));
-  await screen.findByText('Сейчас в эту организацию никто не допущен.');
+  await screen.findByText('Сейчас в этот клуб никто не допущен.');
 });
 
 // Сбой загрузки и «никого нет» — разные ответы. Показать первое как второе значит уверенно
@@ -94,5 +94,5 @@ it('не выдаёт сбой загрузки за пустой список',
   });
 
   await screen.findByText('Не удалось загрузить список доступов.');
-  expect(screen.queryByText('Сейчас в эту организацию никто не допущен.')).toBeNull();
+  expect(screen.queryByText('Сейчас в этот клуб никто не допущен.')).toBeNull();
 });

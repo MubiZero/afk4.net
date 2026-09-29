@@ -18,9 +18,9 @@ void (<EmptyState message="Пусто" />);
 
 it('renders a useful first-use empty state with its action', () => {
   const create = mock();
-  render(<EmptyState title="Создайте первую организацию" message="После этого здесь появятся клубы." next={{ label: 'Создать организацию', onClick: create }} />);
+  render(<EmptyState title="Создайте первую организацию" message="После этого здесь появятся клубы." next={{ label: 'Создать клуб', onClick: create }} />);
   expect(screen.getByRole('heading', { name: 'Создайте первую организацию' })).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Создать клуб' }));
   expect(create).toHaveBeenCalledTimes(1);
 });
 

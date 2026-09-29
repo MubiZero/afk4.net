@@ -25,7 +25,7 @@ describe('PlanFormDialog', () => {
 
     const code = screen.getByLabelText('Код тарифа');
     expect(code).toBeDisabled();
-    expect(code.getAttribute('aria-describedby')).toBe(screen.getByText('Код тарифа после создания не меняется: по нему тариф записан у организаций.').id);
+    expect(code.getAttribute('aria-describedby')).toBe(screen.getByText('Код тарифа после создания не меняется: по нему тариф записан у клубов.').id);
   });
 
   it('у нового тарифа код открыт и ничего не объясняет', () => {

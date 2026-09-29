@@ -9,7 +9,7 @@ function branch(overrides: Partial<OrganizationBranch> = {}): OrganizationBranch
   return {
     branchId: 'branch-1',
     slug: 'main',
-    name: 'Главный клуб',
+    name: 'Главный зал',
     city: 'Душанбе',
     createdAtUtc: '2026-01-01T00:00:00Z',
     ...overrides
@@ -64,7 +64,7 @@ describe('OrganizationClubsTab', () => {
       </I18nProvider>
     );
 
-    await waitFor(() => expect(screen.getByText('Главный клуб')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Главный зал')).toBeInTheDocument());
     expect(screen.queryByText(/^Филиалов:/)).not.toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe('OrganizationClubsTab', () => {
       </I18nProvider>
     );
 
-    expect(screen.getByText('Это может сотрудник платформы с правом «Заводить новые организации».')).toBeInTheDocument();
+    expect(screen.getByText('Это может сотрудник платформы с правом «Заводить новые клубы».')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Добавить первый филиал' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Добавить филиал' })).toBeNull();
   });
