@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';
@@ -35,7 +35,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
   /// общему «управлению деньгами».
   canManageInvoices?: boolean;
 }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useLoadable(() => client.listOrganizationInvoices(organizationId), [organizationId]);
   const [pending, setPending] = useState(false);
@@ -105,7 +105,7 @@ export function OrganizationInvoicesSection({ client, organizationId, canManage 
             <div key={inv.invoiceId} className="pc-list-row">
               <span className="pc-num">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
               <span className="pc-cell-actions">
-                <span className="pc-num">{formatCurrency(minorToMajor(inv.amountMinorUnits), inv.currencyCode)}</span>
+                <span className="pc-num">{formatMoney(inv.amountMinorUnits, inv.currencyCode)}</span>
                 <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[inv.status] ? t(INVOICE_STATUS_LABEL[inv.status]) : inv.status}</Badge>
                 {canManageInvoices && actionable(inv.status) ? (
                   <>

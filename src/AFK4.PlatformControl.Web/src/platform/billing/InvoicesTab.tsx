@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { InvoiceListItem } from '@/api/types';
 import { useInvoices } from './useInvoices';
@@ -23,7 +23,7 @@ import {
 type Action = { kind: 'markPaid' | 'void'; invoice: InvoiceListItem };
 
 export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi; canManage?: boolean }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useInvoices(client);
   const [query, setQuery] = useState('');
@@ -107,7 +107,7 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
                 <TableCell className="pc-num">#{invoice.number}</TableCell>
                 <TableCell>{invoice.organizationName}</TableCell>
                 <TableCell>{INVOICE_KIND_LABEL[invoice.kind] !== undefined ? t(INVOICE_KIND_LABEL[invoice.kind]) : invoice.kind}</TableCell>
-                <TableCell className="pc-num">{formatCurrency(minorToMajor(invoice.amountMinorUnits), invoice.currencyCode)}</TableCell>
+                <TableCell className="pc-num">{formatMoney(invoice.amountMinorUnits, invoice.currencyCode)}</TableCell>
                 <TableCell>
                   <Badge variant={INVOICE_STATUS_VARIANT[invoice.status] ?? 'outline'}>
                     {INVOICE_STATUS_LABEL[invoice.status] !== undefined ? t(INVOICE_STATUS_LABEL[invoice.status]) : invoice.status}
