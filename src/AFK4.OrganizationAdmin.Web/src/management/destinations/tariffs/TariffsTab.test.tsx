@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+// Кнопка создания живёт в шапке экрана (ScreenAction), поэтому вкладка рендерится внутри него.
+import { ManagementScreen } from '../../ManagementScreen';
 import { ToastProvider } from '../../../operatorToast';
 import { permissionNames } from '../../../operatorPermissions';
 import type { TariffOptionDto } from '../../../operatorApiClients';
@@ -35,7 +37,7 @@ afterEach(() => {
 });
 
 const wrap = (ui: React.ReactNode) =>
-  render(<I18nProvider initialLocale="ru"><ToastProvider>{ui}</ToastProvider></I18nProvider>);
+  render(<I18nProvider initialLocale="ru"><ToastProvider><ManagementScreen title="Тарифы и пакеты">{ui}</ManagementScreen></ToastProvider></I18nProvider>);
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },
@@ -107,8 +109,8 @@ describe('TariffsTab', () => {
       <TariffsTab tariffs={incomplete} currencyCode="TJS" backend={null} canManageTariffs={false} onReload={onReload} onFeedback={onFeedback} />
     );
     const row = screen.getByRole('button', { name: /Без полей/ });
-    expect(within(row).getByText('15')).toBeTruthy();
-    expect(within(row).getByText('5')).toBeTruthy();
+    expect(within(row).getByText('15 мин')).toBeTruthy();
+    expect(within(row).getByText('по 5 мин')).toBeTruthy();
 
     fireEvent.click(row);
     expect(screen.getByRole('textbox', { name: 'Минимум, мин' })).toHaveValue('15');

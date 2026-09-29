@@ -1,4 +1,5 @@
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { LoadFailureState, Money } from '../../../operatorPrimitives';
 import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
@@ -150,7 +151,7 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
       <p className="payset-field-hint" style={SETUP_LIMITS_HINT_STYLE}>{t('op.loyalty.limits.hint')}</p>
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="loyalty-cap">{`${t('op.loyalty.cap')}, ${currencyCode}`}</label>
+          <label htmlFor="loyalty-cap">{`${t('op.loyalty.cap')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="loyalty-cap"
@@ -163,7 +164,7 @@ export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Prop
           <p className="payset-field-hint">{t('op.loyalty.capHint')}</p>
         </div>
         <div className="payset-field">
-          <label htmlFor="loyalty-min">{`${t('op.loyalty.minimum')}, ${currencyCode}`}</label>
+          <label htmlFor="loyalty-min">{`${t('op.loyalty.minimum')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="loyalty-min"

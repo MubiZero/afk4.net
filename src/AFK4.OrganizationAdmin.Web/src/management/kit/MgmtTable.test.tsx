@@ -43,9 +43,28 @@ describe('MgmtTable', () => {
     expect(screen.getByText('6').closest('.mgmt-cell')?.className).toContain('mgmt-cell--end');
   });
 
-  it('shows the empty state when there are no rows and not loading', () => {
-    wrap(<MgmtTable columns={columns} rows={[]} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Залов нет', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
+  // Над пустым состоянием нет заголовков колонок: они подписывали бы то, чего нет.
+  it('shows the empty state without column headers when there are no rows and not loading', () => {
+    const { container } = wrap(<MgmtTable columns={columns} rows={[]} rowKey={(z) => z.id} gridTemplate="1fr 80px" empty={{ title: 'Залов нет', next: { kind: 'calm', hint: 'Появится здесь.' } }} />);
     expect(screen.getByText('Залов нет')).toBeTruthy();
+    expect(container.querySelector('.ctable-head')).toBeNull();
+  });
+
+  // Кнопка создания у пустого списка одна — в пустом состоянии; такая же в тулбаре рядом спорила бы с ней.
+  it('keeps a single create button in an empty list', () => {
+    const onClick = mock(() => {});
+    wrap(
+      <MgmtTable
+        columns={columns}
+        rows={[]}
+        rowKey={(z) => z.id}
+        gridTemplate="1fr 80px"
+        toolbar={{ title: 'Залы', primary: { label: '+ Зал', onClick } }}
+        empty={{ title: 'Залов нет', next: { kind: 'action', label: '+ Зал', onClick } }}
+      />
+    );
+    expect(screen.getAllByRole('button', { name: '+ Зал' })).toHaveLength(1);
+    expect(screen.getByText('Залы')).toBeTruthy();
   });
 
   it('renders a skeleton and no rows while loading', () => {

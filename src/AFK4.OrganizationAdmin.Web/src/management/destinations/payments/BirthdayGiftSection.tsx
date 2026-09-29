@@ -1,4 +1,5 @@
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { LoadFailureState } from '../../../operatorPrimitives';
 import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SetupFieldsSkeleton, SetupRuleSkeleton } from '../../kit/SetupSection';
@@ -57,7 +58,7 @@ export function BirthdayGiftSection({ controller: c, currencyCode, hasBackend }:
 
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="birthday-gift-amount">{`${t('op.birthdayGift.amount')}, ${currencyCode}`}</label>
+          <label htmlFor="birthday-gift-amount">{`${t('op.birthdayGift.amount')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="birthday-gift-amount"

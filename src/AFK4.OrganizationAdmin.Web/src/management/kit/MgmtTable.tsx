@@ -22,6 +22,9 @@ interface MgmtTableProps<T> {
   };
   isLoading?: boolean;
   empty: { icon?: ReactNode; title: string; description?: string; next: EmptyStateNext };
+  /** Список внутри другой карточки (места в карточке зала): без своей рамки и подложки — иначе
+   *  карточка в карточке. */
+  bare?: boolean;
 }
 
 // Универсальный список-панель для CRUD-разделов «Управления»: тулбар (заголовок + опц. поиск +
@@ -40,13 +43,20 @@ export function MgmtTable<T>({
   rowActions,
   toolbar,
   isLoading,
-  empty
+  empty,
+  bare = false
 }: MgmtTableProps<T>) {
   const effectiveGrid = rowActions ? `${gridTemplate} 44px` : gridTemplate;
+  // Пустой список — это пустое состояние, а не таблица без строк: заголовки колонок над ним
+  // подписывали то, чего нет. И кнопка создания у пустого списка одна — в пустом состоянии, а не
+  // ещё и в тулбаре рядом: две одинаковые главные кнопки в одной карточке спорили друг с другом.
+  const isEmpty = !isLoading && rows.length === 0;
+  const primary = isEmpty && empty.next.kind === 'action' ? undefined : toolbar?.primary;
+  const showToolbar = toolbar !== undefined && Boolean(toolbar.title || toolbar.search || toolbar.secondary || primary);
 
   return (
-    <section className="table-panel mgmt-table">
-      {toolbar && (
+    <section className={`table-panel mgmt-table${bare ? ' mgmt-table--bare' : ''}`}>
+      {toolbar && showToolbar && (
         <div className="table-toolbar">
           {toolbar.title && <span className="mgmt-tt-title">{toolbar.title}</span>}
           {toolbar.search && (
@@ -71,26 +81,30 @@ export function MgmtTable<T>({
               {toolbar.secondary.label}
             </button>
           )}
-          {toolbar.primary && (
+          {primary && (
             <button
               type="button"
               className="ui-btn ui-btn--primary"
-              disabled={toolbar.primary.disabled}
-              onClick={toolbar.primary.onClick}
+              disabled={primary.disabled}
+              onClick={primary.onClick}
             >
-              {toolbar.primary.icon}
-              {toolbar.primary.label}
+              {primary.icon}
+              {primary.label}
             </button>
           )}
         </div>
       )}
 
-      <div className="ctable-head mgmt-grid" style={{ gridTemplateColumns: effectiveGrid }} aria-hidden="true">
-        {columns.map((column) => (
-          <span key={column.key} className={column.align === 'end' ? 'r' : undefined}>{column.header}</span>
-        ))}
-        {rowActions && <span />}
-      </div>
+      {/* Подписи колонок нужны, когда колонок несколько; у списка из одних названий («Залы»,
+          «Категории») подпись «Зал» под заголовком «Залы» — повтор, и её не задают. */}
+      {!isEmpty && columns.some((column) => column.header) && (
+        <div className="ctable-head mgmt-grid" style={{ gridTemplateColumns: effectiveGrid }} aria-hidden="true">
+          {columns.map((column) => (
+            <span key={column.key} className={column.align === 'end' ? 'r' : undefined}>{column.header}</span>
+          ))}
+          {rowActions && <span />}
+        </div>
+      )}
 
       <div className="ctable-body">
         {isLoading ? (

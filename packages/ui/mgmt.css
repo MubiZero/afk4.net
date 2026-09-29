@@ -90,6 +90,19 @@
   overflow: visible;
 }
 
+/* Список внутри другой карточки (места в карточке зала): без своей рамки, подложки и тени —
+   иначе карточка в карточке. Тулбар — строка подписи секции без своих полей по краям. */
+.mgmt-table--bare {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.mgmt-table--bare > .table-toolbar {
+  padding-inline: 0;
+}
+
 .mgmt-tt-title {
   margin-right: 4px;
   color: var(--text-primary);

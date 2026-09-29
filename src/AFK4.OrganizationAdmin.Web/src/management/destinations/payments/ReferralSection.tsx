@@ -1,4 +1,5 @@
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { LoadFailureState } from '../../../operatorPrimitives';
 import { DeferredSkeleton } from '../../../LoadingSkeleton';
 import { SETUP_LIMITS_HINT_STYLE, SetupFieldsSkeleton, SetupRuleSkeleton, SetupSubheadSkeleton } from '../../kit/SetupSection';
@@ -63,7 +64,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
       <div className="payset-subhead">{t('op.referral.amounts.title')}</div>
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="referral-referrer">{`${t('op.referral.referrerBonus')}, ${currencyCode}`}</label>
+          <label htmlFor="referral-referrer">{`${t('op.referral.referrerBonus')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="referral-referrer"
@@ -76,7 +77,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
           <p className="payset-field-hint">{t('op.referral.referrerBonusHint')}</p>
         </div>
         <div className="payset-field">
-          <label htmlFor="referral-invitee">{`${t('op.referral.inviteeBonus')}, ${currencyCode}`}</label>
+          <label htmlFor="referral-invitee">{`${t('op.referral.inviteeBonus')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="referral-invitee"
@@ -98,7 +99,7 @@ export function ReferralSection({ controller: c, currencyCode, hasBackend }: Pro
       </p>
       <div className="payset-limits">
         <div className="payset-field">
-          <label htmlFor="referral-minimum">{`${t('op.referral.minimumTopUp')}, ${currencyCode}`}</label>
+          <label htmlFor="referral-minimum">{`${t('op.referral.minimumTopUp')}, ${currencySymbol(currencyCode)}`}</label>
           <div className="payset-field-input">
             <input
               id="referral-minimum"

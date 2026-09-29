@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
-import { ManagementScreen } from './ManagementScreen';
+import { ManagementScreen, ScreenAction } from './ManagementScreen';
 
 const renderScreen = (ui: React.ReactNode) =>
   render(<I18nProvider initialLocale="ru">{ui}</I18nProvider>);
@@ -9,10 +9,12 @@ const renderScreen = (ui: React.ReactNode) =>
 describe('ManagementScreen', () => {
   // Шапка — общая шапка раздела кита: название, главная кнопка раздела и вкладки под ними. Мелкой
   // строки над названием больше нет (решение владельца 29.09) — в шапке только то, что передали.
+  // Главную кнопку ставит список из тела экрана (ScreenAction), а встаёт она в шапку.
   it('renders the section header with its action and tabs, then the body', () => {
     const { container } = renderScreen(
-      <ManagementScreen title="Товары" action={<button type="button">+ Товар</button>} tabs={<div role="tablist" aria-label="Вкладки" />}>
+      <ManagementScreen title="Товары" tabs={<div role="tablist" aria-label="Вкладки" />}>
         <p>тело</p>
+        <ScreenAction><button type="button">+ Товар</button></ScreenAction>
       </ManagementScreen>
     );
     const header = container.querySelector('.ui-section-header');

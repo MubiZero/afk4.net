@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { ScreenAction } from '../../ManagementScreen';
 import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonTable } from '../../../LoadingSkeleton';
@@ -32,7 +33,7 @@ import type {
   RotateDeviceCredentialResponse
 } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
-import { useBlockedReason } from '@afk4/ui/react';
+import { Button, useBlockedReason } from '@afk4/ui/react';
 
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.
@@ -46,7 +47,7 @@ const DEVICES_GRID = 'minmax(0, 1.1fr) max-content minmax(0, 1fr) minmax(0, 1.7f
 export function DevicesTabSkeleton() {
   return (
     <div className="mgmt-master-detail">
-      <SkeletonTable gridTemplate={DEVICES_GRID} toolbar={{}} />
+      <SkeletonTable gridTemplate={DEVICES_GRID} />
     </div>
   );
 }
@@ -439,10 +440,6 @@ export function DevicesTab({
           gridTemplate={DEVICES_GRID}
           selectedKey={selectedDeviceId}
           onSelectRow={(device) => setSelectedDeviceId(readString(device, 'deviceId'))}
-          toolbar={{
-            title: t('op.management.halls.devicesTable.title'),
-            primary: canAssignDeviceSeat ? { label: t('op.settings.devices.addConsole'), onClick: () => setConsoleOpen(true) } : undefined
-          }}
           empty={{
             icon: <MonitorSmartphone size={22} aria-hidden="true" />,
             title: t('op.management.halls.devicesEmpty.title'),
@@ -450,6 +447,11 @@ export function DevicesTab({
             next: { kind: 'elsewhere', hint: t('op.management.halls.devicesEmpty.description') }
           }}
         />
+        {canAssignDeviceSeat && (
+          <ScreenAction>
+            <Button variant="primary" onClick={() => setConsoleOpen(true)}>{t('op.settings.devices.addConsole')}</Button>
+          </ScreenAction>
+        )}
 
         {selectedDevice && (
           <MgmtDrawer

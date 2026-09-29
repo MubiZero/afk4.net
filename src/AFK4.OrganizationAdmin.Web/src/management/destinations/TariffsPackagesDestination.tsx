@@ -9,7 +9,7 @@ import { managementScreenState, type DestinationProps } from './types';
 import { TariffsTab, TariffsTabSkeleton } from './tariffs/TariffsTab';
 import { PackagesTab, PackagesTabSkeleton } from './tariffs/PackagesTab';
 import { ViewOnlyNotice } from '../ViewOnlyNotice';
-import { DeferredSkeleton, SkeletonTabs } from '../../LoadingSkeleton';
+import { DeferredSkeleton } from '../../LoadingSkeleton';
 
 type TariffsPackagesTab = 'tariffs' | 'packages';
 
@@ -52,10 +52,22 @@ export function TariffsPackagesDestination({
     <ManagementScreen
       title={t('op.management.dest.tariffs')}
       contentWidth="full"
+      // Вкладки — второй строкой шапки раздела, а не в теле: так они не прыгают при загрузке и
+      // не спорят с заголовком списка, который повторял имя вкладки («Тарифы» под «Тарифами»).
+      tabs={
+        <Tabs
+          label={t('op.management.dest.tariffs')}
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { value: 'tariffs', label: t('op.management.tariffs.tab.tariffs') },
+            { value: 'packages', label: t('op.management.tariffs.tab.packages') }
+          ]}
+        />
+      }
       state={managementScreenState(loadStatus)}
       skeleton={
         <>
-          <SkeletonTabs count={2} />
           <ViewOnlyNotice reason={tabViewOnly} />
           {activeTab === 'tariffs'
             ? <TariffsTabSkeleton canManageTariffs={canManageTariffs} />
@@ -65,16 +77,6 @@ export function TariffsPackagesDestination({
       failure={failure}
       onRetry={onRetry}
     >
-      <Tabs
-        label={t('op.management.dest.tariffs')}
-        value={activeTab}
-        onChange={setActiveTab}
-        items={[
-          { value: 'tariffs', label: t('op.management.tariffs.tab.tariffs') },
-          { value: 'packages', label: t('op.management.tariffs.tab.packages') }
-        ]}
-      />
-
       <ViewOnlyNotice reason={tabViewOnly} />
       {activeTab === 'tariffs' ? (
         <TariffsTab

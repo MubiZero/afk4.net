@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Button } from '@afk4/ui/react';
+import { ScreenAction } from '../../ManagementScreen';
 import { Archive, Package as PackageIcon, Pencil } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonTable } from '../../../LoadingSkeleton';
@@ -30,7 +32,7 @@ const PACKAGES_GRID = '1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.8fr';
 export function PackagesTabSkeleton({ canManagePackages }: { canManagePackages: boolean }) {
   return (
     <div className="mgmt-master-detail">
-      <SkeletonTable gridTemplate={PACKAGES_GRID} rowActions={canManagePackages} toolbar={{ action: canManagePackages }} />
+      <SkeletonTable gridTemplate={PACKAGES_GRID} rowActions={canManagePackages} />
     </div>
   );
 }
@@ -277,19 +279,18 @@ export function PackagesTab({
           selectedKey={selectedPackageDefinitionId}
           onSelectRow={(option) => setSelectedPackageDefinitionId(readString(option, 'packageDefinitionId'))}
           rowActions={rowActions}
-          toolbar={{
-            title: t('op.settings.packages.title'),
-            primary: canManagePackages ? { label: t('op.management.tariffs.addPackageCta'), onClick: openCreate } : undefined
-          }}
           empty={{
             icon: <PackageIcon size={22} aria-hidden="true" />,
             title: t('op.management.tariffs.packagesEmpty.title'),
             description: t('op.management.tariffs.packagesEmpty.description'),
-            next: canManagePackages
-              ? { kind: 'action', label: t('op.management.tariffs.addPackageCta'), onClick: openCreate }
-              : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
+            next: canManagePackages ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
+        {canManagePackages && (
+          <ScreenAction>
+            <Button variant="primary" onClick={openCreate}>{t('op.management.tariffs.addPackageCta')}</Button>
+          </ScreenAction>
+        )}
 
         {selectedPackage && (
           <MgmtDrawer

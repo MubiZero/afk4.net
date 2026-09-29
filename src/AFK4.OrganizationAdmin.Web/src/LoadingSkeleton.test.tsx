@@ -242,11 +242,13 @@ describe('cash, news, events and client screens wait in the shape of their conte
     noLoadingText();
   });
 
-  it('news: a four-column table with the create button for someone who may write', async () => {
+  // Кнопка «+ Новость» — в шапке экрана, а не в тулбаре таблицы, поэтому и у заглушки тулбара нет:
+  // она повторяет настоящую таблицу, у которой его больше нет.
+  it('news: a four-column table without a toolbar — the create button lives in the screen header', async () => {
     const { container } = renderRu(<NewsWorkspace backend={null} canManage />);
     await waitFor(() => expect(container.querySelector('[data-skeleton="table"]')).toBeTruthy());
     expect(headColumns(container)).toBe(4);
-    expect(container.querySelector('[data-skeleton="table"] .table-toolbar .skeleton-control')).toBeTruthy();
+    expect(container.querySelector('[data-skeleton="table"] .table-toolbar')).toBeNull();
     noLoadingText();
   });
 

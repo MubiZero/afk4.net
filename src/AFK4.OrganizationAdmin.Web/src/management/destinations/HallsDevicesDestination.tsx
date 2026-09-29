@@ -9,7 +9,7 @@ import { LoadFailureState } from '../../operatorPrimitives';
 import { managementScreenState, type DestinationProps } from './types';
 import { ZonesTab, ZonesTabSkeleton } from './halls/ZonesTab';
 import { DevicesTab, DevicesTabSkeleton } from './halls/DevicesTab';
-import { DeferredSkeleton, SkeletonTabs } from '../../LoadingSkeleton';
+import { DeferredSkeleton } from '../../LoadingSkeleton';
 
 type HallsTab = 'layout' | 'devices';
 
@@ -62,26 +62,23 @@ export function HallsDevicesDestination({
     <ManagementScreen
       title={t('op.management.dest.halls')}
       contentWidth="full"
-      state={managementScreenState(loadStatus)}
-      skeleton={
-        <>
-          <SkeletonTabs count={2} />
-          {activeTab === 'layout' ? <ZonesTabSkeleton canManageLayout={canManageLayout} /> : <DevicesTabSkeleton />}
-        </>
+      // Вкладки — второй строкой шапки раздела: при загрузке они уже на месте и не прыгают.
+      tabs={
+        <Tabs
+          label={t('op.management.dest.halls')}
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { value: 'layout', label: t('op.management.halls.tab.layout') },
+            { value: 'devices', label: t('op.management.halls.tab.devices') }
+          ]}
+        />
       }
+      state={managementScreenState(loadStatus)}
+      skeleton={activeTab === 'layout' ? <ZonesTabSkeleton canManageLayout={canManageLayout} /> : <DevicesTabSkeleton />}
       failure={failure}
       onRetry={onRetry}
     >
-      <Tabs
-        label={t('op.management.dest.halls')}
-        value={activeTab}
-        onChange={setActiveTab}
-        items={[
-          { value: 'layout', label: t('op.management.halls.tab.layout') },
-          { value: 'devices', label: t('op.management.halls.tab.devices') }
-        ]}
-      />
-
       {activeTab === 'layout' ? (
         <ZonesTab
           zones={zoneRows}

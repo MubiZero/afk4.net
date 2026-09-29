@@ -1,4 +1,6 @@
+import { createContext, useContext, useState } from 'react';
 import type { JSX, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useI18n } from '@afk4/i18n';
 import { Button, SectionHeader, type HeaderCounts } from '@afk4/ui/react';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
@@ -11,10 +13,9 @@ export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved';
 interface ManagementScreenBaseProps {
   title: string;
   // Шапка — общая шапка раздела кита: название, до трёх счётчиков и одна главная кнопка раздела
-  // («+ Товар»), под ними вкладки. Мелкой строки над названием нет (решение владельца 29.09): она
-  // пересказывала название другими словами и была только здесь, а не в соседних разделах.
+  // («+ Товар», её ставит <ScreenAction> из тела экрана), под ними вкладки. Мелкой строки над
+  // названием нет (решение владельца 29.09): она пересказывала название другими словами.
   counts?: HeaderCounts;
-  action?: ReactNode;
   tabs?: ReactNode;
   children: ReactNode; // destination body (panels/forms)
   // Content column width: 'form' (narrow, single-column config forms) keeps fields a
@@ -60,7 +61,6 @@ export type ManagementScreenProps = ManagementScreenBaseProps & ManagementScreen
 export function ManagementScreen({
   title,
   counts,
-  action,
   tabs,
   children,
   contentWidth = 'form',
@@ -73,48 +73,73 @@ export function ManagementScreen({
   save
 }: ManagementScreenProps): JSX.Element {
   const { t } = useI18n();
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
 
   return (
     <section className="workspace-screen management-screen">
-      <SectionHeader title={title} counts={counts} action={action} tabs={tabs} />
-
-      <div className="management-screen-body">
-        <div className={`management-content management-content--${contentWidth}`}>
-          {/* Право известно до ответа, и строка «только просмотр» стоит над заглушкой так же,
-              как встанет над содержимым, — иначе она вдвигалась бы сверху в момент подмены. */}
-          {state !== 'error' && <ViewOnlyNotice reason={viewOnly} />}
-          {controls}
-          {state === 'loading' ? (
-            <DeferredSkeleton>{skeleton}</DeferredSkeleton>
-          ) : state === 'error' ? (
-            <div className="management-error-state">
-              <LoadFailureState title={t('op.management.state.errorTitle')} failure={failure ?? projectOperatorError(undefined, t)} onRetry={onRetry} />
-            </div>
-          ) : (
-            <>
-              {children}
-
-              {save && (
-                <div className="management-save-bar">
-                  <span>{save.state === 'saved' ? t('op.management.save.saved') : save.state === 'clean' ? t('op.management.save.clean') : ''}</span>
-                  {save.onDiscard && (
-                    <Button disabled={save.state !== 'dirty' || save.disabled} onClick={save.onDiscard}>
-                      {t('op.management.save.discard')}
-                    </Button>
-                  )}
-                  <Button
-                    variant="primary"
-                    disabled={save.state === 'clean' || save.state === 'saving' || save.disabled}
-                    onClick={save.onSave}
-                  >
-                    {t('common.save')}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+      {/* Шапка — той же ширины, что и колонка содержимого под ней: иначе главная кнопка раздела
+          стояла у края окна, правее всего, к чему она относится. */}
+      <div className="management-screen-head">
+        <div className={`management-content--${contentWidth}`}>
+          <SectionHeader
+            title={title}
+            counts={counts}
+            tabs={tabs}
+            action={<span ref={setActionSlot} className="management-screen-action" />}
+          />
         </div>
       </div>
+      <ScreenActionSlot.Provider value={actionSlot}>
+        <div className="management-screen-body">
+          <div className={`management-content management-content--${contentWidth}`}>
+            {/* Право известно до ответа, и строка «только просмотр» стоит над заглушкой так же,
+                как встанет над содержимым, — иначе она вдвигалась бы сверху в момент подмены. */}
+            {state !== 'error' && <ViewOnlyNotice reason={viewOnly} />}
+            {controls}
+            {state === 'loading' ? (
+              <DeferredSkeleton>{skeleton}</DeferredSkeleton>
+            ) : state === 'error' ? (
+              <div className="management-error-state">
+                <LoadFailureState title={t('op.management.state.errorTitle')} failure={failure ?? projectOperatorError(undefined, t)} onRetry={onRetry} />
+              </div>
+            ) : (
+              <>
+                {children}
+
+                {save && (
+                  <div className="management-save-bar">
+                    <span>{save.state === 'saved' ? t('op.management.save.saved') : save.state === 'clean' ? t('op.management.save.clean') : ''}</span>
+                    {save.onDiscard && (
+                      <Button disabled={save.state !== 'dirty' || save.disabled} onClick={save.onDiscard}>
+                        {t('op.management.save.discard')}
+                      </Button>
+                    )}
+                    <Button
+                      variant="primary"
+                      disabled={save.state === 'clean' || save.state === 'saving' || save.disabled}
+                      onClick={save.onSave}
+                    >
+                      {t('common.save')}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </ScreenActionSlot.Provider>
     </section>
   );
+}
+
+const ScreenActionSlot = createContext<HTMLElement | null>(null);
+
+// Главная кнопка раздела встаёт в шапку экрана, а живёт в списке, который её открывает: там её
+// состояние (окно создания, право, выбранная вкладка). Поднимать всё это в каждый экран ради одной
+// кнопки — лишняя проводка, поэтому список отдаёт кнопку сюда, а она уходит в шапку порталом.
+// Раньше «+ Новость» стояла в карточке списка под заголовком «Новости», повторявшим шапку, а у
+// пустого списка рядом с ней появлялась вторая такая же — в пустом состоянии.
+export function ScreenAction({ children }: { children: ReactNode }) {
+  const slot = useContext(ScreenActionSlot);
+  return slot === null ? null : createPortal(children, slot);
 }

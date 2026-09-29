@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Button } from '@afk4/ui/react';
+import { ScreenAction } from '../../ManagementScreen';
 import { Layers, Pencil, Trash2 } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { SkeletonControl, SkeletonLine, SkeletonTable } from '../../../LoadingSkeleton';
@@ -24,14 +26,14 @@ type Zone = ZoneDto;
 
 const ZONES_GRID = '1fr';
 
-const SEATS_GRID = '1fr 90px';
+const SEATS_GRID = '1fr';
 
 // Форма вкладки, пока залы грузятся: список залов слева и карточка первого из них справа — вкладка
 // сама выбирает первый зал, так что справа почти всегда будет карточка с местами.
 export function ZonesTabSkeleton({ canManageLayout }: { canManageLayout: boolean }) {
   return (
     <div className="mgmt-master-detail mgmt-master-detail--nav">
-      <SkeletonTable gridTemplate={ZONES_GRID} rowActions={canManageLayout} toolbar={{ action: canManageLayout }} />
+      <SkeletonTable gridTemplate={ZONES_GRID} rowActions={canManageLayout} />
       <aside className="mgmt-drawer" aria-hidden="true">
         <div className="mgmt-drawer-head">
           <div className="mgmt-drawer-id">
@@ -42,8 +44,7 @@ export function ZonesTabSkeleton({ canManageLayout }: { canManageLayout: boolean
         </div>
         <div className="mgmt-drawer-body">
           <div className="mgmt-drawer-section">
-            <div className="mgmt-section-title"><SkeletonLine width="6em" /></div>
-            <SkeletonTable gridTemplate={SEATS_GRID} rowActions={canManageLayout} toolbar={{ title: false, action: canManageLayout }} rows={4} />
+            <SkeletonTable gridTemplate={SEATS_GRID} rowActions={canManageLayout} toolbar={{ action: canManageLayout }} rows={4} />
           </div>
         </div>
       </aside>
@@ -337,7 +338,7 @@ export function ZonesTab({
           columns={[
             {
               key: 'zone',
-              header: t('op.management.halls.col.zone'),
+              header: '',
               render: (zone) => (
                 <span className="mgmt-zone-row">
                   <span>{readString(zone, 'name', t('op.settings.layout.zoneFallback'))}</span>
@@ -352,17 +353,20 @@ export function ZonesTab({
           selectedKey={selectedZoneId}
           onSelectRow={(zone) => setSelectedZoneId(readString(zone, 'zoneId'))}
           rowActions={zoneRowActions}
-          toolbar={{
-            title: t('op.management.halls.zonesTable.title'),
-            primary: canManageLayout ? { label: t('op.management.halls.addZoneCta'), onClick: openCreateZone } : undefined
-          }}
+          toolbar={{ title: t('op.management.halls.zonesTable.title') }}
           empty={{
             icon: <Layers size={22} aria-hidden="true" />,
             title: t('op.management.halls.zonesEmpty.title'),
             description: t('op.management.halls.zonesEmpty.description'),
-            next: layoutNext(t('op.management.halls.addZoneCta'), openCreateZone)
+            next: canManageLayout ? { kind: 'formAbove' } : { kind: 'denied', hint: t('op.empty.denied.managerOrOwner') }
           }}
         />
+        {/* «+ Зал» — главная кнопка вкладки, в шапке раздела; «+ ПК» остаётся у списка мест зала. */}
+        {canManageLayout && (
+          <ScreenAction>
+            <Button variant="primary" onClick={openCreateZone}>{t('op.management.halls.addZoneCta')}</Button>
+          </ScreenAction>
+        )}
 
         {selectedZone ? (
           <MgmtDrawer
@@ -371,17 +375,20 @@ export function ZonesTab({
             actions={drawerActions}
           >
             <div className="mgmt-drawer-section">
-              <div className="mgmt-section-title"><span>{t('op.management.halls.seatsSection.title')}</span></div>
+              {/* Список мест — часть карточки зала, а не карточка в карточке: без своей рамки, а
+                  подпись секции и «+ ПК» — одной строкой. Колонки «Порядок 10/20/30» нет: порядок
+                  и так виден по порядку строк, а число сортировки человеку ничего не говорит. */}
               <MgmtTable<Seat>
+                bare
                 columns={[
-                  { key: 'name', header: t('op.management.halls.col.seatName'), render: (seat) => readString(seat, 'name', t('op.settings.layout.seatFallback')) },
-                  { key: 'order', header: t('op.management.halls.col.sortOrder'), align: 'end', render: (seat) => String(readNumber(seat, 'sortOrder', 0)) }
+                  { key: 'name', header: '', render: (seat) => readString(seat, 'name', t('op.settings.layout.seatFallback')) }
                 ]}
                 rows={selectedZoneSeats}
                 rowKey={(seat) => readString(seat, 'seatId')}
                 gridTemplate={SEATS_GRID}
                 rowActions={seatRowActions(readString(selectedZone, 'zoneId'))}
                 toolbar={{
+                  title: t('op.management.halls.seatsSection.title'),
                   primary: canManageLayout
                     ? { label: t('op.management.halls.addSeatCta'), onClick: () => openCreateSeat(readString(selectedZone, 'zoneId')) }
                     : undefined
