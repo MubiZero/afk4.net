@@ -1119,6 +1119,8 @@
       }
     }
   },
+  "customerWalletDebtPayErrExceeds": "Қарз аллакай аз маблағи воридшуда камтар аст — экранро нав кунед",
+  "customerWalletDebtPayErrFunds": "Дар ҳамён барои ин пардохт маблағ намерасад",
   "customerWalletDebtPayError": "Қарзро пӯшонидан нашуд. Бори дигар кӯшиш кунед.",
   "customerWalletDebtPayNote": "Онро бо пули ҳамён ё дар назди клуб пӯшонидан мумкин аст.",
   "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефони худро тасдиқ кунед.",

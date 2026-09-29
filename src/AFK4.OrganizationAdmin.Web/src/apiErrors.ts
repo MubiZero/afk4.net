@@ -92,6 +92,13 @@ const codeMessageKeys = {
   shift_sign_off_not_authorized: 'op.error.code.shiftSignOffNotAuthorized',
   cash_movement_needs_open_shift: 'op.error.code.cashMovementNeedsOpenShift',
   tariff_name_taken: 'op.error.code.tariffNameTaken',
+  tariff_version_in_use: 'op.error.code.tariffVersionInUse',
+  // Деньги игрока: возврат больше остатка, короткая причина коррекции, платёж больше долга,
+  // повторное имя пакета — до сих пор эти отказы шли на экран английской фразой сервера.
+  refund_exceeds_remaining: 'op.error.code.refundExceedsRemaining',
+  correction_reason_too_short: 'op.error.code.correctionReasonTooShort',
+  debt_payment_exceeds_balance: 'op.error.code.debtPaymentExceedsBalance',
+  package_name_taken: 'op.error.code.packageNameTaken',
   // Брони: отказ почти всегда про состояние, которое успело измениться, — сосед подтвердил её
   // раньше, гость уже сидит, заявку уже отклонили. Дальше оператор делает разное, поэтому
   // отличать их нужно, а не сводить к одному «не получилось».

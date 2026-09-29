@@ -97,6 +97,20 @@ abstract final class AdModerationNames {
   static const String rejected = 'rejected';
 }
 
+/// Машинные имена отказов по деньгам игрока (возврат, ручная коррекция, гашение долга). См.
+/// Tariffs.TariffErrorCodeNames — та же причина: касса и приложение игрока работают
+/// на трёх языках, а английская фраза сервера в интерфейс попадать не должна.
+///
+/// Словарь: Billing/BillingErrorCodeNames.cs
+abstract final class BillingErrorCodeNames {
+  /// Уже вернули часть или всё — запрошенный возврат больше того, что осталось.
+  static const String refundExceedsRemaining = 'refund_exceeds_remaining';
+  /// Причина поправки вручную короче восьми символов — её потом никто не прочитает.
+  static const String correctionReasonTooShort = 'correction_reason_too_short';
+  /// Долг уже меньше суммы платежа — кто-то погасил его первым.
+  static const String debtPaymentExceedsBalance = 'debt_payment_exceeds_balance';
+}
+
 /// Словарь: Platform/Billing/BillingIntervalNames.cs
 abstract final class BillingIntervalNames {
   static const String monthly = 'monthly';
@@ -653,6 +667,15 @@ abstract final class OrganizationStatusNames {
   /// деньгам, но отличать её от живой заявки на уход обязательно — иначе стёртый клуб выглядит
   /// как ещё живая заявка.
   static const String purged = 'purged';
+}
+
+/// Машинные имена отказов по пакетам времени. См. Billing.BillingErrorCodeNames —
+/// та же причина: без кода отказ доезжает до Панели английской фразой сервера.
+///
+/// Словарь: Packages/PackageErrorCodeNames.cs
+abstract final class PackageErrorCodeNames {
+  /// Пакет с таким именем в филиале уже есть.
+  static const String nameTaken = 'package_name_taken';
 }
 
 /// Словарь: Payments/PaymentMethodNames.cs
@@ -1334,6 +1357,8 @@ abstract final class SubscriptionStatusNames {
 abstract final class TariffErrorCodeNames {
   /// Тариф с таким именем в филиале уже есть.
   static const String nameTaken = 'tariff_name_taken';
+  /// Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию.
+  static const String versionInUse = 'tariff_version_in_use';
 }
 
 /// Словарь: Tips/TipContracts.cs

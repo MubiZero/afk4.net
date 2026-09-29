@@ -16,7 +16,8 @@ public sealed record BillingCommandServiceResult<TResponse>(
 {
     public static BillingCommandServiceResult<TResponse> Ok(TResponse response) => new(true, false, false, null, response);
 
-    public static BillingCommandServiceResult<TResponse> RequestConflict(string error) => new(false, true, false, error, default);
+    public static BillingCommandServiceResult<TResponse> RequestConflict(string error, string? code = null) =>
+        new(false, true, false, error, default, code);
 
     public static BillingCommandServiceResult<TResponse> Missing(string error) => new(false, false, true, error, default);
 

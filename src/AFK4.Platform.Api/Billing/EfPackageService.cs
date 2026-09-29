@@ -84,7 +84,7 @@ public sealed class EfPackageService(
         if (existingNames.Any(existingName =>
             string.Equals(NormalizePackageName(existingName), normalizedName, StringComparison.Ordinal)))
         {
-            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.");
+            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.", PackageErrorCodeNames.NameTaken);
         }
 
         return await ExecuteInTransactionAsync(async () =>
@@ -167,7 +167,7 @@ public sealed class EfPackageService(
 
         if (nameExists)
         {
-            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.");
+            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.", PackageErrorCodeNames.NameTaken);
         }
 
         package.Name = normalizedName;
@@ -612,7 +612,9 @@ public sealed class EfPackageService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return BillingCommandServiceResult<TResponse>.RequestConflict("Idempotency key was already used for a different request.");
+            return BillingCommandServiceResult<TResponse>.RequestConflict(
+                "Idempotency key was already used for a different request.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<TResponse>(existing.ResponseJson, JsonOptions);
@@ -716,7 +718,7 @@ public sealed class EfPackageService(
 
         return existingNames.Any(existingName =>
             string.Equals(NormalizePackageName(existingName), normalizedName, StringComparison.Ordinal))
-            ? BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.")
+            ? BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.", PackageErrorCodeNames.NameTaken)
             : null;
     }
 

@@ -358,7 +358,9 @@ public sealed class EfBillingCommandService(
 
             if (request.Amount.MinorUnits > remainingRefundable)
             {
-                return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the remaining refundable amount.");
+                return BillingCommandServiceResult<LedgerEntryDto>.Invalid(
+                    "Refund amount cannot exceed the remaining refundable amount.",
+                    BillingErrorCodeNames.RefundExceedsRemaining);
             }
 
             var openShift = await RequireOpenShiftAsync<LedgerEntryDto>(
@@ -450,7 +452,9 @@ public sealed class EfBillingCommandService(
 
         if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length < 8)
         {
-            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Manual correction reason must be at least 8 characters.");
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid(
+                "Manual correction reason must be at least 8 characters.",
+                BillingErrorCodeNames.CorrectionReasonTooShort);
         }
 
         if (string.IsNullOrWhiteSpace(request.Amount.CurrencyCode))
@@ -562,7 +566,9 @@ public sealed class EfBillingCommandService(
 
         if (current.DebtBalance.MinorUnits < request.Amount.MinorUnits)
         {
-            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Debt payment cannot exceed current debt balance.");
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid(
+                "Debt payment cannot exceed current debt balance.",
+                BillingErrorCodeNames.DebtPaymentExceedsBalance);
         }
 
         var openShift = await RequireOpenShiftAsync<WalletSummaryDto>(
@@ -662,7 +668,9 @@ public sealed class EfBillingCommandService(
 
         if (current.DebtBalance.MinorUnits < amount.MinorUnits)
         {
-            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Debt payment cannot exceed current debt balance.");
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid(
+                "Debt payment cannot exceed current debt balance.",
+                BillingErrorCodeNames.DebtPaymentExceedsBalance);
         }
 
         // Остаток кошелька и есть то, что можно потратить: заморозка под бронь — отрицательная
@@ -671,7 +679,9 @@ public sealed class EfBillingCommandService(
         // отказать игроку, у которого деньги есть.
         if (current.WalletBalance.MinorUnits < amount.MinorUnits)
         {
-            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Wallet balance is not enough to pay this debt.");
+            // Машинный код, а не фраза: этот же отказ уже называется так в магазине, брони и
+            // старте сессии, и интерфейсы умеют его переводить.
+            return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Wallet balance is not enough to pay this debt.", "insufficient_funds");
         }
 
         var now = timeProvider.GetUtcNow();
@@ -803,7 +813,9 @@ public sealed class EfBillingCommandService(
 
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
-            return BillingCommandServiceResult<TResponse>.RequestConflict("Idempotency key was already used for a different request.");
+            return BillingCommandServiceResult<TResponse>.RequestConflict(
+                "Idempotency key was already used for a different request.",
+                "idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<TResponse>(existing.ResponseJson, JsonOptions);

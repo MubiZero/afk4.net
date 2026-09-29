@@ -109,9 +109,15 @@ class _WalletCardState extends State<WalletCard> {
       );
     } on PlayerApiException catch (error) {
       if (!mounted) return;
-      // Обрыв связи — не отказ в списании: повторить стоит, а искать деньги на кошельке не надо.
+      // Сумма считается из показанных на экране остатков долга и кошелька; пока запрос летит,
+      // оба могли уже измениться — сервер называет причину кодом, а не только «не удалось».
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(error.isOffline ? l.customerErrorOffline : l.customerWalletDebtPayError),
+        content: Text(switch ((error.isOffline, error.message)) {
+          (true, _) => l.customerErrorOffline,
+          (_, 'insufficient_funds') => l.customerWalletDebtPayErrFunds,
+          (_, 'debt_payment_exceeds_balance') => l.customerWalletDebtPayErrExceeds,
+          _ => l.customerWalletDebtPayError,
+        }),
       ));
     } finally {
       if (mounted) setState(() => _payingDebt = false);

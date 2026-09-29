@@ -124,6 +124,23 @@ export const AdModerationNames = {
 } as const;
 export type AdModerationName = (typeof AdModerationNames)[keyof typeof AdModerationNames];
 
+/**
+ * Машинные имена отказов по деньгам игрока (возврат, ручная коррекция, гашение долга). См.
+ * Tariffs.TariffErrorCodeNames — та же причина: касса и приложение игрока работают
+ * на трёх языках, а английская фраза сервера в интерфейс попадать не должна.
+ *
+ * Словарь: Billing/BillingErrorCodeNames.cs
+ */
+export const BillingErrorCodeNames = {
+  /** Уже вернули часть или всё — запрошенный возврат больше того, что осталось. */
+  RefundExceedsRemaining: 'refund_exceeds_remaining',
+  /** Причина поправки вручную короче восьми символов — её потом никто не прочитает. */
+  CorrectionReasonTooShort: 'correction_reason_too_short',
+  /** Долг уже меньше суммы платежа — кто-то погасил его первым. */
+  DebtPaymentExceedsBalance: 'debt_payment_exceeds_balance',
+} as const;
+export type BillingErrorCodeName = (typeof BillingErrorCodeNames)[keyof typeof BillingErrorCodeNames];
+
 /** Словарь: Platform/Billing/BillingIntervalNames.cs */
 export const BillingIntervalNames = {
   Monthly: 'monthly',
@@ -791,6 +808,18 @@ export const OrganizationStatusNames = {
   Purged: 'purged',
 } as const;
 export type OrganizationStatusName = (typeof OrganizationStatusNames)[keyof typeof OrganizationStatusNames];
+
+/**
+ * Машинные имена отказов по пакетам времени. См. Billing.BillingErrorCodeNames —
+ * та же причина: без кода отказ доезжает до Панели английской фразой сервера.
+ *
+ * Словарь: Packages/PackageErrorCodeNames.cs
+ */
+export const PackageErrorCodeNames = {
+  /** Пакет с таким именем в филиале уже есть. */
+  NameTaken: 'package_name_taken',
+} as const;
+export type PackageErrorCodeName = (typeof PackageErrorCodeNames)[keyof typeof PackageErrorCodeNames];
 
 /** Словарь: Payments/PaymentMethodNames.cs */
 export const PaymentMethodNames = {
@@ -1597,6 +1626,8 @@ export type SubscriptionStatusName = (typeof SubscriptionStatusNames)[keyof type
 export const TariffErrorCodeNames = {
   /** Тариф с таким именем в филиале уже есть. */
   NameTaken: 'tariff_name_taken',
+  /** Эту версию тарифа уже использовали сессии — редактировать нельзя, только новую версию. */
+  VersionInUse: 'tariff_version_in_use',
 } as const;
 export type TariffErrorCodeName = (typeof TariffErrorCodeNames)[keyof typeof TariffErrorCodeNames];
 

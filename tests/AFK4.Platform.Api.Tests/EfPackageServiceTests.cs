@@ -66,6 +66,7 @@ public sealed class EfPackageServiceTests
             CancellationToken.None);
 
         Assert.False(duplicate.Succeeded);
+        Assert.Equal(PackageErrorCodeNames.NameTaken, duplicate.Code);
         Assert.Single(await db.PackageDefinitions.ToListAsync());
     }
 
@@ -91,6 +92,7 @@ public sealed class EfPackageServiceTests
         Assert.False(result.Conflict);
         Assert.False(result.NotFound);
         Assert.Equal("Package name already exists.", result.Error);
+        Assert.Equal(PackageErrorCodeNames.NameTaken, result.Code);
         Assert.Single(await db.PackageDefinitions.ToListAsync());
     }
 
@@ -178,6 +180,7 @@ public sealed class EfPackageServiceTests
 
         Assert.False(result.Succeeded);
         Assert.False(result.Conflict);
+        Assert.Equal(PackageErrorCodeNames.NameTaken, result.Code);
     }
 
     [Theory]
