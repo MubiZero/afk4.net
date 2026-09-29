@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, jest } from 'bun:test';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { I18nProvider } from '@afk4/i18n';
@@ -72,7 +72,6 @@ const backend = {
 
 const renderRu = (ui: ReactNode) => render(<I18nProvider initialLocale="ru">{ui}</I18nProvider>);
 const dateInputs = (root: ParentNode) => root.querySelectorAll<HTMLInputElement>('.reports-range input[type="date"]');
-const wait = (ms: number) => act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 
 const reports: { name: string; ui: () => ReactNode; oldText: string; newText: string }[] = [
   { name: 'summary', ui: () => <SummaryReport backend={backend} onNavigate={() => {}} />, oldText: 'Требуют проверки: 1', newText: 'Требуют проверки: 2' },
@@ -89,21 +88,30 @@ describe('changing the report period refreshes quietly over the data on screen',
       await screen.findAllByText(report.oldText);
       const fromField = dateInputs(container)[0];
 
-      fireEvent.change(fromField, { target: { value: '2026-07-01' } });
-      await waitFor(() => expect(pending).toHaveLength(1));
+      // Часы поддельные с этого момента: порог «обновляем данные» — настоящий setTimeout на 180 мс,
+      // и под нагрузкой настоящие 220 мс ожидания иногда не хватало, чтобы он успел сработать —
+      // тест падал на исправном коде. Подделка часов делает срабатывание порога не зависящим от
+      // того, насколько загружена машина.
+      jest.useFakeTimers();
+      try {
+        fireEvent.change(fromField, { target: { value: '2026-07-01' } });
+        await waitFor(() => expect(pending).toHaveLength(1));
 
-      // Тот же самый элемент поля — не заглушка на его месте и не новое поле после перемонтирования.
-      expect(dateInputs(container)).toHaveLength(2);
-      expect(dateInputs(container)[0]).toBe(fromField);
-      expect(fromField.value).toBe('2026-07-01');
-      expect(screen.getAllByText(report.oldText).length).toBeGreaterThan(0);
-      expect(container.querySelector('[data-skeleton]')).toBeNull();
+        // Тот же самый элемент поля — не заглушка на его месте и не новое поле после перемонтирования.
+        expect(dateInputs(container)).toHaveLength(2);
+        expect(dateInputs(container)[0]).toBe(fromField);
+        expect(fromField.value).toBe('2026-07-01');
+        expect(screen.getAllByText(report.oldText).length).toBeGreaterThan(0);
+        expect(container.querySelector('[data-skeleton]')).toBeNull();
 
-      // Быстрый ответ не мигает признаком обновления; медленный — показывает его поверх данных.
-      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
-      await wait(220);
-      expect(container.querySelector('.reports-body[aria-busy="true"]')).not.toBeNull();
-      expect(screen.getByRole('status')).toHaveTextContent('Обновляем данные…');
+        // Быстрый ответ не мигает признаком обновления; медленный — показывает его поверх данных.
+        expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+        act(() => { jest.advanceTimersByTime(220); });
+        expect(container.querySelector('.reports-body[aria-busy="true"]')).not.toBeNull();
+        expect(screen.getByRole('status')).toHaveTextContent('Обновляем данные…');
+      } finally {
+        jest.useRealTimers();
+      }
 
       await act(async () => { pending[0].resolve(ok(reportBody(pending[0].url, true))); });
       await screen.findAllByText(report.newText);
@@ -128,7 +136,6 @@ describe('changing the report period refreshes quietly over the data on screen',
     await act(async () => { pending[1].resolve(ok({ ...(reportBody(pending[1].url, true) as object), attentionTotalCount: 5 })); });
     await screen.findByText('Требуют проверки: 5');
     await act(async () => { pending[0].resolve(ok(reportBody(pending[0].url, true))); });
-    await wait(20);
     expect(screen.getByText('Требуют проверки: 5')).toBeInTheDocument();
   });
 
