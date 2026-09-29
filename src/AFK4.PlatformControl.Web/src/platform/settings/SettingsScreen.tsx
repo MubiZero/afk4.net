@@ -174,16 +174,14 @@ export function SettingsScreen({ client, twoFactorClient, rolesClient, session }
                       </span>
                     </TableCell>
                     <TableCell><Badge variant="outline">{t(roleLabelKey(item.role))}</Badge></TableCell>
+                    {/* Чип — только у отклонения от нормы: зелёные «Включена» и «Активен» в каждой
+                        строке были шумом, и выключенный второй фактор среди них терялся. */}
                     <TableCell>
-                      {item.twoFactorEnabled
-                        ? <Badge variant="success">{t('platform.settings.twoFactor.on')}</Badge>
-                        : <Badge variant="outline">{t('platform.settings.twoFactor.off')}</Badge>}
+                      {item.twoFactorEnabled ? null : <Badge variant="warning">{t('platform.settings.twoFactor.off')}</Badge>}
                     </TableCell>
                     <TableCell>{item.lastSignInAtUtc === null ? t('platform.settings.lastSignIn.never') : formatDate(item.lastSignInAtUtc)}</TableCell>
                     <TableCell>
-                      {item.isActive
-                        ? <Badge variant="success">{t('platform.settings.status.active')}</Badge>
-                        : <Badge variant="outline">{t('platform.settings.status.inactive')}</Badge>}
+                      {item.isActive ? null : <Badge variant="outline">{t('platform.settings.status.inactive')}</Badge>}
                     </TableCell>
                     <TableCell>
                       <AdminActions

@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorState } from '@/components/ui/states';
 import { Loading, SkeletonCard, SkeletonChart, SkeletonTiles } from '@/components/ui/skeletons';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney, majorToMinor } from '@afk4/money';
 import type { AnalyticsApi } from '@/api/platformClients/analytics';
 import type { MessageKey } from '@/i18n/messages';
 import { isEmpty, toRevenueSeries } from './analyticsModel';
@@ -34,7 +34,7 @@ const REVENUE_CHART_HEIGHT = 260;
 const MOVEMENT_CHART_HEIGHT = 220;
 
 export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOverview'> }) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const state = useAnalytics(client);
 
   if (state.status === 'loading') {
@@ -69,7 +69,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
       <div className="pc-analytics-summary">
         <SummaryTile
           label={t('platform.analytics.summary.mrr')}
-          value={formatCurrency(minorToMajor(overview.currentMrrMinorUnits), overview.currencyCode)}
+          value={formatMoney(overview.currentMrrMinorUnits, overview.currencyCode)}
         />
         <SummaryTile
           label={t('platform.analytics.summary.clubsLabel')}
@@ -77,11 +77,11 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
         />
         <SummaryTile
           label={t('platform.analytics.summary.average')}
-          value={formatCurrency(minorToMajor(overview.averageRevenuePerClubMinorUnits), overview.currencyCode)}
+          value={formatMoney(overview.averageRevenuePerClubMinorUnits, overview.currencyCode)}
         />
         <SummaryTile
           label={t('platform.analytics.summary.outstanding')}
-          value={formatCurrency(minorToMajor(overview.outstandingMinorUnits), overview.currencyCode)}
+          value={formatMoney(overview.outstandingMinorUnits, overview.currencyCode)}
         />
       </div>
 
@@ -108,7 +108,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
                     <XAxis dataKey="label" stroke="var(--text-tertiary)" fontSize={12} />
                     <YAxis stroke="var(--text-tertiary)" fontSize={12} />
                     <Tooltip
-                      formatter={value => formatCurrency(Number(value), overview.currencyCode)}
+                      formatter={value => formatMoney(majorToMinor(Number(value)), overview.currencyCode)}
                       contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}
                     />
                     <Legend />

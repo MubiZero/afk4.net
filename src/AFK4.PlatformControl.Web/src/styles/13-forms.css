@@ -46,11 +46,11 @@
   background: var(--surface-hover);
 }
 
-/* Числовая колонка: моноширинные цифры выравниваются по разрядам, иначе суммы «пляшут». */
+/* Числа, даты и суммы — основным шрифтом с цифрами одной ширины (решение владельца 29.09:
+   моноширинный — только для кодов, .ui-code). Выравнивания вправо нет: заголовки колонок стоят
+   слева, и дата под «ВРЕМЯ» уезжала от своей подписи на полстолбца. */
 .pc-num {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  text-align: right;
   white-space: nowrap;
 }
 
@@ -64,7 +64,7 @@
 .pc-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
 }
 
@@ -294,6 +294,34 @@
 .pc-filters .ui-input,
 .pc-filters .ui-select {
   height: 34px;
+}
+
+/* Поле формы — один вид, где бы оно ни стояло: подпись сверху, контрол под ней, подсказка ниже.
+   Раньше подпись была оформлена только внутри .mgmt-form, а поле в карточке, в фильтрах журнала
+   и отчёта или в форме статуса показывало подпись браузерным шрифтом 16 px вплотную к полю. */
+.pc-field,
+label.ui-field,
+.pc-filters > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--field-label-font);
+  font-weight: 600;
+}
+
+/* Жирная — только подпись: значение в поле и подсказка под ним — обычным весом. */
+:is(.pc-field, label.ui-field, .pc-filters > label) :is(input, select, textarea, .mgmt-drawer-hint, .pc-error-text) {
+  font-weight: 400;
+}
+
+/* Таблица внутри карточки — без второй рамки и тени: карточка уже держит край, и рамка в рамке
+   читалась как вложенное окно. Отдельно стоящая таблица (журнал) остаётся панелью. */
+.management-panel .table-panel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Человек в строке: имя и под ним тихо — логин. */

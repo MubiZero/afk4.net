@@ -42,8 +42,9 @@ describe('PlansTab', () => {
   it('называет состояние тарифа словом', async () => {
     setup([plan(), plan({ planCode: 'pro', name: 'Профи', isActive: false })]);
 
-    await screen.findByText('Активен');
     await screen.findByText('Скрыт');
+    // Обычное состояние чипом не отмечается — только отклонение.
+    expect(screen.queryByText('Активен')).toBeNull();
   });
 
   it('создаёт тариф тем, что ввели в форме', async () => {

@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
 import { Card, CardContent, CardToolbar } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -52,6 +51,12 @@ export function ReportTab({ client, now = new Date() }: {
     else setApplied(next);
   }
 
+  function change(patch: Partial<Filters>) {
+    const next = { ...draft, ...patch };
+    setDraft(next);
+    apply(next);
+  }
+
   function resetCampaign() {
     const next = { ...applied, campaignId: '' };
     setDraft(next);
@@ -63,23 +68,24 @@ export function ReportTab({ client, now = new Date() }: {
       <CardToolbar hint={t('platform.ads.report.description')} />
       <CardContent>
 
-        <form className="pc-filters" onSubmit={event => { event.preventDefault(); apply(draft); }}>
+        {/* Фильтры применяются сразу, без кнопки (решение владельца 29.09): в журнале и здесь они
+            ждали «Применить», а у клубов и денег срабатывали сразу — два поведения одного жеста. */}
+        <div className="pc-filters">
           <Filter label={t('platform.ads.report.from')}>
-            <Input type="date" value={draft.from} onChange={event => setDraft({ ...draft, from: event.target.value })} />
+            <Input type="date" value={draft.from} onChange={event => change({ from: event.target.value })} />
           </Filter>
           <Filter label={t('platform.ads.report.to')}>
-            <Input type="date" value={draft.to} onChange={event => setDraft({ ...draft, to: event.target.value })} />
+            <Input type="date" value={draft.to} onChange={event => change({ to: event.target.value })} />
           </Filter>
           <Filter label={t('platform.ads.report.campaign')}>
-            <Select value={draft.campaignId} onChange={event => setDraft({ ...draft, campaignId: event.target.value })}>
+            <Select value={draft.campaignId} onChange={event => change({ campaignId: event.target.value })}>
               <option value="">{t('platform.ads.report.allCampaigns')}</option>
               {(campaigns.status === 'ready' ? campaigns.data : []).map(campaign => (
                 <option key={campaign.campaignId} value={campaign.campaignId}>{campaign.name}</option>
               ))}
             </Select>
           </Filter>
-          <div><Button type="submit">{t('platform.ads.report.apply')}</Button></div>
-        </form>
+        </div>
         {rangeError !== null ? <p className="pc-error-text" role="alert">{rangeError}</p> : null}
 
         {report.status === 'error' ? (

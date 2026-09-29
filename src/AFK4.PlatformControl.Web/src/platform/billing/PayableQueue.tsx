@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { InvoiceListItem } from '@/api/types';
 import { useInvoices } from './useInvoices';
@@ -21,7 +21,7 @@ type Action = { kind: 'markPaid' | 'void'; invoice: InvoiceListItem };
 // Очередь работы — первое, что видно в разделе «Деньги». Раньше экран открывался реестром
 // подписок: он отвечал на вопрос «что вообще есть», а не на рабочий «кто не заплатил».
 export function PayableQueue({ client, canManage }: { client: InvoicesApi; canManage: boolean }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useInvoices(client);
   const [action, setAction] = useState<Action | null>(null);
@@ -74,7 +74,7 @@ export function PayableQueue({ client, canManage }: { client: InvoicesApi; canMa
           <div className="pc-debt-summary">
             <Badge variant="warning">{t('platform.billing.queue.count', { count: queue.length })}</Badge>
             <span className="pc-debt-summary-amount ui-money">
-              {totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
+              {totals.map(total => formatMoney(total.amountMinorUnits, total.currencyCode)).join(' · ')}
             </span>
           </div>
         ) : null}
@@ -94,7 +94,7 @@ export function PayableQueue({ client, canManage }: { client: InvoicesApi; canMa
                 <Badge variant={INVOICE_STATUS_VARIANT[invoice.status] ?? 'outline'}>
                   {INVOICE_STATUS_LABEL[invoice.status] !== undefined ? t(INVOICE_STATUS_LABEL[invoice.status]) : invoice.status}
                 </Badge>
-                <span className="pc-queue-amount ui-money">{formatCurrency(minorToMajor(invoice.amountMinorUnits), invoice.currencyCode)}</span>
+                <span className="pc-queue-amount ui-money">{formatMoney(invoice.amountMinorUnits, invoice.currencyCode)}</span>
                 {canManage ? (
                   // Аннулирование — необратимое и редкое: в «⋯», а не красной кнопкой рядом с оплатой.
                   <span className="pc-cell-actions">

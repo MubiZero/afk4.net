@@ -2,16 +2,10 @@ import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import { PLAN_LABEL } from '@/platform/organizations/organizationsModel';
-import type { PulseAlert, PulseAlertLevel, PulseClub, PulseOrganization } from '@/api/types';
-import { aggregateOccupancy, alertDetailText, alertLabel, summarizeClubAlerts } from './pulseModel';
-
-const ALERT_VARIANT: Record<PulseAlertLevel, 'secondary' | 'warning' | 'destructive'> = {
-  normal: 'secondary',
-  attention: 'warning',
-  critical: 'destructive'
-};
+import type { PulseAlert, PulseClub, PulseOrganization } from '@/api/types';
+import { ALERT_BADGE, aggregateOccupancy, alertDetailText, alertLabel, summarizeClubAlerts } from './pulseModel';
 
 interface OrganizationPulseRowProps {
   organization: PulseOrganization;
@@ -20,7 +14,7 @@ interface OrganizationPulseRowProps {
 }
 
 export function OrganizationPulseRow({ organization, defaultExpanded, onOpen }: OrganizationPulseRowProps) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const occupancy = aggregateOccupancy(organization.clubs);
@@ -58,7 +52,7 @@ export function OrganizationPulseRow({ organization, defaultExpanded, onOpen }: 
           <span className="pulse-chips">
             {organization.outstandingMinorUnits > 0 ? (
               <Badge variant="warning">
-                {t('platform.clubs.row.debtLabel')}: {formatCurrency(minorToMajor(organization.outstandingMinorUnits), organization.currencyCode)}
+                {t('platform.clubs.row.debtLabel')} {formatMoney(organization.outstandingMinorUnits, organization.currencyCode)}
               </Badge>
             ) : null}
             {organization.alerts.map(alert => <AlertChip key={alert.kind} alert={alert} />)}
@@ -77,13 +71,17 @@ export function OrganizationPulseRow({ organization, defaultExpanded, onOpen }: 
   );
 }
 
-function AlertChip({ alert }: { alert: PulseAlert }) {
+// Чип — одно слово тревоги; подробность («последний сигнал 42 минуты назад») — рядом текстом, а
+// не только во всплывающей подсказке: на тач-экране и с клавиатуры её не увидеть. В строке клуба
+// подробность не пишется — там уже стоит сводка по филиалам.
+function AlertChip({ alert, withDetail = false }: { alert: PulseAlert; withDetail?: boolean }) {
   const { t } = useI18n();
-  const detail = alertDetailText(alert, t);
+  const detail = withDetail ? alertDetailText(alert, t) : undefined;
   return (
-    <Badge variant={ALERT_VARIANT[alert.level]} title={detail}>
-      {t(alertLabel(alert))}
-    </Badge>
+    <span className="pulse-alert">
+      <Badge variant={ALERT_BADGE[alert.level]}>{t(alertLabel(alert))}</Badge>
+      {detail !== undefined ? <span className="pulse-alert-detail">{detail}</span> : null}
+    </span>
   );
 }
 
@@ -97,10 +95,10 @@ function ClubRow({ club }: { club: PulseClub }) {
       </span>
       <span className="pulse-metric">{t('platform.clubs.club.devices', { online: club.devicesOnline, total: club.devicesTotal })}</span>
       <span className="pulse-metric">{t('platform.clubs.club.seats', { occupied: club.seatsOccupied, total: club.seatsTotal })}</span>
-      <Badge variant={club.shiftOpen ? 'success' : 'outline'}>
-        {t(club.shiftOpen ? 'platform.clubs.club.shiftOpen' : 'platform.clubs.club.shiftClosed')}
-      </Badge>
-      {club.alerts.map(alert => <AlertChip key={alert.kind} alert={alert} />)}
+      {/* Открытая смена — обычное дело, и зелёный чип в каждой строке был шумом; отмечаем только
+          закрытую. Застрявшую смену называет тревога «Смена не закрыта». */}
+      {club.shiftOpen ? null : <Badge variant="outline">{t('platform.clubs.club.shiftClosed')}</Badge>}
+      {club.alerts.map(alert => <AlertChip key={alert.kind} alert={alert} withDetail />)}
     </li>
   );
 }

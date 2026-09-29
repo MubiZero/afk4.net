@@ -8,9 +8,15 @@ it('loads server-filtered audit and reports filters to the route owner', async (
   const onFiltersChange = mock();
   render(<I18nProvider><AuditScreen client={{ search }} organizationsClient={{ listOrganizations: mock().mockResolvedValue([{ organizationId: 'o1', name: 'Orion Gaming' }]) }} filters={{ organizationId: '', action: '', outcome: '', from: '', to: '' }} onFiltersChange={onFiltersChange} /></I18nProvider>);
   await waitFor(() => expect(search).toHaveBeenCalled());
+  // Текст действия уходит по Enter (или когда поле отпустили), а не на каждую букву.
   fireEvent.change(screen.getByLabelText('Действие'), { target: { value: 'updates.rollout.create' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Применить фильтры' }));
+  expect(onFiltersChange).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByLabelText('Действие'), { key: 'Enter' });
   expect(onFiltersChange).toHaveBeenCalledWith(expect.objectContaining({ action: 'updates.rollout.create' }));
+  // Выбор исхода применяется сразу.
+  fireEvent.change(screen.getByLabelText('Результат'), { target: { value: 'Denied' } });
+  expect(onFiltersChange).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'Denied' }));
+  expect(screen.queryByRole('button', { name: 'Применить фильтры' })).toBeNull();
   expect(screen.getByText('Журнал пока пуст. Сюда сами попадают действия сотрудников платформы и клубов.')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Сбросить фильтр' })).toBeNull();
 });

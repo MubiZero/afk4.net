@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { describeApiError } from '@/api/describeApiError';
 import { useAttemptKey } from '@/api/useAttemptKey';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
@@ -85,7 +85,7 @@ function DebtRowActions({ row, access, onAct, onGrace }: {
 }
 
 export function DebtSection({ client, access }: { client: DebtSectionClients; access: DebtSectionAccess }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useDebt(client.debt);
   const [action, setAction] = useState<Action | null>(null);
@@ -149,7 +149,7 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
             <Badge variant="warning">{t('platform.debt.count', { count: rows.length })}</Badge>
             {totals.length > 0 ? (
               <span className="pc-debt-summary-amount ui-money">
-                {totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
+                {totals.map(total => formatMoney(total.amountMinorUnits, total.currencyCode)).join(' · ')}
               </span>
             ) : null}
           </div>
@@ -186,7 +186,7 @@ export function DebtSection({ client, access }: { client: DebtSectionClients; ac
                 {/* Погашенный долг у отключённого клуба — сумма к оплате 0, показывать «0 с.» нечего. */}
                 {row.outstandingMinorUnits > 0 ? (
                   <span className="pc-queue-amount ui-money">
-                    {formatCurrency(minorToMajor(row.outstandingMinorUnits), row.currencyCode)}
+                    {formatMoney(row.outstandingMinorUnits, row.currencyCode)}
                   </span>
                 ) : null}
                 {canManageAny ? <DebtRowActions row={row} access={access} onAct={setAction} onGrace={setGraceRow} /> : null}

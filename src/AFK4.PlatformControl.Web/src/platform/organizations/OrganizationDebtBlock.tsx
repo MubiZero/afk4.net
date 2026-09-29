@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/lib/money';
+import { formatMoney } from '@afk4/money';
 import type { DebtRow } from '@/api/types';
 import { dunningStageLabelKey } from '@/platform/billing/debtModel';
 
@@ -12,7 +12,7 @@ import { dunningStageLabelKey } from '@/platform/billing/debtModel';
 // platform.billing.view или запрос упал): сотрудник поддержки без доступа к биллингу не должен
 // увидеть уверенное «Долгов нет» — это выглядит как утверждение о факте, которого мы не проверяли.
 export function OrganizationDebtBlock({ row, status = 'ready' }: { row: DebtRow | null; status?: 'unknown' | 'ready' }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
 
   if (status === 'unknown') {
     return (
@@ -38,7 +38,7 @@ export function OrganizationDebtBlock({ row, status = 'ready' }: { row: DebtRow 
     <div className="pc-passport-debt" data-testid="passport-debt">
       <div className="pc-passport-debt-top">
         <span className="pc-passport-debt-amount ui-money">
-          {formatCurrency(minorToMajor(row.outstandingMinorUnits), row.currencyCode)}
+          {formatMoney(row.outstandingMinorUnits, row.currencyCode)}
         </span>
         <Badge data-testid="passport-debt-stage" variant={row.graceUntilUtc !== null ? 'secondary' : 'destructive'}>
           {t(dunningStageLabelKey(row.dunningStage))}

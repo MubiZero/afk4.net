@@ -19,7 +19,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
   if (state.status === 'loading') return <Loading><SkeletonTable columns={5} rows={6} /></Loading>;
   if (state.data.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} next="calm" />;
 
-  return <div className="table-panel"><Table>
+  return <Table>
     <TableHeader><TableRow>
       <TableHead>{t('platform.organization.history.time')}</TableHead>
       <TableHead>{t('platform.organization.history.action')}</TableHead>
@@ -34,5 +34,5 @@ export function OrganizationHistoryTab({ client, organizationId }: {
       <TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell>
       <TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
     </TableRow>)}</TableBody>
-  </Table></div>;
+  </Table>;
 }

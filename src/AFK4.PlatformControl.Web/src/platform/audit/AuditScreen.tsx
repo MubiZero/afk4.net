@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { AuditApi } from '@/api/platformClients/audit';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
-import { Button } from '@/components/ui/button';
 import { Page } from '@/components/layout/Page';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -50,37 +49,44 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
 
   useEffect(() => setDraft(filters), [filters]);
 
+  // Фильтры применяются сразу (решение владельца 29.09): выбор клуба, исхода и дат — в момент
+  // выбора, текст действия — по Enter или когда поле отпустили, чтобы не искать на каждую букву.
+  const change = (patch: Partial<AuditFilters>) => {
+    const next = { ...draft, ...patch };
+    setDraft(next);
+    onFiltersChange(next);
+  };
+
   return <Page width="full" title={t('nav.platform.journal')} tools={(
-    <form className="pc-filters" onSubmit={event => { event.preventDefault(); onFiltersChange(draft); }}>
+    <div className="pc-filters">
       <Filter label={t('platform.audit.organization')}>
         {/* Пока список клубов в пути или не доехал, остаётся ввод идентификатора: фильтр по ссылке
             из адресной строки должен работать и без списка. */}
         {organizations.status === 'ready' ? (
-          <Select value={draft.organizationId} onChange={e => setDraft({ ...draft, organizationId: e.target.value })}>
+          <Select value={draft.organizationId} onChange={e => change({ organizationId: e.target.value })}>
             <option value="">{t('platform.audit.organization.all')}</option>
             {organizations.data.map(organization => (
               <option key={organization.organizationId} value={organization.organizationId}>{organization.name}</option>
             ))}
           </Select>
         ) : (
-          <Input value={draft.organizationId} onChange={e => setDraft({ ...draft, organizationId: e.target.value.trim() })} />
+          <Input value={draft.organizationId} onChange={e => setDraft({ ...draft, organizationId: e.target.value.trim() })} onBlur={() => change({})} onKeyDown={e => { if (e.key === 'Enter') change({}); }} />
         )}
       </Filter>
-      <Filter label={t('platform.audit.action')}><Input value={draft.action} onChange={e => setDraft({ ...draft, action: e.target.value })} /></Filter>
+      <Filter label={t('platform.audit.action')}><Input value={draft.action} onChange={e => setDraft({ ...draft, action: e.target.value })} onBlur={() => { if (draft.action !== filters.action) change({}); }} onKeyDown={e => { if (e.key === 'Enter') change({}); }} /></Filter>
       {/* Исходов ровно три, и писались они руками по-английски: опечатка давала пустой журнал
           без единого намёка, что дело в фильтре. */}
       <Filter label={t('platform.audit.outcome')}>
-        <Select value={draft.outcome} onChange={e => setDraft({ ...draft, outcome: e.target.value })}>
+        <Select value={draft.outcome} onChange={e => change({ outcome: e.target.value })}>
           <option value="">{t('journal.outcome.all')}</option>
           {OUTCOME_OPTIONS.map(outcome => (
             <option key={outcome} value={outcome}>{auditOutcomeLabel(outcome, t)}</option>
           ))}
         </Select>
       </Filter>
-      <Filter label={t('platform.audit.from')}><Input type="date" value={draft.from} onChange={e => setDraft({ ...draft, from: e.target.value })} /></Filter>
-      <Filter label={t('platform.audit.to')}><Input type="date" value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })} /></Filter>
-      <div><Button type="submit">{t('platform.audit.apply')}</Button></div>
-    </form>
+      <Filter label={t('platform.audit.from')}><Input type="date" value={draft.from} onChange={e => change({ from: e.target.value })} /></Filter>
+      <Filter label={t('platform.audit.to')}><Input type="date" value={draft.to} onChange={e => change({ to: e.target.value })} /></Filter>
+    </div>
   )}>
     {state.status === 'error' ? <ErrorState title={t('platform.audit.error')} message={state.message} retryLabel={state.canRetry ? t('state.retry') : undefined} onRetry={state.canRetry ? state.retry : undefined} />
       : state.status === 'loading' ? <Loading><SkeletonTable columns={6} rows={6} /></Loading>
@@ -88,11 +94,11 @@ export function AuditScreen({ client, organizationsClient, filters, onFiltersCha
       : (state.data.records ?? []).length === 0 ? (hasFilters(filters)
         ? <EmptyState message={t('state.empty.filtered')} next={{ label: t('state.empty.resetFilter'), onClick: () => onFiltersChange(NO_FILTERS) }} />
         : <EmptyState message={t('platform.audit.empty')} next="calm" />)
-      : <div className="table-panel"><Table><TableHeader><TableRow>
+      : <Table><TableHeader><TableRow>
           <TableHead>{t('platform.audit.time')}</TableHead><TableHead>{t('platform.audit.organization')}</TableHead><TableHead>{t('platform.audit.action')}</TableHead><TableHead>{t('platform.audit.target')}</TableHead><TableHead>{t('platform.audit.outcome')}</TableHead><TableHead>{t('platform.audit.source')}</TableHead>
         </TableRow></TableHeader><TableBody>{(state.data.records ?? []).map(record => <TableRow key={record.auditRecordId}>
           <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell>{record.organizationName ?? <code>{record.organizationId}</code>}</TableCell><TableCell><AuditAction action={record.action} /></TableCell><TableCell>{auditTargetLabel(record.targetType, t)}</TableCell><TableCell><Badge variant={auditOutcomeVariant(record.outcome)}>{auditOutcomeLabel(record.outcome, t)}</Badge></TableCell><TableCell>{auditSourceLabel(record.sourceApp, t)}</TableCell>
-        </TableRow>)}</TableBody></Table></div>}
+        </TableRow>)}</TableBody></Table>}
   </Page>;
 }
 

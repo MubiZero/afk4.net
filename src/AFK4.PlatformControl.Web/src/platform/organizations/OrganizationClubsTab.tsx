@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardToolbar } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Inspector, Num } from '@afk4/ui/react';
 import { EmptyState, PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import { alertDetailText, alertLabel } from '@/platform/clubs/pulseModel';
+import { ALERT_BADGE, alertDetailText, alertLabel } from '@/platform/clubs/pulseModel';
 import { NewBranchDialog } from './NewBranchDialog';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { PulseApi } from '@/api/platformClients/pulse';
@@ -49,13 +50,12 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
     return () => { cancelled = true; };
   }, [client, organizationId, tick]);
 
+  // Сколько филиалов из разрешённых — тихой строкой слева, кнопка — справа, одним рядом: раньше
+  // счётчик стоял браузерным шрифтом вплотную к кнопке.
   const header = (
-    <div className="pc-cell-actions">
-      {canAddBranch ? <Button size="sm" onClick={() => setAddOpen(true)}>{t('platform.organization.branches.add')}</Button> : null}
-      {limits.maxBranches !== null ? (
-        <span>{t('platform.organization.branches.usage', { current: branches.length, limit: limits.maxBranches })}</span>
-      ) : null}
-    </div>
+    <CardToolbar hint={limits.maxBranches !== null ? t('platform.organization.branches.usage', { current: branches.length, limit: limits.maxBranches }) : undefined}>
+      {canAddBranch ? <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>{t('platform.organization.branches.add')}</Button> : null}
+    </CardToolbar>
   );
 
   const dialog = addOpen ? (
@@ -97,33 +97,26 @@ export function OrganizationClubsTab({ client, organizationsClient, organization
             <Card key={branch.branchId}>
               <CardHeader>
                 <CardTitle>{branch.name}</CardTitle>
-                {club !== undefined ? (
-                  <Badge variant={club.shiftOpen ? 'success' : 'outline'}>
-                    {club.shiftOpen ? t('platform.organization.clubsTab.shiftOpen') : t('platform.organization.clubsTab.shiftClosed')}
-                  </Badge>
-                ) : null}
+                {club !== undefined && !club.shiftOpen ? <Badge variant="outline">{t('platform.organization.clubsTab.shiftClosed')}</Badge> : null}
               </CardHeader>
               <CardContent>
-                {/* Короткий адрес филиала (slug) — служебный ключ ссылок; по нему филиал не узнают. */}
-                <div className="pc-kv"><span>{branch.city}</span></div>
-                {club === undefined && pulsePending ? (
-                  <div className="pc-kv"><Skeleton className="pc-skel-value" /></div>
-                ) : null}
+                {/* Короткий адрес филиала (slug) — служебный ключ ссылок; по нему филиал не узнают.
+                    Факты — «подпись — значение» кита (.ui-facts), тем же видом, что в паспорте. */}
+                <p className="mgmt-drawer-hint">{branch.city}</p>
+                {club === undefined && pulsePending ? <Skeleton className="pc-skel-value" /> : null}
                 {club !== undefined ? (
                   <>
-                    <div className="pc-kv"><span>{t('platform.organization.clubsTab.devices')}</span><span className="pc-num">{club.devicesOnline}/{club.devicesTotal}</span></div>
-                    <div className="pc-kv"><span>{t('platform.organization.clubsTab.seats')}</span><span className="pc-num">{club.seatsOccupied}/{club.seatsTotal}</span></div>
-                    <div className="pc-kv"><span>{t('platform.organization.clubsTab.lastHeartbeat')}</span><span>{club.lastHeartbeatAtUtc !== null ? formatDate(club.lastHeartbeatAtUtc) : '—'}</span></div>
+                    <Inspector.Facts items={[
+                      { label: t('platform.organization.clubsTab.devices'), value: <Num>{t('platform.organization.clubsTab.ofTotal', { count: club.devicesOnline, total: club.devicesTotal })}</Num> },
+                      { label: t('platform.organization.clubsTab.seats'), value: <Num>{t('platform.organization.clubsTab.ofTotal', { count: club.seatsOccupied, total: club.seatsTotal })}</Num> },
+                      { label: t('platform.organization.clubsTab.lastHeartbeat'), value: <Num>{club.lastHeartbeatAtUtc !== null ? formatDate(club.lastHeartbeatAtUtc) : '—'}</Num> }
+                    ]} />
                     {club.alerts.length > 0 ? (
-                      <ul>
+                      <ul className="pulse-alerts">
                         {club.alerts.map((alert, index) => (
-                          <li key={`${alert.kind}-${index}`}>
-                            <Badge
-                              variant={alert.level === 'critical' ? 'destructive' : alert.level === 'attention' ? 'secondary' : 'outline'}
-                              title={alertDetailText(alert, t)}
-                            >
-                              {t(alertLabel(alert))}
-                            </Badge>
+                          <li key={`${alert.kind}-${index}`} className="pulse-alert">
+                            <Badge variant={ALERT_BADGE[alert.level]}>{t(alertLabel(alert))}</Badge>
+                            {alertDetailText(alert, t) !== undefined ? <span className="pulse-alert-detail">{alertDetailText(alert, t)}</span> : null}
                           </li>
                         ))}
                       </ul>

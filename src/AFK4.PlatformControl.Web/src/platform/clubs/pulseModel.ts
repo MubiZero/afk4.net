@@ -42,6 +42,14 @@ export function alertDetailText(alert: PulseAlert, t: Translate): string | undef
   return undefined;
 }
 
+/** Один цвет на уровень тревоги — во всех экранах. Строка клуба красила «внимание» жёлтым, а
+ * карточка филиала — серым: одна и та же тревога выглядела на соседних экранах по-разному. */
+export const ALERT_BADGE: Record<PulseAlertLevel, 'secondary' | 'warning' | 'destructive'> = {
+  normal: 'secondary',
+  attention: 'warning',
+  critical: 'destructive'
+};
+
 const RANK: Record<PulseAlertLevel, number> = { normal: 0, attention: 1, critical: 2 };
 
 export function alertRank(level: PulseAlertLevel): number {
