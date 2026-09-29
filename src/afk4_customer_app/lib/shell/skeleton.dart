@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/space.dart';
 
 /// Заглушка формой будущего содержимого.
 ///
@@ -67,4 +68,36 @@ class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStat
       },
     );
   }
+}
+
+/// Скелет списка: несколько строк той высоты, какой будут настоящие. Им заменена крутилка
+/// посреди пустого экрана — она была у всех экранов, кроме главной и кошелька, и сообщала только
+/// «подожди», а не «сейчас здесь встанет список».
+class ListSkeleton extends StatelessWidget {
+  const ListSkeleton({super.key, this.rows = 3, this.rowHeight = 72, this.label});
+
+  final int rows;
+  final double rowHeight;
+
+  /// Что грузится — для экранной читалки: полосы ей ничего не говорят.
+  final String? label;
+
+  /// Прокрутка без прокрутки: в низкой вкладке лишние строки просто уходят под край, а не
+  /// переполняют её.
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: label,
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(Space.screen),
+          child: Column(
+            children: [
+              for (var index = 0; index < rows; index++) ...[
+                if (index > 0) const SizedBox(height: Space.s3),
+                SkeletonBox(height: rowHeight),
+              ],
+            ],
+          ),
+        ),
+      );
 }

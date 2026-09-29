@@ -253,6 +253,9 @@ void main() {
     ))));
     await tester.pumpAndSettle();
 
+    // Кнопки покупки теперь главные — во всю ширину и высотой 54, и раздел потраченных уезжает
+    // ниже первого экрана: до него листают, как и игрок.
+    await tester.scrollUntilVisible(find.text('Срок вышел'), 200);
     expect(find.text('Использованные'), findsOneWidget);
     expect(find.text('Время потрачено'), findsOneWidget);
     expect(find.text('Срок вышел'), findsOneWidget);

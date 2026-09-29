@@ -11,6 +11,11 @@ import '../api/idempotency.dart';
 import 'date_time_field.dart';
 import 'reservations_screen.dart';
 import 'tariff_picker.dart';
+import '../shell/actions.dart';
+import '../shell/app_sheet.dart';
+import '../shell/group_header.dart';
+import '../shell/quantity_stepper.dart';
+import '../theme/space.dart';
 
 /// Новая бронь: когда игрок хочет прийти.
 ///
@@ -298,10 +303,10 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
     if (notes.isEmpty) return const [];
 
     return [
-      const SizedBox(height: 8),
+      const SizedBox(height: Space.s2),
       for (final note in notes)
         Padding(
-          padding: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.only(top: Space.s1),
           child: Text(
             note,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -319,106 +324,90 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
     final l = L.of(context);
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+    return AppSheet(
+      title: l.customerReservationsNewTitle,
+      content: [
+        // Зал идёт первым: от него зависят и правила приёма под ним, и сама возможность
+        // забронировать. Спрашивать его после заполненной формы — значит отменять ответы,
+        // которые игрок уже дал.
+        if (_choice.asks) BranchPicker(choice: _choice),
+        ..._clubRules(l, theme),
+        const SizedBox(height: Space.s4),
+        DateTimeField(
+          label: l.customerReservationsStart,
+          value: _startsAt,
+          firstAllowed: widget.clock(),
+          onChanged: (value) {
+            setState(() {
+              _startsAt = value;
+              _problem = null;
+            });
+            _refreshQuote();
+          },
+        ),
+        const SizedBox(height: Space.s4),
+        GroupHeader(l.customerPlayDuration),
+        Wrap(
+          spacing: Space.s2,
+          runSpacing: Space.s2,
           children: [
-            Text(l.customerReservationsNewTitle, style: theme.textTheme.titleLarge),
-            // Зал идёт первым: от него зависят и правила приёма под ним, и сама возможность
-            // забронировать. Спрашивать его после заполненной формы — значит отменять
-            // ответы, которые игрок уже дал.
-            if (_choice.asks) ...[
-              const SizedBox(height: 16),
-              BranchPicker(choice: _choice),
-            ],
-            ..._clubRules(l, theme),
-            const SizedBox(height: 16),
-            DateTimeField(
-              label: l.customerReservationsStart,
-              value: _startsAt,
-              firstAllowed: widget.clock(),
-              onChanged: (value) {
-                setState(() {
-                  _startsAt = value;
-                  _problem = null;
-                });
-                _refreshQuote();
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(l.customerPlayDuration, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final minutes in bookingDurationsMinutes)
-                  ChoiceChip(
-                    label: Text(l.customerSessionExtendHours(minutes ~/ 60)),
-                    selected: minutes == _minutes,
-                    onSelected: (_) {
-                      setState(() {
-                        _minutes = minutes;
-                        _problem = null;
-                      });
-                      _refreshQuote();
-                    },
-                  ),
-              ],
-            ),
-            if (_problem != null) ...[
-              const SizedBox(height: 8),
-              Text(_problem!, style: TextStyle(color: theme.colorScheme.error)),
-            ],
-            const SizedBox(height: 16),
-            // Число мест — выше цены: «К оплате 240 с.» над строкой «Мест: 4» читается как
-            // цена одного места. Глаз идёт сверху вниз, и связь «столько мест — столько денег»
-            // складывается только в этом порядке.
-            _SeatCountField(
-              seats: _seats,
-              maxSeats: _maxSeats,
-              onChanged: (value) {
-                setState(() {
-                  _seats = value;
-                  _problem = null;
-                });
-                _refreshQuote();
-              },
-            ),
-            const SizedBox(height: 16),
-            // Тариф идёт после времени и мест: цена зависит от обоих, и до их выбора показывать
-            // её нечем.
-            TariffPicker(
-              tariffs: _tariffs,
-              selectedId: _tariffId,
-              quote: _quote,
-              quoting: _quoting,
-              problem: _priceProblem,
-              onSelected: (id) {
-                setState(() => _tariffId = id);
-                _refreshQuote();
-              },
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _seats > 1 ? l.customerReservationsGroupSeatNote : l.customerReservationsSeatNote,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              // Пока зал не назван, бронировать нечем: сервер ответил бы тем самым отказом,
-              // из-за которого этот вопрос и появился. Граница видна сразу — кнопка гаснет,
-              // а не отвечает отказом после нажатия.
-              onPressed: _pending || _choice.unanswered ? null : _create,
-              child: Text(
-                _pending ? l.customerReservationsCreating : l.customerReservationsCreate,
+            for (final minutes in bookingDurationsMinutes)
+              ChoiceChip(
+                label: Text(l.customerSessionExtendHours(minutes ~/ 60)),
+                selected: minutes == _minutes,
+                onSelected: (_) {
+                  setState(() {
+                    _minutes = minutes;
+                    _problem = null;
+                  });
+                  _refreshQuote();
+                },
               ),
-            ),
           ],
+        ),
+        const SizedBox(height: Space.s4),
+        // Число мест — выше цены: «К оплате 240 с.» над строкой «Мест: 4» читается как цена
+        // одного места. Глаз идёт сверху вниз, и связь «столько мест — столько денег»
+        // складывается только в этом порядке.
+        _SeatCountField(
+          seats: _seats,
+          maxSeats: _maxSeats,
+          onChanged: (value) {
+            setState(() {
+              _seats = value;
+              _problem = null;
+            });
+            _refreshQuote();
+          },
+        ),
+        const SizedBox(height: Space.s4),
+        // Тариф идёт после времени и мест: цена зависит от обоих, и до их выбора показывать
+        // её нечем.
+        TariffPicker(
+          tariffs: _tariffs,
+          selectedId: _tariffId,
+          quote: _quote,
+          quoting: _quoting,
+          problem: _priceProblem,
+          onSelected: (id) {
+            setState(() => _tariffId = id);
+            _refreshQuote();
+          },
+        ),
+        const SizedBox(height: Space.s3),
+        Text(
+          _seats > 1 ? l.customerReservationsGroupSeatNote : l.customerReservationsSeatNote,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
+      actions: ActionStack(
+        error: _problem,
+        primary: AppAction(
+          _pending ? l.customerReservationsCreating : l.customerReservationsCreate,
+          // Пока зал не назван, бронировать нечем: сервер ответил бы тем самым отказом, из-за
+          // которого этот вопрос и появился. Граница видна сразу — кнопка гаснет, а не отвечает
+          // отказом после нажатия.
+          _pending || _choice.unanswered ? null : _create,
         ),
       ),
     );
@@ -452,7 +441,7 @@ class _SeatCountField extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l.customerReservationsSeats, style: theme.textTheme.titleSmall),
+              Text(l.customerReservationsSeats, style: theme.textTheme.titleMedium),
               Text(
                 seats > 1 ? l.customerReservationsSeatsCompany : l.customerReservationsSeatsAlone,
                 style:
@@ -461,23 +450,13 @@ class _SeatCountField extends StatelessWidget {
             ],
           ),
         ),
-        IconButton.outlined(
-          onPressed: seats > 1 ? () => onChanged(seats - 1) : null,
-          icon: const Icon(Icons.remove),
-          tooltip: l.customerReservationsSeatsFewer,
-        ),
-        SizedBox(
-          width: 44,
-          child: Text(
-            '$seats',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleLarge,
-          ),
-        ),
-        IconButton.outlined(
-          onPressed: seats < maxSeats ? () => onChanged(seats + 1) : null,
-          icon: const Icon(Icons.add),
-          tooltip: l.customerReservationsSeatsMore,
+        QuantityStepper(
+          value: seats,
+          min: 1,
+          max: maxSeats,
+          onChanged: onChanged,
+          decreaseLabel: l.customerReservationsSeatsFewer,
+          increaseLabel: l.customerReservationsSeatsMore,
         ),
       ],
     );

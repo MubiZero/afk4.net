@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import '../api/pin_policy.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../shell/actions.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
 
 /// PIN, которым игрок садится за ПК.
 ///
@@ -78,69 +81,52 @@ class _PinSheetState extends State<PinSheet> {
     final l = L.of(context);
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l.customerPinTitle, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              l.customerPinIntro,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              l.customerPinScope,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _pin,
-              enabled: !_saving,
-              autofocus: true,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: PinPolicy.length,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(
-                labelText: l.customerPinField,
-                helperText: l.customerPinRule('${PinPolicy.length}'),
-              ),
-            ),
-            const SizedBox(height: 4),
-            TextField(
-              controller: _repeat,
-              enabled: !_saving,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: PinPolicy.length,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(labelText: l.customerPinRepeat),
-              onSubmitted: (_) => _save(),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-            ],
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_saving ? l.customerPinSaving : l.customerPinSave),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l.customerPinForgot,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
+    return AppSheet(
+      title: l.customerPinTitle,
+      content: [
+        Text(
+          l.customerPinIntro,
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+        const SizedBox(height: Space.s1),
+        Text(
+          l.customerPinScope,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: Space.s5),
+        TextField(
+          controller: _pin,
+          enabled: !_saving,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: PinPolicy.length,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: l.customerPinField,
+            helperText: l.customerPinRule('${PinPolicy.length}'),
+          ),
+        ),
+        const SizedBox(height: Space.s1),
+        TextField(
+          controller: _repeat,
+          enabled: !_saving,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: PinPolicy.length,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(labelText: l.customerPinRepeat),
+          onSubmitted: (_) => _save(),
+        ),
+        const SizedBox(height: Space.s2),
+        Text(
+          l.customerPinForgot,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
+      actions: ActionStack(
+        error: _error,
+        primary: AppAction(_saving ? l.customerPinSaving : l.customerPinSave, _saving ? null : _save),
       ),
     );
   }

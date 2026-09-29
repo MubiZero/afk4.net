@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/space.dart';
 
 /// Экран не загрузился — и у человека есть выход.
 ///
@@ -22,27 +23,26 @@ class LoadFailure extends StatelessWidget {
   final VoidCallback onRetry;
   final bool isOffline;
 
+  /// Текст — обычным цветом, а не красным абзацем: красный здесь кричал о поломке там, где
+  /// человеку нужно спокойно прочитать причину. Красный остаётся только у значка сбоя сервера;
+  /// пропавшая связь — не авария, и её значок нейтральный.
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: Space.s6, vertical: Space.s8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               isOffline ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
-              color: theme.colorScheme.error,
-              size: 32,
+              color: isOffline ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
+              size: 40,
             ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: theme.colorScheme.error),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Space.s3),
+            Text(message, textAlign: TextAlign.center, style: theme.textTheme.bodyLarge),
+            const SizedBox(height: Space.s4),
             OutlinedButton(
               onPressed: onRetry,
               child: Text(L.of(context).customerCommonRetry),

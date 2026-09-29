@@ -7,6 +7,9 @@ import '../organization/organization.dart';
 import '../organization/organization_directory.dart';
 import '../shell/load_failure.dart';
 import '../theme/app_palette.dart';
+import '../shell/empty_state.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
 
 /// Отзывы о клубе — то, что читают до входа. Открывается из карточки клуба по оценке:
 /// цифра «4,6» отвечает «насколько хорошо», а на «почему» отвечают только слова игроков.
@@ -57,34 +60,26 @@ class _ClubReviewsSheetState extends State<ClubReviewsSheet> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        padding: const EdgeInsets.fromLTRB(Space.sheet, 0, Space.sheet, Space.s4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(l.customerReviewsTitle, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.s1),
             Text(
               widget.club.name,
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Space.s4),
             if (_failed)
               _offline
                   ? LoadFailure.offline(message: l.customerErrorOffline, onRetry: _load)
                   : LoadFailure(message: l.customerReviewsError, onRetry: _load)
             else if (reviews == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              )
+              ListSkeleton(rows: 2, rowHeight: 64, label: l.customerCommonLoading)
             else if (reviews.items.isEmpty)
-              Text(
-                l.customerReviewsEmpty,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              )
+              EmptyState(icon: Icons.rate_review_outlined, title: l.customerReviewsEmpty)
             else
               Flexible(
                 child: ListView.separated(
@@ -145,12 +140,12 @@ class _ReviewTile extends StatelessWidget {
           style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         if (review.comment != null && review.comment!.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: Space.s2),
           Text(review.comment!, style: theme.textTheme.bodyMedium),
         ],
         // Текст скрыл клуб (оскорбление, чужой телефон) — звёзды остались, об этом и говорим.
         if (review.commentHidden == true) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: Space.s2),
           Text(
             L.of(context).customerReviewsHidden,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -160,10 +155,10 @@ class _ReviewTile extends StatelessWidget {
           ),
         ],
         if (review.clubReply != null && review.clubReply!.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s2),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, Space.s2),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               border: Border(left: BorderSide(color: theme.colorScheme.primary, width: 3)),
@@ -176,7 +171,7 @@ class _ReviewTile extends StatelessWidget {
                   L.of(context).customerReviewsClubReply,
                   style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: Space.s1),
                 Text(review.clubReply!, style: theme.textTheme.bodyMedium),
               ],
             ),

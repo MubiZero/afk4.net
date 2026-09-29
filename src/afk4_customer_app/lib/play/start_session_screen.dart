@@ -12,6 +12,12 @@ import '../money/money.dart';
 import '../reservations/tariff_picker.dart';
 import '../shell/load_failure.dart';
 import '../profile/pin_sheet.dart';
+import '../shell/app_sheet.dart';
+import '../shell/actions.dart';
+import '../shell/empty_state.dart';
+import '../shell/group_header.dart';
+import '../shell/skeleton.dart';
+import '../theme/space.dart';
 
 /// Сколько играть. Три ходовых варианта вместо ввода минут: игрок стоит посреди зала с
 /// телефоном в руке, и лишний выбор здесь стоит ему времени, а клубу — очереди на стойке.
@@ -202,11 +208,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   }
 
   Future<void> _setPin() async {
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PinSheet(api: widget.api, pinSet: false),
+    final saved = await showAppSheet<bool>(
+      context,
+      (_) => PinSheet(api: widget.api, pinSet: false),
     );
     if (saved != true || !mounted) return;
     setState(() => _pinJustSet = true);
@@ -219,27 +223,39 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     if (seats == null) {
       return _loadFailed
           ? LoadFailure(message: l.customerPlayLoadError, onRetry: _load)
-          : const Center(child: CircularProgressIndicator());
+          : ListSkeleton(label: l.customerCommonLoading);
     }
 
-    if (!seats.any((seat) => seat.isAvailable)) return _NoSeats();
+    if (!seats.any((seat) => seat.isAvailable)) {
+      return EmptyState(
+        icon: Icons.event_seat_outlined,
+        title: l.customerPlayNoSeats,
+        hint: l.customerPlayNoSeatsHint,
+      );
+    }
 
     // Без тарифа сессию не начать, и выбирать на этом экране больше нечего. Раньше блок
     // тарифов просто исчезал, а кнопка оставалась серой — игрок видел неработающий экран
     // и не понимал, он что-то сделал не так или клуб.
-    if (_tariffs.isEmpty) return _NoTariffs();
+    if (_tariffs.isEmpty) {
+      return EmptyState(
+        icon: Icons.payments_outlined,
+        title: l.customerPlayNoTariffs,
+        hint: l.customerPlayNoTariffsHint,
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Space.s4),
         children: [
           // Про ПИН человек узнавал, только дойдя до ПК: экран лаунчера просит номер и код,
           // которого нет, — и обещание «начните игру без оператора» кончалось дорогой к стойке.
           if (widget.pinSet == false && !_pinJustSet) ...[
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Space.s4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -247,24 +263,17 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
                       l.customerPlayPinNeeded,
                       style: theme.textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton(
-                        onPressed: _setPin,
-                        child: Text(l.customerPinSet),
-                      ),
-                    ),
+                    const SizedBox(height: Space.s3),
+                    SecondaryButton(action: AppAction(l.customerPinSet, _setPin)),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Space.s4),
           ],
           // Код набирают, а места показываются справкой: «есть ли вообще куда сесть». Выбирать
           // из списка больше нечего — машину называет тот ПК, перед которым человек стоит.
-          Text(l.customerPlayCode, style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
+          GroupHeader(l.customerPlayCode),
           TextField(
             controller: _code,
             keyboardType: TextInputType.number,
@@ -277,19 +286,18 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
               counterText: '',
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s2),
           Text(
             l.customerPlaySeatsFree(seats.where((seat) => seat.isAvailable).length.toString()),
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           if (_tariffs.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(l.customerReservationsTariff, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
+            const SizedBox(height: Space.s4),
+            GroupHeader(l.customerReservationsTariff),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: Space.s2,
+              runSpacing: Space.s2,
               children: [
                 // Играют сию секунду — значит и тариф нужен действующий сию секунду. Тариф вне
                 // своих часов не прячется: пропавший из списка «Утренний» читается как сбой, а
@@ -314,12 +322,11 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
               ],
             ),
           ],
-          const SizedBox(height: 16),
-          Text(l.customerPlayDuration, style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s4),
+          GroupHeader(l.customerPlayDuration),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: Space.s2,
+            runSpacing: Space.s2,
             children: [
               for (final minutes in playDurationsMinutes)
                 ChoiceChip(
@@ -338,97 +345,30 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   }
 
   Widget _footer(L l) {
-    final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
     final quote = _quote;
     final code = _code.text.trim();
-    final ready = code.length == 6 && _tariffId != null;
+    final hasCode = code.length == 6;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              const SizedBox(height: 8),
-            ],
-            FilledButton(
-              onPressed: _starting || !ready ? null : _start,
-              // Выключенная кнопка обязана говорить, чего ждёт: без этого игрок жмёт по ней и
-              // считает, что приложение сломалось.
-              child: Text(
-                switch ((_starting, code.length == 6 ? code : null, _tariffId, quote)) {
-                  (true, _, _, _) => l.customerPlayStarting,
-                  (_, null, _, _) => l.customerPlayCode,
-                  (_, _, null, _) => l.customerPlayPickTariff,
-                  (_, _, _, null) => l.customerPlayTitle,
-                  (_, _, _, final ready) => l.customerPlayConfirm(
-                      formatMoney(ready!.amountMinorUnits, ready.currencyCode, locale: locale)),
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Клуб не завёл цены. Игроку тут делать нечего, и сказать об этом надо прямо: серая кнопка
-/// без объяснения выглядит поломкой приложения, хотя дело в настройках клуба.
-class _NoTariffs extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.payments_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(l.customerPlayNoTariffs, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              l.customerPlayNoTariffsHint,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NoSeats extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.event_seat_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(l.customerPlayNoSeats, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              l.customerPlayNoSeatsHint,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
+    return PinnedActions(
+      child: ActionStack(
+        error: _error,
+        // Чего ждёт выключенная кнопка — строкой над ней, а не вместо её названия.
+        hint: _starting
+            ? null
+            : !hasCode
+                ? l.customerPlayHintCode
+                : _tariffId == null
+                    ? l.customerPlayPickTariff
+                    : null,
+        primary: AppAction(
+          switch ((_starting, hasCode && _tariffId != null ? quote : null)) {
+            (true, _) => l.customerPlayStarting,
+            (_, final ready?) =>
+              l.customerPlayConfirm(formatMoney(ready.amountMinorUnits, ready.currencyCode, locale: locale)),
+            _ => l.customerPlayTitle,
+          },
+          _starting || !hasCode || _tariffId == null ? null : _start,
         ),
       ),
     );

@@ -6,6 +6,9 @@ import '../theme/app_theme.dart';
 import 'halls_line.dart';
 import 'opening_hours.dart';
 import 'organization.dart';
+import '../shell/actions.dart';
+import '../shell/group_header.dart';
+import '../theme/space.dart';
 
 /// Подробности клуба: описание, залы сети с их адресами, зонами и расписанием на неделю.
 ///
@@ -46,14 +49,14 @@ class ClubDetailsSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        padding: const EdgeInsets.fromLTRB(Space.sheet, 0, Space.sheet, Space.s4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(club.name, style: theme.textTheme.headlineSmall),
+            Text(club.name, style: theme.textTheme.titleLarge),
             if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: Space.s1),
               Text(
                 subtitle,
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -64,13 +67,13 @@ class ClubDetailsSheet extends StatelessWidget {
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                padding: const EdgeInsets.only(top: 16),
+                padding: const EdgeInsets.only(top: Space.s4),
                 children: [
                   // Описание клуба словами владельца: то, чего не расскажут ни цена, ни адрес.
                   // У сети оно своё у каждого зала и живёт внутри зала, а не над всеми сразу.
                   if (only?.description != null && only!.description!.isNotEmpty) ...[
                     Text(only.description!, style: theme.textTheme.bodyMedium),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.s4),
                   ],
                   // Цена — единственное, что у сети действительно общее: тарифы заводятся на
                   // сеть, и «от» считается по ним.
@@ -86,26 +89,21 @@ class ClubDetailsSheet extends StatelessWidget {
                     ),
                   if (only != null) _HallDetails(hall: only, clock: clock),
                   if (halls.length > 1) ...[
-                    const SizedBox(height: 16),
-                    Text(l.customerClubDetailsHalls, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Space.s4),
+                    GroupHeader(l.customerClubDetailsHalls),
                     for (final hall in halls) _HallTile(hall: hall, clock: clock),
                   ],
                   // Клуб без единого зала бывает у только что подключившейся сети. Пустое
                   // место под названием читается как сбой загрузки, а не как «ещё не заполнил».
                   if (halls.isEmpty) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.s4),
                     _Missing(l.customerClubDetailsNoHalls),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: AppTheme.primaryButtonHeight,
-              child: FilledButton(onPressed: onChoose, child: Text(l.customerClubDetailsChoose)),
-            ),
+            const SizedBox(height: Space.s4),
+            PrimaryButton(action: AppAction(l.customerClubDetailsChoose, onChoose)),
           ],
         ),
       ),
@@ -132,7 +130,7 @@ class _HallTile extends StatelessWidget {
     final now = openingNowLabel(l, hall.workingHours, clock());
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.s3),
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: radius,
@@ -144,8 +142,8 @@ class _HallTile extends StatelessWidget {
             // Рамка у карточки уже есть — линии самого ExpansionTile её бы удвоили.
             shape: const Border(),
             collapsedShape: const Border(),
-            tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            tilePadding: const EdgeInsets.symmetric(horizontal: Space.s3),
+            childrenPadding: const EdgeInsets.fromLTRB(Space.s3, 0, Space.s3, Space.s3),
             expandedCrossAxisAlignment: CrossAxisAlignment.start,
             title: Text(hall.displayName, style: theme.textTheme.titleSmall),
             subtitle: Column(
@@ -195,15 +193,13 @@ class _HallDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 16),
-        Text(l.customerClubDetailsZones, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s4),
+        GroupHeader(l.customerClubDetailsZones),
         if (hall.zones.isEmpty)
           _Missing(l.customerClubDetailsZonesUnknown)
         else
@@ -211,9 +207,8 @@ class _HallDetails extends StatelessWidget {
           // «свободно 20 из 20» позвало бы игрока к запертой двери.
           for (final zone in hall.zones)
             _ZoneRow(zone: zone, showFree: hall.isOpenAt(clock())),
-        const SizedBox(height: 16),
-        Text(l.customerClubDetailsHours, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: Space.s4),
+        GroupHeader(l.customerClubDetailsHours),
         if (hall.workingHours.isEmpty)
           _Missing(l.customerClubDetailsHoursUnknown)
         else
@@ -254,12 +249,12 @@ class _Line extends StatelessWidget {
     final color = accent ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: Space.s2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          const SizedBox(width: Space.s2),
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: color))),
         ],
       ),
@@ -286,7 +281,7 @@ class _ZoneRow extends StatelessWidget {
     final free = showFree ? zone.freeSeatCount : null;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.s3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -335,7 +330,7 @@ class _Schedule extends StatelessWidget {
       children: [
         for (final day in days)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: Space.s1),
             child: Row(
               children: [
                 Expanded(

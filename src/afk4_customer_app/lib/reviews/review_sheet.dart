@@ -4,7 +4,9 @@ import '../api/contracts.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_palette.dart';
-import '../theme/app_theme.dart';
+import '../shell/actions.dart';
+import '../shell/app_sheet.dart';
+import '../theme/space.dart';
 
 /// Оценка визита: пять звёзд и необязательный комментарий.
 ///
@@ -71,56 +73,37 @@ class _ReviewSheetState extends State<ReviewSheet> {
     final l = L.of(context);
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(l.customerReviewSheetTitle, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text(
-            l.customerReviewInviteBody(widget.visit.seatName, widget.visit.branchName),
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 20),
-          _Stars(
-            rating: _rating,
-            onRating: _sending ? null : (value) => setState(() => _rating = value),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _comment,
-            enabled: !_sending,
-            minLines: 2,
-            maxLines: 4,
-            maxLength: 1000,
-            decoration: InputDecoration(labelText: l.customerReviewSheetComment),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          ],
-          const SizedBox(height: 12),
-          SizedBox(
-            height: AppTheme.primaryButtonHeight,
-            child: FilledButton(
-              // Без оценки отправлять нечего, и кнопка говорит, чего именно ждёт, — вместо
-              // того чтобы просто быть серой.
-              onPressed: _rating == 0 || _sending ? null : _submit,
-              child: Text(switch ((_sending, _rating)) {
-                (true, _) => l.customerReviewSheetSending,
-                (_, 0) => l.customerReviewSheetPickRating,
-                _ => l.customerReviewSheetSubmit,
-              }),
-            ),
-          ),
-        ],
+    return AppSheet(
+      title: l.customerReviewSheetTitle,
+      content: [
+        Text(
+          l.customerReviewInviteBody(widget.visit.seatName, widget.visit.branchName),
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: Space.s5),
+        _Stars(
+          rating: _rating,
+          onRating: _sending ? null : (value) => setState(() => _rating = value),
+        ),
+        const SizedBox(height: Space.s5),
+        TextField(
+          controller: _comment,
+          enabled: !_sending,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 1000,
+          decoration: InputDecoration(labelText: l.customerReviewSheetComment),
+        ),
+      ],
+      actions: ActionStack(
+        error: _error,
+        // Без оценки отправлять нечего — над кнопкой сказано, чего она ждёт, а сама она
+        // по-прежнему называет действие.
+        hint: _rating == 0 && !_sending ? l.customerReviewSheetPickRating : null,
+        primary: AppAction(
+          _sending ? l.customerReviewSheetSending : l.customerReviewSheetSubmit,
+          _rating == 0 || _sending ? null : _submit,
+        ),
       ),
     );
   }

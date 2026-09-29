@@ -9,6 +9,11 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../organization/branch_choice.dart';
 import '../api/idempotency.dart';
+import '../shell/actions.dart';
+import '../shell/app_sheet.dart';
+import '../shell/group_header.dart';
+import '../theme/space.dart';
+import '../shell/status_badge.dart';
 
 /// Чем кончилось пополнение. Заявку на стойку ещё понесёт администратор, а онлайн-оплата
 /// закрывается уже зачисленными деньгами — и говорить о них одинаково значит отправить
@@ -69,6 +74,7 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
 
   final TextEditingController _amount = TextEditingController();
   bool _pending = false;
+  String? _error;
 
   /// Ключ попытки — один на отправку заявки, переживающий неудачу.
   final AttemptKey _attempt = AttemptKey();
@@ -138,7 +144,10 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
       return;
     }
 
-    setState(() => _pending = true);
+    setState(() {
+      _pending = true;
+      _error = null;
+    });
     try {
       final minorUnits = majorToMinor(major);
       final intent = await widget.api.createTopUpIntent(
@@ -272,9 +281,9 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     _deadline = null;
   }
 
-  void _say(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
+  /// Причина — текстом в самом листе, над кнопками. Тост всплывал под листом, и лист его
+  /// закрывал: человек видел, что кнопка снова нажимается, и не видел почему.
+  void _say(String message) => setState(() => _error = message);
 
   String _stateLabel(L l, PlayerTopUpIntentDto intent) {
     if (intent.state == 'fulfilled') return l.customerWalletStateFulfilled;
@@ -287,97 +296,85 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
     final l = L.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
+    final online = _methods?.online ?? false;
+    // Пока зал не назван, зачислять некуда: сервер ответит отказом, из-за которого этот вопрос
+    // и появился.
+    final blocked = _pending || _choice.unanswered;
 
-    return Padding(
-      // Клавиатура не должна закрывать поле ввода и кнопку.
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+    return AppSheet(
+      title: l.customerWalletTitle,
+      content: [
+        // Зал идёт до суммы: он решает, где заведётся кошелёк, а сумма — сколько на нём
+        // будет. Вопрос о деньгах вперёд вопроса о месте читался бы как мелочь под ним.
+        if (_choice.asks) ...[
+          BranchPicker(choice: _choice),
+          const SizedBox(height: Space.s4),
+        ],
+        TextField(
+          controller: _amount,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(labelText: l.customerWalletAmount),
+          onSubmitted: (_) => _pending ? null : _submit(online: online),
+        ),
+        const SizedBox(height: Space.s3),
+        Wrap(
+          spacing: Space.s2,
+          runSpacing: Space.s2,
           children: [
-            Text(l.customerWalletTitle, style: theme.textTheme.titleLarge),
-            // Зал идёт до суммы: он решает, где заведётся кошелёк, а сумма — сколько на нём
-            // будет. Вопрос о деньгах вперёд вопроса о месте читался бы как мелочь под ним.
-            if (_choice.asks) ...[
-              const SizedBox(height: 16),
-              BranchPicker(choice: _choice),
-            ],
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amount,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: l.customerWalletAmount),
-              onSubmitted: (_) => _pending ? null : _submit(),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final amount in quickTopUpMajor)
-                  ActionChip(
-                    label: Text(formatMoney(amount * 100, widget.currencyCode, locale: locale)),
-                    onPressed: _pending ? null : () => _amount.text = '$amount',
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_awaiting != null) ...[
-              // Человек в приложении банка или только что из него вернулся. Экран говорит,
-              // чего ждёт, и не даёт нажать оплату второй раз.
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(l.customerWalletOnlineWaiting)),
-                ],
+            for (final amount in quickTopUpMajor)
+              ActionChip(
+                label: Text(formatMoney(amount * 100, widget.currencyCode, locale: locale)),
+                onPressed: _pending ? null : () => _amount.text = '$amount',
               ),
-            ] else ...[
-              // Онлайн-оплата стоит первой, когда клуб её принимает: это деньги, которые
-              // доходят сами, без очереди к стойке.
-              if (_methods?.online ?? false) ...[
-                FilledButton(
-                  onPressed: _pending || _choice.unanswered ? null : () => _submit(online: true),
-                  child: Text(_pending ? l.customerWalletRequesting : l.customerWalletOnlinePay),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  // Пока зал не назван, зачислять некуда: сервер ответит отказом, из-за
-                  // которого этот вопрос и появился.
-                  onPressed: _pending || _choice.unanswered ? null : () => _submit(),
-                  child: Text(l.customerWalletRequest),
-                ),
-              ] else
-                FilledButton(
-                  onPressed: _pending || _choice.unanswered ? null : () => _submit(),
-                  child: Text(_pending ? l.customerWalletRequesting : l.customerWalletRequest),
-                ),
-            ],
-            const SizedBox(height: 8),
-            // Что будет дальше. Без этого «заявка отправлена» оставляет игрока ждать
-            // неизвестно чего.
-            Text(
-              (_methods?.online ?? false) ? l.customerWalletOnlineNote : l.customerWalletNote,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            if (widget.intents.isNotEmpty) ...[
-              const Divider(height: 32),
-              Text(l.customerWalletIntents, style: theme.textTheme.titleMedium),
-              for (final intent in widget.intents)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: _IntentRow(intent: intent, stateLabel: _stateLabel(l, intent)),
-                ),
-            ],
           ],
         ),
-      ),
+        const SizedBox(height: Space.s3),
+        // Что будет дальше. Без этого «заявка отправлена» оставляет игрока ждать
+        // неизвестно чего.
+        Text(
+          online ? l.customerWalletOnlineNote : l.customerWalletNote,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        if (widget.intents.isNotEmpty) ...[
+          const SizedBox(height: Space.s6),
+          GroupHeader(l.customerWalletIntents),
+          for (final intent in widget.intents)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.s2),
+              child: _IntentRow(intent: intent, stateLabel: _stateLabel(l, intent)),
+            ),
+        ],
+      ],
+      actions: _awaiting != null
+          // Человек в приложении банка или только что из него вернулся. Лист говорит, чего
+          // ждёт, и не даёт нажать оплату второй раз.
+          ? Row(
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: Space.s3),
+                Expanded(child: Text(l.customerWalletOnlineWaiting)),
+              ],
+            )
+          : ActionStack(
+              error: _error,
+              // Онлайн-оплата стоит первой, когда клуб её принимает: это деньги, которые
+              // доходят сами, без очереди к стойке.
+              primary: online
+                  ? AppAction(
+                      _pending ? l.customerWalletRequesting : l.customerWalletOnlinePay,
+                      blocked ? null : () => _submit(online: true),
+                    )
+                  : AppAction(
+                      _pending ? l.customerWalletRequesting : l.customerWalletRequest,
+                      blocked ? null : _submit,
+                    ),
+              secondary: online ? AppAction(l.customerWalletRequest, blocked ? null : _submit) : null,
+            ),
     );
   }
 }
@@ -390,20 +387,18 @@ class _IntentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(formatMoney(intent.amountMinorUnits, intent.currencyCode, locale: locale)),
-        Text(
-          stateLabel,
-          style: TextStyle(
-            color: intent.state == 'fulfilled'
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurfaceVariant,
-          ),
+        Expanded(child: Text(formatMoney(intent.amountMinorUnits, intent.currencyCode, locale: locale))),
+        StatusBadge(
+          label: stateLabel,
+          tone: switch (intent) {
+            PlayerTopUpIntentDto(state: 'fulfilled') => StatusTone.positive,
+            PlayerTopUpIntentDto(isExpired: true) => StatusTone.neutral,
+            _ => StatusTone.waiting,
+          },
         ),
       ],
     );

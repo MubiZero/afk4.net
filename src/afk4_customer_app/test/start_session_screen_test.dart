@@ -320,8 +320,11 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    // Сначала кнопка ждёт код: без машины начинать нечего, каким бы ни был тариф.
-    expect(find.widgetWithText(FilledButton, 'Код с экрана ПК'), findsOneWidget);
+    // Сначала кнопка ждёт код: без машины начинать нечего, каким бы ни был тариф. Чего она
+    // ждёт, сказано строкой над ней — сама кнопка по-прежнему называет действие.
+    expect(find.text('Введите код с экрана ПК'), findsOneWidget);
+    final start = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Начать игру'));
+    expect(start.onPressed, isNull);
 
     await tester.enterText(find.byType(TextField), '482913');
     await tester.pumpAndSettle();
@@ -351,7 +354,8 @@ void main() {
 
     expect(find.textContaining('ПИН-код'), findsWidgets);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Задать ПИН-код'));
+    // Задать ПИН — второе действие экрана, главное здесь — начать игру.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Задать ПИН-код'));
     await tester.pumpAndSettle();
 
     expect(find.text('ПИН-код для посадки за ПК'), findsOneWidget);
@@ -363,6 +367,6 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    expect(find.widgetWithText(FilledButton, 'Задать ПИН-код'), findsNothing);
+    expect(find.text('Задать ПИН-код'), findsNothing);
   });
 }

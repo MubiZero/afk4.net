@@ -135,9 +135,10 @@ void main() {
     await unmount(tester);
   });
 
-  // Без оценки отправлять нечего, и кнопка говорит, чего именно ждёт, вместо того чтобы
-  // просто быть серой.
-  testWidgets('без оценки кнопка называет недостающий шаг', (tester) async {
+  // Без оценки отправлять нечего, и лист говорит, чего именно ждёт, вместо того чтобы кнопка
+  // просто была серой. Недостающий шаг назван строкой над кнопкой: раньше он стоял в самой
+  // выключенной кнопке с контрастом 2,2:1, и кнопка переставала называть действие.
+  testWidgets('без оценки лист называет недостающий шаг', (tester) async {
     await tester.pumpWidget(harness(clientWith(_serve(pending: (_pendingJson(), 200)))));
     await tester.pumpAndSettle();
 
@@ -146,10 +147,7 @@ void main() {
 
     expect(find.text('Поставьте оценку'), findsOneWidget);
     expect(
-      tester.widget<FilledButton>(find.ancestor(
-        of: find.text('Поставьте оценку'),
-        matching: find.byType(FilledButton),
-      )).onPressed,
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Отправить отзыв')).onPressed,
       isNull,
     );
     await unmount(tester);

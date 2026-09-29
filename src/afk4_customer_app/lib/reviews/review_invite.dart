@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/contracts.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../theme/space.dart';
 
 /// Приглашение оценить последний визит.
 ///
@@ -27,7 +28,7 @@ class ReviewInvite extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Space.s4),
       decoration: BoxDecoration(
         color: theme.colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
@@ -39,7 +40,7 @@ class ReviewInvite extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.star_rounded, color: theme.colorScheme.onSecondaryContainer),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.s2),
               Expanded(
                 child: Text(
                   l.customerReviewInviteTitle,
@@ -49,16 +50,16 @@ class ReviewInvite extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: Space.s1),
           Text(
             l.customerReviewInviteBody(visit.seatName, visit.branchName),
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: Space.s3),
           Row(
             children: [
               FilledButton(onPressed: onRate, child: Text(l.customerReviewInviteAction)),
-              const SizedBox(width: 8),
+              const SizedBox(width: Space.s2),
               TextButton(onPressed: onDismiss, child: Text(l.customerReviewInviteDismiss)),
             ],
           ),
