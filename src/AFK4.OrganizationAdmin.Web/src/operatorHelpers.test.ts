@@ -55,7 +55,7 @@ describe('billingLabel', () => {
   // Every billing token the floor-map data layer can emit must localize to a real
   // label — none may silently fall through to "not set".
   it.each([
-    ['Wallet', 'Депозит'],
+    ['Wallet', 'Баланс'],
     ['Package', 'Пакет'],
     ['Постоплата', 'Постоплата'],
     ['Fast guest', 'Гость'],

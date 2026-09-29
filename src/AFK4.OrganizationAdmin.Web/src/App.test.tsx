@@ -961,7 +961,7 @@ describe('App', () => {
     // «+» свободной плитки открывает запуск сессии сразу (выбрав место).
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
-    // Клиент клуба → списание по умолчанию «Депозит» (prepaid_wallet).
+    // Клиент клуба → списание по умолчанию «Баланс» (prepaid_wallet).
     fireEvent.click(within(startDialog).getByRole('tab', { name: 'Клиент клуба' }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
     fireEvent.click(await within(startDialog).findByRole('option', { name: /Madina S\./ }));

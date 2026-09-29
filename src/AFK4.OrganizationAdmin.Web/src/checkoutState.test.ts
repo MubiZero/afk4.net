@@ -90,7 +90,7 @@ describe('validateCheckoutPayments', () => {
     const result = validateCheckoutPayments([{ method: 'wallet', amountText: '22.50' }], 2250, 1000, t);
     expect(result.canSubmit).toBe(false);
     expect(result.walletWithinBalance).toBe(false);
-    expect(result.error).toContain('депозита');
+    expect(result.error).toContain('баланса');
   });
 
   it('flags a malformed amount', () => {
