@@ -401,7 +401,7 @@ describe('App', () => {
   });
 
   it('clears the restored session when the silent refresh is rejected', async () => {
-    installSessionBridge(createSession(), createSession(), {
+    installSessionBridge(createSession(EXPIRED_ACCESS_TOKEN), createSession(), {
       failedRequests: {
         'auth:refresh': 'Platform API returned 401 Unauthorized:'
       },
@@ -420,7 +420,7 @@ describe('App', () => {
   // ещё годным, поэтому сохранённую сессию нельзя стирать (иначе транзиентный сбой сети на старте
   // форсит полный релогин); вместо этого показываем ошибку и уходим в signed-out.
   it('keeps the stored session and shows an error when the silent refresh fails transiently (non-401)', async () => {
-    installSessionBridge(createSession(), createSession(), {
+    installSessionBridge(createSession(EXPIRED_ACCESS_TOKEN), createSession(), {
       authRefreshServerError: true,
       loadConnection: buildStoredConnection()
     });
@@ -1035,7 +1035,7 @@ describe('App', () => {
 
   it('refreshes restored native permissions before gating workspace rail entries', async () => {
     installSessionBridge(
-      createSession({ permissions: ['organization.floor_map.view'] }),
+      createSession({ ...EXPIRED_ACCESS_TOKEN, permissions: ['organization.floor_map.view'] }),
       createSession({ permissions: ['organization.floor_map.view', 'organization.reservations.view'] }));
 
     render(<App />);
@@ -2796,15 +2796,22 @@ const allOperatorPermissions = [
   'organization.news.manage'
 ];
 
+// Сессия по умолчанию живая. Раньше срок токена в фикстуре стоял в прошлом, и каждый запрос
+// Панели продлевал его (мок отвечал той же просроченной сессией — продления шли без конца).
+// Продление — одно на модуль и переживает тест: оставшееся в пути к концу теста дочитывалось
+// уже настоящим fetch (ECONNREFUSED), а следующий тест подхватывал его отказ и так и не
+// загружался. Просроченный токен — только там, где проверяют само продление.
+const EXPIRED_ACCESS_TOKEN = { accessTokenExpiresAtUtc: '2026-05-14T10:00:00Z' };
+
 function createSession(overrides: Record<string, unknown> = {}) {
   return {
     staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
     displayName: 'Cashier One',
     accessToken: 'access-token',
-    accessTokenExpiresAtUtc: '2026-05-14T10:00:00Z',
+    accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
     refreshToken: 'refresh-token',
-    refreshTokenExpiresAtUtc: '2026-05-15T10:00:00Z',
+    refreshTokenExpiresAtUtc: '2999-01-02T00:00:00Z',
     branchIds: ['acfc0212-967f-4d84-94be-9003387b09c2'],
     activeBranchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
     permissions: allOperatorPermissions,
