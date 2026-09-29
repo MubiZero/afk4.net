@@ -16,10 +16,10 @@ export type SeatTileLead =
   | { kind: 'prepaid'; remaining: string; barRatio: number; low: boolean; expired: boolean }
   | { kind: 'plain'; remaining: string };
 
-// Loud accent is reserved for the one problem tone (offline = «нет связи»); calm states
-// (ready/active/pending) stay quiet.
+// Loud accent is reserved for the problem tones (offline = «нет связи», failed = «сбой команды»);
+// calm states (ready/active/pending/service) stay quiet.
 export function isAttentionTone(tone: SeatTone): boolean {
-  return tone === 'offline';
+  return tone === 'offline' || tone === 'failed';
 }
 
 export function seatTileLead(seat: SeatSummary, nowMs: number = Date.now()): SeatTileLead {

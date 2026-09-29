@@ -121,12 +121,14 @@ describe('matchesMapFilter (all/ready/active/endingSoon/offline)', () => {
     expect(matchesMapFilter(seat({ tone: 'offline', hasActiveSession: true, isDeviceOnline: false }), 'active')).toBe(false);
   });
 
-  it('«Нет связи» — серый бакет: сбой, мёртвый heartbeat, офлайн-сессия; но НЕ обслуживание', () => {
+  it('«Нет связи» — серый бакет: мёртвый heartbeat, офлайн-сессия; но НЕ обслуживание и НЕ сбой команды', () => {
     expect(matchesMapFilter(seat({ tone: 'offline' }), 'offline')).toBe(true);
     expect(matchesMapFilter(seat({ tone: 'offline', hasActiveSession: true, isDeviceOnline: false }), 'offline')).toBe(true);
     expect(matchesMapFilter(seat({ tone: 'active', isDeviceOnline: true }), 'offline')).toBe(false);
     // Обслуживание — намеренное, не «нет связи»: в бакет не попадает даже при offline-устройстве.
     expect(matchesMapFilter(seat({ tone: 'service', isDeviceOnline: false }), 'offline')).toBe(false);
+    // Сбой команды — ПК на связи (аудит #4): это тоже не «нет связи», в бакет не попадает.
+    expect(matchesMapFilter(seat({ tone: 'failed', isDeviceOnline: true }), 'offline')).toBe(false);
   });
 
   // Кому подойти прямо сейчас с продлением. Плитка знала про последние десять минут и рисовала

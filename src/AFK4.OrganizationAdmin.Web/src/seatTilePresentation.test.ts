@@ -24,8 +24,10 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
 }
 
 describe('isAttentionTone', () => {
-  it('marks only the offline («нет связи») tone as loud; service stays calm', () => {
-    const loud: SeatTone[] = ['offline'];
+  // Аудит #4: «сбой команды» — своё состояние, требует внимания как «нет связи», но не путается
+  // с ним (own icon/label, см. SeatTile.tsx и floorMapState.ts).
+  it('marks offline («нет связи») and failed («сбой команды») as loud; service stays calm', () => {
+    const loud: SeatTone[] = ['offline', 'failed'];
     const calm: SeatTone[] = ['ready', 'active', 'pending', 'service'];
     for (const tone of loud) {
       expect(isAttentionTone(tone)).toBe(true);
@@ -99,8 +101,9 @@ describe('seatTileLead', () => {
     }
   });
 
-  it('falls back to plain status text for offline/pending and other non-session seats', () => {
+  it('falls back to plain status text for offline/pending/failed and other non-session seats', () => {
     expect(seatTileLead(seat({ tone: 'offline', remaining: 'Нет связи с ПК' }))).toEqual({ kind: 'plain', remaining: 'Нет связи с ПК' });
     expect(seatTileLead(seat({ tone: 'pending', remaining: 'Ожидает' }))).toEqual({ kind: 'plain', remaining: 'Ожидает' });
+    expect(seatTileLead(seat({ tone: 'failed', remaining: 'Сбой команды' }))).toEqual({ kind: 'plain', remaining: 'Сбой команды' });
   });
 });

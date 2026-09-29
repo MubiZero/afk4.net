@@ -51,7 +51,8 @@ describe('команды ПК', () => {
   });
 
   it('сообщение нельзя отправить пустым, а с текстом оно уходит с текстом', async () => {
-    const action = renderCommands(seat());
+    // Сообщение адресовано игроку — нужна сессия, иначе слать некому (#2 аудита).
+    const action = renderCommands(seat({ tone: 'active', activeSessionId: 's-1', hasActiveSession: true }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Сообщение игроку' }));
     const send = screen.getByRole('button', { name: 'Отправить' });
@@ -78,11 +79,22 @@ describe('команды ПК', () => {
     expect(screen.getByText(/можно только свободный ПК/)).toBeInTheDocument();
   });
 
+  // Аудит #2: раньше «Сообщение игроку» и «Выйти из аккаунта игрока» смотрели только на связь —
+  // на свободном ПК без игрока обе оставались нажимаемыми и слали команду в пустоту.
+  it('на свободном ПК сообщение и выход из аккаунта закрыты — играть некому', () => {
+    renderCommands(seat());
+
+    expect(screen.getByRole('button', { name: 'Сообщение игроку' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Выйти из аккаунта игрока' })).toBeDisabled();
+    expect(screen.getByText('На ПК никого нет — отправлять сообщение или выводить из аккаунта некому.')).toBeInTheDocument();
+  });
+
   it('отказ сервера виден словами', async () => {
     const action = mock(async () => {
       throw new Error('ПК не отвечает');
     });
-    renderCommands(seat(), action);
+    // Выход из аккаунта нужен игроку на ПК — нужна сессия (#2 аудита).
+    renderCommands(seat({ tone: 'active', activeSessionId: 's-1', hasActiveSession: true }), action);
 
     fireEvent.click(screen.getByRole('button', { name: 'Выйти из аккаунта игрока' }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Выйти из аккаунта' })));

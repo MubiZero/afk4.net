@@ -152,9 +152,22 @@ export function isSeatReadyForGuest(dto: SeatStatusDto): boolean {
   const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
   // У консоли нет агента и нет «связи» — она свободна, если на ней никто не играет (как на карте).
   const isDeviceOnline = dto.isConsole === true ? true : dto.isDeviceOnline ?? false;
+  const tone = resolveTone(normalizeState(dto.state), hasDevice, isDeviceOnline, false);
+  // «Сбой команды» — ПК на связи, посадить гостя всё равно можно: прошлая команда (например,
+  // неудавшийся ребут) не мешает начать новую сессию.
   return !hasActiveSession
     && dto.isOutsidePlan !== true
-    && resolveTone(normalizeState(dto.state), hasDevice, isDeviceOnline, false) === 'ready';
+    && (tone === 'ready' || tone === 'failed');
+}
+
+/**
+ * Место ждёт ответа ПК на команду — своя или сессионная. Пока команда в полёте, вторую слать
+ * рано: она либо продублирует первую, либо ударит по ещё не подтверждённому состоянию.
+ * Перенесена сюда из operatorHelpers.ts (23.09.2026), чтобы модель команд ПК (pcCommandOptions.ts)
+ * могла на неё опереться, не таща за собой клиентские зависимости operatorHelpers.
+ */
+export function isPendingSeatCommand(seat: SeatSummary): boolean {
+  return seat.tone === 'pending' || seat.command.toLowerCase().includes('pending');
 }
 
 function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSummary {
@@ -350,8 +363,11 @@ function resolveTone(
     case 'requested':
     case 'ending':
       return 'pending';
-    // Сбой команды и мёртвый heartbeat — серый «нет связи».
+    // ПК на связи (иначе мы бы уже вышли выше по !isOnline), но последняя команда не выполнилась —
+    // своё состояние, не «нет связи»: посадка гостя и связь с ПК не пострадали.
     case 'failed':
+      return 'failed';
+    // Мёртвый heartbeat — серый «нет связи».
     case 'offline':
       return 'offline';
     default:
@@ -367,6 +383,7 @@ export function seatStatusLabel(tone: SeatTone, t: TFn): string {
     case 'active': return t('op.helper.tone.active');
     case 'pending': return t('op.helper.tone.pending');
     case 'offline': return t('op.helper.tone.offline');
+    case 'failed': return t('op.helper.tone.failed');
     case 'service': return t('op.helper.tone.service');
     default: return tone;
   }
@@ -400,9 +417,13 @@ function remainingText(
     return t('op.helper.tone.service');
   }
 
+  if (tone === 'failed') {
+    return t('op.floor.remaining.action');
+  }
+
   if (tone === 'offline') {
-    // Один серый тон, но причину в строке-теле сохраняем: неудачная команда → «Сбой команды»,
-    // иначе мёртвый heartbeat → «Нет связи с ПК».
+    // Тот же текст, что и у tone==='failed': сюда попадает редкий составной случай — heartbeat
+    // умер уже ПОСЛЕ неудачной команды, офлайн в resolveTone побеждает раньше свитча.
     if (normalizedState === 'failed') {
       return t('op.floor.remaining.action');
     }
