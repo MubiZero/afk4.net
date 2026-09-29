@@ -4916,7 +4916,7 @@ export const tg = {
   "setup.wizard.common.back": "Бозгашт",
   "setup.wizard.common.continue": "Идома",
   "setup.wizard.common.step": "Қадам",
-  "setup.wizard.crash.message": "Устоди насб пешпо хӯрд ва ин экранро нишон дода натавонист. Аз нав кӯшиш кунед — агар кумак накунад, тирезаро пӯшед ва устодро аз менюи «Оғоз» дубора кушоед: миёнбури «AFK4.NET Setup Wizard».",
+  "setup.wizard.crash.message": "Устоди насб пешпо хӯрд ва ин экранро нишон дода натавонист. Аз нав кӯшиш кунед — агар кумак накунад, тирезаро пӯшед ва устодро аз менюи «Оғоз» дубора кушоед: миёнбури «Мастер установки AFK4.net».",
   "setup.wizard.crash.retry": "Аз нав кӯшиш кардан",
   "setup.wizard.device.action.enroll": "Пайваст кардани ПК",
   "setup.wizard.device.action.enrolling": "Пайваст мекунем…",

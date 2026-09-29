@@ -40,10 +40,10 @@ test("maskable icon keeps content inside the safe zone via scale", () => {
   expect(svg).toContain("scale(");
 });
 
-test("horizontal lockup has wordmark with accent .NET", () => {
+test("horizontal lockup has wordmark with accent .net", () => {
   const svg = read("afk4-logo-horizontal.svg");
   expect(svg).toContain(">AFK4<");
-  expect(svg).toContain('fill="#2DD4A7">.NET<');
+  expect(svg).toContain('fill="#2DD4A7">.net<');
   expect(svg).toContain("#E2F1EC"); // wordmark text color (dark surface)
 });
 

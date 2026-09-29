@@ -4916,7 +4916,7 @@ export const en = {
   "setup.wizard.common.back": "Back",
   "setup.wizard.common.continue": "Continue",
   "setup.wizard.common.step": "Step",
-  "setup.wizard.crash.message": "The setup wizard stumbled and could not draw this screen. Try again — if that does not help, close the window and start the wizard again from the Start menu: the “AFK4.NET Setup Wizard” shortcut.",
+  "setup.wizard.crash.message": "The setup wizard stumbled and could not draw this screen. Try again — if that does not help, close the window and start the wizard again from the Start menu: the “Мастер установки AFK4.net” shortcut.",
   "setup.wizard.crash.retry": "Try again",
   "setup.wizard.device.action.enroll": "Connect PC",
   "setup.wizard.device.action.enrolling": "Connecting…",
