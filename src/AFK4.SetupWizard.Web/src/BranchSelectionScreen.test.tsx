@@ -73,7 +73,7 @@ describe('BranchSelectionScreen', () => {
     renderScreen([]);
 
     expect(screen.getByText('У этого клуба нет филиалов')).toBeInTheDocument();
-    expect(screen.getByText(/Создайте филиал в Панели AFK4.net/)).toBeInTheDocument();
+    expect(screen.getByText(/Создайте филиал в Панели AFK4.NET/)).toBeInTheDocument();
   });
 
   it('кнопка «Назад» уводит на вход', () => {

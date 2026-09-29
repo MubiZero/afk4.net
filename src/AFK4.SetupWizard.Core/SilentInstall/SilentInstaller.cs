@@ -69,7 +69,7 @@ public sealed class SilentInstaller(
         SetupWizardStartupLog.Write(
             $"Silent install enrolled device {response.DeviceId:D} ({response.EnrollmentState}); "
             + (response.AssignedSeatName is null
-                ? "no seat matched — assign one in the AFK4.net Panel."
+                ? "no seat matched — assign one in the AFK4.NET Panel."
                 : $"seat '{response.AssignedSeatName}'."));
 
         try

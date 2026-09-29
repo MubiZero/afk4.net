@@ -55,7 +55,7 @@ function setup(
 describe('UpdatesScreen', () => {
   it('shows the global package catalog and validates a registered package with a reason', async () => {
     const { updates } = setup();
-    await screen.findByText('Панель AFK4.net');
+    await screen.findByText('Панель AFK4.NET');
     fireEvent.click(screen.getByRole('button', { name: 'Проверить пакет' }));
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Подпись и хеш проверены.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить проверку' }));
@@ -67,7 +67,7 @@ describe('UpdatesScreen', () => {
   // молча останется на старой версии.
   it('publishes a validated package to every organization at once', async () => {
     const { updates } = setup('validated');
-    await screen.findByText('Панель AFK4.net');
+    await screen.findByText('Панель AFK4.NET');
     fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Опубликовать' })[1]);
     await waitFor(() => expect(updates.createRollout).toHaveBeenCalled());
@@ -132,7 +132,7 @@ describe('UpdatesScreen', () => {
 
   it('offers no staged rollout controls', async () => {
     setup('validated');
-    await screen.findByText('Панель AFK4.net');
+    await screen.findByText('Панель AFK4.NET');
     expect(screen.queryByRole('button', { name: 'Запустить rollout' })).toBeNull();
     expect(screen.queryByLabelText('Размер партии, %')).toBeNull();
   });
@@ -141,7 +141,7 @@ describe('UpdatesScreen', () => {
   // регистрация пакета падала целиком — каждый раз, на любом приложении.
   it('регистрирует пакет под тем именем приложения, которое принимает сервер', async () => {
     const { updates } = setup();
-    await screen.findByText('Панель AFK4.net');
+    await screen.findByText('Панель AFK4.NET');
     fireEvent.click(screen.getAllByRole('button', { name: 'Зарегистрировать пакет' })[0]!);
 
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '1.5.0' } });
@@ -164,7 +164,7 @@ describe('UpdatesScreen', () => {
       .mockRejectedValueOnce(new PlatformApiError(500, 'boom'))
       .mockResolvedValue([]) });
 
-    expect(await screen.findByText('Панель AFK4.net')).toBeInTheDocument();
+    expect(await screen.findByText('Панель AFK4.NET')).toBeInTheDocument();
     expect(await screen.findByText('Не удалось загрузить раздачи — пока их нет, публиковать и менять раздачу нельзя')).toBeInTheDocument();
     expect(screen.getByText('Сервер платформы вернул ошибку. Повторите позже.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();
@@ -207,7 +207,7 @@ describe('UpdatesScreen', () => {
 
   it('без права на пакеты не предлагает проверять и снимать пакет', async () => {
     setup('registered', [], { canRegisterPackages: false });
-    await screen.findByText('Панель AFK4.net');
+    await screen.findByText('Панель AFK4.NET');
     expect(screen.queryByRole('button', { name: 'Проверить пакет' })).toBeNull();
   });
 });

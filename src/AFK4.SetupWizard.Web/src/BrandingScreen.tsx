@@ -142,7 +142,7 @@ export function BrandingScreen({
       subtitle={t('setup.wizard.branding.subtitle')}
       onBack={() => onBack(draft)}
       // Оформление можно пропустить: клуб откроется и без логотипа, а поставить его управляющий
-      // сможет в Панели AFK4.net.
+      // сможет в Панели AFK4.NET.
       skip={{ label: t('setup.wizard.branding.skip'), onClick: () => onContinue(draft), disabled: saving }}
       primary={(
         <Button variant="primary" onClick={() => void save()} disabled={saving}>

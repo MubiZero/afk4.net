@@ -588,7 +588,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Не удалось подключить Панель AFK4.net к клубу.');
+    expect(alert).toHaveTextContent('Не удалось подключить Панель AFK4.NET к клубу.');
     expect(alert).not.toHaveTextContent(/OrganizationSlug|lowercase/);
   });
 

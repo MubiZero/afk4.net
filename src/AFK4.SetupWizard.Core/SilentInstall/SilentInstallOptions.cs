@@ -46,7 +46,7 @@ public sealed record SilentInstallOptions(string InstallCode, string? SeatName)
         }
 
         return string.IsNullOrWhiteSpace(code)
-            ? new SilentInstallParse(true, null, $"{CodeArgument} needs the install code from the AFK4.net Panel.")
+            ? new SilentInstallParse(true, null, $"{CodeArgument} needs the install code from the AFK4.NET Panel.")
             : new SilentInstallParse(true, new SilentInstallOptions(code.Trim(), string.IsNullOrWhiteSpace(seat) ? null : seat.Trim()), null);
     }
 

@@ -665,7 +665,7 @@ receiving, device assignment, staff PIN reset); the player app takes colour from
 48dp targets, a reachable light theme (dark by default) and a 1.3 font-scale ceiling; the setup
 wizard keeps input on Back, submits on Enter, weighs its actions and calls the program one name;
 «Повторить» appears only where a retry can help. Names changed by the owner the same day: the
-club program is «Панель AFK4.net» (installer, shortcut, window, catalog), the person at the
+club program is «Панель AFK4.NET» (installer, shortcut, window, catalog), the person at the
 counter is «администратор», never «оператор» — both guarded in `voice.test.ts`.
 
 Closed on 2026-09-23 afternoon (#411–#415): management screens say «только просмотр» and who may
@@ -812,7 +812,8 @@ mono and regular digits mixed, several words for one thing.
   Management menu grouped Клуб · ПК · Деньги · Люди, Platform Control speaks of
   «клуб» and «филиал», the setup wizard and the shell use the Panel's words, the
   player app has one «Сесть за ПК» entry, one header and text scale up to 200%.
-- **Tails** — #589: brand «AFK4.net», comma in money placeholders, the last
+- **Tails** — #589: the brand is «AFK4.NET» everywhere, as in the logo (owner,
+  2026-09-29; e-mail subjects keep «AFK4.net» for spam scoring), comma in money placeholders, the last
   «кошелёк/депозит», Platform Control tables on the kit, audit codes in words,
   Management side panels on the kit inspector.
 
@@ -821,7 +822,7 @@ codes); player money is «баланс» everywhere; Platform Control customer i
 its location «филиал». Defaults taken (owner may change): underline tabs,
 inspector width 360, no slogans in headers, 13px button text.
 
-Named, not done: the logo wordmark stays `AFK4.NET` per `brand/README.md`; the
+Named, not done: the
 shell redesign by the concept (choreography, sign-in window size) still waits for
 the owner; nothing here was seen in the native WebView2 or on a live PC.
 

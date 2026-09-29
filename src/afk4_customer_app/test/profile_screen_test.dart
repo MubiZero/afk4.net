@@ -180,7 +180,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BrandMark), findsOneWidget);
-    expect(find.text('Работает на AFK4.net'), findsOneWidget);
+    expect(find.text('Работает на AFK4.NET'), findsOneWidget);
   });
 
   // Удаления учётной записи не было ни на сервере, ни здесь, хотя App Store требует его от любого

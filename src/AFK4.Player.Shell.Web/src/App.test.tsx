@@ -64,7 +64,7 @@ describe('оболочка выбирает экран по состоянию �
     installFakeHost({ state: devScenarioState('maintenance') });
     renderShell();
     expect(await screen.findByText('ПК 07 на обслуживании')).toBeInTheDocument();
-    expect(screen.getByText(/^Включено из Панели AFK4\.net в \d\d:\d\d · Шерзод$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Включено из Панели AFK4\.NET в \d\d:\d\d · Шерзод$/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Вернуть в зал' })).toBeInTheDocument();
     // Полоса — служебная строка над рабочим столом техника: системной строки гостя в ней нет.
     expect(screen.queryByText('Нет связи')).not.toBeInTheDocument();

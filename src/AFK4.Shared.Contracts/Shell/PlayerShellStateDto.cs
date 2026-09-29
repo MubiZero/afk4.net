@@ -43,7 +43,7 @@ public sealed record PlayerShellStateDto(
     Guid? SessionOwnerPlayerAccountId = null,
     // Права организации по тарифу: без player_shop нет вкладки «Бар», без loyalty — кэшбека.
     IReadOnlyList<string>? Features = null,
-    // Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.net
+    // Обслуживание: с какого момента и кто его включил — для полосы «Включено из Панели AFK4.NET
     // в 14:05 · Шерзод». Пусто вне обслуживания; имя пусто, если его включила поддержка без имени.
     DateTimeOffset? MaintenanceSinceUtc = null,
     string? MaintenanceByName = null,

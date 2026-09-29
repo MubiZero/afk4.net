@@ -40,7 +40,7 @@ describe('полоса обслуживания', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Вернуть в зал' }));
 
-    expect(await screen.findByText('Нет связи с сервером — верните ПК из Панели AFK4.net.')).toBeInTheDocument();
+    expect(await screen.findByText('Нет связи с сервером — верните ПК из Панели AFK4.NET.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Вернуть в зал' })).not.toBeDisabled();
   });
 
@@ -48,7 +48,7 @@ describe('полоса обслуживания', () => {
     installFakeHost({ state: maintenance });
     renderBand({ ...maintenance, maintenanceByName: null });
 
-    expect(screen.getByText(/^Включено из Панели AFK4\.net в \d\d:\d\d$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Включено из Панели AFK4\.NET в \d\d:\d\d$/)).toBeInTheDocument();
   });
 
   it('пока сервер не назвал время, пишет только, что ПК на обслуживании', () => {

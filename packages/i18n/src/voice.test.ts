@@ -43,21 +43,21 @@ const GLOSSARY: { name: string; forbidden: RegExp; instead: string }[] = [
   // Пароля в системе нет вовсе — вход везде шестизначный ПИН. Слово на экране заставляет
   // человека искать поле, которого не существует.
   { name: 'пароль', forbidden: /парол[ья]/i, instead: 'ПИН-код' },
-  // Программа клуба у человека одна, и имя у неё одно — «Панель AFK4.net», как на ярлыке
+  // Программа клуба у человека одна, и имя у неё одно — «Панель AFK4.NET», как на ярлыке
   // (решение владельца 2026-09-23). Мастер звал её четырьмя именами: «панель клуба»,
   // «приложение клуба», «панель управляющего» и просто «панель», — а по-английски ещё
   // «dashboard», «admin panel», «club app» и «Organization Admin». Человек читал «создайте зал
   // в приложении клуба» и открывал приложение игрока. «Панель клуба» тоже ушла: рядом с
-  // ярлыком «Панель AFK4.net» она читается как вторая программа.
-  { name: 'панель клуба', forbidden: /панел[а-я]*\s+клуба/i, instead: 'Панель AFK4.net' },
-  { name: 'панели клуб', forbidden: /панели\s+клуб/i, instead: 'Панели AFK4.net' },
-  { name: 'club panel', forbidden: /club panel/i, instead: 'AFK4.net Panel' },
-  { name: 'Organization Admin', forbidden: /Organization Admin/, instead: 'Панель AFK4.net' },
-  { name: 'приложение клуба', forbidden: /приложени[а-я]*\s+клуба/i, instead: 'Панель AFK4.net' },
-  { name: 'панель управляющего', forbidden: /панел[а-я]*\s+управляющ/i, instead: 'Панель AFK4.net' },
-  { name: 'админка', forbidden: /админк/i, instead: 'Панель AFK4.net' },
-  { name: 'барномаи клуб', forbidden: /барномаи\s+клуб/i, instead: 'Панели AFK4.net' },
-  { name: 'панели идора', forbidden: /панели\s+идора/i, instead: 'Панели AFK4.net' }
+  // ярлыком «Панель AFK4.NET» она читается как вторая программа.
+  { name: 'панель клуба', forbidden: /панел[а-я]*\s+клуба/i, instead: 'Панель AFK4.NET' },
+  { name: 'панели клуб', forbidden: /панели\s+клуб/i, instead: 'Панели AFK4.NET' },
+  { name: 'club panel', forbidden: /club panel/i, instead: 'AFK4.NET Panel' },
+  { name: 'Organization Admin', forbidden: /Organization Admin/, instead: 'Панель AFK4.NET' },
+  { name: 'приложение клуба', forbidden: /приложени[а-я]*\s+клуба/i, instead: 'Панель AFK4.NET' },
+  { name: 'панель управляющего', forbidden: /панел[а-я]*\s+управляющ/i, instead: 'Панель AFK4.NET' },
+  { name: 'админка', forbidden: /админк/i, instead: 'Панель AFK4.NET' },
+  { name: 'барномаи клуб', forbidden: /барномаи\s+клуб/i, instead: 'Панели AFK4.NET' },
+  { name: 'панели идора', forbidden: /панели\s+идора/i, instead: 'Панели AFK4.NET' }
 ];
 
 const offenders = (match: RegExp): string[] => {
@@ -103,7 +103,7 @@ it('в Пульте платформы клиент — «клуб», а не «
   for (const loc of LOCALES) {
     for (const [key, value] of Object.entries(messages[loc])) {
       if (!key.startsWith('platform.') && !key.startsWith('nav.platform.')) continue;
-      // platform.messages.* читает Панель AFK4.net: это её полоса сообщений, а не пульт.
+      // platform.messages.* читает Панель AFK4.NET: это её полоса сообщений, а не пульт.
       if (key.startsWith('platform.messages.') || PLATFORM_LEGAL_FORM.has(key)) continue;
       if (PLATFORM_CLIENT_WORDS[loc].test(value)) hits.push(`${loc}:${key} = "${value}"`);
     }
@@ -111,8 +111,8 @@ it('в Пульте платформы клиент — «клуб», а не «
   expect(hits).toEqual([]);
 });
 
-// В мастере «панель» — всегда Панель AFK4.net, и названа она полностью. Голое «в панели» рядом
-// со строкой «в Панели AFK4.net» читается как второе место: какой панели? В других поверхностях
+// В мастере «панель» — всегда Панель AFK4.NET, и названа она полностью. Голое «в панели» рядом
+// со строкой «в Панели AFK4.NET» читается как второе место: какой панели? В других поверхностях
 // бывают «панель платформы» и «панель кассы», поэтому правило держится только за мастер.
 // По-русски — «кэшбек» (решение владельца 2026-09-23). В каталоге жили четыре написания сразу:
 // «кешбэк», «кэшбэк», «Кешбэк», «кэшбэка», и на соседних экранах одно слово выглядело по-разному.
@@ -124,26 +124,26 @@ it('пишет «кэшбек» одним написанием по-русск�
   expect(hits).toEqual([]);
 });
 
-it('мастер зовёт Панель AFK4.net одним полным именем', () => {
+it('мастер зовёт Панель AFK4.NET одним полным именем', () => {
   const wizard = (loc: Locale) =>
     Object.entries(messages[loc]).filter(([key]) => key.startsWith('setup.wizard.'));
   const hits: string[] = [];
   const check = (loc: Locale, bad: RegExp) => {
     for (const [key, value] of wizard(loc)) if (bad.test(value)) hits.push(`${loc}:${key} = "${value}"`);
   };
-  check('ru', /панел[а-я]*(?!\s+AFK4\.net)(?![а-я])/i);
-  check('tg', /панел[а-яӣӯҳқғҷ]*(?!\s+AFK4\.net)(?![а-яӣӯҳқғҷ])/i);
-  check('en', /(?<!AFK4\.net )panel|dashboard|club app|Organization Admin/i);
+  check('ru', /панел[а-я]*(?!\s+AFK4\.NET)(?![а-я])/i);
+  check('tg', /панел[а-яӣӯҳқғҷ]*(?!\s+AFK4\.NET)(?![а-яӣӯҳқғҷ])/i);
+  check('en', /(?<!AFK4\.NET )panel|dashboard|club app|Organization Admin/i);
 
   expect(hits).toEqual([]);
 });
 
 // Мастер установки назывался четырьмя именами: «мастер установки» в заголовке, «Мастер настройки»
-// в Панели AFK4.net, «приложение установки» на экране входа и голое «Setup Wizard» посреди
+// в Панели AFK4.NET, «приложение установки» на экране входа и голое «Setup Wizard» посреди
 // русской фразы, а по-таджикски ещё «Мастер», «устоди танзим» и «барномаи насб». Администратор
 // читал «подключите ПК через Мастер настройки» и не находил такой программы. Имя одно, как в
 // заголовке мастера: «мастер установки», «setup wizard», «устоди насб». Русское «Мастер установки
-// AFK4.net» допустимо в кавычках и на таджикском, и на английском — так подписаны окно и ярлык в
+// AFK4.NET» допустимо в кавычках и на таджикском, и на английском — так подписаны окно и ярлык в
 // меню «Пуск» независимо от языка интерфейса (ярлык один на все языки, ставит его инсталлятор).
 // Таджикский каталог звал одно понятие двумя-тремя словами, а местами — русским словом с
 // таджикским окончанием: «Калиди организацию», «блокировка шудааст», «Аккаунти ман». Филиал был
@@ -182,7 +182,7 @@ it('мастер установки зовётся одним именем во 
   const check = (loc: Locale, bad: RegExp) => {
     for (const [key, value] of Object.entries(messages[loc])) if (bad.test(value)) hits.push(`${loc}:${key} = "${value}"`);
   };
-  const shortcut = /«Мастер установки AFK4\.net»/g;
+  const shortcut = /«Мастер установки AFK4\.NET»/g;
   const outsideShortcut = (bad: RegExp) => ({ test: (value: string) => bad.test(value.replace(shortcut, '')) }) as RegExp;
   check('ru', /мастер[а-я]*\s+настройк|приложени[а-я]*\s+установк/i);
   check('ru', outsideShortcut(/setup\s+wizard/i));
