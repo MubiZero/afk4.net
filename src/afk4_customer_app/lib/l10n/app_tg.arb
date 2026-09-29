@@ -7,7 +7,7 @@
   "a11yLoadingReceipt": "Боркунии чек",
   "a11yLoadingReservations": "Боркунии бронҳо",
   "a11yLoadingVisits": "Боркунии ташрифҳо",
-  "a11yLoadingLedger": "Ҳаракатҳои ҳамёнро бор мекунем",
+  "a11yLoadingLedger": "Ҳаракатҳои тавозунро бор мекунем",
   "a11ySessionElapsed": "Сессия идома дорад:",
   "a11ySessionRemaining": "Вақти боқимонда:",
   "bookingRejectEvent": "Дар ин вақт чорабинии пӯшида аст",
@@ -41,10 +41,10 @@
   "customerBanTitle": "Платформа даромади шуморо ба шабака пӯшид",
   "customerBranchErrGone": "Чунин толор дигар дар шабака нест — дигарашро интихоб кунед.",
   "customerBranchErrRequired": "Аввал толореро, ки ба он меоед, интихоб кунед.",
-  "customerBranchHint": "Клуб дар ҳамин толор ҳамён ва таърихи ташрифҳои шуморо мекушояд.",
+  "customerBranchHint": "Клуб дар ҳамин толор тавозун ва таърихи ташрифҳои шуморо мекушояд.",
   "customerBranchTitle": "Ба кадом толор меоед?",
   "customerClubErrClosed": "Клуб ҳисоби шуморо бастааст — дар ин ҷо танҳо тавассути маъмур бозӣ кардан мумкин аст.",
-  "customerClubDetailsChoose": "Дар ин ҷо бозӣ мекунам",
+  "customerClubDetailsChoose": "Ин клубро интихоб кардан",
   "customerClubDetailsDayOff": "рӯзи истироҳат",
   "customerClubDetailsHalls": "Толорҳои шабака",
   "customerClubDetailsHallsIn": "{count, plural, one {{count} толор} other {{count} толор}} · {cities}",
@@ -72,7 +72,7 @@
   "customerClubDetailsZones": "Минтақаҳо",
   "customerClubDetailsZonesUnknown": "Клуб минтақаҳоро тавсиф накардааст",
   "customerClubPickerAllCities": "Ҳамаи шаҳрҳо",
-  "customerClubPickerChange": "Иваз кардани клуб",
+  "customerClubPickerChange": "Клуби дигарро интихоб кардан",
   "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
   "customerClubPickerDetails": "Муфассал",
   "customerClubPickerDistanceKm": "{km} км аз ин ҷо",
@@ -154,8 +154,8 @@
   "customerClubsHere": "Шумо ин ҷо ҳастед",
   "customerClubsMine": "Клубҳои шумо",
   "customerClubsNoAccount": "Шумо ҳанӯз ин ҷо бозӣ накардаед",
-  "customerClubsNoAccountHint": "Ҳамёни ин клуб бо фармоиш ё пуркунии аввал кушода мешавад. Пули ҳар клуб алоҳида аст.",
-  "customerClubsOpen": "Гузаштан",
+  "customerClubsNoAccountHint": "Тавозун дар ин клуб бо брон ё пуркунии аввал кушода мешавад. Пули ҳар клуб алоҳида аст.",
+  "customerClubsOpen": "Интихоб",
   "customerCommonBack": "← Бозгашт",
   "customerCommonCancel": "Бекор кардан",
   "customerCommonDayAtTime": "{day}, {time}",
@@ -176,7 +176,7 @@
   "customerCommonTomorrow": "Пагоҳ",
   "customerCommonYesterday": "Дирӯз",
   "customerDashboardAccrued": "ҷамъ шуд",
-  "customerDashboardBalance": "Баланси ҳамён",
+  "customerDashboardBalance": "Дастрас",
   "customerDashboardDebt": "Қарз",
   "customerDashboardDebtNote": "Қарзро дар мизи қабули клуб пардохт кардан мумкин аст",
   "customerDashboardLoadError": "Маълумотро бор кардан муяссар нашуд. Пайвастро санҷед.",
@@ -189,7 +189,7 @@
       }
     }
   },
-  "customerDashboardSessionActive": "Сессия фаъол аст",
+  "customerDashboardSessionActive": "Сессия идома дорад",
   "customerDashboardSessionEnded": "Вақт тамом шуд",
   "customerDashboardSessionEndingSoon": "Вақт ба охир мерасад",
   "customerDashboardSessionRemaining": "Боқӣ мондааст",
@@ -197,7 +197,7 @@
   "customerErrorOffline": "Бо сервер алоқа нест. Интернетро санҷед.",
   "customerEventsCancel": "Намеравам",
   "customerEventsCancelConfirmFree": "Ҷой ба бозигари дигар мемонад.",
-  "customerEventsCancelConfirmPaid": "Пардохти {price} ба ҳамён бармегардад.",
+  "customerEventsCancelConfirmPaid": "Пардохти {price} ба тавозун бармегардад.",
   "@customerEventsCancelConfirmPaid": {
     "placeholders": {
       "price": {
@@ -216,7 +216,7 @@
     }
   },
   "customerEventsConfirmFree": "Иштирок ройгон аст.",
-  "customerEventsConfirmPaid": "Аз ҳамён {price} гирифта мешавад. Агар пеш аз оғоз бекор кунед, пул бармегардад.",
+  "customerEventsConfirmPaid": "Аз тавозун {price} гирифта мешавад. Агар пеш аз оғоз бекор кунед, пул бармегардад.",
   "@customerEventsConfirmPaid": {
     "placeholders": {
       "price": {
@@ -236,7 +236,7 @@
   "customerEventsErrAlreadyIn": "Шумо аллакай ба ин чорабинӣ сабти ном шудаед",
   "customerEventsErrCancelled": "Клуб ин чорабиниро бекор кард",
   "customerEventsErrFull": "Ҷойи холӣ намондааст",
-  "customerEventsErrFunds": "Дар ҳамён барои пардохт маблағ намерасад",
+  "customerEventsErrFunds": "Дар тавозун барои пардохт маблағ намерасад",
   "customerEventsErrGeneric": "Нашуд. Боз кӯшиш кунед",
   "customerEventsErrNotIn": "Шумо ба ин чорабинӣ сабти ном нашудаед",
   "customerEventsErrStarted": "Чорабинӣ аллакай оғоз шуд",
@@ -367,7 +367,7 @@
       }
     }
   },
-  "customerLoyaltyRuleTopUp": "{percent} аз пур кардани ҳамён",
+  "customerLoyaltyRuleTopUp": "{percent} аз пур кардани тавозун",
   "@customerLoyaltyRuleTopUp": {
     "placeholders": {
       "percent": {
@@ -379,12 +379,12 @@
   "customerLoyaltySourceSession": "Вақти бозӣ",
   "customerLoyaltySourceShop": "Фармоиши бар",
   "customerLoyaltySourceTopUp": "Пуркунӣ",
-  "customerLoyaltySpendNote": "Кэшбэк пули оддии ҳамён аст: онро барои вақт ва бар сарф кардан мумкин аст.",
+  "customerLoyaltySpendNote": "Кэшбэк пули оддии тавозун аст: онро барои вақт ва бар сарф кардан мумкин аст.",
   "customerLoyaltyTitle": "Кэшбэк",
   "customerNavDashboard": "Асосӣ",
   "customerNavProfile": "Профил",
   "customerNavReservations": "Бронҳо",
-  "customerNavWallet": "Ҳамён",
+  "customerNavWallet": "Тавозун",
   "customerNewsTitle": "Хабарҳои клуб",
   "customerNotificationsEmpty": "Ҳоло чизе наомадааст. Он чи клуб ба шумо мефиристад, дар ин ҷо пайдо мешавад.",
   "customerNotificationsError": "Огоҳиномаҳоро бор кардан нашуд.",
@@ -409,7 +409,7 @@
   "customerPackagesBuy": "Харидан",
   "customerPackagesBuying": "Харида истодаем…",
   "customerPackagesCancel": "Бекор кардан",
-  "customerPackagesConfirm": "Аз ҳамён {price} гирифта мешавад, ба ҳисоб {duration} илова мегардад.",
+  "customerPackagesConfirm": "Аз тавозун {price} гирифта мешавад, ба ҳисоб {duration} илова мегардад.",
   "@customerPackagesConfirm": {
     "placeholders": {
       "price": {
@@ -420,7 +420,7 @@
       }
     }
   },
-  "customerPackagesErrFunds": "Дар ҳамён барои ин баста маблағ намерасад",
+  "customerPackagesErrFunds": "Дар тавозун барои ин баста маблағ намерасад",
   "customerPackagesErrGeneric": "Бастаро харида нашуд. Бори дигар кӯшиш кунед.",
   "customerPackagesExpired": "Мӯҳлат гузашт",
   "customerPackagesExpiresIn": "{count, plural, one {{count} рӯз эътибор дорад} other {{count} рӯз эътибор дорад}}",
@@ -580,7 +580,7 @@
   },
   "customerPlayDuration": "Чанд вақт",
   "customerPlayErrDeviceGone": "Ин ПК ба платформа пайваст нест — маъмурро даъват кунед",
-  "customerPlayErrFunds": "Дар ҳамён барои ин вақт маблағ намерасад",
+  "customerPlayErrFunds": "Дар тавозун барои ин вақт маблағ намерасад",
   "customerPlayErrGeneric": "Сессияро оғоз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
   "customerPlayErrMaintenance": "Ин ПК дар хизматрасонӣ аст — дигарашро интихоб кунед ё аз назди маъмур пурсед",
   "customerPlayErrOutsidePlan": "Ин ПК ҳоло сессияи нав қабул намекунад — дигарашро интихоб кунед ё аз маъмур пурсед.",
@@ -621,8 +621,8 @@
   "customerProfileBirthdayTitle": "Зодрӯз",
   "customerProfileBirthdayUnset": "Нишон дода нашудааст",
   "customerProfileChangePhone": "Иваз кардани рақам",
-  "customerProfileDeleteBlockedBalance": "Дар ҳамён пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
-  "customerProfileDeleteBlockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз ҳамён ё дар назди клуб.",
+  "customerProfileDeleteBlockedBalance": "Дар тавозун пул мондааст. Онро дар назди клуб гиред ва ба ин ҷо баргардед.",
+  "customerProfileDeleteBlockedDebt": "Шумо қарздоред. Қарзро пӯшонед — аз тавозун ё дар назди клуб.",
   "customerProfileDeleteBlockedSession": "Ҳоло сессияи шумо давом дорад. Онро анҷом диҳед ва бори дигар кӯшиш кунед.",
   "customerProfileDeleteBody": "Вуруд аз байн меравад, ном ва рақам дигар шуморо нишон намедиҳанд. Таърихи амалиёт дар клуб мемонад — ин баҳисобгирии ӯст. Ҳисобро баргардондан мумкин нест, вале бо ҳамон рақам аз нав сабти ном шудан мумкин аст.",
   "customerProfileDeleteConfirm": "Нест кардан",
@@ -639,7 +639,7 @@
   "customerProfileMarketing": "Гирифтани хабарнома дар бораи аксияҳо",
   "customerProfilePhoneNote": "Рақам тасдиқ шуд — рамзҳо ва огоҳиномаҳо ба ҳамин рақам меоянд",
   "customerProfilePhoneUnverified": "Рақам тасдиқ нашудааст — пур кардани онлайн ва брон баста аст",
-  "customerProfilePoweredBy": "Дар AFK4.NET кор мекунад",
+  "customerProfilePoweredBy": "Дар AFK4.net кор мекунад",
   "customerProfilePush": "Огоҳиномаҳо ба телефон",
   "customerProfilePushNote": "Анҷоми бозӣ, ҷойгирӣ, пуркунӣ ва фармоиш",
   "customerProfileSaveError": "Нигоҳ доштан муяссар нашуд",
@@ -698,6 +698,7 @@
   "customerReceiptNotFound": "Чек ёфт нашуд",
   "customerReceiptOpenLink": "Чек →",
   "customerReceiptTime": "Вақт",
+  "customerReceiptTitle": "Чек",
   "customerReceiptTotal": "Ҷамъ",
   "customerReferralAlreadyInvited": "Шумо бо даъвати дӯст омадаед",
   "customerReferralClaim": "Рамзро татбиқ кардан",
@@ -739,7 +740,7 @@
     }
   },
   "customerReferralStepShare": "Рамзи худро ба дӯст гӯед — ӯ онро дар барнома дохил мекунад",
-  "customerReferralStepTopUp": "Дӯст ҳамёнашро ба {amount} ё бештар пур мекунад",
+  "customerReferralStepTopUp": "Дӯст тавозунашро ба {amount} ё бештар пур мекунад",
   "@customerReferralStepTopUp": {
     "placeholders": {
       "amount": {
@@ -747,7 +748,7 @@
       }
     }
   },
-  "customerReferralStepTopUpAny": "Дӯст ҳамёнашро пур мекунад",
+  "customerReferralStepTopUpAny": "Дӯст тавозунашро пур мекунад",
   "customerReferralTitle": "Дӯстро даъват кунед",
   "customerReferralWindowClosedNote": "Рамзи каси дигарро танҳо дар рӯзҳои аввали пас аз кушодани ҳисоб гуфтан мумкин аст.",
   "customerReferralYourCode": "Рамзи шумо",
@@ -775,9 +776,9 @@
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
   "customerReservationsErrDisabled": "Клуб ҳоло фармоишро аз барнома қабул намекунад",
   "customerReservationsErrLimit": "Шумо аллакай фармоиши фаъол доред. Онро интизор шавед ё бекор кунед",
-  "customerReservationsErrPrepay": "Барои пешпардохт пул намерасад — ҳамёнро пур кунед",
+  "customerReservationsErrPrepay": "Барои пешпардохт пул намерасад — тавозунро пур кунед",
   "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
-  "customerReservationsGroupNoFunds": "Дар ҳамён барои тамоми гурӯҳ маблағ намерасад. Онро пур кунед ё ҷойҳои камтар гиред.",
+  "customerReservationsGroupNoFunds": "Дар тавозун барои тамоми гурӯҳ маблағ намерасад. Онро пур кунед ё ҷойҳои камтар гиред.",
   "customerReservationsGroupNoSeats": "Дар ин вақт дар толор ин қадар ПК-и холӣ нест. Ҷойҳои камтар гиред ё вақти дигар интихоб кунед.",
   "customerReservationsGroupSeatNote": "ПК-ҳоро маъмури клуб таъин мекунад — шумо онҳоро дар тасдиқ мегиред. Агар дар толор ПК-ҳои холӣ бошанд, гурӯҳ паҳлӯи ҳам менишинад.",
   "customerReservationsGroupTooMany": "Бо як фармоиш на бештар аз {max} ҷой гирифта мешавад. Дар бораи гурӯҳи калон бо клуб гуфтугӯ кунед.",
@@ -788,7 +789,7 @@
       }
     }
   },
-  "customerReservationsHeld": "{amount} дар ҳамён нигоҳ дошта шудааст",
+  "customerReservationsHeld": "{amount} барои брон нигоҳ дошта шудааст",
   "@customerReservationsHeld": {
     "placeholders": {
       "amount": {
@@ -796,7 +797,7 @@
       }
     }
   },
-  "customerReservationsHoldNote": "Маблағи брон дар ҳамён нигоҳ дошта мешавад ва ҳангоми бекоркунӣ бармегардад",
+  "customerReservationsHoldNote": "Маблағи брон дар тавозун нигоҳ дошта мешавад ва ҳангоми бекоркунӣ бармегардад",
   "customerReservationsLoadError": "Брониҳоро бор кардан нашуд.",
   "customerReservationsMove": "Кӯчонидан",
   "customerReservationsMoveConfirm": "Кӯчонидан",
@@ -807,7 +808,7 @@
   "customerReservationsMoveWhen": "Вақти нав",
   "customerReservationsMoved": "Брон кӯчонида шуд",
   "customerReservationsNewTitle": "Брони нав",
-  "customerReservationsNoFunds": "Дар ҳамён барои ин брон маблағ намерасад — пур кунед ва бори дигар кӯшиш кунед",
+  "customerReservationsNoFunds": "Дар тавозун барои ин брон маблағ намерасад — пур кунед ва бори дигар кӯшиш кунед",
   "customerReservationsNoSeat": "Бе ҷой",
   "customerReservationsNoSeats": "Дар ин вақт дар толор ПК-и холӣ намондааст. Вақти дигар интихоб кунед.",
   "customerReservationsNone": "Ҳоло броне нест",
@@ -867,7 +868,7 @@
     }
   },
   "customerReservationsRuleOff": "Ин клуб фармоишро аз барнома қабул намекунад. Ба клуб занг занед.",
-  "customerReservationsRulePrepay": "Фармоишҳои аввал пешпардохт талаб мекунанд: маблағ дар ҳамён нигоҳ дошта мешавад.",
+  "customerReservationsRulePrepay": "Бронҳои аввал пешпардохт талаб мекунанд: маблағ дар тавозун нигоҳ дошта мешавад.",
   "customerReservationsSeatNote": "Ҷойро маъмури клуб таъин мекунад — шумо онро дар тасдиқ мебинед.",
   "customerReservationsSeats": "Чанд ҷой",
   "customerReservationsSeatsAlone": "Фармоиш барои як нафар",
@@ -933,7 +934,7 @@
   },
   "customerReviewsTitle": "Тақризҳои бозигарон",
   "customerSessionEndAction": "Тамом кардан ва хестан",
-  "customerSessionEndBody": "Ҷой фавран озод мешавад. Вақти пардохтшуда, ки бозӣ накардаед, ба ҳамён бармегардад.",
+  "customerSessionEndBody": "Ҷой фавран озод мешавад. Вақти пардохтшуда, ки бозӣ накардаед, ба тавозун бармегардад.",
   "customerSessionEndCancel": "Мондан",
   "customerSessionEndConfirm": "Тамом кардан",
   "customerSessionEndFailed": "Сессияро тамом кардан нашуд. Бори дигар кӯшиш кунед ё маъмурро ҷеғ занед.",
@@ -982,10 +983,10 @@
       }
     }
   },
-  "customerSessionExtendErrBalance": "Дар ҳамён маблағ намерасад. Онро дар саҳифаи асосӣ пур кунед.",
+  "customerSessionExtendErrBalance": "Дар тавозун маблағ намерасад — онро пур кунед.",
   "customerSessionExtendErrGeneric": "Дароз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
   "customerSessionExtendErrGone": "Сессия аллакай ба анҷом расид",
-  "customerSessionExtendHint": "Вақт аз ҳамён аз рӯи тарифи сессияи ҷорӣ гирифта мешавад.",
+  "customerSessionExtendHint": "Вақт аз тавозун аз рӯи тарифи сессияи ҷорӣ гирифта мешавад.",
   "customerSessionExtendHours": "{count, plural, other {{count} соат}}",
   "@customerSessionExtendHours": {
     "placeholders": {
@@ -1003,9 +1004,9 @@
       }
     }
   },
-  "customerSessionExtendNothingAffordable": "Барои дароз кардан пул намерасад. Ҳамёнро дар саҳифаи асосӣ пур кунед.",
+  "customerSessionExtendNothingAffordable": "Барои дароз кардан пул намерасад — тавозунро пур кунед.",
   "customerSessionExtendPending": "Дароз карда истодаем…",
-  "customerSessionExtendSummary": "То {time}. {amount} гирифта мешавад, дар ҳамён {balance} мемонад.",
+  "customerSessionExtendSummary": "То {time}. {amount} гирифта мешавад, дар тавозун {balance} мемонад.",
   "@customerSessionExtendSummary": {
     "placeholders": {
       "time": {
@@ -1036,7 +1037,7 @@
   "customerShopCartEmpty": "Интихоб кунед, ки чӣ оваранд",
   "customerShopEmpty": "Ҳоло чизе барои фармоиш нест",
   "customerShopEmptyHint": "Клуб менюро ба ин ҷо нагузоштааст. Дар мизи қабул пурсед.",
-  "customerShopErrFunds": "Дар ҳамён барои ин фармоиш маблағ намерасад",
+  "customerShopErrFunds": "Дар тавозун барои ин фармоиш маблағ намерасад",
   "customerShopErrGeneric": "Фармоишро ба расмият даровардан муяссар нашуд. Бори дигар кӯшиш кунед.",
   "customerShopErrNoSession": "Фармоиш танҳо ҳангоми сессия имконпазир аст",
   "customerShopErrStock": "Ин мол ҳозир тамом шуд",
@@ -1075,7 +1076,6 @@
   "customerShopStatusCancelled": "Фармоиш бекор карда шуд",
   "customerShopStatusDelivered": "Фармоиш оварда шуд",
   "customerShopStatusPlaced": "Фармоиш қабул шуд, тайёр карда истодаем",
-  "customerShopTitle": "Фармоиш ба ҷой",
   "customerShopTotal": "Ҳамагӣ",
   "customerSigninBlocked": "Ворид шудан ба ҳисоб баста аст. Ба клуб муроҷиат кунед.",
   "customerSigninCodeError": "Рамз нодуруст аст",
@@ -1133,27 +1133,27 @@
     }
   },
   "customerWalletDebtPayErrExceeds": "Қарз аллакай аз маблағи воридшуда камтар аст — экранро нав кунед",
-  "customerWalletDebtPayErrFunds": "Дар ҳамён барои ин пардохт маблағ намерасад",
+  "customerWalletDebtPayErrFunds": "Дар тавозун барои ин пардохт маблағ намерасад",
   "customerWalletDebtPayError": "Қарзро пӯшонидан нашуд. Бори дигар кӯшиш кунед.",
-  "customerWalletDebtPayNote": "Онро бо пули ҳамён ё дар назди клуб пӯшонидан мумкин аст.",
-  "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефони худро тасдиқ кунед.",
+  "customerWalletDebtPayNote": "Онро бо пули тавозун ё дар назди клуб пӯшонидан мумкин аст.",
+  "customerWalletGate": "Барои онлайн пур кардани тавозун рақами телефони худро тасдиқ кунед.",
   "customerWalletGateAction": "Рақамро тасдиқ кунед",
-  "customerWalletHeld": "Барои фармоишҳо нигоҳ дошта шудааст",
-  "customerWalletHeldNote": "Агар фармоиш бекор шавад, ба ҳамён бармегардад.",
+  "customerWalletHeld": "Барои брон нигоҳ дошта шудааст",
+  "customerWalletHeldNote": "Агар брон бекор шавад, ба тавозун бармегардад.",
   "customerWalletIntents": "Дархостҳои шумо",
-  "customerWalletLedgerEmpty": "Ин ҷо ҳамаи ҳаракатҳои ҳамён пайдо мешаванд",
+  "customerWalletLedgerEmpty": "Ин ҷо ҳамаи ҳаракатҳои тавозун пайдо мешаванд",
   "customerWalletLedgerError": "Ҳаракатҳоро бор карда нашуд",
   "customerWalletLedgerTab": "Пул",
   "customerWalletNote": "Клуб маблағро пас аз тасдиқи он дар мизи қабул ворид мекунад.",
   "customerWalletOnlineBusy": "Бонк ҳоло банд аст. Пас аз як дақиқа кӯшиш кунед ё дар пешхон супоред.",
   "customerWalletOnlineFailed": "Бонк пардохтро нагузаронд. Пул гирифта нашуд.",
   "customerWalletOnlineNoApp": "Саҳифаи пардохт кушода нашуд. Аз нав кӯшиш кунед ё дар пешхон супоред.",
-  "customerWalletOnlineNote": "Пардохти онлайн фавран ба ҳамён меафтад. Дархости пешхонро маъмур ворид мекунад.",
+  "customerWalletOnlineNote": "Пардохти онлайн фавран ба тавозун меафтад. Дархости пешхонро маъмур ворид мекунад.",
   "customerWalletOnlinePay": "Онлайн пардохт кардан",
   "customerWalletOnlineSlow": "Бонк ҳанӯз ҷавоб надод. Агар пардохт гузашта бошад, пул худаш меояд — пас аз ду дақиқа бақияро бинед.",
   "customerWalletOnlineUnavailable": "Ин клуб ҳоло пардохти онлайнро қабул намекунад. Дар пешхон супоред.",
   "customerWalletOnlineWaiting": "Тасдиқи бонкро интизорем…",
-  "customerWalletPaid": "Пул дар ҳамён аст",
+  "customerWalletPaid": "Пул дар тавозун аст",
   "customerWalletPendingCancel": "Дархостро бекор кардан",
   "customerWalletPendingCancelError": "Дархостро бекор кардан нашуд. Бори дигар кӯшиш кунед.",
   "customerWalletPendingCancelled": "Дархост бекор карда шуд",
@@ -1172,8 +1172,7 @@
   "customerWalletStateExpired": "Мӯҳлат гузашт",
   "customerWalletStateFulfilled": "Ворид шуд",
   "customerWalletStatePending": "Дар интизор",
-  "customerWalletTitle": "Пур кардани ҳамён",
-  "customerWalletTopUp": "Пур кардан",
+  "customerWalletTopUp": "Тавозунро пур кардан",
   "customerWeekday1": "Душанбе",
   "customerWeekday2": "Сешанбе",
   "customerWeekday3": "Чоршанбе",

@@ -101,7 +101,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'setup.wizard.hall.prefixDefault',
     // Чистая склейка «{who}, {state}, {from}–{to}» для читалки: слова подставляются из уже
     // переведённых ключей, в самом шаблоне переводить нечего.
-    'op.booking.block.a11y'
+    'op.booking.block.a11y',
+    // «Чек» — то же слово и в таджикском: каталог уже пишет «Чек ёфт нашуд», «Чекро бор кардан».
+    'customer.receipt.title'
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {

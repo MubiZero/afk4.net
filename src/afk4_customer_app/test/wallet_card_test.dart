@@ -55,7 +55,7 @@ PlayerApiClient clientWith(FakeHttpClient inner) =>
 
 /// Открывает лист пополнения — форма живёт там, а не на главной.
 Future<void> openTopUp(WidgetTester tester) async {
-  await tester.tap(find.text('Пополнить'));
+  await tester.tap(find.text('Пополнить баланс'));
   await tester.pumpAndSettle();
 }
 
@@ -66,7 +66,7 @@ void main() {
 
     expect(find.textContaining('200,50'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
-    expect(find.text('Пополнить'), findsOneWidget);
+    expect(find.text('Пополнить баланс'), findsOneWidget);
   });
 
   testWidgets('долг показывается только когда он есть и говорит, где его закрыть', (tester) async {
@@ -81,7 +81,7 @@ void main() {
     expect(find.textContaining('Долг'), findsOneWidget);
     // Деньги на кошельке есть, поэтому карточка предлагает закрыть долг отсюда, а не отправляет
     // к стойке. К стойке она отправляет только тогда, когда платить нечем — см. тест ниже.
-    expect(find.text('Можно закрыть деньгами с кошелька или на стойке клуба.'), findsOneWidget);
+    expect(find.text('Можно закрыть деньгами с баланса или на стойке клуба.'), findsOneWidget);
   });
 
   testWidgets('заявка уходит на сервер в минорных единицах', (tester) async {
@@ -157,7 +157,7 @@ void main() {
         harness(clientWith(FakeHttpClient((_) => ('[]', 200))), phoneVerified: false));
     await tester.pumpAndSettle();
 
-    expect(find.text('Пополнить'), findsNothing);
+    expect(find.text('Пополнить баланс'), findsNothing);
     expect(find.textContaining('подтвердите свой номер телефона'), findsOneWidget);
 
     await tester.tap(find.text('Подтвердить номер'));
@@ -171,7 +171,7 @@ void main() {
         harness(clientWith(FakeHttpClient((_) => ('[]', 200))), features: const []));
     await tester.pumpAndSettle();
 
-    expect(find.text('Пополнить'), findsNothing);
+    expect(find.text('Пополнить баланс'), findsNothing);
     expect(find.textContaining('подтвердите номер телефона'), findsNothing);
   });
 
@@ -182,7 +182,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200))), features: null));
     await tester.pumpAndSettle();
 
-    expect(find.text('Пополнить'), findsOneWidget);
+    expect(find.text('Пополнить баланс'), findsOneWidget);
   });
 
   // Иначе игрок отправляет вторую заявку, забыв про первую.
@@ -218,7 +218,7 @@ void main() {
         .pumpWidget(harness(clientWith(FakeHttpClient((_) => ('{"error":"boom"}', 500)))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Пополнить'), findsOneWidget);
+    expect(find.text('Пополнить баланс'), findsOneWidget);
   });
 
   // Третье число кошелька: остаток уже без него, и без строки игрок видит только то, что
@@ -227,9 +227,9 @@ void main() {
     await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200))), held: 5000));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+    expect(find.textContaining('Удержано под бронь'), findsOneWidget);
     expect(find.textContaining('50,00 с.'), findsOneWidget);
-    expect(find.text('Вернётся на кошелёк, если бронь отменят.'), findsOneWidget);
+    expect(find.text('Вернётся на баланс, если бронь отменят.'), findsOneWidget);
   });
 
   // Строка «придержано 0» на главной — шум: она отвечает на вопрос, которого никто не задал.
@@ -237,7 +237,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200)))));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Придержано под брони'), findsNothing);
+    expect(find.textContaining('Удержано под бронь'), findsNothing);
   });
 
   // Отказаться от заявки было нельзя: она висела ожидающей сутки и всё это время отвечала «да»
@@ -343,7 +343,7 @@ void main() {
     await tester.tap(find.text('Погасить 30,00 с.'));
     await tester.pumpAndSettle();
 
-    expect(find.text('На кошельке не хватает денег на этот платёж'), findsOneWidget);
+    expect(find.text('На балансе не хватает денег на этот платёж'), findsOneWidget);
   });
 
   // Долг больше остатка — закрывается то, что есть. Иначе долг в две тысячи при тысяче на

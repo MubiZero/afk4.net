@@ -226,14 +226,14 @@ void main() {
       wrap(
         Builder(
           builder: (context) => Scaffold(
-            appBar: nestedAppBar(context, title: 'Заказ к месту', place: 'CyberX Рудаки'),
+            appBar: nestedAppBar(context, title: 'Заказать еду', place: 'CyberX Рудаки'),
             body: const SizedBox.shrink(),
           ),
         ),
       ),
     );
 
-    expect(find.text('Заказ к месту'), findsOneWidget);
+    expect(find.text('Заказать еду'), findsOneWidget);
     expect(find.text('CyberX Рудаки'), findsOneWidget);
   });
 }

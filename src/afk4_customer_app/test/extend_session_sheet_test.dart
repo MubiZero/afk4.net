@@ -9,7 +9,7 @@ import 'package:afk4_customer_app/l10n/localization_setup.dart';
 
 import 'support/fake_http.dart';
 
-Widget harness(PlayerApiClient api, {void Function(int?)? onClosed}) => MaterialApp(
+Widget harness(PlayerApiClient api, {void Function(int?)? onClosed, VoidCallback? onTopUp}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -19,7 +19,7 @@ Widget harness(PlayerApiClient api, {void Function(int?)? onClosed}) => Material
             onPressed: () async {
               final result = await showModalBottomSheet<int>(
                 context: context,
-                builder: (_) => ExtendSessionSheet(api: api, sessionId: 's1'),
+                builder: (_) => ExtendSessionSheet(api: api, sessionId: 's1', onTopUp: onTopUp),
               );
               onClosed?.call(result);
             },
@@ -178,5 +178,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Не удалось продлить'), findsOneWidget);
+  });
+
+  // Раньше лист говорил «пополните на главной» — человеку, уже стоявшему на главной. Теперь
+  // пополнение открывается прямо из листа.
+  testWidgets('не хватает на продление — лист ведёт к пополнению', (tester) async {
+    var toppedUp = false;
+    final http = _serve(offers: _offers(options: [_option(60, 9000, affordable: false)]));
+    await tester.pumpWidget(harness(PlayerApiClient(baseUrl: 'https://api', httpClient: http), onTopUp: () => toppedUp = true));
+    await openSheet(tester);
+
+    await tester.tap(find.text('Пополнить баланс'));
+    await tester.pumpAndSettle();
+
+    expect(toppedUp, isTrue);
+    expect(find.byType(ExtendSessionSheet), findsNothing);
   });
 }

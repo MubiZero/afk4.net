@@ -237,7 +237,7 @@ void main() {
     await openForm(tester);
     await fillTimes(tester);
 
-    expect(find.textContaining('удерживается на кошельке'), findsOneWidget);
+    expect(find.textContaining('удерживается на балансе'), findsOneWidget);
   });
 
   // Отказ по деньгам и занятое время — разные новости: из первого выход в пополнение,

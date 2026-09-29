@@ -285,7 +285,7 @@ void main() {
     await tester.pumpAndSettle();
     await signIn(tester);
     await openProfile(tester);
-    await tapInProfile(tester, find.text('Сменить клуб'));
+    await tapInProfile(tester, find.text('Выбрать другой клуб'));
 
     expect(find.text('Выберите клуб'), findsOneWidget);
     // Сессия на месте: вернувшись в клуб, игрок попадает на главную, а не на экран входа.
@@ -362,7 +362,7 @@ void main() {
       await signIn(tester);
       expect(find.text('Иван'), findsOneWidget);
 
-      await tester.tap(find.text('Кошелёк'));
+      await tester.tap(find.text('Баланс'));
       await tester.pumpAndSettle();
 
       await openProfile(tester);

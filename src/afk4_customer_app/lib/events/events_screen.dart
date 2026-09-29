@@ -118,7 +118,9 @@ class _EventsScreenState extends State<EventsScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l.customerEventsDismiss),
           ),
+          // Место могут занять сразу после отмены: вернуть его не получится.
           FilledButton(
+            style: irreversibleConfirmStyle(dialogContext),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l.customerEventsCancel),
           ),
@@ -330,6 +332,7 @@ class EventCard extends StatelessWidget {
                   ),
                 ),
                 TextButton(
+                  style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
                   onPressed: busy ? null : onCancel,
                   child: Text(l.customerEventsCancel),
                 ),

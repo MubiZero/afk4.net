@@ -4,7 +4,7 @@
          его по нажатию на «Рядом со мной», не при запуске. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
-        android:label="AFK4.NET"
+        android:label="AFK4.net"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

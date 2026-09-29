@@ -212,10 +212,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
+            style: irreversibleConfirmStyle(context),
             child: Text(l.customerReservationsCancelAction),
           ),
         ],

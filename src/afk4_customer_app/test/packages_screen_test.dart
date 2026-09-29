@@ -194,7 +194,7 @@ void main() {
     await tester.tap(find.text('Купить').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('На кошельке не хватает денег на этот пакет'), findsOneWidget);
+    expect(find.text('На балансе не хватает денег на этот пакет'), findsOneWidget);
   });
 
   /// Ответ на покупку мог потеряться уже после списания. Повтор обязан нести тот же ключ —

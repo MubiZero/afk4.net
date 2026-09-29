@@ -225,7 +225,7 @@ void main() {
       await tester.pumpWidget(_wallet(http, branch: _chosen('b-somoni')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Пополнить'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Пополнить баланс'));
       await tester.pumpAndSettle();
       expect(find.text('В какой зал вы придёте?'), findsOneWidget);
 

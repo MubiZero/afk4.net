@@ -32,10 +32,15 @@ String extendDurationLabel(L l, int minutes) =>
 /// Сам он ничего не рассказывает об успехе: сообщение показывает главный экран, который после
 /// этого перечитывает баланс и остаток.
 class ExtendSessionSheet extends StatefulWidget {
-  const ExtendSessionSheet({super.key, required this.api, required this.sessionId});
+  const ExtendSessionSheet({super.key, required this.api, required this.sessionId, this.onTopUp});
 
   final PlayerApiClient api;
   final String sessionId;
+
+  /// Открыть пополнение, когда на продление не хватает. Раньше лист отвечал «пополните на
+  /// главной» — и человек, уже стоявший на главной, не находил, где это. null — пополнить отсюда
+  /// нельзя (клуб не принимает онлайн, номер не подтверждён): тогда лист только объясняет.
+  final VoidCallback? onTopUp;
 
   @override
   State<ExtendSessionSheet> createState() => _ExtendSessionSheetState();
@@ -47,6 +52,9 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
   PlayerDurationOfferDto? _choice;
   bool _pending = false;
   String? _error;
+
+  /// Отказ сервера был про деньги — лист предложит пополнить баланс.
+  bool _shortOfMoney = false;
 
   /// Ключ попытки: повтор после обрыва обязан прийти с тем же, иначе сервер спишет деньги
   /// второй раз. Смена числа минут — уже другая попытка, и ключ ей нужен свой.
@@ -86,6 +94,7 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
     setState(() {
       _pending = true;
       _error = null;
+      _shortOfMoney = false;
     });
 
     try {
@@ -102,6 +111,7 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
       if (!mounted) return;
       setState(() {
         _pending = false;
+        _shortOfMoney = error.message == 'insufficient_balance';
         _error = switch ((error.statusCode, error.message)) {
           // Раньше любой 409 объявлялся нехваткой денег, хотя сервер кладёт в тело свою причину:
           // тариф кончился, столько времени взять нельзя, сессию уже нельзя продлить.
@@ -143,6 +153,8 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
     };
 
     final ready = offers != null && unavailable == null;
+    final topUp = widget.onTopUp;
+    final offerTopUp = topUp != null && ready && (choice == null || _shortOfMoney);
 
     return AppSheet(
       title: l.customerSessionExtendTitle,
@@ -209,6 +221,12 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
       actions: ready || _error != null
           ? ActionStack(
               error: _error,
+              secondary: offerTopUp
+                  ? AppAction(l.customerWalletTopUp, () {
+                      Navigator.of(context).pop();
+                      topUp();
+                    })
+                  : null,
               primary: ready
                   ? AppAction(
                       _pending
