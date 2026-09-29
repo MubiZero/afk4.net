@@ -36,8 +36,14 @@ class WalletScreen extends StatefulWidget {
     this.onPhoneVerified,
     this.onAccountOpened,
     this.active = true,
+    this.place,
+    this.placeLogoUrl,
     this.clock = DateTime.now,
   });
+
+  /// Клуб, в котором игрок сейчас, — над заголовком раздела.
+  final String? place;
+  final String? placeLogoUrl;
 
   final PlayerApiClient api;
   final bool phoneVerified;
@@ -151,7 +157,12 @@ class _WalletScreenState extends State<WalletScreen> {
       return Scaffold(
         body: CustomScrollView(
           slivers: [
-            appHeader(context, title: l.customerNavWallet),
+            appHeader(
+              context,
+              title: l.customerNavWallet,
+              place: widget.place,
+              placeLogoUrl: widget.placeLogoUrl,
+            ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
               sliver: SliverList.list(children: [
@@ -183,7 +194,12 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Scaffold(
         body: NestedScrollView(
           headerSliverBuilder: (context, _) => [
-            appHeader(context, title: l.customerNavWallet),
+            appHeader(
+              context,
+              title: l.customerNavWallet,
+              place: widget.place,
+              placeLogoUrl: widget.placeLogoUrl,
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(Space.s4, Space.s2, Space.s4, Space.s4),
@@ -226,9 +242,11 @@ class _WalletScreenState extends State<WalletScreen> {
           ],
           body: TabBarView(
             children: [
-              VisitsTab(api: widget.api, clock: widget.clock),
-              PurchasesTab(api: widget.api),
-              LedgerTab(api: widget.api, clock: widget.clock),
+              // Потянуть вниз любой список — перечитать и его, и остаток над ним: деньги и их
+              // движение — один вопрос, и обновляться они должны вместе.
+              VisitsTab(api: widget.api, clock: widget.clock, onRefresh: _load),
+              PurchasesTab(api: widget.api, onRefresh: _load),
+              LedgerTab(api: widget.api, clock: widget.clock, onRefresh: _load),
             ],
           ),
         ),

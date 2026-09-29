@@ -18,9 +18,13 @@ import '../theme/space.dart';
 /// пополнение, кешбэк, бонус за друга, ручная правка оператора и погашение долга не видны там
 /// нигде. Человек видел, за что списали, и не видел, откуда пришло: кошелёк у него не сходился.
 class LedgerTab extends StatefulWidget {
-  const LedgerTab({super.key, required this.api, this.clock = DateTime.now});
+  const LedgerTab({super.key, required this.api, this.clock = DateTime.now, this.onRefresh});
 
   final PlayerApiClient api;
+
+  /// Что ещё перечитать тем же жестом «потянуть вниз» — остаток над списком. Раньше жест
+  /// обновлял только сам список, а цифра баланса над ним оставалась прежней.
+  final Future<void> Function()? onRefresh;
   final DateTime Function() clock;
 
   @override
@@ -56,6 +60,7 @@ class _LedgerTabState extends State<LedgerTab> {
     final l = L.of(context);
     return CursorListView<PlayerLedgerEntryDto>(
       controller: _list,
+      onRefresh: widget.onRefresh,
       loadingLabel: l.a11yLoadingLedger,
       errorText: l.customerWalletLedgerError,
       emptyText: l.customerWalletLedgerEmpty,

@@ -97,7 +97,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          appHeader(context, title: l.customerNotificationsTitle),
+          appHeader(context, title: l.customerNotificationsTitle, compact: true),
           if (_state == _Load.loading)
             SliverToBoxAdapter(child: ListSkeleton(rows: 4, label: l.customerCommonLoading))
           else if (_state == _Load.failed)

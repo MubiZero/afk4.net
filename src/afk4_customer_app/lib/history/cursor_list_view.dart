@@ -18,7 +18,11 @@ class CursorListView<T> extends StatelessWidget {
     required this.emptyText,
     this.emptyIcon = Icons.history,
     required this.itemBuilder,
+    this.onRefresh,
   });
+
+  /// Что перечитать вместе со списком, когда его тянут вниз.
+  final Future<void> Function()? onRefresh;
 
   final CursorListController<T> controller;
 
@@ -49,7 +53,7 @@ class CursorListView<T> extends StatelessWidget {
         // Потянуть вниз обновляет список: жест, выученный на главной, должен работать и
         // здесь. Пустой список тоже тянется — иначе обновить его нечем.
         return RefreshIndicator(
-          onRefresh: controller.load,
+          onRefresh: () => Future.wait([controller.load(), ?onRefresh?.call()]),
           child: controller.items.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),

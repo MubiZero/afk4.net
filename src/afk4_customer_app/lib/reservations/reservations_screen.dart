@@ -42,8 +42,14 @@ class ReservationsScreen extends StatefulWidget {
     this.onPhoneVerified,
     this.onAccountOpened,
     this.active = true,
+    this.place,
+    this.placeLogoUrl,
     this.clock = DateTime.now,
   });
+
+  /// Клуб, в котором игрок сейчас, — над заголовком раздела.
+  final String? place;
+  final String? placeLogoUrl;
 
   final PlayerApiClient api;
   final bool phoneVerified;
@@ -294,6 +300,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
     return AppScaffold(
       title: l.customerReservationsTitle,
+      place: widget.place,
+      placeLogoUrl: widget.placeLogoUrl,
       // Бронировать можно только с подтверждённым телефоном; без него кнопка не появляется,
       // а объяснение стоит на месте списка.
       floatingActionButton: widget.phoneVerified

@@ -730,4 +730,18 @@ void main() {
 
     expect(find.widgetWithText(ChoiceChip, 'Рядом со мной'), findsNothing);
   });
+
+  // Витрина прокручивается целиком: заголовок и подзаголовок уходят вверх, а поиск остаётся
+  // под пальцем. Раньше вся эта шапка стояла неподвижно и съедала полэкрана.
+  testWidgets('при прокрутке витрины уходит заголовок, а поиск остаётся', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx, _arena, _cyberx, _arena])));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Выберите клуб'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(TextField)).dy, lessThan(120));
+  });
 }

@@ -12,6 +12,7 @@ import '../shell/actions.dart';
 import '../shell/group_header.dart';
 import '../theme/space.dart';
 import 'start_session_screen.dart';
+import '../shell/app_scaffold.dart';
 
 /// Что прочитали с монитора: код посадки и, если QR его назвал, клуб этого ПК.
 class PcSignInLink {
@@ -272,7 +273,7 @@ class _PcSignInScreenState extends State<PcSignInScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerPlayStart)),
+      appBar: nestedAppBar(context, title: l.customerPlayStart),
       body: SafeArea(
         child: switch (_stage) {
           _Stage.scanning => ListView(

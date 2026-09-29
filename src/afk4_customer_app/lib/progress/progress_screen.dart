@@ -56,6 +56,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final data = _data;
 
     return AppScaffold(
+      compact: true,
       title: l.customerProgressTitle,
       onRefresh: _load,
       slivers: [

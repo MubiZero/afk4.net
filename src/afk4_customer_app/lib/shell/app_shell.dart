@@ -89,6 +89,11 @@ class _AppShellState extends State<AppShell> {
   /// ради открывшихся возможностей — плохая цена за подтверждение.
   bool _phoneVerifiedNow = false;
 
+  /// Чем подписаны шапки разделов клуба: название зала из профиля, пока его нет — сети. Раньше
+  /// клуб был виден только на Главной, и в Бронях или Кошельке нельзя было понять, чьи это брони
+  /// и деньги, — а у игрока их может быть в нескольких клубах.
+  String? _placeName;
+
   /// Зал, который игрок назвал для первого действия в этом клубе. Помнит оболочка, а не лист:
   /// зал нужен и брони, и пополнению, а спрашивать одно и то же дважды — цена ни за что.
   /// После открытия счёта не нужен вовсе: зал записан в самом счёте.
@@ -246,6 +251,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final l = L.of(context);
     final booking = _enabled('online_booking');
+    final place = _placeName ?? widget.organization.name;
 
     final sections = <(AppSection, Widget screen, NavigationDestination tab)>[
       (
@@ -267,6 +273,9 @@ class _AppShellState extends State<AppShell> {
           openNotificationsRequest: _openNotificationsRequest,
           onOpenPushDestination: _openPushDestination,
           pinSet: widget.me?.person.pinSet,
+          onPlaceNamed: (name) {
+            if (name != _placeName) setState(() => _placeName = name);
+          },
           clock: widget.clock,
         ),
         NavigationDestination(
@@ -286,6 +295,8 @@ class _AppShellState extends State<AppShell> {
             onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
             onAccountOpened: widget.onAccountOpened,
             active: _section == AppSection.reservations,
+            place: place,
+            placeLogoUrl: widget.organization.logoUrl,
             clock: widget.clock,
           ),
           NavigationDestination(
@@ -306,6 +317,8 @@ class _AppShellState extends State<AppShell> {
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           onAccountOpened: widget.onAccountOpened,
           active: _section == AppSection.wallet,
+          place: place,
+          placeLogoUrl: widget.organization.logoUrl,
           clock: widget.clock,
         ),
         NavigationDestination(

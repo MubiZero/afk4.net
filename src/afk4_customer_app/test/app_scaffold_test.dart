@@ -218,4 +218,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened, ['E']);
   });
+
+  // Вложенный экран носит тот же каркас шапки, что и раздел, и тоже говорит, в каком клубе
+  // игрок: раньше клуб был виден только на Главной.
+  testWidgets('шапка вложенного экрана называет клуб', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) => Scaffold(
+            appBar: nestedAppBar(context, title: 'Заказ к месту', place: 'CyberX Рудаки'),
+            body: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Заказ к месту'), findsOneWidget);
+    expect(find.text('CyberX Рудаки'), findsOneWidget);
+  });
 }

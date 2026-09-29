@@ -55,8 +55,13 @@ class DashboardScreen extends StatefulWidget {
     this.onOpenPushDestination,
     this.onPhoneVerified,
     this.pinSet,
+    this.onPlaceNamed,
     this.clock = DateTime.now,
   });
+
+  /// Зал игрока стал известен из профиля — оболочке пора подписать им шапки остальных
+  /// разделов, а не только главной.
+  final ValueChanged<String>? onPlaceNamed;
 
   final PlayerApiClient api;
   final String displayName;
@@ -153,6 +158,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// узнать, в какое ты вошёл, можно было только через профиль.
   String? _branchName;
 
+  /// Название конкретного зала, если оно известно, иначе название сети: игрок должен видеть,
+  /// куда он пришёл, а не только чьё приложение открыл. Им подписаны и шапки экранов клуба.
+  String get _place => _branchName ?? widget.organization.name;
+
   /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем.
   PendingClubReviewDto? _pendingReview;
 
@@ -223,6 +232,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _branchId = profile.homeBranchId;
         _branchName = profile.homeBranchName;
       });
+      if (profile.homeBranchName case final name?) widget.onPlaceNamed?.call(name);
       await _loadPackagesAvailability();
       await _loadReferralAvailability();
       await _loadEventsAvailability();
@@ -357,7 +367,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (branchId == null) return;
     final bought = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => PackagesScreen(api: widget.api, branchId: branchId, clock: widget.clock),
+        builder: (_) => PackagesScreen(
+          api: widget.api,
+          branchId: branchId,
+          clock: widget.clock,
+          place: _place, placeLogoUrl: widget.organization.logoUrl,
+        ),
       ),
     );
     if (bought == true) await _refresh();
@@ -370,7 +385,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (branchId == null) return;
     final walletChanged = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EventsScreen(api: widget.api, branchId: branchId, clock: widget.clock),
+        builder: (_) => EventsScreen(
+          api: widget.api,
+          branchId: branchId,
+          clock: widget.clock,
+          place: _place, placeLogoUrl: widget.organization.logoUrl,
+        ),
       ),
     );
     if (walletChanged == true) await _refresh();
@@ -387,13 +407,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _openReferral() {
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api)),
+      MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api, place: _place, placeLogoUrl: widget.organization.logoUrl)),
     );
   }
 
   void _openLoyalty() {
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api)),
+      MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api, place: _place, placeLogoUrl: widget.organization.logoUrl)),
     );
   }
 
@@ -402,6 +422,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(
         builder: (_) => ShopScreen(
           api: widget.api,
+          place: _place,
+          placeLogoUrl: widget.organization.logoUrl,
           sessionActive: _data?.activeSession != null,
         ),
       ),
@@ -563,7 +585,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // сообщало, а вместе они читались как сжатый в комок заголовок.
       // Название конкретного зала, если оно известно, иначе название сети: игрок должен
       // видеть, куда он пришёл, а не только чьё приложение открыл.
-      place: _branchName ?? widget.organization.name,
+      place: _place,
       placeLogoUrl: widget.organization.logoUrl,
       title: widget.displayName,
       // Колокольчик в шапке главной, а не отдельный раздел внизу: уведомления читают по поводу,

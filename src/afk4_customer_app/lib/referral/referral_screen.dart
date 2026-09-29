@@ -13,6 +13,7 @@ import '../shell/group_header.dart';
 import '../shell/skeleton.dart';
 import '../shell/actions.dart';
 import '../theme/space.dart';
+import '../shell/app_scaffold.dart';
 
 /// «Приведи друга».
 ///
@@ -20,9 +21,13 @@ import '../theme/space.dart';
 /// Деньги приходят не за код, а за первое настоящее пополнение друга — экран говорит об этом
 /// прямо, иначе игрок ждёт бонус сразу после того, как назовёт код.
 class ReferralScreen extends StatefulWidget {
-  const ReferralScreen({super.key, required this.api});
+  const ReferralScreen({super.key, required this.api, this.place, this.placeLogoUrl});
 
   final PlayerApiClient api;
+
+  /// Клуб, в котором игрок сейчас, — строкой над заголовком, как у разделов.
+  final String? place;
+  final String? placeLogoUrl;
 
   @override
   State<ReferralScreen> createState() => _ReferralScreenState();
@@ -120,7 +125,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Widget build(BuildContext context) {
     final l = L.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l.customerReferralTitle)),
+      appBar: nestedAppBar(context, title: l.customerReferralTitle, place: widget.place, placeLogoUrl: widget.placeLogoUrl),
       body: RefreshIndicator(onRefresh: _load, child: _body(l)),
     );
   }
