@@ -4907,6 +4907,7 @@ export const en = {
   "playerShell.topUp.counterOnly": "This club isn't taking online payments right now. The admin can top up your balance.",
   "playerShell.topUp.creating": "Preparing the payment…",
   "playerShell.topUp.custom": "Other amount",
+  "playerShell.topUp.done": "Done",
   "playerShell.topUp.failed": "The bank did not take the payment. Nothing was charged.",
   "playerShell.topUp.invalidAmount": "Enter an amount above zero.",
   "playerShell.topUp.paid": "{amount} added to your balance",

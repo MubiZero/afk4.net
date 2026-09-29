@@ -119,6 +119,16 @@ describe('итог визита', () => {
     expect(await screen.findByText(/Спасибо/)).toBeInTheDocument();
   });
 
+  // Главная на итоге одна: отправить оценку — рядом с полем, обводкой.
+  it('главная на итоге одна — «Играть ещё»', () => {
+    serve();
+    renderSummary();
+    fireEvent.click(screen.getByRole('button', { name: '4 звезды' }));
+
+    const primaries = screen.getAllByRole('button').filter((button) => button.className.includes('btn--primary'));
+    expect(primaries.map((button) => button.textContent)).toEqual(['Играть ещё']);
+  });
+
   it('«Играть ещё» и «Выйти» делают своё', () => {
     serve();
     const { onPlayMore, onLeave } = renderSummary();

@@ -121,7 +121,7 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
       {baseUrl ? (
         <section className="rating" aria-labelledby={`${commentId}-title`}>
           {ratingState === 'sent' ? (
-            <p className="rating__thanks" role="status">{t('playerShell.rating.thanks')}</p>
+            <p className="banner banner--success" role="status">{t('playerShell.rating.thanks')}</p>
           ) : (
             <>
               <h2 id={`${commentId}-title`} className="rating__title">{t('playerShell.rating.title')}</h2>
@@ -153,12 +153,13 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
                       onChange={(event) => setComment(event.currentTarget.value)}
                     />
                   </label>
-                  <button type="button" className="btn btn--primary" disabled={ratingState === 'sending'} onClick={() => void sendRating()}>
+                  {/* Главная на итоге одна — «Играть ещё»; отправка оценки рядом с полем обводкой. */}
+                  <button type="button" className="btn btn--ghost" disabled={ratingState === 'sending'} onClick={() => void sendRating()}>
                     {ratingState === 'sending' ? t('playerShell.rating.sending') : t('playerShell.rating.send')}
                   </button>
                 </>
               ) : null}
-              {ratingState === 'failed' ? <p className="rating__failed" role="alert">{t('playerShell.rating.failed')}</p> : null}
+              {ratingState === 'failed' ? <p className="banner banner--danger" role="alert">{t('playerShell.rating.failed')}</p> : null}
             </>
           )}
         </section>

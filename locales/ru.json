@@ -4855,6 +4855,7 @@
   "playerShell.topUp.counterOnly": "Этот клуб сейчас не принимает оплату онлайн. Пополнить счёт можно у администратора.",
   "playerShell.topUp.creating": "Готовим оплату…",
   "playerShell.topUp.custom": "Своя сумма",
+  "playerShell.topUp.done": "Готово",
   "playerShell.topUp.failed": "Банк не провёл оплату. Деньги не списаны.",
   "playerShell.topUp.invalidAmount": "Введите сумму больше нуля.",
   "playerShell.topUp.paid": "Счёт пополнен на {amount}",

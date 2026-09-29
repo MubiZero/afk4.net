@@ -105,7 +105,6 @@ button {
 .tabs__tab:focus-visible,
 .bar-item__step:focus-visible,
 .sheet__close:focus-visible,
-.time-money__sign-out:focus-visible,
 .time-money__order:focus-visible,
 .system-bar__language:focus-visible,
 .system-controls__button:focus-visible,
@@ -530,13 +529,6 @@ button {
   font-size: 1.6rem;
 }
 
-.sign-in__error {
-  margin: 0;
-  padding: 0.8rem 1rem;
-  border-radius: 0.8rem;
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-}
 
 .sign-in__qr {
   display: flex;
@@ -694,6 +686,7 @@ button {
 }
 
 .offer-tile {
+  position: relative;
   display: grid;
   gap: 0.25rem;
   justify-items: start;
@@ -717,6 +710,19 @@ button {
 
 .offer-tile[aria-pressed='true'] {
   border-color: var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 16%, var(--surface-card));
+}
+
+/* Выбор сильнее наведения: не только рамка (её давало и наведение), а заливка и галочка в углу. */
+.offer-tile[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--shell-accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 62% no-repeat;
 }
 
 .offer-tile:disabled {
@@ -770,8 +776,7 @@ button {
 }
 
 .choose-time__error {
-  margin: 0 auto 0 0;
-  color: var(--danger-text);
+  margin-right: auto;
 }
 
 .choose-time__start {
@@ -857,14 +862,10 @@ button {
   margin-top: 1rem;
 }
 
-.assist--sent {
-  color: var(--accent-text);
-  font-weight: 700;
-}
-
-.assist__error {
-  margin: 0;
-  color: var(--danger-text);
+/* В колонке сессии — той же ширины и без отступа, что соседние кнопки. */
+.assist--wide {
+  justify-items: stretch;
+  margin-top: 0;
 }
 
 /* Сессия */
@@ -879,10 +880,29 @@ button {
 }
 
 .session-screen__top {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 2rem;
+}
+
+/* Полосы — поверх пустой середины шапки: место под них не резервируется, и тело с таймером
+   не съезжает вниз, когда полоса появляется или уходит. */
+.session-screen__notices {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 5;
+  display: grid;
+  gap: 0.5rem;
+  width: min(40rem, calc(100% - 44rem));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.session-screen__notices:empty {
+  display: none;
 }
 
 /* Тело сессии: игры слева, колонка «время и деньги» справа (кадр 03, каркас как у Senet). */
@@ -931,18 +951,9 @@ button {
   gap: 0.8rem;
 }
 
-.time-money__sign-out {
-  justify-self: center;
-  border: 0;
-  background: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.time-money__sign-out:hover {
-  color: var(--text-primary);
+/* «Выйти» — последним пунктом, чуть отступив от денежных действий. */
+.time-money__leave {
+  margin-top: 0.8rem;
 }
 
 /* Заказ бара в колонке: одна строка статуса, нажатие ведёт на вкладку «Бар». */
@@ -1044,16 +1055,30 @@ button {
   font-size: 1.4rem;
 }
 
-.sheet__error {
-  margin: 0;
-  color: var(--danger-text);
-}
-
+/* Кнопка — сразу под содержимым: у низа листа высотой в экран её искали глазами. */
 .sheet__actions {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  margin-top: auto;
+  margin-top: 0.4rem;
+}
+
+/* Подтверждение — окном по центру высотой по содержимому. */
+.sheet-backdrop--center {
+  align-items: center;
+  justify-content: center;
+}
+
+.sheet--compact {
+  width: min(38rem, calc(100% - 2 * var(--shell-gutter)));
+  height: auto;
+  max-height: calc(100% - 2 * var(--shell-gutter));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--shell-radius);
+}
+
+.sheet--compact .sheet__actions .btn {
+  white-space: nowrap;
 }
 
 /* Итог раннего выхода */
@@ -1175,13 +1200,69 @@ button {
 }
 
 .library-tile {
+  position: relative;
   display: grid;
   gap: 0.5rem;
+  width: 100%;
   padding: 1.2rem;
   border-radius: var(--shell-radius);
   background: var(--surface-card);
   border: 1px solid var(--border-soft);
+  color: var(--text-primary);
+  text-align: start;
   content-visibility: auto;
+}
+
+/* Нажимается вся плитка. */
+.library-tile--playable {
+  cursor: pointer;
+  transition: border-color var(--shell-duration-small) var(--ease-standard), transform var(--shell-duration-small) var(--ease-standard);
+}
+
+.library-tile--playable:hover,
+.library-tile--playable:focus-visible {
+  border-color: var(--shell-accent);
+}
+
+.library-tile--playable:focus-visible {
+  outline: 3px solid var(--focus-outline);
+  outline-offset: 3px;
+}
+
+.library-tile--playable:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.library-tile--playable:disabled {
+  cursor: default;
+}
+
+/* «Играть» — посреди обложки, пока плитку наводят или выбрали с клавиатуры; «Запускаем…» —
+   пока игра открывается. */
+.library-tile__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.library-tile__art > * {
+  grid-area: 1 / 1;
+}
+
+.library-tile__play {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--shell-duration-small) var(--ease-standard);
+}
+
+.library-tile--playable:hover .library-tile__play,
+.library-tile--playable:focus-visible .library-tile__play,
+.library-tile--playable[data-launching] .library-tile__play {
+  opacity: 1;
+}
+
+.library-tile--unavailable .library-tile__cover {
+  opacity: 0.6;
 }
 
 .library-tile__name {
@@ -1222,8 +1303,7 @@ button {
 }
 
 .library-tile__error {
-  margin: 0;
-  color: var(--danger-text);
+  margin-top: 0.5rem;
 }
 
 /* Игра старше игрока: видна, но приглушена — понятно, что она есть и почему не для него. */
@@ -1459,8 +1539,7 @@ button {
   text-align: center;
 }
 
-.bar__empty,
-.bar__error {
+.bar__empty {
   margin: 0;
 }
 
@@ -1468,9 +1547,6 @@ button {
   color: var(--text-secondary);
 }
 
-.bar__error {
-  color: var(--danger-text);
-}
 
 /* Кнопка заказа видна всегда: карточка заказа и длинное меню не уводят её за край. */
 .bar__action {
@@ -1504,10 +1580,6 @@ button {
   max-width: 18rem;
 }
 
-.top-up__problem {
-  margin: 0;
-  color: var(--danger-text);
-}
 
 .top-up__action {
   display: flex;
@@ -1554,6 +1626,11 @@ button {
 .top-up--done {
   align-items: center;
   text-align: center;
+}
+
+.top-up__done-actions {
+  display: flex;
+  gap: 1rem;
 }
 
 .top-up__done-icon {
@@ -1616,15 +1693,7 @@ button {
   width: 100%;
 }
 
-.rating__thanks {
-  margin: 0;
-  font-weight: 600;
-}
 
-.rating__failed {
-  margin: 0;
-  color: var(--danger-text);
-}
 
 /* Полоса обслуживания (спека, §6.5). Окно хоста здесь высотой 56 px над рабочим столом техника,
    поэтому размеры в px, а не от ширины экрана: полоса — служебная строка, а не экран для гостя. */
@@ -1751,17 +1820,9 @@ button {
   gap: 0.6rem;
 }
 
-.tip__confirm p,
-.tip__thanks {
+.tip__confirm p {
   margin: 0;
   font-weight: 600;
 }
 
-.tip__thanks {
-  text-align: center;
-}
 
-.tip__failed {
-  margin: 0;
-  color: var(--danger-text);
-}

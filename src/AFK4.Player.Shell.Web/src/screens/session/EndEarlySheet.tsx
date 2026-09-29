@@ -60,7 +60,9 @@ export function EndEarlySheet({ baseUrl, sessionId, onClose, onEnded }: EndEarly
   };
 
   return (
-    <Sheet title={t('playerShell.endEarly.title')} onClose={onClose} closeDisabled={sending}>
+    // Здесь выбирать не из чего — только «да» или «нет»: окно по центру, а не лист во всю высоту
+    // экрана с двумя строками наверху и кнопками у самого низа.
+    <Sheet title={t('playerShell.endEarly.title')} onClose={onClose} closeDisabled={sending} compact>
       {quote ? (
         <ul className="sheet__facts">
           <li>{t('playerShell.endEarly.billed', { duration: duration(quote.billedMinutes) })}</li>
@@ -74,7 +76,7 @@ export function EndEarlySheet({ baseUrl, sessionId, onClose, onEnded }: EndEarly
           ) : null}
         </ul>
       ) : failed ? (
-        <div className="offers__failed" role="alert">
+        <div className="banner banner--danger offers__failed" role="alert">
           <p>{t('playerShell.chooseTime.loadFailed')}</p>
           <button type="button" className="btn btn--ghost" onClick={() => void load()}>{t('playerShell.chooseTime.retry')}</button>
         </div>
@@ -85,7 +87,7 @@ export function EndEarlySheet({ baseUrl, sessionId, onClose, onEnded }: EndEarly
         </ul>
       )}
 
-      {error ? <p className="sheet__error" role="alert">{t(error)}</p> : null}
+      {error ? <p className="banner banner--danger" role="alert">{t(error)}</p> : null}
       <footer className="sheet__actions">
         <button type="button" className="btn btn--ghost" onClick={onClose} disabled={sending}>
           {t('playerShell.endEarly.cancel')}

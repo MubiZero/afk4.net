@@ -63,7 +63,7 @@ export function TipPanel({
   };
 
   if (state.kind === 'sent') {
-    return <p className="tip__thanks" role="status">{t('playerShell.tip.thanks', { amount: money(state.amount), name })}</p>;
+    return <p className="banner banner--success" role="status">{t('playerShell.tip.thanks', { amount: money(state.amount), name })}</p>;
   }
 
   return (
@@ -101,7 +101,7 @@ export function TipPanel({
         </div>
       )}
       {state.kind === 'failed' ? (
-        <p className="tip__failed" role="alert">
+        <p className="banner banner--danger" role="alert">
           {state.reason === TipUnavailableReasonNames.NotEnoughBalance ? t('playerShell.tip.noBalance') : t('playerShell.tip.failed')}
         </p>
       ) : null}

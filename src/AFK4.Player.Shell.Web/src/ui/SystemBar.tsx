@@ -16,7 +16,8 @@ const LANGUAGES: { locale: Locale; label: string }[] = [
 ];
 
 interface SystemBarProps {
-  online: boolean;
+  /** null — служба ПК ещё не ответила: связь не проверена, и «Нет связи» здесь было бы неправдой. */
+  online: boolean | null;
   /** Звук, микрофон, раскладка — от хоста; null — кнопок нет. */
   system?: ShellSystemStateDto | null;
   /** Человек выбрал язык сам — с этой минуты язык филиала его не перебивает. */
@@ -51,10 +52,12 @@ export function SystemBar({ online, system = null, onLocaleChosen }: SystemBarPr
       </div>
       <span className="system-bar__grow" />
       <SystemControls system={system} />
-      <span className={online ? 'system-bar__network' : 'system-bar__network system-bar__network--down'}>
-        {online ? <Wifi aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
-        {online ? t('playerShell.system.online') : t('playerShell.system.offline')}
-      </span>
+      {online === null ? null : (
+        <span className={online ? 'system-bar__network' : 'system-bar__network system-bar__network--down'}>
+          {online ? <Wifi aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
+          {online ? t('playerShell.system.online') : t('playerShell.system.offline')}
+        </span>
+      )}
       <span className="system-bar__clock mono">
         {new Date(now).toLocaleTimeString(locale === 'en' ? 'en-GB' : 'ru-RU', { hour: '2-digit', minute: '2-digit' })}
       </span>
