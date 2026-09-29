@@ -48,7 +48,7 @@ describe('PostAuthShiftGate', () => {
     renderGate(controller);
 
     expect(screen.getByRole('heading', { name: 'Откройте смену' })).toBeInTheDocument();
-    expect(document.querySelector('.panel-modal-close')).toBeNull();
+    expect(document.querySelector('[data-dialog-close]')).toBeNull();
     fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '100.50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
 

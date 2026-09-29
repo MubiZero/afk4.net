@@ -1,8 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { useDialogFocus } from './dialogFocus';
+import { CloseButton } from '@afk4/ui/react';
 
 // Центрированное модальное окно поверх всего приложения (через портал в body) — формы вроде
 // старта сессии или расчёта слишком тесны в узкой боковой панели, им нужна полноценная ширина.
@@ -52,16 +52,7 @@ export function PanelModal({
             <strong>{title}</strong>
             {subtitle && <span>{subtitle}</span>}
           </div>
-          <button
-            type="button"
-            className="panel-modal-close"
-            aria-label={t('common.cancel')}
-            aria-disabled={closeDisabled}
-            disabled={closeDisabled}
-            onClick={onClose}
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
+          <CloseButton label={t('common.cancel')} disabled={closeDisabled} onClick={onClose} data-dialog-close="" />
         </header>
         <div className="panel-modal-body">{children}</div>
       </div>

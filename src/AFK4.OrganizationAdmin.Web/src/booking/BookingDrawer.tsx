@@ -5,7 +5,7 @@ import type { SeatSummary } from '../operatorData';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
 import { formatLocal, localPhoneDigits } from '../phoneFormat';
 import { Skeleton } from '../operatorPrimitives';
-import { useBlockedReason } from '../components/BlockedReason';
+import { CloseButton, useBlockedReason } from '@afk4/ui/react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
@@ -171,8 +171,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
     <aside className="booking-drawer" role="dialog" aria-label={title}>
       <header className="booking-drawer-head">
         <strong>{title}</strong>
-        <button type="button" className="booking-drawer-close" aria-label={t('common.cancel')} disabled={busy}
-          onClick={() => { if (!busy) props.onClose(); }}><X size={16} /></button>
+        <CloseButton label={t('common.cancel')} disabled={busy} onClick={() => { if (!busy) props.onClose(); }} />
       </header>
 
       {mode === 'create' ? (

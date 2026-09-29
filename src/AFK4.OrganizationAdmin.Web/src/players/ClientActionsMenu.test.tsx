@@ -75,7 +75,7 @@ describe('ClientActionsMenu', () => {
 
   it('renders nothing when no permission grants any item', () => {
     renderMenu({ canManageClient: false });
-    expect(document.querySelector('.client-actions-menu')).toBeNull();
+    expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
   });
 
   it('adds the reservation item first and the correction item before deactivate when permitted', () => {

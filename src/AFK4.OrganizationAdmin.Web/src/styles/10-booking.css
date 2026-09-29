@@ -987,35 +987,6 @@
   white-space: nowrap;
 }
 
-.booking-drawer-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-secondary);
-  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
-}
-
-.booking-drawer-close:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.booking-drawer-close:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.booking-drawer-close:active {
-  transform: scale(0.95);
-}
-
 .booking-drawer-body {
   display: grid;
   align-content: start;
@@ -1871,12 +1842,10 @@
   .booking-requests-lane {
     animation: none;
   }
-
   .booking-block,
   .booking-date-nav button,
   .booking-action-grid button,
   .booking-primary-action,
-  .booking-drawer-close,
   .booking-lane-card button,
   .booking-duration-quick button,
   .booking-dtp-date button,

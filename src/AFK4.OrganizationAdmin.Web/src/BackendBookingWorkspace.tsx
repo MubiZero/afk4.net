@@ -60,7 +60,7 @@ import { useReputation } from './players/useReputation';
 import type { SeatSummary } from './operatorData';
 import { formatDateParts } from '@afk4/formatting';
 import { PanelModal } from './PanelModal';
-import { useBlockedReason } from './components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
 
 /** Просьба о запуске без ключа: ключ даёт общий `retryKeys` по самой просьбе. */

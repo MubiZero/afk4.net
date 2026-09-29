@@ -32,7 +32,7 @@ import type {
   RotateDeviceCredentialResponse
 } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
-import { useBlockedReason } from '../../../components/BlockedReason';
+import { useBlockedReason } from '@afk4/ui/react';
 
 // Настоящий тип, а не `Record<string, unknown>`: таблица получает те же строки, что приходят с
 // сервера, и поле, которого в ответе нет, теперь заметит компилятор.

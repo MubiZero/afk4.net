@@ -79,52 +79,6 @@
   box-shadow: var(--shadow-card);
 }
 
-/* Вкладки внутри раздела (два домена, напр. Залы/Устройства) — сегментный переключатель.
-   Это НЕ уровень рейла, а intra-screen tabs (как в Кассе). */
-.mgmt-tabs {
-  display: inline-flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  padding: 4px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-}
-
-.mgmt-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 16px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-
-.mgmt-tab:hover:not(.is-active) {
-  color: var(--text-primary);
-}
-
-.mgmt-tab.is-active {
-  background: var(--surface-elevated);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-card);
-}
-
-.mgmt-tab:active:not(.is-active) { background: var(--surface-hover); }
-
-.mgmt-tab:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
 /* Панель-список. Overflow видимый (в отличие от .table-panel), т.к. ⋯-меню строки открывается
    абсолютом и не должно обрезаться панелью. Скролл — на уровне тела экрана. */
 .mgmt-table {
@@ -183,94 +137,6 @@
   overflow: visible;
 }
 
-/* ── ⋯-меню строки (обобщение .client-actions-*) ─────────────────────────────────────── */
-.mgmt-menu {
-  position: relative;
-}
-
-.mgmt-menu-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--control-md);
-  height: var(--control-md);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-
-.mgmt-menu-trigger:hover:not(:disabled) {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-}
-
-.mgmt-menu-trigger:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.mgmt-menu-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  min-width: 208px;
-  padding: 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  background: var(--surface-card);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-}
-
-.mgmt-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-
-.mgmt-menu-item:hover:not(:disabled) {
-  background: var(--surface-accent-soft);
-}
-
-.mgmt-menu-item:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: -2px;
-}
-
-.mgmt-menu-item:disabled {
-  color: var(--text-quaternary);
-  cursor: not-allowed;
-}
-
-.mgmt-menu-item.is-danger {
-  color: var(--danger-text);
-}
-
-.mgmt-menu-item.is-danger:hover:not(:disabled) {
-  background: var(--danger-soft-bg);
-}
-
-.mgmt-menu-sep {
-  height: 1px;
-  margin: 4px 2px;
-  background: var(--border-soft);
-}
-
 /* ── Правый drawer записи ─────────────────────────────────────────────────────────────── */
 .mgmt-drawer {
   display: flex;
@@ -310,31 +176,6 @@
 .mgmt-drawer-subtitle {
   color: var(--text-secondary);
   font-size: 12px;
-}
-
-.mgmt-drawer-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: var(--control-md);
-  height: var(--control-md);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-
-.mgmt-drawer-close:hover {
-  border-color: var(--border-accent);
-  color: var(--accent-bright);
-}
-
-.mgmt-drawer-close:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
 }
 
 .mgmt-drawer-body {

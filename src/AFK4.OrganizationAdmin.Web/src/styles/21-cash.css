@@ -122,20 +122,14 @@
   border-left: 1px solid var(--border-soft);
   background: var(--surface-sunken);
 }
+/* Вид ✕ — CloseButton кита; здесь место в углу и видимость: кнопка нужна, только когда
+   инспектор выезжает поверх кассы на узком окне. */
 .cash-inspector-close {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
+  z-index: 1;
   display: none;
-  align-items: center;
-  justify-content: center;
-  width: var(--control-sm);
-  height: var(--control-sm);
-  padding: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
 }
 .cash-register-rows { min-width: 0; }
 .cash-register-row {

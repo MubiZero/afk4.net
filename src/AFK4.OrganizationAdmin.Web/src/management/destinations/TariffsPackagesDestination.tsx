@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Tabs } from '@afk4/ui/react';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { projectOperatorError } from '../../apiErrors';
@@ -65,26 +66,15 @@ export function TariffsPackagesDestination({
       failure={failure}
       onRetry={onRetry}
     >
-      <div className="mgmt-tabs" role="tablist" aria-label={t('op.management.dest.tariffs')}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'tariffs'}
-          className={`mgmt-tab${activeTab === 'tariffs' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('tariffs')}
-        >
-          {t('op.management.tariffs.tab.tariffs')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'packages'}
-          className={`mgmt-tab${activeTab === 'packages' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('packages')}
-        >
-          {t('op.management.tariffs.tab.packages')}
-        </button>
-      </div>
+      <Tabs
+        label={t('op.management.dest.tariffs')}
+        value={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { value: 'tariffs', label: t('op.management.tariffs.tab.tariffs') },
+          { value: 'packages', label: t('op.management.tariffs.tab.packages') }
+        ]}
+      />
 
       <ViewOnlyNotice reason={tabViewOnly} />
       {activeTab === 'tariffs' ? (

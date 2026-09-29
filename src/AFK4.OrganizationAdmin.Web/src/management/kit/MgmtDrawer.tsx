@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { X } from 'lucide-react';
 import { RowActionsMenu } from './RowActionsMenu';
 import type { RowAction } from './types';
+import { CloseButton } from '@afk4/ui/react';
 
 // Правая панель деталей/редактирования выбранной записи. Управляемая: родитель рендерит её по
 // условию (запись выбрана) вторым столбцом грида .mgmt-master-detail; при закрытой панели таблица
@@ -36,9 +36,7 @@ export function MgmtDrawer({
         </div>
         {actions && actions.length > 0 && <RowActionsMenu actions={actions} />}
         {onClose && (
-          <button type="button" className="mgmt-drawer-close" aria-label={t('common.close')} onClick={onClose}>
-            <X size={16} aria-hidden="true" />
-          </button>
+          <CloseButton label={t('common.close')} onClick={onClose} />
         )}
       </div>
 

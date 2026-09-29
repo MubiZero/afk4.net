@@ -29,7 +29,7 @@ export function useDialogFocus(ref: RefObject<HTMLElement | null>, active: boole
     const focusable = () => [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
 
     // Первым фокусируем содержимое, а не кнопку закрытия: человек пришёл заполнять форму.
-    const first = focusable().find(el => !el.classList.contains('panel-modal-close'));
+    const first = focusable().find(el => !el.hasAttribute('data-dialog-close'));
     (first ?? dialog).focus();
 
     const onKeyDown = (event: KeyboardEvent) => {

@@ -60,29 +60,6 @@
   white-space: nowrap;
 }
 
-.panel-modal-close {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
-}
-
-.panel-modal-close:hover,
-.panel-modal-close:focus-visible {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-  color: var(--text-strong);
-  outline: none;
-}
-
 .panel-modal-body {
   display: grid;
   gap: 16px;
@@ -106,7 +83,6 @@
     animation: none;
   }
 }
-
 
 /* Toast — non-blocking ephemeral notices. Motion is CSS-only so the global
    prefers-reduced-motion rule neutralizes it automatically. */

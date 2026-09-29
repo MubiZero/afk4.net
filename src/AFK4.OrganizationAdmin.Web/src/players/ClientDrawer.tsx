@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { Cake, CalendarClock, Play, Smartphone, X } from 'lucide-react';
+import { Cake, CalendarClock, Play, Smartphone } from 'lucide-react';
 import { describeBirthday, initials, type PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
 import { Money } from '../operatorPrimitives';
@@ -10,6 +10,7 @@ import { ClientActionsMenu } from './ClientActionsMenu';
 import { PackagesSection } from './PackagesSection';
 import { ReputationCard } from './ReputationCard';
 import type { ReputationController } from './useReputation';
+import { CloseButton } from '@afk4/ui/react';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
@@ -126,9 +127,7 @@ export function ClientDrawer({
             onCorrect={onCorrect}
           />
         )}
-        <button type="button" className="drawer-ic" aria-label={t('common.close')} onClick={onClose}>
-          <X size={16} aria-hidden="true" />
-        </button>
+        <CloseButton label={t('common.close')} onClick={onClose} />
       </div>
 
       <div className="drawer-context">
