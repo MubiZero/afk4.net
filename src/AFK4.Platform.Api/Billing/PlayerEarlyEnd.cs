@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Billing;
@@ -74,14 +75,23 @@ public static class PlayerEarlyEnd
     /// Записи возврата по расчёту. Сохраняет вызывающий — тем же SaveChanges, что закрывает сессию:
     /// иначе был бы момент, когда сессия закрыта, а деньги и минуты не вернулись.
     /// </summary>
-    public static void AppendEntries(
+    public static async Task AppendEntriesAsync(
         PlatformDbContext dbContext,
         SessionEntity session,
         Guid playerAccountId,
         PlayerEarlyEndQuote quote,
         Guid actorId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
     {
+        if (quote.Money.RefundMinorUnits <= 0
+            && quote.Money.CashbackReversalMinorUnits <= 0
+            && quote.PackageSecondsReturned <= 0)
+        {
+            return;
+        }
+
+        var shiftId = await ResolveShiftIdAsync(dbContext, session, cancellationToken);
         if (quote.Money.RefundMinorUnits > 0)
         {
             dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
@@ -99,7 +109,8 @@ public static class PlayerEarlyEnd
                 $"session:{session.SessionId:D}:early-end refund",
                 quote.ChargeEntryId,
                 actorId,
-                nowUtc));
+                nowUtc,
+                shiftId));
         }
 
         // Кешбэк разматывается вместе с деньгами. Иначе: оплатить восемь часов, встать через пять
@@ -121,16 +132,50 @@ public static class PlayerEarlyEnd
                 $"session:{session.SessionId:D}:early-end cashback reversal",
                 quote.CashbackEntryId,
                 actorId,
-                nowUtc));
+                nowUtc,
+                shiftId));
         }
 
         if (quote.PlayerPackageId is { } playerPackageId)
         {
             AppendPackageReturn(dbContext, session, playerAccountId, playerPackageId, LedgerAccountTypeNames.PackageTime,
-                quote.PackageIncludedSecondsReturned, quote.PackageIncludedEntryId, quote.CurrencyCode, actorId, nowUtc);
+                quote.PackageIncludedSecondsReturned, quote.PackageIncludedEntryId, quote.CurrencyCode, actorId, nowUtc, shiftId);
             AppendPackageReturn(dbContext, session, playerAccountId, playerPackageId, LedgerAccountTypeNames.BonusTime,
-                quote.PackageBonusSecondsReturned, quote.PackageBonusEntryId, quote.CurrencyCode, actorId, nowUtc);
+                quote.PackageBonusSecondsReturned, quote.PackageBonusEntryId, quote.CurrencyCode, actorId, nowUtc, shiftId);
         }
+    }
+
+    /// <summary>
+    /// В какую смену ложится возврат. Списание записано со сменой, а возврат раньше — без, и отчёт
+    /// смены завышал «Заработано» на все возвраты (приёмка 30.09.2026: 663 против 164 в Сводке).
+    ///
+    /// Возврат идёт в открытую смену: его отдают на смене того, кто сейчас у стойки, а закрытая
+    /// смена — подписанный документ, задним числом в неё не пишут. Открытой нет (игрок встал
+    /// ночью) — возврат всё равно делается, а в отчёте остаётся рядом со списанием, в смене, где
+    /// оно записано. Возврат денег кассира не ждёт.
+    /// </summary>
+    private static async Task<Guid?> ResolveShiftIdAsync(
+        PlatformDbContext dbContext,
+        SessionEntity session,
+        CancellationToken cancellationToken)
+    {
+        var openShiftId = await dbContext.Shifts.AsNoTracking()
+            .Where(shift => shift.OrganizationId == session.OrganizationId
+                && shift.BranchId == session.BranchId
+                && shift.State == ShiftStateNames.Open)
+            .OrderByDescending(shift => shift.OpenedAtUtc)
+            .Select(shift => (Guid?)shift.ShiftId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (openShiftId is not null)
+        {
+            return openShiftId;
+        }
+
+        return await dbContext.LedgerEntries.AsNoTracking()
+            .Where(entry => entry.SessionId == session.SessionId && entry.ShiftId != null)
+            .OrderBy(entry => entry.CreatedAtUtc)
+            .Select(entry => entry.ShiftId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private static async Task<PlayerEarlyEndQuote> QuotePrepaidAsync(
@@ -242,7 +287,8 @@ public static class PlayerEarlyEnd
         Guid? reversesEntryId,
         string currencyCode,
         Guid actorId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        Guid? shiftId)
     {
         if (seconds <= 0)
         {
@@ -264,6 +310,7 @@ public static class PlayerEarlyEnd
             $"session:{session.SessionId:D}:early-end package time return",
             reversesEntryId,
             actorId,
-            nowUtc));
+            nowUtc,
+            shiftId));
     }
 }

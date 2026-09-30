@@ -83,10 +83,25 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             return [];
         }
 
-        var now = timeProvider.GetUtcNow();
         var hasMatchingLocalSession = heartbeat.ActiveSessionId == session.SessionId;
+        if (session.State == SessionStateNames.Paused)
+        {
+            // На паузе у ПК локальной сессии быть не должно: «нет сессии» здесь норма, а не повод
+            // продолжать. Держит её ПК — запираем (потерянный или опоздавший lock паузы).
+            return hasMatchingLocalSession
+                ? [LockPlan(deviceId, session.SessionId, "heartbeat-session-paused")]
+                : [];
+        }
+
+        var now = timeProvider.GetUtcNow();
         if (!hasMatchingLocalSession)
         {
+            // Запертый намеренно ПК не открываем: lock оператора или автозащиты держится до unlock.
+            if (await SessionLockHold.IsHeldAsync(dbContext, deviceId, session.SessionId, cancellationToken))
+            {
+                return [];
+            }
+
             var lease = await IssueNextLeaseAsync(
                 session,
                 now,
@@ -134,6 +149,34 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         ];
     }
 
+    public async Task<IReadOnlyDictionary<string, string>> WithSessionLeaseAsync(
+        Guid deviceId,
+        IReadOnlyDictionary<string, string> payload,
+        CancellationToken cancellationToken)
+    {
+        if (payload.ContainsKey("sessionLease"))
+        {
+            return payload;
+        }
+
+        var session = await dbContext.Sessions
+            .Where(candidate => candidate.DeviceId == deviceId && candidate.State == SessionStateNames.Active)
+            .OrderByDescending(candidate => candidate.UpdatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (session is null)
+        {
+            return payload;
+        }
+
+        var lease = await IssueNextLeaseAsync(session, timeProvider.GetUtcNow(), "operator-unlock", cancellationToken);
+
+        return new Dictionary<string, string>(payload)
+        {
+            ["sessionId"] = session.SessionId.ToString("D"),
+            ["sessionLease"] = JsonSerializer.Serialize(lease, JsonOptions)
+        };
+    }
+
     private async Task<IReadOnlyList<HeartbeatSessionCommandPlan>> PlanLockAsync(
         Guid deviceId,
         Guid sessionId,
@@ -145,19 +188,19 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             return [];
         }
 
-        return
-        [
-            new HeartbeatSessionCommandPlan(
-                deviceId,
-                new CreateDeviceCommandRequest(
-                    DeviceCommandTypeNames.Lock,
-                    new Dictionary<string, string>
-                    {
-                        ["sessionId"] = sessionId.ToString("D"),
-                        ["reason"] = reason
-                    }))
-        ];
+        return [LockPlan(deviceId, sessionId, reason)];
     }
+
+    private static HeartbeatSessionCommandPlan LockPlan(Guid deviceId, Guid sessionId, string reason) =>
+        new(
+            deviceId,
+            new CreateDeviceCommandRequest(
+                DeviceCommandTypeNames.Lock,
+                new Dictionary<string, string>
+                {
+                    ["sessionId"] = sessionId.ToString("D"),
+                    ["reason"] = reason
+                }));
 
     private async Task<bool> HasPendingSessionCommandAsync(
         Guid deviceId,
@@ -220,6 +263,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         session.EndedAtUtc = endedAtUtc;
         session.CurrentLeaseId = null;
         session.UpdatedAtUtc = endedAtUtc;
+        await DeviceAssistance.ClearOnSessionEndAsync(dbContext, session.DeviceId, cancellationToken);
 
         var hasSessionEndedEvent = await dbContext.SessionEvents.AnyAsync(
             sessionEvent =>

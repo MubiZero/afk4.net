@@ -88,7 +88,52 @@ public sealed class OrganizationAdminReportPostgresTests
         Assert.Contains($"\"shift\",\"{ShiftId:D}\"", OrganizationAdminReportCsvExporter.Export(shiftCash));
     }
 
+    /// <summary>
+    /// Приёмка 30.09.2026: Z-отчёт смены показывал 663, а Сводка за тот же день и ту же смену — 164:
+    /// возврат досрочного ухода не вычитался. На настоящей базе сходятся оба запроса: «игра смены» по
+    /// записям со сменой и «игра дня» по дню записи.
+    /// </summary>
+    [PlatformAdminPostgresFact]
+    public async Task ShiftRevenue_AgainstPostgres_AgreesWithTheSummaryAfterAnEarlyLeaveRefund()
+    {
+        await using var schema = await ReportSchema.CreateAsync();
+        await using (var seed = schema.CreateDbContext())
+        {
+            SeedClub(seed);
+            var leftEarly = PlayedSession(seed, 6_000, LocalMidnight.AddHours(15));
+            // Час за 60, встал через минуту: возврат 59 — в той же смене, что и списание.
+            seed.LedgerEntries.Add(new LedgerEntryEntity
+            {
+                LedgerEntryId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId, ShiftId = ShiftId,
+                PlayerAccountId = Guid.NewGuid(), SessionId = leftEarly, EntryType = LedgerEntryTypeNames.Refund,
+                AccountType = LedgerAccountTypeNames.Wallet, AmountMinorUnits = 5_900, CurrencyCode = "TJS",
+                Description = LedgerEntryTypeNames.Refund, Reason = "early-end", CreatedByStaffUserId = CashierId,
+                CreatedAtUtc = LocalMidnight.AddHours(15).AddMinutes(1)
+            });
+            PlayedSession(seed, 2_000, LocalMidnight.AddHours(17));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = schema.CreateDbContext();
+        var reports = new EfReportService(db);
+        var summary = await new OrganizationAdminReportService(db, reports)
+            .GetSummaryAsync(OrgId, BranchId, ReportDate, ReportDate, CancellationToken.None);
+        var shiftRevenue = await reports.GetCurrentShiftRevenueAsync(OrgId, BranchId, CancellationToken.None);
+        var cashOperations = await reports.GetCashOperationReportAsync(
+            OrgId, BranchId, new ReportSearchQuery(null, null, 50), CancellationToken.None);
+
+        Assert.Equal(2_100, summary.Figures.GameplayRevenue.MinorUnits);
+        Assert.Equal(summary.Figures.GameplayRevenue.MinorUnits, shiftRevenue!.Earned.Time.MinorUnits);
+        Assert.Empty(cashOperations.Rows);
+    }
+
     private static void Seed(PlatformDbContext db)
+    {
+        SeedClub(db);
+        SeedDay(db);
+    }
+
+    private static void SeedClub(PlatformDbContext db)
     {
         db.Organizations.Add(new OrganizationEntity
         {
@@ -111,7 +156,10 @@ public sealed class OrganizationAdminReportPostgresTests
             ShiftId = ShiftId, OrganizationId = OrgId, BranchId = BranchId, OpenedByStaffUserId = CashierId,
             State = ShiftStateNames.Open, CurrencyCode = "TJS", OpenedAtUtc = LocalMidnight
         });
+    }
 
+    private static void SeedDay(PlatformDbContext db)
+    {
         PaidSale(db, 3_000, PaymentMethodNames.Cash, LocalMidnight);
         PaidSale(db, 2_000, PaymentMethodNames.CardManual, NextLocalMidnight.AddTicks(-10));
         PaidSale(db, 9_000, PaymentMethodNames.Cash, NextLocalMidnight);
@@ -138,7 +186,7 @@ public sealed class OrganizationAdminReportPostgresTests
         });
     }
 
-    private static void PlayedSession(PlatformDbContext db, long chargeMinorUnits, DateTimeOffset startedAt)
+    private static Guid PlayedSession(PlatformDbContext db, long chargeMinorUnits, DateTimeOffset startedAt)
     {
         var sessionId = Guid.NewGuid();
         db.Sessions.Add(new SessionEntity
@@ -157,6 +205,7 @@ public sealed class OrganizationAdminReportPostgresTests
             Description = LedgerEntryTypeNames.GameplayCharge, Reason = "played", CreatedByStaffUserId = CashierId,
             CreatedAtUtc = startedAt
         });
+        return sessionId;
     }
 
     private sealed class ReportSchema : IAsyncDisposable
