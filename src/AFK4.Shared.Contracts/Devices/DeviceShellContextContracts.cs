@@ -31,7 +31,19 @@ public sealed record DeviceLiveSessionDto(
     Guid SessionId,
     DateTimeOffset? StartedAtUtc,
     // null — открытый счёт: конца нет, экран показывает, сколько уже идёт.
-    DateTimeOffset? EndsAtUtc);
+    DateTimeOffset? EndsAtUtc,
+    // Почему ПК заперт при идущей сессии (DeviceLiveSessionHoldNames): оболочка не должна рисовать
+    // на нём витрину свободного места. null — ПК открыт игроку или вот-вот откроется.
+    string? Hold = null);
+
+public static class DeviceLiveSessionHoldNames
+{
+    /// <summary>Администратор поставил сессию на паузу.</summary>
+    public const string Paused = "paused";
+
+    /// <summary>Администратор заблокировал ПК посреди сессии.</summary>
+    public const string Operator = "operator";
+}
 
 public static class DeviceSessionOwnerKindNames
 {

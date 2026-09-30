@@ -1,4 +1,4 @@
-import { PlayerShellStateNames, type PlayerShellStateDto } from '@afk4/contracts';
+import { DeviceLiveSessionHoldNames, PlayerShellStateNames, type PlayerShellStateDto } from '@afk4/contracts';
 
 /**
  * Экраны оболочки (спека, §3). Адресов страниц нет: экран — это функция от состояния агента,
@@ -15,6 +15,8 @@ export type ShellScreen =
   | 'ending'
   | 'grace'
   | 'offline'
+  | 'paused'
+  | 'held'
   | 'maintenance'
   | 'error';
 
@@ -46,6 +48,9 @@ export function selectScreen({ state, signedIn, approached, ended = false }: Scr
     case PlayerShellStateNames.Active:
       return 'session';
     default:
+      // Запертый ПК с чужой сессией — не свободное место: ни витрины, ни входа, ни выбора времени.
+      if (state.holdKind === DeviceLiveSessionHoldNames.Paused) return 'paused';
+      if (state.holdKind === DeviceLiveSessionHoldNames.Operator) return 'held';
       // Заперт: вставший раньше видит итог, вошедший выбирает время, подошедший — входит,
       // остальным крутится витрина.
       if (signedIn && ended) return 'summary';

@@ -1223,7 +1223,15 @@ export function shiftStateLabel(state: string, t: TFunc): string {
 export function cashReasonLabel(reason: string | null | undefined, t: TFunc): string {
   const value = reason ?? '';
   const tipPayout = `${CashMovementReasonNames.TipPayout}:`;
-  return value.startsWith(tipPayout) ? t('op.cash.reason.tipPayout', { name: value.slice(tipPayout.length) }) : value;
+  if (value.startsWith(tipPayout)) return t('op.cash.reason.tipPayout', { name: value.slice(tipPayout.length) });
+  switch (value) {
+    case CashMovementReasonNames.GuestGameplayCash:
+      return t('op.cash.reason.guestGameplayCash');
+    case CashMovementReasonNames.SessionCheckout:
+      return t('op.cash.reason.sessionCheckout');
+    default:
+      return value;
+  }
 }
 
 export function cashOperationTypeLabel(type: string, t: TFunc): string {

@@ -201,7 +201,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   const isOpenTab = hasActiveSession && remainingSeconds === null && accruedCostMinorUnits !== null;
   // Prefer the real account name from the backend; fall back to the generic placeholder only
   // when the session has no named player (guest) or the seat is free.
-  const playerDisplayName = dto.playerDisplayName?.trim() || null;
+  // У игрока со счётом имя в карточке может быть пустым — он всё равно не гость.
+  const playerDisplayName = dto.playerDisplayName?.trim() || (dto.hasPlayerAccount ? t('op.helper.player.nameFallback') : null);
   const tariffName = dto.tariffName?.trim() || null;
   const sessionStartedAtUtc = dto.sessionStartedAtUtc ?? null;
 

@@ -198,7 +198,8 @@ public sealed class EfFloorMapReadService(
             IsOutsidePlan: device is not null && allowance.Outside.Contains(device.DeviceId),
             LastFailedCommandType: device is not null && lastFailedCommands.TryGetValue(device.DeviceId, out var failedType) ? failedType : null,
             SessionBillingMode: string.IsNullOrEmpty(activeSession?.BillingMode) ? null : activeSession.BillingMode,
-            IsKioskAbsent: device?.KioskAbsentSinceUtc is not null);
+            IsKioskAbsent: device?.KioskAbsentSinceUtc is not null,
+            HasPlayerAccount: activeSession?.PlayerAccountId is not null);
     }
 
     // Команды, которые администратор шлёт ПК сам и может повторить той же кнопкой. Служебные

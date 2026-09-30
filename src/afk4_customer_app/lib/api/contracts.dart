@@ -149,6 +149,11 @@ abstract final class BranchSearchKindNames {
 abstract final class CashMovementReasonNames {
   /// «tip_payout:Шерзод» — выданы чаевые администратору.
   static const String tipPayout = 'tip_payout';
+  /// Гость оплатил игру наличными у стойки. Эта фраза уже записана в платежах, поэтому она и есть
+  /// код: Панель узнаёт её и пишет по-русски, а не переименовывает чужие строки в базе.
+  static const String guestGameplayCash = 'guest gameplay paid in cash';
+  /// Наличные, принятые при расчёте сессии (запись платежа со времён единого расчёта).
+  static const String sessionCheckout = 'session checkout';
 }
 
 /// Словарь: Shifts/CashMovementTypeNames.cs
@@ -325,6 +330,14 @@ abstract final class DeviceEnrollmentStateNames {
   static const String pending = 'pending';
   static const String rejected = 'rejected';
   static const String removed = 'removed';
+}
+
+/// Словарь: Devices/DeviceShellContextContracts.cs
+abstract final class DeviceLiveSessionHoldNames {
+  /// Администратор поставил сессию на паузу.
+  static const String paused = 'paused';
+  /// Администратор заблокировал ПК посреди сессии.
+  static const String operator = 'operator';
 }
 
 /// Словарь: Devices/DevicePlayerSignInContracts.cs
@@ -6782,6 +6795,7 @@ class DeviceLiveSessionDto {
     required this.sessionId,
     this.startedAtUtc,
     this.endsAtUtc,
+    this.hold,
   });
 
   final String sessionId;
@@ -6790,16 +6804,22 @@ class DeviceLiveSessionDto {
   /// null — открытый счёт: конца нет, экран показывает, сколько уже идёт.
   final DateTime? endsAtUtc;
 
+  /// Почему ПК заперт при идущей сессии (DeviceLiveSessionHoldNames): оболочка не должна рисовать
+  /// на нём витрину свободного места. null — ПК открыт игроку или вот-вот откроется.
+  final String? hold;
+
   factory DeviceLiveSessionDto.fromJson(Map<String, dynamic> json) => DeviceLiveSessionDto(
         sessionId: json['sessionId'] as String,
         startedAtUtc: json['startedAtUtc'] == null ? null : DateTime.parse(json['startedAtUtc'] as String),
         endsAtUtc: json['endsAtUtc'] == null ? null : DateTime.parse(json['endsAtUtc'] as String),
+        hold: json['hold'] == null ? null : json['hold'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'sessionId': sessionId,
         'startedAtUtc': startedAtUtc?.toIso8601String(),
         'endsAtUtc': endsAtUtc?.toIso8601String(),
+        'hold': hold,
       };
 }
 
@@ -14440,6 +14460,7 @@ class PlayerShellStateDto {
     this.sessionStartedAtUtc,
     this.sessionEndsAtUtc,
     this.launchedApps,
+    this.holdKind,
   });
 
   final String organizationId;
@@ -14520,6 +14541,10 @@ class PlayerShellStateDto {
   /// Только запущенное им самим — системные процессы, оболочка и агент сюда не попадают.
   final List<LaunchedAppDto>? launchedApps;
 
+  /// Заперт, хотя на ПК есть чужая сессия (DeviceLiveSessionHoldNames): пауза или блокировка
+  /// администратора. Экран пишет, что ПК занят, а не зовёт сесть. null — обычный свободный ПК.
+  final String? holdKind;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -14555,6 +14580,7 @@ class PlayerShellStateDto {
         sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
         sessionEndsAtUtc: json['sessionEndsAtUtc'] == null ? null : DateTime.parse(json['sessionEndsAtUtc'] as String),
         launchedApps: json['launchedApps'] == null ? null : (json['launchedApps'] as List<dynamic>).map((item) => LaunchedAppDto.fromJson(item as Map<String, dynamic>)).toList(),
+        holdKind: json['holdKind'] == null ? null : json['holdKind'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -14592,6 +14618,7 @@ class PlayerShellStateDto {
         'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
         'sessionEndsAtUtc': sessionEndsAtUtc?.toIso8601String(),
         'launchedApps': launchedApps?.map((item) => item.toJson()).toList(),
+        'holdKind': holdKind,
       };
 }
 
@@ -17452,6 +17479,7 @@ class SeatStatusDto {
     this.lastFailedCommandType,
     this.sessionBillingMode,
     this.isKioskAbsent,
+    this.hasPlayerAccount,
   });
 
   final String seatId;
@@ -17520,6 +17548,10 @@ class SeatStatusDto {
   /// вернут в зал мастером. Отдельно от State — так же, как IsOutsidePlan.
   final bool? isKioskAbsent;
 
+  /// За местом сидит игрок со счётом клуба — даже если имя в его карточке пусто. Без этого признака
+  /// безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
+  final bool? hasPlayerAccount;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -17549,6 +17581,7 @@ class SeatStatusDto {
         lastFailedCommandType: json['lastFailedCommandType'] == null ? null : json['lastFailedCommandType'] as String,
         sessionBillingMode: json['sessionBillingMode'] == null ? null : json['sessionBillingMode'] as String,
         isKioskAbsent: json['isKioskAbsent'] == null ? null : json['isKioskAbsent'] as bool,
+        hasPlayerAccount: json['hasPlayerAccount'] == null ? null : json['hasPlayerAccount'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -17580,6 +17613,7 @@ class SeatStatusDto {
         'lastFailedCommandType': lastFailedCommandType,
         'sessionBillingMode': sessionBillingMode,
         'isKioskAbsent': isKioskAbsent,
+        'hasPlayerAccount': hasPlayerAccount,
       };
 }
 

@@ -711,6 +711,9 @@ public sealed class EfFloorMapReadServiceTests
         Assert.Null(guest.PlayerDisplayName);
         Assert.Null(guest.TariffName);
         Assert.Equal(startedAt, guest.SessionStartedAtUtc);
+        // Гость без счёта и игрок со счётом различимы, даже когда у игрока пустое имя.
+        Assert.False(guest.HasPlayerAccount);
+        Assert.True(billed.HasPlayerAccount);
     }
 
     // Карта называет, какая команда упала на ПК последней, — чтобы «Повторить» знало, что слать.

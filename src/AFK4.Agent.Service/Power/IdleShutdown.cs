@@ -61,7 +61,8 @@ public sealed class IdleShutdownMonitor(
     IMachinePowerController power,
     TimeProvider timeProvider,
     ILogger<IdleShutdownMonitor> logger,
-    AFK4.Agent.Service.Shell.IShellStateSignal? shellState = null)
+    AFK4.Agent.Service.Shell.IShellStateSignal? shellState = null,
+    AFK4.Agent.Service.Shell.ShellHeartbeatSnapshot? heartbeat = null)
 {
     private readonly object gate = new();
     private DateTimeOffset? freeSince;
@@ -116,7 +117,9 @@ public sealed class IdleShutdownMonitor(
     private void CheckLocked()
     {
         var now = timeProvider.GetUtcNow();
-        if (runtimeState.Current.State != PlayerShellStateNames.Locked)
+        // Запертый на паузе или блокировкой оператора ПК не свободен: за ним чужая сессия, и
+        // выключить его значило бы оборвать её вместе с игрой.
+        if (runtimeState.Current.State != PlayerShellStateNames.Locked || heartbeat?.LiveSession is not null)
         {
             // Сессия или обслуживание: простой начнётся заново, когда ПК снова станет свободным.
             freeSince = null;

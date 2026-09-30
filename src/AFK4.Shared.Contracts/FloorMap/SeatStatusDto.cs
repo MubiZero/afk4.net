@@ -52,4 +52,7 @@ public sealed record SeatStatusDto(
     string? SessionBillingMode = null,
     // Киоск на ПК снят: это не игровое место, посадить и забронировать его нельзя, пока ПК не
     // вернут в зал мастером. Отдельно от State — так же, как IsOutsidePlan.
-    bool IsKioskAbsent = false);
+    bool IsKioskAbsent = false,
+    // За местом сидит игрок со счётом клуба — даже если имя в его карточке пусто. Без этого признака
+    // безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
+    bool HasPlayerAccount = false);

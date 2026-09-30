@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
+using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Tariffs;
@@ -384,7 +385,7 @@ public sealed class SessionBillingService(
         {
             AppendGuestCharge(
                 session, actorStaffUserId, validation.AmountMinorUnits, validation.CurrencyCode, shiftId, now,
-                collectCash: true, "guest gameplay paid in cash");
+                collectCash: true, CashMovementReasonNames.GuestGameplayCash);
             return;
         }
 

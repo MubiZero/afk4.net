@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from 'bun:test';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ShellI18nProvider } from './i18n/ShellI18nProvider';
-import { PlayerShellStateNames, ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/contracts';
+import { DeviceLiveSessionHoldNames, PlayerShellStateNames, ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/contracts';
 import { App, CONNECTING_STUCK_MS } from './App';
 import { PLAYER_UNAUTHORIZED_EVENT } from './api/playerApi';
 import { devScenarioState } from './host/devHost';
@@ -59,6 +59,22 @@ describe('оболочка выбирает экран по состоянию �
     expect(await screen.findByText('Нет связи с клубом')).toBeInTheDocument();
     expect(screen.queryByText('418207')).not.toBeInTheDocument();
     expect(screen.getByText('Нет связи')).toBeInTheDocument();
+  });
+
+  it('на паузе не выдаёт себя за свободный ПК: говорит про паузу и к администратору', async () => {
+    installFakeHost({ state: { ...devScenarioState('idle')!, holdKind: DeviceLiveSessionHoldNames.Paused } });
+    renderShell();
+    expect(await screen.findByText('Сессия на паузе')).toBeInTheDocument();
+    expect(screen.getByText(/Вернитесь к администратору/)).toBeInTheDocument();
+    expect(screen.queryByText('Свободен')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Подвиньте мышь/)).not.toBeInTheDocument();
+  });
+
+  it('заперт администратором посреди сессии — так и пишет, без витрины', async () => {
+    installFakeHost({ state: { ...devScenarioState('idle')!, holdKind: DeviceLiveSessionHoldNames.Operator } });
+    renderShell();
+    expect(await screen.findByText('ПК временно закрыт администратором')).toBeInTheDocument();
+    expect(screen.queryByText('Свободен')).not.toBeInTheDocument();
   });
 
   it('на обслуживании сжимается в полосу: какой ПК, кто и когда, и «Вернуть в зал»', async () => {

@@ -174,6 +174,16 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
         return sessionId;
     }
 
+    public async Task PauseSessionAsync(Guid sessionId)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var session = await db.Sessions.SingleAsync(candidate => candidate.SessionId == sessionId);
+        session.State = SessionStateNames.Paused;
+        session.PausedAtUtc = Clock.GetUtcNow();
+        await db.SaveChangesAsync();
+    }
+
     public async Task EndSessionAsync(Guid sessionId)
     {
         await using var scope = Factory.Services.CreateAsyncScope();
