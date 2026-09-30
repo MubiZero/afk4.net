@@ -343,6 +343,201 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
         Assert.Contains("heartbeat-lock-result", sessionEvent.DetailsJson);
     }
 
+    [Fact]
+    public async Task PlanAsync_WithPausedSessionAndNoLocalSession_LeavesThePcLocked()
+    {
+        // Приёмка 30.09.2026: пауза ставила lock, а через 4 с сердцебиение считало сессию на паузе
+        // живой («у ПК нет локальной сессии — продолжить») и отпирало ПК: игрок играл бесплатно.
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Paused);
+        var signer = new RecordingSessionLeaseSigner();
+        var planner = CreatePlanner(db, signer);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        Assert.Empty(plans);
+        Assert.Empty(signer.SignedLeases);
+        Assert.Empty(db.SessionLeases);
+        Assert.Empty(db.SessionEvents);
+    }
+
+    [Fact]
+    public async Task PlanAsync_WithPausedSessionThePcStillHolds_LocksIt()
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Paused);
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: SessionId),
+            CancellationToken.None);
+
+        var plan = Assert.Single(plans);
+        Assert.Equal(DeviceCommandTypeNames.Lock, plan.Command.Type);
+        Assert.Equal(SessionId.ToString("D"), plan.Command.Payload["sessionId"]);
+        Assert.Equal("heartbeat-session-paused", plan.Command.Payload["reason"]);
+        Assert.Empty(db.SessionLeases);
+    }
+
+    [Fact]
+    public async Task PlanAsync_WithPausedSessionThePcStillHolds_LocksItAgainAfterAnEarlierCompletedPauseLock()
+    {
+        // Вторая пауза той же сессии: прошлый выполненный lock не должен глушить новый.
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Paused);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Completed",
+            Now.AddMinutes(-30),
+            new Dictionary<string, string> { ["sessionId"] = SessionId.ToString("D"), ["reason"] = "session-pause" });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: SessionId),
+            CancellationToken.None);
+
+        Assert.Equal(DeviceCommandTypeNames.Lock, Assert.Single(plans).Command.Type);
+    }
+
+    [Theory]
+    [InlineData("Completed")]
+    [InlineData("Accepted")]
+    [InlineData("Pending")]
+    public async Task PlanAsync_WithActiveSessionAndALockTheOperatorSet_DoesNotUnlockThePc(string lockStatus)
+    {
+        // Приёмка 30.09.2026: «Блокировать» из меню ПК жило 13 секунд — до следующего сердцебиения,
+        // которое отпирало ПК с причиной heartbeat-session-continue. Запертый намеренно ПК сердцебиение
+        // не открывает. Команда оператора приходит без sessionId, как её шлёт Панель.
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Active);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            lockStatus,
+            Now.AddSeconds(-13),
+            new Dictionary<string, string> { ["reason"] = "operator-pc-control", ["source"] = "operator-map" });
+        await db.SaveChangesAsync();
+        var signer = new RecordingSessionLeaseSigner();
+        var planner = CreatePlanner(db, signer);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        Assert.Empty(plans);
+        Assert.Empty(signer.SignedLeases);
+        Assert.Empty(db.SessionEvents);
+    }
+
+    [Theory]
+    [InlineData("auto-time-up")]
+    [InlineData("credit-limit")]
+    public async Task PlanAsync_WithActiveSessionAndAnAutoProtectionLock_DoesNotUnlockThePc(string reason)
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Active);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Completed",
+            Now.AddSeconds(-13),
+            new Dictionary<string, string> { ["sessionId"] = SessionId.ToString("D"), ["reason"] = reason });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        Assert.Empty(plans);
+    }
+
+    [Fact]
+    public async Task PlanAsync_WithAnUnlockAfterTheLock_PlansTheSessionAsUsual()
+    {
+        // Снять блокировку — значит отдать unlock (Панель, продление, возобновление): после него
+        // запертый ПК опять обычный ПК с идущей сессией.
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Active);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Completed",
+            Now.AddMinutes(-5),
+            new Dictionary<string, string> { ["reason"] = "operator-pc-control" });
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Unlock,
+            "Completed",
+            Now.AddMinutes(-2),
+            new Dictionary<string, string> { ["sessionId"] = SessionId.ToString("D"), ["reason"] = "session-resume" });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        var plan = Assert.Single(plans);
+        Assert.Equal(DeviceCommandTypeNames.Unlock, plan.Command.Type);
+        Assert.Equal("heartbeat-session-continue", plan.Command.Payload["reason"]);
+    }
+
+    [Fact]
+    public async Task PlanAsync_WithAFailedLock_StillOpensThePcForTheSession()
+    {
+        // Lock, который ПК не выполнил, ничего не запер — держать нечего.
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Active);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Failed",
+            Now.AddSeconds(-13),
+            new Dictionary<string, string> { ["reason"] = "operator-pc-control" });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        Assert.Equal(DeviceCommandTypeNames.Unlock, Assert.Single(plans).Command.Type);
+    }
+
+    [Fact]
+    public async Task PlanAsync_WithALockLeftFromAnotherSession_StillOpensThePcForThisOne()
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Active);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Completed",
+            Now.AddMinutes(-1),
+            new Dictionary<string, string> { ["sessionId"] = Guid.NewGuid().ToString("D"), ["reason"] = "session-end" });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        Assert.Equal(DeviceCommandTypeNames.Unlock, Assert.Single(plans).Command.Type);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()

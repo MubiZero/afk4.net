@@ -388,6 +388,25 @@ internal static class DeviceEndpoints
                         cancellationToken);
                 }
 
+                // Пауза и блокировка оператора держатся, пока их не снимут: «сессия идёт, а у ПК
+                // её нет» здесь не повод отпирать. Держит ПК паузу — её заново запрёт сердцебиение.
+                var onPause = cloudSession.State == SessionStateNames.Paused;
+                if (onPause ||
+                    await SessionLockHold.IsHeldAsync(dbContext, deviceId, cloudSession.SessionId, cancellationToken))
+                {
+                    return await CompleteReconciliationAsync(
+                        dbContext,
+                        commandDispatchService,
+                        request,
+                        action: "continue",
+                        reason: onPause ? "cloud-session-paused" : "lock-held",
+                        cloudSession,
+                        lease: null,
+                        dispatchCommand: false,
+                        recordedAtUtc: now,
+                        cancellationToken);
+                }
+
                 if (currentLease is null)
                 {
                     return Results.Conflict(new { Error = "Active session has no current lease." });
@@ -1475,6 +1494,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             IDeviceCommandDispatchService commandDispatchService,
             IDeviceCommandStore commandStore,
+            IHeartbeatSessionCommandPlanner sessionPlanner,
             EfDeviceBoundPlayerTokens deviceTokens,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -1607,6 +1627,14 @@ internal static class DeviceEndpoints
 
             var targetDeviceId = deviceId;
             var commandRequest = request with { IdempotencyKey = idempotencyKey };
+            if (request.Type == DeviceCommandTypeNames.Unlock)
+            {
+                commandRequest = commandRequest with
+                {
+                    Payload = await sessionPlanner.WithSessionLeaseAsync(deviceId, request.Payload, cancellationToken)
+                };
+            }
+
             if (request.Type == DeviceCommandTypeNames.Wake)
             {
                 // Спящему ПК команду не отдать: будит сосед по подсети волшебным пакетом.
