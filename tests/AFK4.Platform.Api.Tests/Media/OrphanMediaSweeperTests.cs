@@ -52,6 +52,23 @@ public sealed class OrphanMediaSweeperTests
         Assert.True(Storage(factory).Objects.ContainsKey(fresh.ObjectKey));
     }
 
+    // Стенд без MinIO: настоящее хранилище с пустыми ключами раньше падало уже при создании, и
+    // задача роняла каждый свой тик вместо того, чтобы молча пропустить его.
+    [Fact]
+    public async Task WithoutConfiguredStorage_TheTickIsSkipped_NotFailed()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var unconfigured = Options.Create(new MediaOptions());
+        var sweeper = new OrphanMediaSweeper(
+            scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
+            new MinioMediaStorage(unconfigured),
+            unconfigured,
+            new MovableTimeProvider(Now));
+
+        Assert.Equal(0, await sweeper.RunOnceAsync(CancellationToken.None));
+    }
+
     [Fact]
     public async Task EverythingAClubShows_Stays_EvenUnderAnotherHost()
     {

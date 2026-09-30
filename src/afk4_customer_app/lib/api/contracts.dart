@@ -351,6 +351,18 @@ abstract final class DeviceSessionOwnerKindNames {
   static const String player = 'player';
 }
 
+/// Причины предупреждения игроку (DeviceCommandTypeNames.Warn, поле reason в теле).
+/// Агент показывает только эти: придумывать за сервер, чем пугать игрока, он не вправе. Поэтому и
+/// сервер другой причины не принимает — раньше она доезжала до ПК, агент отвечал отказом, а Панель
+/// считала сообщение ушедшим.
+///
+/// Словарь: Devices/DeviceWarnReasonNames.cs
+abstract final class DeviceWarnReasonNames {
+  static const String timeAlmostUp = 'time-almost-up';
+  static const String creditLimit = 'credit-limit';
+  static const String lowBalance = 'low-balance';
+}
+
 /// Что с дружбой прямо сейчас.
 ///
 /// Словарь: Friends/FriendDtos.cs
@@ -4333,6 +4345,35 @@ class CreateDcTopUpRequest {
       };
 }
 
+/// Команда ПК из Панели и между службами платформы. IdempotencyKey — ключ одного нажатия: связь
+/// оборвалась до ответа, и Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную
+/// команду, а не пошлёт на ПК вторую перезагрузку. Null — повтор не распознаётся.
+///
+/// Контракт: Devices/CreateDeviceCommandRequest.cs
+class CreateDeviceCommandRequest {
+  const CreateDeviceCommandRequest({
+    required this.type,
+    required this.payload,
+    this.idempotencyKey,
+  });
+
+  final String type;
+  final Map<String, String> payload;
+  final String? idempotencyKey;
+
+  factory CreateDeviceCommandRequest.fromJson(Map<String, dynamic> json) => CreateDeviceCommandRequest(
+        type: json['type'] as String,
+        payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'payload': payload.map((key, value) => MapEntry(key, value)),
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
 /// Код установки: техник ставит AFK4 на ПК зала без мастера —
 /// `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
 /// числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
@@ -7398,35 +7439,6 @@ class DeviceUpdateStatusSnapshotDto {
         'status': status,
         'message': message,
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
-      };
-}
-
-/// Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
-/// Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
-/// пошлёт на ПК вторую перезагрузку.
-///
-/// Контракт: Devices/DispatchDeviceCommandRequest.cs
-class DispatchDeviceCommandRequest {
-  const DispatchDeviceCommandRequest({
-    required this.type,
-    required this.payload,
-    this.idempotencyKey,
-  });
-
-  final String type;
-  final Map<String, String> payload;
-  final String? idempotencyKey;
-
-  factory DispatchDeviceCommandRequest.fromJson(Map<String, dynamic> json) => DispatchDeviceCommandRequest(
-        type: json['type'] as String,
-        payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
-        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'type': type,
-        'payload': payload.map((key, value) => MapEntry(key, value)),
-        'idempotencyKey': idempotencyKey,
       };
 }
 

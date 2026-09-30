@@ -4935,6 +4935,8 @@ export const tg = {
   "setup.wizard.device.seat.label": "Ин кадом ҷойи толор аст",
   "setup.wizard.device.seat.new": "Ҷойи нав сохтан",
   "setup.wizard.device.seat.noZone": "Дар ин филиал ҳанӯз ягон толор нест, вале ҷой дар толор кушода мешавад. Дар Панели AFK4.NET толор созед ва ба ин ҷо баргардед.",
+  "setup.wizard.device.seat.previous": "{name} — ин ҷо ҳамин ПК пештар истода буд",
+  "setup.wizard.device.seat.previousHint": "Ин ҷойро сабти пештараи худи ҳамин ПК ишғол карда буд. Ҳангоми аз нав насб кардани Windows сабти нав онро иваз мекунад — дар толор ПК-и дуюм пайдо намешавад.",
   "setup.wizard.device.seat.willCreate": "Дар толор ҷои холӣ нест — ҷои нав кушода мешавад: «{name}».",
   "setup.wizard.error.bridgeMissing": "Экрани устод бо барнома алоқаро гум кард. Устоди насбро аз нав оғоз кунед.",
   "setup.wizard.error.invalidPhone": "Рақамро санҷед: даъватнома бо SMS меравад ва ба ин рақам фиристода намешавад.",

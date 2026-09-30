@@ -1,4 +1,4 @@
-using AFK4.Platform.Api.Devices;
+using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Platform.Api.Sessions;
 

@@ -25,9 +25,9 @@ public sealed class DefaultDeviceCommandHandler(
     /// </summary>
     private static readonly Dictionary<string, string> WarningKindByReason = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["time-almost-up"] = PlayerShellWarningKinds.LowTime,
-        ["credit-limit"] = PlayerShellWarningKinds.CreditLimit,
-        ["low-balance"] = PlayerShellWarningKinds.LowBalance
+        [DeviceWarnReasonNames.TimeAlmostUp] = PlayerShellWarningKinds.LowTime,
+        [DeviceWarnReasonNames.CreditLimit] = PlayerShellWarningKinds.CreditLimit,
+        [DeviceWarnReasonNames.LowBalance] = PlayerShellWarningKinds.LowBalance
     };
 
     /// <summary>

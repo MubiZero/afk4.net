@@ -426,6 +426,21 @@ export const DeviceSessionOwnerKindNames = {
 export type DeviceSessionOwnerKindName = (typeof DeviceSessionOwnerKindNames)[keyof typeof DeviceSessionOwnerKindNames];
 
 /**
+ * Причины предупреждения игроку (DeviceCommandTypeNames.Warn, поле reason в теле).
+ * Агент показывает только эти: придумывать за сервер, чем пугать игрока, он не вправе. Поэтому и
+ * сервер другой причины не принимает — раньше она доезжала до ПК, агент отвечал отказом, а Панель
+ * считала сообщение ушедшим.
+ *
+ * Словарь: Devices/DeviceWarnReasonNames.cs
+ */
+export const DeviceWarnReasonNames = {
+  TimeAlmostUp: 'time-almost-up',
+  CreditLimit: 'credit-limit',
+  LowBalance: 'low-balance',
+} as const;
+export type DeviceWarnReasonName = (typeof DeviceWarnReasonNames)[keyof typeof DeviceWarnReasonNames];
+
+/**
  * Что с дружбой прямо сейчас.
  *
  * Словарь: Friends/FriendDtos.cs
@@ -2798,6 +2813,19 @@ export interface CreateDcTopUpRequest {
 }
 
 /**
+ * Команда ПК из Панели и между службами платформы. IdempotencyKey — ключ одного нажатия: связь
+ * оборвалась до ответа, и Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную
+ * команду, а не пошлёт на ПК вторую перезагрузку. Null — повтор не распознаётся.
+ *
+ * Контракт: Devices/CreateDeviceCommandRequest.cs
+ */
+export interface CreateDeviceCommandRequest {
+  type: string;
+  payload: Record<string, string>;
+  idempotencyKey?: string | null;
+}
+
+/**
  * Код установки: техник ставит AFK4 на ПК зала без мастера —
  * `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
  * числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
@@ -3806,19 +3834,6 @@ export interface DeviceUpdateStatusSnapshotDto {
   status: string;
   message: string;
   updatedAtUtc: IsoDateTime;
-}
-
-/**
- * Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
- * Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
- * пошлёт на ПК вторую перезагрузку.
- *
- * Контракт: Devices/DispatchDeviceCommandRequest.cs
- */
-export interface DispatchDeviceCommandRequest {
-  type: string;
-  payload: Record<string, string>;
-  idempotencyKey?: string | null;
 }
 
 /**

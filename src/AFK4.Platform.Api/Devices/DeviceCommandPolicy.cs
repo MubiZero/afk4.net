@@ -72,6 +72,14 @@ public static class DeviceCommandPolicy
     /// <summary>Тело команды проверяется до отправки; null — годится.</summary>
     public static string? ValidatePayload(string type, IReadOnlyDictionary<string, string> payload)
     {
+        // Предупреждение с причиной, которой агент не знает, он отклоняет, и игрок ничего не видит.
+        if (type == DeviceCommandTypeNames.Warn)
+        {
+            return payload.TryGetValue("reason", out var reason) && DeviceWarnReasonNames.IsKnown(reason)
+                ? null
+                : "Warn command requires a known reason (time-almost-up, credit-limit or low-balance).";
+        }
+
         if (type != DeviceCommandTypeNames.Message)
         {
             return null;

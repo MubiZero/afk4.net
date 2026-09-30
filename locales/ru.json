@@ -4934,6 +4934,8 @@
   "setup.wizard.device.seat.label": "Какое это место в зале",
   "setup.wizard.device.seat.new": "Завести новое место",
   "setup.wizard.device.seat.noZone": "В этом филиале ещё нет ни одного зала, а место создаётся в зале. Создайте зал в Панели AFK4.NET и вернитесь сюда.",
+  "setup.wizard.device.seat.previous": "{name} — здесь уже стоял этот ПК",
+  "setup.wizard.device.seat.previousHint": "Это место занимала прежняя запись этого ПК. После переустановки Windows её заменит новая — второго ПК в зале не появится.",
   "setup.wizard.device.seat.willCreate": "Свободных мест в зале нет — заведём новое: «{name}».",
   "setup.wizard.error.bridgeMissing": "Экран мастера потерял связь с программой. Перезапустите мастер установки.",
   "setup.wizard.error.invalidPhone": "Проверьте номер: приглашение уходит SMS, а на такой номер его не отправить.",
