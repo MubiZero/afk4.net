@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Notifications;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Notifications;
@@ -66,6 +67,7 @@ public sealed class NotificationDispatchRunner(
             row.Status = NotificationOutboxStatus.Sent;
             row.SentUtc = now;
             row.LastError = null;
+            ScrubSmsSecrets(row);
             return;
         }
 
@@ -75,11 +77,29 @@ public sealed class NotificationDispatchRunner(
         {
             row.Status = NotificationOutboxStatus.Failed;
             row.FailedUtc = now;
+            ScrubSmsSecrets(row);
             return;
         }
 
         row.Status = NotificationOutboxStatus.Pending;
         row.NextAttemptUtc = now + NextBackoff(row.AttemptCount);
+    }
+
+    /// <summary>
+    /// Код из SMS нужен очереди только пока сообщение ещё надо отправить: повтор берёт значения из
+    /// строки. Отправленный или окончательно проваленный код лежал бы в базе открытым текстом —
+    /// в значениях и в отрисованном тексте — и читался бы любым, у кого есть доступ к таблице.
+    /// </summary>
+    internal static void ScrubSmsSecrets(NotificationOutboxEntity row)
+    {
+        if (row.Channel != NotificationChannel.Sms.ToString())
+        {
+            return;
+        }
+
+        row.TokensJson = null;
+        row.BodyText = string.Empty;
+        row.BodyHtml = string.Empty;
     }
 
     private TimeSpan NextBackoff(int attemptCount)

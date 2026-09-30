@@ -64,14 +64,22 @@ public sealed class NotificationService(
                 Subject = rendered.Subject,
                 BodyText = rendered.BodyText,
                 BodyHtml = rendered.BodyHtml,
-                // Нужны SMS-каналу: шлюз принимает шаблон со значениями, а не готовый текст.
-                TokensJson = System.Text.Json.JsonSerializer.Serialize(request.Tokens),
+                // Нужны только SMS-каналу: шлюз принимает шаблон со значениями, а не готовый текст.
+                TokensJson = channel == NotificationChannel.Sms
+                    ? System.Text.Json.JsonSerializer.Serialize(request.Tokens)
+                    : null,
                 Status = suppressionReason is null ? NotificationOutboxStatus.Pending : NotificationOutboxStatus.Suppressed,
                 LastError = suppressionReason,
                 AttemptCount = 0,
                 NextAttemptUtc = now,
                 CreatedUtc = now,
             };
+
+            // Подавленное SMS никто не отправит: хранить его код незачем.
+            if (suppressionReason is not null)
+            {
+                NotificationDispatchRunner.ScrubSmsSecrets(row);
+            }
 
             if (suppressionReason is null && request.Attachments is { Count: > 0 } attachments)
             {
