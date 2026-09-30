@@ -30,6 +30,7 @@ function renderBar(opts: {
   onShiftChanged?: () => void;
   revenue?: ShiftRevenueDto | null;
   openedByStaffUserId?: string | null;
+  shiftHistory?: { history: (branchId: string, limit?: number) => Promise<never> };
 }) {
   render(
     <I18nProvider initialLocale="ru">
@@ -45,6 +46,7 @@ function renderBar(opts: {
           revenue={opts.revenue ?? null}
           onShiftChanged={opts.onShiftChanged ?? (() => {})}
           actions={opts.actions}
+          shiftHistory={opts.shiftHistory}
         />
       </ToastProvider>
     </I18nProvider>
@@ -88,6 +90,24 @@ describe('CashShiftCommandBar', () => {
     expect(request).toMatchObject({ organizationId: 'org1', startingCash: { currencyCode: 'TJS', minorUnits: 15000 } });
     expect(String(request.idempotencyKey)).toMatch(/^shift-open-/);
     await waitFor(() => expect(onShiftChanged).toHaveBeenCalledTimes(1));
+  });
+
+  // Приёмка 30.09.2026: «Старт наличных» был пуст, хотя прошлая смена закрылась с посчитанной
+  // суммой; комментарий «Утренняя смена» подставлялся в любое время суток.
+  it('открытие смены: старт наличных — остаток прошлой смены, комментарий пуст', async () => {
+    const history = mock(async () => ({
+      shifts: [{
+        shiftId: 'prev', state: 'closed',
+        cash: { starting: { currencyCode: 'TJS', minorUnits: 0 }, expected: { currencyCode: 'TJS', minorUnits: 324500 }, counted: { currencyCode: 'TJS', minorUnits: 324500 }, difference: null }
+      }],
+      limit: 1
+    }) as never);
+    renderBar({ isOpen: false, shiftHistory: { history } });
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Старт наличных')).toHaveValue('3245'));
+    expect(history).toHaveBeenCalledWith('b1', 1);
+    expect(screen.getByLabelText('Комментарий')).toHaveValue('');
   });
 
   it('закрытие смены: модалка → submit → closeShift с countedCash', async () => {

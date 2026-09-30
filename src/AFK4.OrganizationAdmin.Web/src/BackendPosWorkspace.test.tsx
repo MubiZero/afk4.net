@@ -277,6 +277,22 @@ describe('BackendPosWorkspace', () => {
     expect(within(cart).getByText('Корзина пуста')).toBeInTheDocument();
   });
 
+  // Приёмка 30.09.2026: «Очистить корзину» горела при пустой корзине и ничего не делала.
+  it('«Очистить корзину» неактивна, пока корзина пуста, и очищает непустую', async () => {
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+    const clear = screen.getByRole('button', { name: 'Очистить корзину' });
+    expect(clear).toBeDisabled();
+
+    addColaToCart();
+    expect(clear).toBeEnabled();
+
+    fireEvent.click(clear);
+    const cart = document.querySelector('.pos-cart-list') as HTMLElement;
+    expect(within(cart).getByText('Корзина пуста')).toBeInTheDocument();
+    expect(clear).toBeDisabled();
+  });
+
   it('убавление последней штуки убирает строку, а не оставляет ноль', async () => {
     renderBackendPos();
     await screen.findAllByText('Cola');

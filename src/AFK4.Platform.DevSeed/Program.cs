@@ -571,7 +571,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         var snacksCategory = StableGuid(15002);
         var cola = StableGuid(15101);
         var water = StableGuid(15102);
-        var energy = StableGuid(15103);
+        var bar = StableGuid(15103);
         var saleId = StableGuid(15201);
 
         dbContext.PosProductCategories.AddRange(
@@ -581,12 +581,12 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         dbContext.PosProducts.AddRange(
             Product(cola, drinksCategory, "Cola 0.5", "DRINK-COLA-05", 1200, true),
             Product(water, drinksCategory, "Вода 0.5", "DRINK-WATER-05", 600, true),
-            Product(energy, snacksCategory, "Энергетический батончик", "SNACK-BAR", 1500, true));
+            Product(bar, snacksCategory, "Шоколадный батончик", "SNACK-BAR", 600, true));
 
         dbContext.StockMovements.AddRange(
             Stock(StableGuid(15301), cola, 48, 650, "Приход товара"),
             Stock(StableGuid(15302), water, 72, 250, "Приход товара"),
-            Stock(StableGuid(15303), energy, 24, 900, "Приход товара"),
+            Stock(StableGuid(15303), bar, 24, 350, "Приход товара"),
             Stock(StableGuid(15304), cola, -2, 650, "Продажа POS"));
 
         dbContext.PosSales.Add(new PosSaleEntity
@@ -610,7 +610,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
 
         dbContext.PosSaleLines.AddRange(
             SaleLine(StableGuid(15401), saleId, cola, "Cola 0.5", 2, 1200),
-            SaleLine(StableGuid(15402), saleId, energy, "Энергетический батончик", 1, 600));
+            SaleLine(StableGuid(15402), saleId, bar, "Шоколадный батончик", 1, 600));
 
         dbContext.Payments.Add(new PaymentEntity
         {

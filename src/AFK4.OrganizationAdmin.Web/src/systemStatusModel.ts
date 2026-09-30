@@ -28,7 +28,8 @@ export interface SystemStatusViewModel {
   left: SystemStatusField[];
   connection: SystemStatusValue;
   server: SystemStatusValue;
-  version: SystemStatusValue;
+  /** null — версии нет (браузер без оболочки): поле не показываем, а не рисуем «Вер.: —». */
+  version: SystemStatusValue | null;
 }
 
 export function staffRoleLabel(roleName: string, t: TFunc): string {
@@ -61,6 +62,6 @@ export function buildSystemStatusModel(input: SystemStatusInput, t: TFunc): Syst
     server: input.dataSource === 'backend'
       ? { value: t('op.status.serverOk'), tone: 'ok' }
       : { value: t('op.status.serverUnavailable'), tone: 'bad' },
-    version: { value: displayValue(input.appVersion), tone: 'neutral' }
+    version: input.appVersion?.trim() ? { value: input.appVersion.trim(), tone: 'neutral' } : null
   };
 }

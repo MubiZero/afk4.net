@@ -67,10 +67,12 @@ export function ShellStatusBar({
           <span>{t('op.status.server')}:</span>
           <strong>{model.server.value}</strong>
         </span>
-        <span className="signal-field">
-          <span>{t('op.status.version')}:</span>
-          <strong>{model.version.value}</strong>
-        </span>
+        {model.version && (
+          <span className="signal-field">
+            <span>{t('op.status.version')}:</span>
+            <strong>{model.version.value}</strong>
+          </span>
+        )}
         <time className="signal-field" dateTime={time}>{time}</time>
       </div>
     </footer>
