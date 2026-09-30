@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { billingLabel, initials, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, serverBillingMode, shouldShowBillingBanner, tariffPriceForMinutes } from './operatorHelpers';
+import { billingLabel, initials, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, serverBillingMode, shouldReloadFloorMapAfterDeviceStatus, shouldShowBillingBanner, tariffPriceForMinutes } from './operatorHelpers';
 import type { OrganizationBillingStatusDto } from './operatorApiClients';
 import type { OperatorAuthSession } from './authClient';
 import type { SeatSummary } from './operatorData';
@@ -209,5 +209,18 @@ describe('serverBillingMode', () => {
     expect(serverBillingMode('guest', 'open', false)).toBe('');
     expect(serverBillingMode('guest', 'fixed', true)).toBe('');
     expect(serverBillingMode('prepaid_wallet', 'fixed', false)).toBe('prepaid_wallet');
+  });
+});
+
+describe('shouldReloadFloorMapAfterDeviceStatus', () => {
+  const seat = { id: 's', zone: 'A', name: 'PC-01', tone: 'ready', stateLabel: '', player: '', remaining: '', device: '', command: '', app: '' } as SeatSummary;
+  const status = { organizationId: 'o', branchId: 'b', deviceId: 'd', machineName: 'PC-01', isOnline: true, isLocked: false, observedAtUtc: '2026-09-30T10:00:00Z' };
+
+  // Снятый или возвращённый киоск по онлайну и блокировке не вывести — карту перечитывают.
+  it('reloads the map when the kiosk flag flips, and only then', () => {
+    expect(shouldReloadFloorMapAfterDeviceStatus(seat, status)).toBe(false);
+    expect(shouldReloadFloorMapAfterDeviceStatus(seat, { ...status, isKioskAbsent: true })).toBe(true);
+    expect(shouldReloadFloorMapAfterDeviceStatus({ ...seat, isKioskAbsent: true }, status)).toBe(true);
+    expect(shouldReloadFloorMapAfterDeviceStatus({ ...seat, isKioskAbsent: true }, { ...status, isKioskAbsent: true })).toBe(false);
   });
 });

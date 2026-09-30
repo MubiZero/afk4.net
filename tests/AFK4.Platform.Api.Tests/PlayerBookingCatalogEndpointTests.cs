@@ -320,6 +320,29 @@ public class PlayerBookingCatalogEndpointTests
         Assert.Equal(PlayerSeatUnavailableReasons.Maintenance, listed.UnavailableReason);
     }
 
+    // ПК без киоска — не игровое место: игроку он не нужен ни свободным, ни занятым.
+    [Fact]
+    public async Task Seats_LeaveOutMachinesWithoutAKiosk()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234");
+        var seat = await SeedSeatAsync(factory, seeded, "PC-03");
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var device = await db.Devices.SingleAsync(candidate => candidate.DeviceId == seat.DeviceId);
+            device.KioskAbsentSinceUtc = Now;
+            await db.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var seats = await client.GetFromJsonAsync<List<PlayerSeatDto>>(
+            $"/api/me/branches/{seeded.BranchId}/seats");
+
+        Assert.Empty(seats!);
+    }
+
     [Fact]
     public async Task Seats_AreScopedToTheCallersOrganization()
     {

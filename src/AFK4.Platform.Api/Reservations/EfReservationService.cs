@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Tariffs;
@@ -105,13 +106,16 @@ public sealed class EfReservationService(
             .BlockingSessions(dbContext.Sessions.AsNoTracking(), organizationId, branchId, startsAtUtc, endsAtUtc, now)
             .Select(session => session.SeatId);
 
+        var withoutKiosk = BranchCapacity.SeatsWithoutKiosk(dbContext, organizationId, branchId);
+
         var freeSeatIds = await dbContext.Seats
             .AsNoTracking()
             .Where(seat =>
                 seat.OrganizationId == organizationId &&
                 seat.BranchId == branchId &&
                 !reservedSeatIds.Contains(seat.SeatId) &&
-                !busySeatIds.Contains(seat.SeatId))
+                !busySeatIds.Contains(seat.SeatId) &&
+                !withoutKiosk.Contains(seat.SeatId))
             .Select(seat => seat.SeatId)
             .ToListAsync(cancellationToken);
 
@@ -518,6 +522,13 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.RequestConflict("Seat has an active, paused, or ending session.", "seat_unavailable");
         }
 
+        if (await BranchCapacity.SeatsWithoutKiosk(dbContext, request.OrganizationId, reservation.BranchId)
+            .AnyAsync(id => id == reservation.SeatId.Value, cancellationToken))
+        {
+            return ReservationServiceResult<ReservationDto>.RequestConflict(
+                "The kiosk is removed from the PC at this seat: it is not a gaming place.", DeviceCommandErrorCodeNames.KioskRemoved);
+        }
+
         reservation.State = ReservationStateNames.Seated;
         reservation.SeatedAtUtc = now;
         // Посадить — это и есть ответ клуба: заявку, которую никто не подтверждал, стойка приняла
@@ -878,6 +889,12 @@ public sealed class EfReservationService(
         if (seatId is null)
         {
             return null;
+        }
+
+        // Место, за которым стоит ПК без киоска, не игровое: обещать его нельзя, пока ПК не вернут в зал.
+        if (await BranchCapacity.SeatsWithoutKiosk(dbContext, organizationId, branchId).AnyAsync(id => id == seatId.Value, cancellationToken))
+        {
+            return ("The kiosk is removed from the PC at this seat: it is not a gaming place.", DeviceCommandErrorCodeNames.KioskRemoved);
         }
 
         var hasReservationConflict = await OverlappingReservations(

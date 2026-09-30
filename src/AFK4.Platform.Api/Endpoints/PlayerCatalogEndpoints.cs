@@ -178,7 +178,9 @@ internal static class PlayerCatalogEndpoints
                       assignment.OrganizationId == player.OrganizationId &&
                       assignment.DetachedAtUtc == null &&
                       device.EnrollmentState == DeviceEnrollmentStateNames.Approved &&
-                      device.Role == DeviceRoleNames.GamingPc
+                      device.Role == DeviceRoleNames.GamingPc &&
+                      // ПК без киоска — не игровое место: в списке для игрока его нет вовсе.
+                      device.KioskAbsentSinceUtc == null
                 orderby zone.SortOrder, seat.SortOrder, seat.Name
                 select new
                 {

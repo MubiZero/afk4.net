@@ -13,4 +13,7 @@ public sealed record DeviceStatusChangedDto(
     string DisplayName = "",
     string Role = DeviceRoleNames.GamingPc,
     string EnrollmentState = DeviceEnrollmentStateNames.Approved,
-    Guid? SeatId = null);
+    Guid? SeatId = null,
+    // Киоск на ПК снят (см. SeatStatusDto.IsKioskAbsent): карте оператора надо перезагрузиться,
+    // когда признак сменился, — по онлайну и блокировке его не вывести.
+    bool IsKioskAbsent = false);

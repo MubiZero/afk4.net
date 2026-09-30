@@ -49,4 +49,7 @@ public sealed record SeatStatusDto(
     string? LastFailedCommandType = null,
     // Как оплачена идущая сессия (BillingModeNames); пусто — гость без расчёта или места занято нет.
     // Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
-    string? SessionBillingMode = null);
+    string? SessionBillingMode = null,
+    // Киоск на ПК снят: это не игровое место, посадить и забронировать его нельзя, пока ПК не
+    // вернут в зал мастером. Отдельно от State — так же, как IsOutsidePlan.
+    bool IsKioskAbsent = false);

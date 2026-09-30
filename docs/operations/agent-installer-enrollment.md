@@ -111,7 +111,8 @@ The installer returns before the wizard finishes; the outcome is in
 the platform (code unknown, expired, revoked or used up, or the plan's device
 limit — retrying will not help), `4` platform unreachable after about eight
 minutes of retries, `5` enrolled but the configuration, shell or agent did not
-come up, `6` works but without the kiosk. If the silent run fails, the HKLM
+come up, `6` enrolled but without the kiosk — the PC is off the floor (the
+Panel marks it «Не игровое место: киоск снят») until the wizard is run again. If the silent run fails, the HKLM
 `RunOnce` entry stays and the wizard window opens at the next admin logon.
 
 Code rules the platform enforces:

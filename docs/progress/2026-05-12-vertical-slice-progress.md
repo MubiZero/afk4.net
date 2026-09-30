@@ -898,6 +898,27 @@ books). Owner decision: a guest picks a tariff and a time and pays cash at the d
   so guest and player session cash shows there on top of game revenue (the revenue summary does not) — read from
   the code, no test covers it yet.
 
+## Removing The Kiosk Takes The PC Off The Floor (2026-09-30)
+
+Acceptance items P36 and P42. After «Снять киоск» and a reboot the Agent started the shell in the
+administrator's session (the free-PC storefront covered the desktop), `DisableTaskMgr` stayed in HKLM, and the
+server still offered the PC to guests. Owner decision: no player account = not a gaming place.
+
+- **Agent:** without the player account from `kiosk.json` it does not start the shell, releases every machine
+  policy of the protection profile plus `DisableTaskMgr` at start and on every heartbeat, and keeps the club's
+  process ban and idle shutdown quiet. On an OS without Windows policies it judges nothing (development).
+- **Server:** the heartbeat carries `KioskInstalled` (null from an older agent = no change, gaming PCs only);
+  `Device.KioskAbsentSinceUtc` (migration `AddDeviceKioskAbsentSince`, nullable column). While set: session start
+  and transfer, reservation create/move/seat, the free-seat list and hall capacity refuse or skip the seat
+  (`device_kiosk_removed`), no seating code, the player's seat list leaves the PC out, and lock/unlock/warn/
+  message/sign-out/maintenance-on are refused with the same code. Power, wake and protection refresh still work.
+- **Panel:** map tile and seat card say «Не игровое место: киоск снят», no seating, and the commands for a
+  player are greyed out with the reason; a flipped flag reloads the map (`DeviceStatusChangedDto.IsKioskAbsent`).
+- **Back on the floor:** run the wizard again as a Gaming PC; the Agent sees the account and the flag clears.
+- **Named, not done:** a seating code issued before the kiosk was removed lives a few minutes and a QR claim by it
+  is not refused; a note edit on a reservation whose seat lost its kiosk is refused with the same code; nothing
+  seen live (needs the VM with UAC, owner's step).
+
 ## Latest Verification
 
 - VM acceptance merged (2026-09-30): #591, #593–#602. The integration branch passed

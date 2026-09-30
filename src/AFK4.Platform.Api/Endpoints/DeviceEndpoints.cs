@@ -1625,6 +1625,17 @@ internal static class DeviceEndpoints
                 });
             }
 
+            // ПК без киоска — не игровое место: блокировать, писать игроку и уводить в обслуживание
+            // некого и незачем. Питание и профиль защиты ему по-прежнему можно слать.
+            if (device.KioskAbsentSinceUtc is not null && DeviceCommandPolicy.RequiresKiosk(request.Type))
+            {
+                return Results.Conflict(new
+                {
+                    Error = "The kiosk is removed from this PC; it is not a gaming place.",
+                    Code = DeviceCommandErrorCodeNames.KioskRemoved
+                });
+            }
+
             var targetDeviceId = deviceId;
             var commandRequest = request with { IdempotencyKey = idempotencyKey };
             if (request.Type == DeviceCommandTypeNames.Unlock)

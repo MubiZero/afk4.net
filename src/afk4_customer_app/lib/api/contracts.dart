@@ -204,6 +204,9 @@ abstract final class DeviceCommandErrorCodeNames {
   static const String wakeTargetUnknown = 'wake_target_unknown';
   /// Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.
   static const String noWakeHelper = 'no_wake_helper';
+  /// Киоск на ПК снят — это не игровое место: сессию на нём не начать, бронь не принять, а команды,
+  /// которым нужен игрок (блокировка, сообщение, выход, обслуживание), адресовать некому.
+  static const String kioskRemoved = 'device_kiosk_removed';
   /// Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента.
   static const String idempotencyConflict = 'idempotency_conflict';
 }
@@ -6476,6 +6479,7 @@ class DeviceHeartbeatRequest {
     this.networkMacAddress,
     this.networkSubnet,
     this.networkBroadcastAddress,
+    this.kioskInstalled,
   });
 
   final String organizationId;
@@ -6500,6 +6504,10 @@ class DeviceHeartbeatRequest {
   /// Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.
   final String? networkBroadcastAddress;
 
+  /// Есть ли на ПК учётка игрока (киоск). false — киоск снят или не ставился: сервер уводит ПК из
+  /// зала. null — агент этого не сообщает (прежняя версия): признак не трогаем.
+  final bool? kioskInstalled;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6515,6 +6523,7 @@ class DeviceHeartbeatRequest {
         networkMacAddress: json['networkMacAddress'] == null ? null : json['networkMacAddress'] as String,
         networkSubnet: json['networkSubnet'] == null ? null : json['networkSubnet'] as String,
         networkBroadcastAddress: json['networkBroadcastAddress'] == null ? null : json['networkBroadcastAddress'] as String,
+        kioskInstalled: json['kioskInstalled'] == null ? null : json['kioskInstalled'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6532,6 +6541,7 @@ class DeviceHeartbeatRequest {
         'networkMacAddress': networkMacAddress,
         'networkSubnet': networkSubnet,
         'networkBroadcastAddress': networkBroadcastAddress,
+        'kioskInstalled': kioskInstalled,
       };
 }
 
@@ -7217,6 +7227,7 @@ class DeviceStatusChangedDto {
     this.role,
     this.enrollmentState,
     this.seatId,
+    this.isKioskAbsent,
   });
 
   final String organizationId;
@@ -7231,6 +7242,10 @@ class DeviceStatusChangedDto {
   final String? enrollmentState;
   final String? seatId;
 
+  /// Киоск на ПК снят (см. SeatStatusDto.IsKioskAbsent): карте оператора надо перезагрузиться,
+  /// когда признак сменился, — по онлайну и блокировке его не вывести.
+  final bool? isKioskAbsent;
+
   factory DeviceStatusChangedDto.fromJson(Map<String, dynamic> json) => DeviceStatusChangedDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -7243,6 +7258,7 @@ class DeviceStatusChangedDto {
         role: json['role'] == null ? null : json['role'] as String,
         enrollmentState: json['enrollmentState'] == null ? null : json['enrollmentState'] as String,
         seatId: json['seatId'] == null ? null : json['seatId'] as String,
+        isKioskAbsent: json['isKioskAbsent'] == null ? null : json['isKioskAbsent'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -7257,6 +7273,7 @@ class DeviceStatusChangedDto {
         'role': role,
         'enrollmentState': enrollmentState,
         'seatId': seatId,
+        'isKioskAbsent': isKioskAbsent,
       };
 }
 
@@ -17434,6 +17451,7 @@ class SeatStatusDto {
     this.isOutsidePlan,
     this.lastFailedCommandType,
     this.sessionBillingMode,
+    this.isKioskAbsent,
   });
 
   final String seatId;
@@ -17498,6 +17516,10 @@ class SeatStatusDto {
   /// Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
   final String? sessionBillingMode;
 
+  /// Киоск на ПК снят: это не игровое место, посадить и забронировать его нельзя, пока ПК не
+  /// вернут в зал мастером. Отдельно от State — так же, как IsOutsidePlan.
+  final bool? isKioskAbsent;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -17526,6 +17548,7 @@ class SeatStatusDto {
         isOutsidePlan: json['isOutsidePlan'] == null ? null : json['isOutsidePlan'] as bool,
         lastFailedCommandType: json['lastFailedCommandType'] == null ? null : json['lastFailedCommandType'] as String,
         sessionBillingMode: json['sessionBillingMode'] == null ? null : json['sessionBillingMode'] as String,
+        isKioskAbsent: json['isKioskAbsent'] == null ? null : json['isKioskAbsent'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -17556,6 +17579,7 @@ class SeatStatusDto {
         'isOutsidePlan': isOutsidePlan,
         'lastFailedCommandType': lastFailedCommandType,
         'sessionBillingMode': sessionBillingMode,
+        'isKioskAbsent': isKioskAbsent,
       };
 }
 

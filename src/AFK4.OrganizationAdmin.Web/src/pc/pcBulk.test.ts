@@ -53,6 +53,14 @@ describe('planBulk', () => {
     expect(plan.targets).toHaveLength(1);
   });
 
+  // Без киоска блокировать нечего: сервер такую команду отказывает, и список «не получат» называет причину.
+  it('lock skips a PC without a kiosk and says why', () => {
+    const plan = planBulk([seat('01'), seat('02', { isKioskAbsent: true })], 'lock', all);
+
+    expect(plan.targets.map((target) => target.id)).toEqual(['01']);
+    expect(plan.skipped.map((skip) => [skip.seat.id, skip.reason])).toEqual([['02', 'op.pc.blocked.noKiosk']]);
+  });
+
   it('maintenance needs its own right', () => {
     const plan = planBulk([seat('01')], 'maintenance-on', { canDispatch: true, canMaintain: false });
 

@@ -113,6 +113,25 @@ describe('floor-map state', () => {
     expect(isSeatReadyForGuest(createSeat({ state: 'Free', isOutsidePlan: true }))).toBe(false);
   });
 
+  // «Снять киоск» = ПК выходит из зала: место серое «Не игровое место», посадить гостя нельзя; сессия,
+  // если она каким-то образом идёт, остаётся в своём цвете.
+  it('greys out a PC whose kiosk is removed and does not offer it to a guest', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [
+        createSeat({ state: 'Free', isKioskAbsent: true }),
+        createSeat({ seatId: 'seat-2', state: 'Active', activeSessionId: 'session-2', isKioskAbsent: true })
+      ]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({ tone: 'service', stateLabel: 'Не игровое место', remaining: 'Не игровое место', isKioskAbsent: true });
+    expect(state.seats[1]).toMatchObject({ tone: 'active', isKioskAbsent: true });
+    expect(isSeatReadyForGuest(createSeat({ state: 'Free', isKioskAbsent: true }))).toBe(false);
+    expect(isSeatReadyForGuest(createSeat({ state: 'Free' }))).toBe(true);
+  });
+
   // Аудит #4: сбой последней команды на ПК, который на связи, — своё состояние, не «нет связи».
   // Раньше оба сводились к тону offline, и посадка гостя гасла с ложной причиной «нет сети».
   it('maps a failed command on an online PC to its own "failed" tone, distinct from «нет связи»', () => {
@@ -274,13 +293,14 @@ describe('floor-map state', () => {
       zones: [],
       seats: [
         createSeat({ state: 'Maintenance', maintenanceSinceUtc: '2026-09-27T08:00:00Z' }),
-        createSeat({ seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc', seatName: 'PC-02', deviceId: '22222222-2222-2222-2222-222222222222', isOutsidePlan: true })
+        createSeat({ seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc', seatName: 'PC-02', deviceId: '22222222-2222-2222-2222-222222222222', isOutsidePlan: true }),
+        createSeat({ seatId: 'dddddddd-dddd-dddd-dddd-dddddddddddd', seatName: 'PC-03', deviceId: '33333333-3333-3333-3333-333333333333', isKioskAbsent: true })
       ]
     }, t);
     const before = state.seats.map((seat) => ({ tone: seat.tone, stateLabel: seat.stateLabel }));
 
     let seats = state.seats;
-    for (const id of [deviceId, '22222222-2222-2222-2222-222222222222']) {
+    for (const id of [deviceId, '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333']) {
       seats = applyDeviceStatusToSeats(seats, {
         organizationId, branchId, deviceId: id, machineName: 'PC', isOnline: true, isLocked: true,
         observedAtUtc: '2026-09-27T10:00:00Z'

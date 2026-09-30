@@ -392,6 +392,15 @@ public sealed class EfSessionCommandService(
                 "device_in_maintenance");
         }
 
+        if (await dbContext.Devices.AnyAsync(
+            device => device.DeviceId == assignment.DeviceId && device.KioskAbsentSinceUtc != null,
+            cancellationToken))
+        {
+            return SessionCommandServiceResult.RequestConflict(
+                "The kiosk is removed from the PC at the target seat: it is not a gaming place.",
+                DeviceCommandErrorCodeNames.KioskRemoved);
+        }
+
         // Перенос — та же новая сессия для ПК, на который её несут: на ПК вне тарифа её не перенести.
         if (planLimitGuard is not null
             && await planLimitGuard.CheckDeviceOnPlanAsync(session.OrganizationId, assignment.DeviceId, cancellationToken) is { } outsidePlan)

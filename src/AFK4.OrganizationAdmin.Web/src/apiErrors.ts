@@ -82,6 +82,9 @@ const codeMessageKeys = {
   session_start_conflict: 'op.error.code.sessionStartConflict',
   plan_limit_reached: 'op.error.code.planLimitReached',
   device_outside_plan: 'op.error.code.deviceOutsidePlan',
+  // Киоск снят — ПК не игровое место: посадка, бронь и команды для игрока закрыты, пока его не
+  // вернут в зал мастером установки.
+  device_kiosk_removed: 'op.error.code.deviceKioskRemoved',
   // Касса и смены: до сих пор эти отказы не имели машинного имени, и кассир видел на экране
   // английскую фразу сервера вместе с сырым телом ответа.
   shift_already_open: 'op.error.code.shiftAlreadyOpen',

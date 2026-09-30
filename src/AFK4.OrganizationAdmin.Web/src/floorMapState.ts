@@ -157,6 +157,7 @@ export function isSeatReadyForGuest(dto: SeatStatusDto): boolean {
   // неудавшийся ребут) не мешает начать новую сессию.
   return !hasActiveSession
     && dto.isOutsidePlan !== true
+    && dto.isKioskAbsent !== true
     && (tone === 'ready' || tone === 'failed');
 }
 
@@ -181,9 +182,15 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   // ПК сверх предела бесплатного тарифа: новую сессию на нём не начать, поэтому свободное место —
   // спокойный серый, как обслуживание, а не «готов». Идущая сессия доживает в своём цвете.
   const isOutsidePlan = dto.isOutsidePlan === true;
+  // Киоск снят — ПК вышел из зала: место закрыто так же, как сверх тарифа, но причина другая, и
+  // посадка вернётся только с мастером установки, а не с оплатой.
+  const isKioskAbsent = dto.isKioskAbsent === true;
+  const idleKioskAbsent = isKioskAbsent && !hasActiveSession;
   const idleOutsidePlan = isOutsidePlan && !hasActiveSession;
+  const idleClosed = idleOutsidePlan || idleKioskAbsent;
+  const closedLabel = idleKioskAbsent ? t('op.floor.kioskAbsent') : t('op.floor.outsidePlan');
   const lastFailedCommandType = dto.lastFailedCommandType ?? null;
-  const tone = idleOutsidePlan ? 'service' : withFailedCommand(resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession), lastFailedCommandType);
+  const tone = idleClosed ? 'service' : withFailedCommand(resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession), lastFailedCommandType);
   const remainingSeconds = dto.remainingSeconds ?? null;
   const remainingDeadlineMs = remainingSeconds === null
     ? null
@@ -203,12 +210,12 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     zone: dto.zoneName,
     name: dto.seatName,
     tone,
-    stateLabel: idleOutsidePlan ? t('op.floor.outsidePlan') : seatStatusLabel(tone, t),
+    stateLabel: idleClosed ? closedLabel : seatStatusLabel(tone, t),
     // Идущая сессия без имени — гость без аккаунта: «Активный клиент» в шапке расчёта звал его так,
     // будто у него есть карточка клуба (приёмка 30.09.2026).
     player: playerDisplayName ?? (hasActiveSession || tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
-    remaining: idleOutsidePlan
-      ? t('op.floor.outsidePlan')
+    remaining: idleClosed
+      ? closedLabel
       : isOpenTab
         ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
         : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
@@ -244,6 +251,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     sessionBillingMode: dto.sessionBillingMode ?? null,
     isConsole,
     isOutsidePlan,
+    isKioskAbsent,
     lastFailedCommandType
   };
 }
@@ -275,11 +283,12 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   };
 
   // Статус ПК приходит с каждым сердцебиением и знает только «на связи / заблокирован». Место на
-  // обслуживании и свободное место сверх тарифа закрыты по другой причине — её знает только снимок
-  // карты. Пересчёт по статусу превращал их в «Свободен (+)», и оператор сажал гостя на закрытый ПК.
+  // обслуживании, свободное место сверх тарифа и ПК без киоска закрыты по другой причине — её знает
+  // только снимок карты. Пересчёт по статусу превращал их в «Свободен (+)», и оператор сажал гостя
+  // на закрытый ПК.
   const inMaintenance = Boolean(seat.maintenanceSinceUtc) || normalizeState(seat.rawState ?? '') === 'maintenance';
-  const idleOutsidePlan = seat.isOutsidePlan === true;
-  if (!hasActiveSession && (inMaintenance || idleOutsidePlan)) {
+  const idleClosed = seat.isOutsidePlan === true || seat.isKioskAbsent === true;
+  if (!hasActiveSession && (inMaintenance || idleClosed)) {
     return { ...seat, ...deviceFields };
   }
 

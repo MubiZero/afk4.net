@@ -43,8 +43,11 @@ export function pcCommandsFor(seat: SeatSummary, access: PcCommandAccess): PcCom
       ? 'op.pc.blocked.pending'
       : null;
   const onlyFree: MessageKey | null = unreachable ?? (busy ? 'op.pc.blocked.session' : null);
-  // Сообщение и выход из аккаунта нужны игроку на ПК — на свободном месте отправлять их некому.
-  const needsPlayer: MessageKey | null = unreachable ?? (busy ? null : 'op.pc.blocked.noPlayer');
+  // Сообщение и выход из аккаунта нужны игроку на ПК — на свободном месте отправлять их некому, а
+  // без киоска не будет и экрана игрока.
+  const needsPlayer: MessageKey | null = seat.isKioskAbsent
+    ? 'op.pc.blocked.noKiosk'
+    : unreachable ?? (busy ? null : 'op.pc.blocked.noPlayer');
   const options: PcCommandOption[] = [];
 
   if (access.canDispatch) {
@@ -64,7 +67,7 @@ export function pcCommandsFor(seat: SeatSummary, access: PcCommandAccess): PcCom
         // Возврат в зал не смотрит на связь (её нет и у неподтверждённого ПК), но не спорит со
         // своей же командой в полёте.
         ? { id: 'maintenance-off', blockedReason: pending ? 'op.pc.blocked.pending' : null, confirm: null }
-        : { id: 'maintenance-on', blockedReason: onlyFree, confirm: 'warning' }
+        : { id: 'maintenance-on', blockedReason: seat.isKioskAbsent ? 'op.pc.blocked.noKiosk' : onlyFree, confirm: 'warning' }
     );
   }
 
@@ -94,6 +97,14 @@ export interface PcLockOption {
  */
 export function pcLockCommandsFor(seat: SeatSummary): PcLockOption[] {
   if (!seat.deviceId || seat.isConsole) return [];
+
+  // Без киоска запирать и отпирать нечего: экрана игрока нет, сервер такие команды отказывает.
+  if (seat.isKioskAbsent) {
+    return [
+      { id: 'lock', disabled: true, hintKey: 'op.pc.blocked.noKiosk' },
+      { id: 'unlock', disabled: true, hintKey: 'op.pc.blocked.noKiosk' }
+    ];
+  }
 
   if (seat.isDeviceOnline === false) {
     return [

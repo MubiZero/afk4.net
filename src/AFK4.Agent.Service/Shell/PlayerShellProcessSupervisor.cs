@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Protection;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
 
@@ -29,6 +30,7 @@ public sealed class PlayerShellProcessSupervisor(
     IPlayerShellProcessQuery processQuery,
     IPlayerShellProcessStarter processStarter,
     IPlayerShellLaunchContext launchContext,
+    IMachineRegistry machine,
     ILogger<PlayerShellProcessSupervisor> logger) : IPlayerShellProcessSupervisor
 {
     private static readonly HashSet<string> StatesRequiringShell = new(StringComparer.Ordinal)
@@ -44,6 +46,16 @@ public sealed class PlayerShellProcessSupervisor(
 
     public Task EnsureRunningAsync(AgentRuntimeState runtimeState, CancellationToken cancellationToken)
     {
+        // Без учётки игрока (киоск снят или не ставился) это не игровое место. Оболочку там никто
+        // не ждёт: запущенная в сеансе администратора, она закрывала бы ему рабочий стол витриной
+        // свободного ПК. Вернуть ПК в зал — поставить киоск мастером заново.
+        // Где Windows-политик нет (разработка на другой ОС), киоска как понятия нет: оболочку поднимаем.
+        if (machine.IsSupported && !machine.HasPlayerAccount)
+        {
+            logger.LogDebug("Player Shell is not started: this PC has no player account (the kiosk is not installed).");
+            return Task.CompletedTask;
+        }
+
         if (!StatesRequiringShell.Contains(runtimeState.State))
         {
             return Task.CompletedTask;

@@ -1,6 +1,7 @@
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
+using AFK4.Agent.Service.Tests.Protection;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -154,6 +155,7 @@ public sealed class PlayerShellProcessSupervisorTests
             processQuery,
             processStarter,
             new FixedShellLaunchContext(new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false)),
+            new ProtectionEnforcerTests.FakeRegistry(),
             NullLogger<PlayerShellProcessSupervisor>.Instance);
 
         await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
@@ -182,12 +184,54 @@ public sealed class PlayerShellProcessSupervisorTests
         Assert.Equal(1, processStarter.StartCount);
     }
 
+    // «Снять киоск» = ПК выходит из зала. После перезагрузки агент запускал оболочку в сеансе
+    // администратора, и витрина «Свободен» закрывала ему рабочий стол.
+    [Theory]
+    [InlineData(PlayerShellStateNames.Locked)]
+    [InlineData(PlayerShellStateNames.Error)]
+    public async Task EnsureRunningAsync_WithoutAPlayerAccount_NeverStartsTheShell(string state)
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processStarter = new RecordingProcessStarter();
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            new RecordingProcessQuery(isRunning: false),
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(1, IsCurrentProcessSession: false),
+            machine: new ProtectionEnforcerTests.FakeRegistry { PlayerAccount = false });
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow) with { State = state }, CancellationToken.None);
+
+        Assert.Equal(0, processStarter.StartCount);
+    }
+
+    // Где Windows-политик нет, киоска как понятия нет: разработка на другой ОС оболочку получает.
+    [Fact]
+    public async Task EnsureRunningAsync_WhereThereIsNoKioskConcept_StillStartsTheShell()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processStarter = new RecordingProcessStarter();
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            new RecordingProcessQuery(isRunning: false),
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false),
+            machine: new ProtectionEnforcerTests.FakeRegistry { Supported = false, PlayerAccount = false });
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+
+        Assert.Equal(1, processStarter.StartCount);
+    }
+
     private static PlayerShellProcessSupervisor CreateSupervisor(
         string executablePath,
         IPlayerShellProcessQuery processQuery,
         IPlayerShellProcessStarter processStarter,
         bool autoStartEnabled = false,
-        PlayerShellLaunchTarget? activeUserSession = null)
+        PlayerShellLaunchTarget? activeUserSession = null,
+        ProtectionEnforcerTests.FakeRegistry? machine = null)
     {
         return new PlayerShellProcessSupervisor(
             Options.Create(new AgentOptions
@@ -199,6 +243,7 @@ public sealed class PlayerShellProcessSupervisorTests
             processQuery,
             processStarter,
             new FixedShellLaunchContext(activeUserSession),
+            machine ?? new ProtectionEnforcerTests.FakeRegistry(),
             NullLogger<PlayerShellProcessSupervisor>.Instance);
     }
 
