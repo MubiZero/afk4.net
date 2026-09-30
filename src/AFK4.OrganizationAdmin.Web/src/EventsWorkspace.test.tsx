@@ -213,7 +213,8 @@ describe('EventsWorkspace', () => {
     fireEvent.click(await screen.findByText('Ночь Counter-Strike'));
 
     expect(await screen.findByText('Фаррух')).toBeDefined();
-    expect(screen.getByText(/992937380070/)).toBeDefined();
+    // Номер — в принятом формате, как в остальных списках клиентов (приёмка 30.09.2026).
+    expect(screen.getByText(/\+992 93 738 00 70/)).toBeDefined();
   });
 
   // У события без потолка «3 из 0» было бы враньём.

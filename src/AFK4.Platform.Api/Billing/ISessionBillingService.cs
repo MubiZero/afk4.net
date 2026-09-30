@@ -38,7 +38,7 @@ public interface ISessionBillingService
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -48,7 +48,7 @@ public interface ISessionBillingService
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -78,13 +78,14 @@ public interface ISessionBillingService
 
     /// <summary>
     /// Write the deferred time-charge ledger entry for an open-tab postpaid
-    /// session at checkout. A zero charge writes nothing.
+    /// session at checkout. A zero charge writes nothing. Без игрока (открытый счёт гостя) пишется
+    /// одна запись выручки за игру: долга у гостя не бывает, деньги он отдаёт тут же на кассе.
     /// </summary>
     Task AppendCheckoutLedgerEntriesAsync(
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         DateTimeOffset now,
         CancellationToken cancellationToken);
 }

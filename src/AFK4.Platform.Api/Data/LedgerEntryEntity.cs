@@ -10,7 +10,8 @@ public sealed class LedgerEntryEntity
 
     public Guid? ShiftId { get; set; }
 
-    public Guid PlayerAccountId { get; set; }
+    // Null — гость без аккаунта заплатил наличными за игру: запись нужна выручке, баланса у неё нет.
+    public Guid? PlayerAccountId { get; set; }
 
     public Guid? SessionId { get; set; }
 

@@ -47,6 +47,11 @@ public sealed class EfSessionStartWorkflow(
 
         var isFixed = durationMode == SessionDurationModes.Fixed;
         var billingMode = (request.BillingMode ?? string.Empty).Trim();
+        if (billingMode == BillingModeNames.PrepaidCash && request.PlayerAccountId is not null)
+        {
+            return Invalid("Cash billing is for a guest without an account.", SessionErrorCodeNames.CashBillingGuestOnly);
+        }
+
         long? compValue = null;
         if (request.IsComp)
         {
@@ -166,13 +171,23 @@ public sealed class EfSessionStartWorkflow(
             branchId,
             request.PlayerAccountId,
             billingMode,
-            request.TariffVersionId,
+            // Бесплатная сессия уже оценена по тарифу выше; второй раз её тариф не проверяется.
+            request.IsComp ? null : request.TariffVersionId,
             request.PlayerPackageId,
             validationMinutes,
             cancellationToken);
         if (!billingValidation.Succeeded)
         {
             return Invalid(billingValidation.Error ?? "Session billing validation failed.", billingValidation.Code);
+        }
+
+        // Гость платит ровно ту сумму, которую ему назвали. Тариф могли сменить между окном старта и
+        // нажатием — тогда отказ, а не другие деньги из кассы.
+        if (billingMode == BillingModeNames.PrepaidCash &&
+            request.ExpectedChargeMinorUnits is long expectedCharge &&
+            expectedCharge != billingValidation.AmountMinorUnits)
+        {
+            return Conflict("The price changed since it was quoted; quote it again.", SessionErrorCodeNames.PriceChanged);
         }
 
         // Гостевая сессия проходит мимо биллинга (режим оплаты пуст), но версию тарифа на себе
@@ -236,13 +251,14 @@ public sealed class EfSessionStartWorkflow(
         dbContext.SessionLeases.Add(leaseEntity);
         AddEvent(session, actorStaffUserId, assignment.DeviceId, now);
 
-        if (isFixed && request.PlayerAccountId is not null && !request.IsComp)
+        if (isFixed && !request.IsComp &&
+            (request.PlayerAccountId is not null || billingMode == BillingModeNames.PrepaidCash))
         {
             await sessionBillingService.AppendStartLedgerEntriesAsync(
                 sessionId,
                 actorStaffUserId,
                 billingValidation,
-                request.PlayerAccountId.Value,
+                request.PlayerAccountId,
                 request.PlayerPackageId,
                 billingMode,
                 now,

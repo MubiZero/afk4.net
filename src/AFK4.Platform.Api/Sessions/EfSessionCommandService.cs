@@ -192,14 +192,14 @@ public sealed class EfSessionCommandService(
             return extendStale;
         }
 
-        if (session.PlayerAccountId is not null &&
-            request.PlayerAccountId is not null &&
-            session.PlayerAccountId.Value != request.PlayerAccountId.Value)
+        // Продление не меняет, чья сессия: игрока к гостевой сессии им не привязать, а чужого — не
+        // подменить. Раньше гостевая сессия с игроком в запросе молча становилась его сессией.
+        if (request.PlayerAccountId is not null && request.PlayerAccountId != session.PlayerAccountId)
         {
             return SessionCommandServiceResult.Invalid("Extend request player account must match the session player account.");
         }
 
-        var playerAccountId = session.PlayerAccountId ?? request.PlayerAccountId;
+        var playerAccountId = session.PlayerAccountId;
 
         // Money-path guard: an extend that omits the billing mode inherits what the session was
         // started with — never silently fall back to a free guest top-up for a paid session. An
@@ -236,8 +236,16 @@ public sealed class EfSessionCommandService(
                     billingValidation.Code);
             }
 
+            // Гость доплачивает наличными ровно ту сумму, которую ему назвали (см. StartGuestSessionRequest).
+            if (effectiveBillingMode == BillingModeNames.PrepaidCash &&
+                request.ExpectedChargeMinorUnits is long expectedCharge &&
+                expectedCharge != billingValidation.AmountMinorUnits)
+            {
+                return SessionCommandServiceResult.RequestConflict(
+                    "The price changed since it was quoted; quote it again.", SessionErrorCodeNames.PriceChanged);
+            }
+
             var now = timeProvider.GetUtcNow();
-            session.PlayerAccountId = playerAccountId;
             session.TariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
                 ? request.TariffRuleVersionId
                 : billingValidation.TariffRuleVersionId;
@@ -248,13 +256,13 @@ public sealed class EfSessionCommandService(
             var lease = await IssueNextLeaseAsync(session, now, cancellationToken);
             AddEvent(session, "session-extended", actorStaffUserId, session.DeviceId, now);
 
-            if (playerAccountId is not null)
+            if (playerAccountId is not null || effectiveBillingMode == BillingModeNames.PrepaidCash)
             {
                 await sessionBillingService.AppendExtendLedgerEntriesAsync(
                     session.SessionId,
                     actorStaffUserId,
                     billingValidation,
-                    playerAccountId.Value,
+                    playerAccountId,
                     playerPackageId,
                     effectiveBillingMode,
                     now,
@@ -306,7 +314,7 @@ public sealed class EfSessionCommandService(
 
     private const string PackageReferencePrefix = "package:";
 
-    private static (Guid? TariffVersionId, Guid? PlayerPackageId) ReadSessionBillingReferences(
+    internal static (Guid? TariffVersionId, Guid? PlayerPackageId) ReadSessionBillingReferences(
         SessionEntity session,
         string billingMode)
     {
@@ -317,7 +325,8 @@ public sealed class EfSessionCommandService(
                 : null);
         }
 
-        return billingMode is BillingModeNames.PrepaidWallet or BillingModeNames.PostpaidDebt &&
+        // Гость, заплативший наличными, тоже ходит по тарифу сессии: Панель его при продлении не шлёт.
+        return billingMode is BillingModeNames.PrepaidWallet or BillingModeNames.PostpaidDebt or BillingModeNames.PrepaidCash &&
                Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId)
             ? (tariffVersionId, null)
             : (null, null);

@@ -10,6 +10,7 @@ import {
   readNumber,
   readString,
   tariffOptionLabel,
+  tariffPriceForMinutes,
   type PlayerClientItem
 } from '../operatorHelpers';
 import { formatDurationCompact } from '../floorMapState';
@@ -37,11 +38,13 @@ export type SessionStartClient = Pick<PlayerClientItem, 'name' | 'phoneNumber' |
   balanceMinorUnits: number | null;
 };
 
+// Гость платит наличными у стойки (решение владельца 30.09.2026): по умолчанию час вперёд — сумма
+// видна сразу, и нельзя посадить гостя, не назвав ему цены. Открытый счёт — осознанный выбор.
 export function createSessionStartSelection(mode: SessionBillingModeId = 'guest'): SessionStartSelection {
   return {
     tariffRuleVersionId: defaultTariffRuleVersionId,
-    durationMode: mode === 'guest' || mode === 'postpaid_debt' ? 'open' : 'fixed',
-    durationMinutes: mode === 'guest' || mode === 'postpaid_debt' ? null : 60,
+    durationMode: mode === 'postpaid_debt' ? 'open' : 'fixed',
+    durationMinutes: mode === 'postpaid_debt' ? null : 60,
     billingMode: mode,
     tariffVersionId: null,
     playerPackageId: null,
@@ -64,6 +67,12 @@ export interface SessionStartFormProps {
   loadTariffs: () => Promise<TariffOptionDto[]>;
   loadPackages: (playerAccountId: string) => Promise<unknown[]>;
   onValidityChange?: (valid: boolean, reason: string | null) => void;
+  /**
+   * Сколько гость отдаст наличными за выбранное время (по правилам тарифа), либо null, если денег
+   * у стойки не берут: открытый счёт, клиент клуба, бесплатная сессия. Родитель шлёт это число с
+   * запросом старта — сменился тариф, и сервер откажет, а не возьмёт другую сумму.
+   */
+  onChargeChange?: (chargeMinorUnits: number | null) => void;
 }
 
 export function SessionStartForm({
@@ -78,7 +87,8 @@ export function SessionStartForm({
   searchClients,
   loadTariffs,
   loadPackages,
-  onValidityChange
+  onValidityChange,
+  onChargeChange
 }: SessionStartFormProps) {
   const { t } = useI18n();
   const [localClient, setLocalClient] = useState<SessionStartClient | null>(null);
@@ -108,7 +118,7 @@ export function SessionStartForm({
       setTariffs(items);
       const latest = valueRef.current;
       const current = items.find((item) => readString(item, 'tariffVersionId') === latest.tariffVersionId) ?? items[0];
-      if (current && (latest.isComp || latest.billingMode !== 'guest' && latest.billingMode !== 'package')) {
+      if (current && (latest.isComp || latest.billingMode !== 'package')) {
         onChange({
           ...latest,
           tariffVersionId: readString(current, 'tariffVersionId') || null,
@@ -155,15 +165,22 @@ export function SessionStartForm({
       ? t('op.map.panel.billingMissingTariff')
     : !isGuest && !clientId
       ? t('op.map.panel.billingMissingPlayer')
-      : (mode === 'prepaid_wallet' || mode === 'postpaid_debt') && !value.tariffVersionId
+      : mode !== 'package' && !value.tariffVersionId
         ? t('op.map.panel.billingMissingTariff')
         : mode === 'package' && !value.playerPackageId
           ? t('op.map.panel.billingMissingPackage')
           : null;
   const valid = missing === null;
-  const estimate = durationMinutes != null && mode !== 'guest' && mode !== 'package' && pricePerMinute > 0
-    ? durationMinutes * pricePerMinute
+  // Цена по правилам тарифа — с минимумом и округлением, как её посчитает сервер.
+  const estimate = durationMinutes != null && !value.isComp && mode !== 'package' && selectedTariff !== null && pricePerMinute > 0
+    ? tariffPriceForMinutes({
+      pricePerMinuteMinorUnits: pricePerMinute,
+      minimumBillableMinutes: readNumber(selectedTariff, 'minimumBillableMinutes', 0),
+      roundingIncrementMinutes: readNumber(selectedTariff, 'roundingIncrementMinutes', 0)
+    }, durationMinutes)
     : null;
+  // Деньги у стойки: гость на фиксированное время платит вперёд. Открытый счёт — при расчёте.
+  const cashDue = isGuest && !value.isComp && value.durationMode === 'fixed' ? estimate : null;
   const coverage = mode === 'prepaid_wallet' && client?.balanceMinorUnits != null && pricePerMinute > 0
     ? Math.floor(client.balanceMinorUnits / pricePerMinute)
     : null;
@@ -175,6 +192,9 @@ export function SessionStartForm({
   const onValidityChangeRef = useRef(onValidityChange);
   onValidityChangeRef.current = onValidityChange;
   useEffect(() => { onValidityChangeRef.current?.(valid, missing); }, [valid, missing]);
+  const onChargeChangeRef = useRef(onChargeChange);
+  onChargeChangeRef.current = onChargeChange;
+  useEffect(() => { onChargeChangeRef.current?.(cashDue); }, [cashDue]);
 
   const chooseMode = (nextMode: SessionBillingModeId) => {
     const nextTariff = tariffs[0] ?? null;
@@ -184,7 +204,7 @@ export function SessionStartForm({
       billingMode: nextMode,
       durationMode: open ? value.durationMode : 'fixed',
       durationMinutes: open && value.durationMode === 'open' ? null : (value.durationMinutes ?? 60),
-      tariffVersionId: nextMode === 'guest' || nextMode === 'package' ? null : (nextTariff ? readString(nextTariff, 'tariffVersionId') || null : null),
+      tariffVersionId: nextMode === 'package' ? null : (nextTariff ? readString(nextTariff, 'tariffVersionId') || null : null),
       tariffRuleVersionId: nextTariff ? readString(nextTariff, 'tariffRuleVersionId', defaultTariffRuleVersionId) : defaultTariffRuleVersionId,
       playerPackageId: nextMode === 'package' ? (readString(packages[0], 'playerPackageId') || null) : null
     });
@@ -246,7 +266,7 @@ export function SessionStartForm({
       })}</p>}
     </>}
 
-    {(value.isComp || (!isGuest && mode !== 'package')) && <>
+    {(value.isComp || mode !== 'package') && <>
       <div className="start-section-head">{t('op.map.panel.tariffLabel')}</div>
       <PanelSelect className="start-select" ariaLabel={t('op.map.panel.tariffSession')}
         value={value.tariffVersionId ?? ''} disabled={disabled || tariffs.length === 0}
@@ -288,9 +308,14 @@ export function SessionStartForm({
           onClick={() => onChange({ ...value, durationMode: 'open', durationMinutes: null })}>{t('op.map.panel.openTab')}</button>
       </div>
       {openBlocked.hint}
-      {estimate != null && <p className="start-price">{t('op.map.panel.startPriceEstimate', {
+      {estimate != null && !isGuest && <p className="start-price">{t('op.map.panel.startPriceEstimate', {
         duration: formatDurationCompact((durationMinutes ?? 60) * 60, t), amount: formatMinorUnits(estimate, currencyCode)
       })}</p>}
+      {/* Гость платит здесь и сейчас: сумма названа жирной строкой, чтобы кассир не начал сессию, не взяв денег. */}
+      {cashDue != null && <p className="start-price start-cash" role="status">{t('op.map.panel.guestCashDue', {
+        amount: formatMinorUnits(cashDue, currencyCode)
+      })}</p>}
+      {isGuest && !value.isComp && value.durationMode === 'open' && <p className="start-price" role="status">{t('op.map.panel.guestOpenTabNote')}</p>}
     </>}
 
     <label className="start-comp-toggle"><input type="checkbox" disabled={disabled} checked={value.isComp}

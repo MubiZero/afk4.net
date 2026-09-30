@@ -33,6 +33,7 @@ import type { SessionActionResponse } from './operatorApiClients';
 import { permissionNames, hasPermission } from './operatorPermissions';
 import {
   defaultSessionDurationMinutes,
+  serverBillingMode,
   createAuthenticatedOperatorClients,
   isUnauthorizedPlatformError,
   clearStoredOperatorSession,
@@ -275,11 +276,13 @@ export function useFloorMap({
         durationMinutes: isOpenTab ? null : (request.durationMinutes ?? defaultSessionDurationMinutes),
         tariffRuleVersionId: billing.tariffRuleVersionId,
         playerAccountId: billing.playerAccountId ?? null,
-        billingMode: billing.mode === 'guest' ? '' : billing.mode,
+        billingMode: serverBillingMode(billing.mode, isOpenTab ? 'open' : 'fixed', request.isComp ?? false),
         tariffVersionId: billing.tariffVersionId ?? null,
         playerPackageId: billing.playerPackageId ?? null,
         isComp: request.isComp ?? false,
-        compReason: request.compReason ?? null
+        compReason: request.compReason ?? null,
+        // Сумма, которую оператор назвал гостю: сменился тариф — сервер откажет, а не возьмёт другую.
+        expectedChargeMinorUnits: request.expectedChargeMinorUnits ?? null
       };
       response = await retryKeys.send('session-start', [branchId, start], (idempotencyKey) =>
         clients.sessions.startGuestSession(branchId, { ...start, idempotencyKey }));
@@ -301,7 +304,8 @@ export function useFloorMap({
         playerAccountId: billing.playerAccountId ?? null,
         billingMode: billing.mode === 'guest' ? '' : billing.mode,
         tariffVersionId: billing.tariffVersionId ?? null,
-        playerPackageId: billing.playerPackageId ?? null
+        playerPackageId: billing.playerPackageId ?? null,
+        expectedChargeMinorUnits: request.expectedChargeMinorUnits ?? null
       };
       response = await retryKeys.send('session-extend', [sessionId, extend], (idempotencyKey) =>
         clients.sessions.extendSession(sessionId, { ...extend, idempotencyKey }));

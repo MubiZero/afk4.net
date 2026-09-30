@@ -46,6 +46,15 @@ function ids(sections: ReturnType<typeof buildSeatMenu>): string[] {
 }
 
 describe('buildSeatMenu', () => {
+  // Гость платит наличными: «+15/+30» у него — новая оплата, и сумма называется в карточке места,
+  // а не в меню, где её молча не взять.
+  it('keeps quick extends out of the menu for a guest who paid cash up front', () => {
+    const all = ids(buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1', sessionBillingMode: 'prepaid_cash' }), allCaps));
+    expect(all).not.toContain('extend-15');
+    expect(all).not.toContain('extend-30');
+    expect(ids(buildSeatMenu(seat({ tone: 'active', activeSessionId: 'sess-1', sessionBillingMode: 'prepaid_wallet' }), allCaps))).toContain('extend-15');
+  });
+
   it('offers a one-tap guest seating on a free seat, never a billed/destructive op', () => {
     const sections = buildSeatMenu(seat({ tone: 'ready' }), allCaps);
     const all = ids(sections);

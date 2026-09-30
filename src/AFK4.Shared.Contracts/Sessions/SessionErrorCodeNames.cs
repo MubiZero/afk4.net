@@ -27,4 +27,10 @@ public static class SessionErrorCodeNames
 
     /// <summary>Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться.</summary>
     public const string CheckoutSplitMismatch = "checkout_split_mismatch";
+
+    /// <summary>Тариф успел измениться: сумма, которую оператор назвал гостю, уже не та.</summary>
+    public const string PriceChanged = "price_changed";
+
+    /// <summary>Наличными платит гость без аккаунта; клиенту клуба этот режим не подходит.</summary>
+    public const string CashBillingGuestOnly = "cash_billing_guest_only";
 }

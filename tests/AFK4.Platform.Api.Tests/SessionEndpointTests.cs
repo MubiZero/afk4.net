@@ -198,6 +198,77 @@ public sealed class SessionEndpointTests
             entry.SessionId == body.Session.SessionId);
     }
 
+    // Решение владельца 30.09.2026: гость платит наличными у стойки. Старт берёт деньги в кассу смены,
+    // а цена продления называется до нажатия — по маршруту, которым пользуется Панель.
+    [Fact]
+    public async Task StartSession_GuestPaysCash_TakesTheMoneyIntoTheShiftAndQuotesTheExtension()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedLayoutAsync(factory, includeTargetSeat: false);
+        var tariffVersion = await SeedBillingAsync(factory, Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
+        await SeedOpenShiftAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                TariffRuleVersionId: tariffVersion.TariffVersionId.ToString("D"),
+                IdempotencyKey: "start-guest-cash-001",
+                DurationMode: SessionDurationModes.Fixed,
+                DurationMinutes: 60,
+                BillingMode: BillingModeNames.PrepaidCash,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                ExpectedChargeMinorUnits: 3000));
+        var started = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(started);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var payment = Assert.Single(dbContext.Payments);
+            Assert.Equal(3000, payment.AmountMinorUnits);
+            Assert.Equal("cash", payment.PaymentMethod);
+            Assert.Equal(started.Session.SessionId, payment.SessionId);
+        }
+
+        var quote = await client.GetAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{started.Session.SessionId:D}/extend/quote?additionalMinutes=15");
+        var quoted = await quote.Content.ReadFromJsonAsync<SessionExtendQuoteResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, quote.StatusCode);
+        Assert.Equal(750, quoted!.Charge.MinorUnits);
+    }
+
+    [Fact]
+    public async Task StartSession_GuestPaysCashWithoutAnOpenShift_AnswersWithTheMachineCode()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedLayoutAsync(factory, includeTargetSeat: false);
+        var tariffVersion = await SeedBillingAsync(factory, Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                TariffRuleVersionId: tariffVersion.TariffVersionId.ToString("D"),
+                IdempotencyKey: "start-guest-cash-noshift",
+                DurationMode: SessionDurationModes.Fixed,
+                DurationMinutes: 60,
+                BillingMode: BillingModeNames.PrepaidCash,
+                TariffVersionId: tariffVersion.TariffVersionId));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("\"code\":\"open_shift_required\"", body);
+    }
+
     [Fact]
     public async Task StartSession_WithTechnicianRole_ReturnsForbiddenAndWritesDeniedAudit()
     {

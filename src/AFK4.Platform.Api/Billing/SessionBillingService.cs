@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,7 +69,7 @@ public sealed class SessionBillingService(
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -89,7 +90,7 @@ public sealed class SessionBillingService(
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -124,6 +125,17 @@ public sealed class SessionBillingService(
 
         if (string.IsNullOrWhiteSpace(billingMode))
         {
+            // Гость с выбранным тарифом — открытый счёт: на старте денег нет, их возьмут на «Завершить
+            // и рассчитать» по факту. Тариф проверяется сейчас: на закрытии его отсутствие уже не
+            // исправить, и сессию нельзя было бы рассчитать.
+            if (tariffVersionId is not null)
+            {
+                var tab = await ValidateTariffBillingAsync(
+                    organizationId, branchId, playerAccountId: null, tariffVersionId, durationMinutes,
+                    requireWalletBalance: false, isExtension, cancellationToken);
+                return tab.Succeeded ? tab with { AmountMinorUnits = 0 } : tab;
+            }
+
             return new SessionBillingValidationResult(
                 Succeeded: true,
                 Error: null,
@@ -134,32 +146,52 @@ public sealed class SessionBillingService(
                 DefaultCurrencyCode);
         }
 
-        if (playerAccountId is null)
+        // Гость платит наличными у стойки: аккаунта нет, ни кошелька, ни долга, зато есть смена, в
+        // кассу которой лягут деньги.
+        var isGuestCash = billingMode.Trim() == BillingModeNames.PrepaidCash;
+        if (isGuestCash && playerAccountId is not null)
+        {
+            return Invalid("Cash billing is for a guest without an account.");
+        }
+
+        if (playerAccountId is null && !isGuestCash)
         {
             return Invalid("Player account id is required for session billing.");
         }
 
-        var playerExists = await dbContext.PlayerAccounts
-            .AsNoTracking()
-            .AnyAsync(
-                player =>
-                    player.OrganizationId == organizationId &&
-                    player.HomeBranchId == branchId &&
-                    player.PlayerAccountId == playerAccountId.Value &&
-                    player.IsActive,
-                cancellationToken);
-
-        if (!playerExists)
+        if (!isGuestCash)
         {
-            return Invalid("Player account was not found.");
+            var playerExists = await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .AnyAsync(
+                    player =>
+                        player.OrganizationId == organizationId &&
+                        player.HomeBranchId == branchId &&
+                        player.PlayerAccountId == playerAccountId!.Value &&
+                        player.IsActive,
+                    cancellationToken);
+
+            if (!playerExists)
+            {
+                return Invalid("Player account was not found.");
+            }
         }
 
         var validation = billingMode.Trim() switch
         {
+            BillingModeNames.PrepaidCash => await ValidateTariffBillingAsync(
+                organizationId,
+                branchId,
+                playerAccountId: null,
+                tariffVersionId,
+                durationMinutes,
+                requireWalletBalance: false,
+                isExtension,
+                cancellationToken),
             BillingModeNames.PrepaidWallet => await ValidateTariffBillingAsync(
                 organizationId,
                 branchId,
-                playerAccountId.Value,
+                playerAccountId!.Value,
                 tariffVersionId,
                 durationMinutes,
                 requireWalletBalance: true,
@@ -168,7 +200,7 @@ public sealed class SessionBillingService(
             BillingModeNames.PostpaidDebt => await ValidateTariffBillingAsync(
                 organizationId,
                 branchId,
-                playerAccountId.Value,
+                playerAccountId!.Value,
                 tariffVersionId,
                 durationMinutes,
                 requireWalletBalance: false,
@@ -177,7 +209,7 @@ public sealed class SessionBillingService(
             BillingModeNames.Package => await ValidatePackageBillingAsync(
                 organizationId,
                 branchId,
-                playerAccountId.Value,
+                playerAccountId!.Value,
                 playerPackageId,
                 durationMinutes,
                 cancellationToken),
@@ -198,7 +230,7 @@ public sealed class SessionBillingService(
     private async Task<SessionBillingValidationResult> ValidateTariffBillingAsync(
         Guid organizationId,
         Guid branchId,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? tariffVersionId,
         int durationMinutes,
         bool requireWalletBalance,
@@ -235,18 +267,22 @@ public sealed class SessionBillingService(
             return Invalid("Tariff calculation could not be completed.");
         }
 
-        var ledgerCurrencyValidation = await GetLedgerCurrencyForWriteAsync(
-            playerAccountId,
-            calculation.Amount.CurrencyCode,
-            cancellationToken);
-        if (ledgerCurrencyValidation is not null)
+        // Валюта журнала и баланс — про игрока; у гостя без аккаунта их нет.
+        if (playerAccountId is { } ledgerPlayerId)
         {
-            return Invalid(ledgerCurrencyValidation);
+            var ledgerCurrencyValidation = await GetLedgerCurrencyForWriteAsync(
+                ledgerPlayerId,
+                calculation.Amount.CurrencyCode,
+                cancellationToken);
+            if (ledgerCurrencyValidation is not null)
+            {
+                return Invalid(ledgerCurrencyValidation);
+            }
         }
 
         if (requireWalletBalance)
         {
-            var walletBalance = await GetBalanceAsync(playerAccountId, LedgerAccountTypeNames.Wallet, cancellationToken);
+            var walletBalance = await GetBalanceAsync(playerAccountId!.Value, LedgerAccountTypeNames.Wallet, cancellationToken);
             if (walletBalance < calculation.Amount.MinorUnits)
             {
                 return Invalid("Insufficient wallet balance.", "insufficient_funds");
@@ -322,7 +358,7 @@ public sealed class SessionBillingService(
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -344,13 +380,26 @@ public sealed class SessionBillingService(
                 cancellationToken);
         var shiftId = await GetRequiredOpenShiftIdAsync(session.OrganizationId, session.BranchId, cancellationToken);
 
+        if (billingMode.Trim() == BillingModeNames.PrepaidCash)
+        {
+            AppendGuestCharge(
+                session, actorStaffUserId, validation.AmountMinorUnits, validation.CurrencyCode, shiftId, now,
+                collectCash: true, "guest gameplay paid in cash");
+            return;
+        }
+
+        if (playerAccountId is not { } playerId)
+        {
+            throw new InvalidOperationException($"Session billing mode '{billingMode}' requires a player account.");
+        }
+
         switch (billingMode.Trim())
         {
             case BillingModeNames.PrepaidWallet:
                 dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
                     session.OrganizationId,
                     session.BranchId,
-                    playerAccountId,
+                    playerId,
                     sessionId,
                     playerPackageId: null,
                     LedgerEntryTypeNames.GameplayCharge,
@@ -364,14 +413,14 @@ public sealed class SessionBillingService(
                     actorStaffUserId,
                     now,
                     shiftId));
-                await AppendSessionCashbackAsync(session, playerAccountId, sessionId, validation, now, cancellationToken);
+                await AppendSessionCashbackAsync(session, playerId, sessionId, validation, now, cancellationToken);
                 break;
 
             case BillingModeNames.PostpaidDebt:
                 dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
                     session.OrganizationId,
                     session.BranchId,
-                    playerAccountId,
+                    playerId,
                     sessionId,
                     playerPackageId: null,
                     LedgerEntryTypeNames.PostpaidDebt,
@@ -400,7 +449,7 @@ public sealed class SessionBillingService(
                     session,
                     actorStaffUserId,
                     validation,
-                    playerAccountId,
+                    playerId,
                     playerPackageId.Value,
                     now,
                     shiftId,
@@ -410,6 +459,70 @@ public sealed class SessionBillingService(
             default:
                 throw new InvalidOperationException($"Unsupported session billing mode '{billingMode}'.");
         }
+    }
+
+    /// <summary>
+    /// Игра гостя без аккаунта, оплаченная деньгами. Выручка за игру считается по журналу, а журнал
+    /// пишется по игрокам, поэтому запись без игрока на счёте «наличные» — единственное, что
+    /// делает эти деньги видимыми в «Сводке» и Z-отчёте так же, как списание с кошелька.
+    /// Наличные в ящик смены кладёт отдельная оплата: так же их кладёт расчёт на закрытии. На старте и
+    /// продлении она пишется здесь; на «Завершить и рассчитать» оплаты пишет сам расчёт.
+    /// </summary>
+    private void AppendGuestCharge(
+        SessionEntity session,
+        Guid actorStaffUserId,
+        long amountMinorUnits,
+        string currencyCode,
+        Guid shiftId,
+        DateTimeOffset now,
+        bool collectCash,
+        string description)
+    {
+        if (amountMinorUnits <= 0)
+        {
+            return;
+        }
+
+        dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+            session.OrganizationId,
+            session.BranchId,
+            playerAccountId: null,
+            session.SessionId,
+            playerPackageId: null,
+            LedgerEntryTypeNames.GameplayCharge,
+            LedgerAccountTypeNames.Cash,
+            -amountMinorUnits,
+            quantitySeconds: 0,
+            currencyCode,
+            description,
+            LedgerEntryTypeNames.GameplayCharge,
+            reversesLedgerEntryId: null,
+            actorStaffUserId,
+            now,
+            shiftId));
+
+        if (!collectCash)
+        {
+            return;
+        }
+
+        dbContext.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(),
+            OrganizationId = session.OrganizationId,
+            BranchId = session.BranchId,
+            PosSaleId = null,
+            SessionId = session.SessionId,
+            ShiftId = shiftId,
+            CreatedByStaffUserId = actorStaffUserId,
+            PaymentKind = "payment",
+            Provider = "manual",
+            PaymentMethod = PaymentMethodNames.Cash,
+            CurrencyCode = currencyCode,
+            AmountMinorUnits = amountMinorUnits,
+            Note = description,
+            CreatedAtUtc = now
+        });
     }
 
     // Loyalty: cashback on a prepaid-wallet game-time charge (start/extend). Credits the wallet,
@@ -565,7 +678,8 @@ public sealed class SessionBillingService(
         // Fixed-duration wallet sessions settle their tariff charge atomically at start (and each
         // extension). Checkout may still collect an attached POS tab, but must never charge the
         // already-paid session time again.
-        if (session.BillingMode == BillingModeNames.PrepaidWallet)
+        // Гость, заплативший наличными вперёд, платит так же целиком при старте и продлениях.
+        if (session.BillingMode is BillingModeNames.PrepaidWallet or BillingModeNames.PrepaidCash)
         {
             return new SessionBillingValidationResult(
                 Succeeded: true,
@@ -680,7 +794,7 @@ public sealed class SessionBillingService(
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -692,6 +806,18 @@ public sealed class SessionBillingService(
         if (validation.AmountMinorUnits == 0)
         {
             // Open tab with zero billable time produces no debt entry.
+            return;
+        }
+
+        if (playerAccountId is null)
+        {
+            // Открытый счёт гостя: долга не бывает, деньги он отдаёт тут же — выручка пишется один раз.
+            var guestSession = await dbContext.Sessions
+                .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+            var guestShiftId = await GetRequiredOpenShiftIdAsync(guestSession.OrganizationId, guestSession.BranchId, cancellationToken);
+            AppendGuestCharge(
+                guestSession, actorStaffUserId, validation.AmountMinorUnits, validation.CurrencyCode, guestShiftId, now,
+                collectCash: false, "guest open-tab gameplay paid at checkout");
             return;
         }
 

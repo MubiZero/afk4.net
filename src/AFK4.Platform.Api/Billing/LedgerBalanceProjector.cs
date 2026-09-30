@@ -138,7 +138,9 @@ public static class LedgerBalanceProjector
             entry.LedgerEntryId,
             entry.OrganizationId,
             entry.BranchId,
-            entry.PlayerAccountId,
+            // Запись гостя без аккаунта (наличные за игру) в выписку игрока не попадает: все, кто зовёт
+            // ToDto, выбирают записи по игроку.
+            entry.PlayerAccountId ?? throw new InvalidOperationException("A guest ledger entry has no player."),
             entry.SessionId,
             entry.PlayerPackageId,
             entry.EntryType,

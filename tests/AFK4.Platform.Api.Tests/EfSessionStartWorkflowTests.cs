@@ -402,7 +402,7 @@ public sealed class EfSessionStartWorkflowTests
             Guid sessionId,
             Guid actorStaffUserId,
             SessionBillingValidationResult validation,
-            Guid playerAccountId,
+            Guid? playerAccountId,
             Guid? playerPackageId,
             string billingMode,
             DateTimeOffset now,
@@ -431,9 +431,9 @@ public sealed class EfSessionStartWorkflowTests
 
         public Task<SessionBillingValidationResult> ComputeCompValueAsync(Guid organizationId, Guid branchId, Guid tariffVersionId, int durationMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(durationMinutes, BillingModeNames.PrepaidWallet));
         public Task<SessionBillingValidationResult> ValidateExtendAsync(Guid organizationId, Guid branchId, Guid? playerAccountId, string billingMode, Guid? tariffVersionId, Guid? playerPackageId, int additionalMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(additionalMinutes, billingMode));
-        public Task AppendExtendLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid playerAccountId, Guid? playerPackageId, string billingMode, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AppendExtendLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid? playerAccountId, Guid? playerPackageId, string billingMode, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(Valid(0, BillingModeNames.PrepaidWallet));
-        public Task AppendCheckoutLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid playerAccountId, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AppendCheckoutLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid? playerAccountId, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
 
         // Настоящий биллинг для пустого режима оплаты (гость) отдаёт ПУСТОЙ идентификатор версии
         // тарифа, и рабочий процесс подставляет вместо него то, что прислал клиент. Фейк, всегда

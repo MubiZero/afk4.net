@@ -7,7 +7,7 @@ public static class BillingEntryFactory
     public static LedgerEntryEntity Create(
         Guid organizationId,
         Guid branchId,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? sessionId,
         Guid? playerPackageId,
         string entryType,

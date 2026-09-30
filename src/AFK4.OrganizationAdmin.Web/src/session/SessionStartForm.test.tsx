@@ -16,7 +16,9 @@ const tariffs: TariffOptionDto[] = [{
 }];
 
 describe('SessionStartForm', () => {
-  it('keeps guest open-tab defaults and emits a valid selection', async () => {
+  // Приёмка 30.09.2026: гость садился без тарифа и без суммы — час VIP бесплатно. Теперь гость платит
+  // наличными у стойки: по умолчанию час вперёд, форма требует тариф и называет сумму.
+  it('seats a guest for an hour by default and will not start without a tariff', async () => {
     const onChange = mock(() => {});
     const onValidityChange = mock(() => {});
     render(<I18nProvider><SessionStartForm
@@ -27,8 +29,34 @@ describe('SessionStartForm', () => {
     /></I18nProvider>);
 
     expect(screen.getByRole('tab', { name: 'Гость' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('button', { name: 'Открытый счёт' })).toHaveClass('active');
-    await waitFor(() => expect(onValidityChange).toHaveBeenLastCalledWith(true, null));
+    expect(screen.getByRole('button', { name: /^1 ч/ })).toHaveClass('active');
+    await waitFor(() => expect(onValidityChange).toHaveBeenLastCalledWith(false, expect.any(String)));
+  });
+
+  it('names the cash a guest pays by the tariff rules, minimum and rounding included', async () => {
+    const onChargeChange = mock((_charge: number | null) => {});
+    // Загрузчики родитель держит стабильными (useCallback): новая стрелка на каждую отрисовку
+    // перезапускала бы загрузку тарифов бесконечно.
+    const loadTariffs = async () => tariffs;
+    const loadPackages = async () => [];
+    function Harness() {
+      const [value, setValue] = useState(createSessionStartSelection());
+      return <SessionStartForm
+        seatName="PC-01" currencyCode="TJS" disabled={false} value={value} onChange={setValue}
+        fixedClient={null} loadTariffs={loadTariffs} loadPackages={loadPackages}
+        onChargeChange={onChargeChange}
+      />;
+    }
+    render(<I18nProvider><Harness /></I18nProvider>);
+
+    // 60 минут по 50: 3000 — в сомони это «30 с.».
+    await waitFor(() => expect(onChargeChange).toHaveBeenLastCalledWith(3000));
+    expect(screen.getByText(/Принять наличными/)).toBeInTheDocument();
+
+    // Открытый счёт: денег на старте нет, оплата при расчёте.
+    fireEvent.click(screen.getByRole('button', { name: 'Открытый счёт' }));
+    await waitFor(() => expect(onChargeChange).toHaveBeenLastCalledWith(null));
+    expect(screen.getByText(/гость платит наличными при расчёте/)).toBeInTheDocument();
   });
 
   // Бронь без аккаунта клиента запускается только гостем. Серая вкладка «Клиент клуба» молчала

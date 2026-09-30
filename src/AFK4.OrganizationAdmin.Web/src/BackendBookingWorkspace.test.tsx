@@ -69,9 +69,24 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+// Гость садится по тарифу, а тарифы приходят с сервера: кнопка оживает, когда форма дозагрузилась.
+async function submitStart(scope: ReturnType<typeof within>) {
+  const button = scope.getByRole('button', { name: 'Посадить за ПК' });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+}
+
 // Блок брони в ленте теперь называет себя читалке целиком: «имя, состояние, время» —
 // раньше состояние несло только цвет. Поэтому блоки ищутся по вхождению имени гостя,
 // а не по точному совпадению подписи.
+// Гость садится по тарифу — без тарифа форма не даёт начать (раньше гость садился бесплатно).
+const guestTariffs = [{
+  tariffId: 'tariff-def-1', tariffVersionId: 'tariff-1', name: 'Standard', tariffRuleVersionId: 'rule-1',
+  versionNumber: 1, currencyCode: 'TJS', pricePerMinuteMinorUnits: 50, minimumBillableMinutes: 15,
+  roundingIncrementMinutes: 5, effectiveFromUtc: '2026-01-01T00:00:00Z', appliesOnDaysMask: 0,
+  appliesFromMinuteOfDay: null, appliesToMinuteOfDay: null, appliesNow: true
+}];
+
 describe('BackendBookingWorkspace modifier draft transitions', () => {
   it('builds distinct wallet, package, postpaid and comp payloads without changing reservation identity', () => {
     const base = createSessionStartSelection('prepaid_wallet');
@@ -88,6 +103,14 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       ...base, billingMode: 'guest', tariffVersionId: 'tariff-1', durationMode: 'fixed', durationMinutes: 60,
       isComp: true, compReason: 'manager courtesy'
     })).toMatchObject({ billingMode: '', isComp: true, compReason: 'manager courtesy', tariffVersionId: 'tariff-1' });
+    // Гость: на фиксированное время платит наличными вперёд (и называет сумму), открытый счёт — по факту.
+    const guest = { ...createSessionStartSelection('guest'), tariffVersionId: 'tariff-1' };
+    expect(buildReservationStartRequest('org-1', 7, guest, 3000)).toMatchObject({
+      billingMode: 'prepaid_cash', durationMode: 'fixed', expectedChargeMinorUnits: 3000
+    });
+    expect(buildReservationStartRequest('org-1', 7, { ...guest, durationMode: 'open', durationMinutes: null })).toMatchObject({
+      billingMode: '', durationMode: 'open', expectedChargeMinorUnits: null
+    });
   });
   it('после закрытия старой формы Ctrl-click начинает чистый draft, а повторный click снимает место', async () => {
     const result = render(
@@ -304,7 +327,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         return new Response(JSON.stringify({ sessions: [], limit: 40 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url.pathname.endsWith('/tariffs/options')) {
-        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify(guestTariffs), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url.pathname.endsWith('/reservations/reservation-start/start-session')) {
         startCalls.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
@@ -332,11 +355,15 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
     const startDialog = screen.getByRole('dialog', { name: 'Посадить за ПК' });
-    fireEvent.click(within(startDialog).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(startDialog));
 
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(startCalls).toHaveLength(1);
-    expect(startCalls[0]).toMatchObject({ expectedVersion: 3, durationMode: 'open' });
+    // Гость платит наличными вперёд (решение владельца 30.09.2026): час по тарифу и названная сумма.
+    expect(startCalls[0]).toMatchObject({
+      expectedVersion: 3, durationMode: 'fixed', durationMinutes: 60, billingMode: 'prepaid_cash',
+      tariffVersionId: 'tariff-1', expectedChargeMinorUnits: 3000
+    });
     await waitFor(() => expect(reservationReads).toBeGreaterThan(1));
   });
 
@@ -348,7 +375,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/reservations') && init?.method === 'GET') return json({ reservations: [reservation], limit: 40 });
       if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
-      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/tariffs/options')) return json(guestTariffs);
       if (url.pathname.endsWith('/start-session')) {
         bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
         startCall += 1;
@@ -363,7 +390,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
     let modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(modal));
     await waitFor(() => expect(bodies).toHaveLength(1));
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Посадить за ПК' })).toBeInTheDocument());
 
@@ -374,13 +401,13 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     fireEvent.pointerDown(modal.parentElement!);
     expect(screen.getByRole('dialog', { name: 'Посадить за ПК' })).toBeInTheDocument();
 
-    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(modal));
     await waitFor(() => expect(bodies).toHaveLength(2));
     expect(bodies[1]).toEqual(bodies[0]);
 
     fireEvent.click(within(modal).getByRole('button', { name: 'Новая попытка' }));
     fireEvent.click(within(modal).getByRole('button', { name: /2 ч/ }));
-    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(modal));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(bodies).toHaveLength(3);
     expect(bodies[2].idempotencyKey).not.toBe(bodies[0].idempotencyKey);
@@ -394,7 +421,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/reservations') && init?.method === 'GET') return json({ reservations: [reservation], limit: 40 });
       if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
-      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/tariffs/options')) return json(guestTariffs);
       if (url.pathname.endsWith('/start-session')) {
         bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
         if (bodies.length === 1) return json({ code: 'internal_error' }, 500);
@@ -406,12 +433,12 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })));
     await waitFor(() => expect(bodies).toHaveLength(1));
     const modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
     expect(within(modal).getByRole('button', { name: /2 ч/ })).toBeDisabled();
     expect(within(modal).getAllByRole('button', { name: 'Отмена' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
-    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(modal));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toEqual(bodies[0]);
@@ -428,7 +455,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         return json({ reservations: [{ ...reservation, ...(reads > 1 ? { version: 4, state: 'seated', startedSessionId: 'session-recovered' } : {}) }], limit: 40 });
       }
       if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
-      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/tariffs/options')) return json(guestTariffs);
       if (url.pathname.endsWith('/start-session')) { starts += 1; throw new TypeError('response lost'); }
       throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
     }) as typeof fetch;
@@ -436,7 +463,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(starts).toBe(1);
   });
@@ -452,7 +479,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         return json({ reservations: [{ ...initial, version: reads > 1 ? 4 : 3 }], limit: 40 });
       }
       if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
-      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/tariffs/options')) return json(guestTariffs);
       if (url.pathname.endsWith('/start-session')) {
         bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
         if (bodies.length === 1) return json({ code: 'version_conflict', currentVersion: 4 }, 409);
@@ -464,10 +491,10 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
     fireEvent.click(await screen.findByRole('button', { name: /Reserved guest/ }));
     fireEvent.click(within(bookingCard()).getByRole('button', { name: 'Посадить за ПК' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(screen.getByRole('dialog', { name: 'Посадить за ПК' })));
     await waitFor(() => expect(reads).toBeGreaterThan(1));
     const modal = screen.getByRole('dialog', { name: 'Посадить за ПК' });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Посадить за ПК' }));
+    await submitStart(within(modal));
     await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
     expect(bodies[0]).toMatchObject({ expectedVersion: 3 });
     expect(bodies[1]).toMatchObject({ expectedVersion: 4 });

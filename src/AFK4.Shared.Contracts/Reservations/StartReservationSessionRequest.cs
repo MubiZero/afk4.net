@@ -13,4 +13,5 @@ public sealed record StartReservationSessionRequest(
     Guid? TariffVersionId = null,
     Guid? PlayerPackageId = null,
     bool IsComp = false,
-    string? CompReason = null);
+    string? CompReason = null,
+    long? ExpectedChargeMinorUnits = null);

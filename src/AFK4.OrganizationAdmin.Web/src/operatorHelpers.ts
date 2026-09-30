@@ -134,6 +134,33 @@ export const guestBillingSelection: SessionBillingSelection = {
 // outage, not the primary refresh path.
 export const shellOperationalRefreshMs = 120_000;
 
+/**
+ * Режим оплаты, как его называет сервер. «Гость» — выбор Панели, а не режим сервера: на
+ * фиксированное время гость платит наличными вперёд (prepaid_cash), а открытый счёт и бесплатная
+ * сессия идут с пустым режимом (счёт по тарифу закрывается на расчёте).
+ */
+export function serverBillingMode(mode: SessionBillingModeId, durationMode: string, isComp: boolean): string {
+  if (mode !== 'guest') return mode;
+  return isComp || durationMode === 'open' ? '' : 'prepaid_cash';
+}
+
+/**
+ * Цена тарифа за N минут по тем же правилам, что у сервера (TariffBilling.ComputeForMinutes):
+ * сначала минимум тарифа, потом шаг округления вверх. Гостю называют именно эту сумму и берут её
+ * из кассы, поэтому «минуты на цену» здесь недостаточно — расхождение с сервером значило бы
+ * взять у гостя не те деньги (сервер в этом случае отказывает, см. price_changed).
+ */
+export function tariffPriceForMinutes(
+  tariff: Pick<TariffOptionDto, 'pricePerMinuteMinorUnits' | 'minimumBillableMinutes' | 'roundingIncrementMinutes'>,
+  minutes: number
+): number {
+  if (!(minutes > 0)) return 0;
+  let billable = Math.max(minutes, tariff.minimumBillableMinutes);
+  const step = tariff.roundingIncrementMinutes;
+  if (step > 1) billable = Math.ceil(billable / step) * step;
+  return billable * tariff.pricePerMinuteMinorUnits;
+}
+
 export function billingModeOptions(t: TFunc): Array<{ id: SessionBillingModeId; label: string; detail: string }> {
   return [
     { id: 'guest', label: t('op.helper.billing.guest'), detail: t('op.helper.billing.guestDetail') },

@@ -309,7 +309,7 @@ describe('App — branch switch (Task 11)', () => {
   it('scopes a seat action (session start) to the newly active branch after switch', async () => {
     installConfig();
     sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession({
-      permissions: ['organization.floor_map.view', 'organization.sessions.start']
+      permissions: ['organization.floor_map.view', 'organization.sessions.start', 'organization.tariffs.view']
     })));
 
     const startCalls: string[] = [];
@@ -325,6 +325,14 @@ describe('App — branch switch (Task 11)', () => {
           branchName: BRANCH_NAMES[branchId] ?? branchId,
           seats: seat ? [floorMapSeatDto(seat)] : []
         }));
+      }
+      // Гость садится по тарифу: без него форма запуска не даёт начать.
+      if (pathname.endsWith('/tariffs/options')) {
+        return Promise.resolve(jsonResponse([{
+          tariffId: 'tariff-def-1', tariffVersionId: 'tariff-1', name: 'Standard', tariffRuleVersionId: 'rule-1',
+          versionNumber: 1, currencyCode: 'TJS', pricePerMinuteMinorUnits: 50, minimumBillableMinutes: 15,
+          roundingIncrementMinutes: 5, effectiveFromUtc: '2026-01-01T00:00:00Z'
+        }]));
       }
       if (pathname.endsWith('/sessions/start') && init?.method === 'POST') {
         startCalls.push(branchId);
@@ -344,7 +352,7 @@ describe('App — branch switch (Task 11)', () => {
     fireEvent.click(startTile);
 
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
-    const confirmButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
+    const confirmButton = await within(startDialog).findByRole('button', { name: /Принять .* и начать/ });
     fireEvent.click(confirmButton);
 
     await waitFor(() => expect(startCalls.length).toBeGreaterThan(0));

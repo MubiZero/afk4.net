@@ -364,10 +364,13 @@ public sealed class EfReservationSessionCoordinator(
             request.TariffVersionId,
             request.PlayerPackageId,
             request.IsComp,
-            request.CompReason);
+            request.CompReason,
+            request.ExpectedChargeMinorUnits);
 
+    // Гость без аккаунта платит наличными (prepaid_cash) — игрока этот режим не требует.
     private static bool RequiresPlayer(StartReservationSessionRequest request) =>
-        !string.IsNullOrWhiteSpace(request.BillingMode) || request.PlayerPackageId is not null;
+        (!string.IsNullOrWhiteSpace(request.BillingMode) && request.BillingMode.Trim() != BillingModeNames.PrepaidCash)
+        || request.PlayerPackageId is not null;
 
     private static string? InvalidLinkedPlayerBillingChoice(
         ReservationEntity reservation,

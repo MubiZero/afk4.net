@@ -319,7 +319,7 @@ public sealed class OrganizationExportService(PlatformDbContext dbContext)
             {
                 entry.LedgerEntryId.ToString(),
                 entry.BranchId.ToString(),
-                entry.PlayerAccountId.ToString(),
+                entry.PlayerAccountId?.ToString() ?? string.Empty,
                 entry.SessionId?.ToString() ?? string.Empty,
                 entry.EntryType,
                 entry.AccountType,
