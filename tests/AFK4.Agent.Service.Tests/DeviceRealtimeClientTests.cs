@@ -68,6 +68,26 @@ public sealed class DeviceRealtimeClientTests
         Assert.Single(connection.Invocations, invocation => invocation.MethodName == DeviceRealtimeMethods.RegisterDeviceAsync);
     }
 
+    /// <summary>
+    /// Приёмка 30.09.2026: соединение открылось, а регистрация упала («Invalid device credential») —
+    /// канал висел «подключённым», и команды по нему не шли. Такой канал регистрируется заново, без
+    /// переподключения.
+    /// </summary>
+    [Fact]
+    public async Task EnsureConnected_RegistersAgainWhenTheConnectionIsOpenButRegistrationFailed()
+    {
+        var connection = new CapturingDeviceHubConnection { FailedRegistrations = 1 };
+        var client = new DeviceRealtimeClient(
+            TestOptions(), new NoOpDeviceCommandHandler(TestOptions().Value), NullLogger<DeviceRealtimeClient>.Instance, connection);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => client.StartAsync(CancellationToken.None));
+        await client.EnsureConnectedAsync(CancellationToken.None);
+        await client.EnsureConnectedAsync(CancellationToken.None);
+
+        Assert.Equal(1, connection.StartAttempts);
+        Assert.Equal(2, connection.Invocations.Count(invocation => invocation.MethodName == DeviceRealtimeMethods.RegisterDeviceAsync));
+    }
+
     [Fact]
     public async Task EnsureConnected_LeavesAnOpenChannelAlone()
     {
@@ -75,9 +95,11 @@ public sealed class DeviceRealtimeClientTests
         var client = new DeviceRealtimeClient(
             TestOptions(), new NoOpDeviceCommandHandler(TestOptions().Value), NullLogger<DeviceRealtimeClient>.Instance, connection);
 
+        await client.StartAsync(CancellationToken.None);
         await client.EnsureConnectedAsync(CancellationToken.None);
 
-        Assert.Equal(0, connection.StartAttempts);
+        Assert.Equal(1, connection.StartAttempts);
+        Assert.Single(connection.Invocations, invocation => invocation.MethodName == DeviceRealtimeMethods.RegisterDeviceAsync);
     }
 
     private static IOptions<AgentOptions> TestOptions() => Options.Create(new AgentOptions
@@ -143,9 +165,17 @@ public sealed class DeviceRealtimeClientTests
             return Task.CompletedTask;
         }
 
+        public int FailedRegistrations { get; set; }
+
         public Task InvokeAsync(string methodName, object? argument, CancellationToken cancellationToken = default)
         {
             Invocations.Add(new Invocation(methodName, argument));
+            if (methodName == DeviceRealtimeMethods.RegisterDeviceAsync && FailedRegistrations > 0)
+            {
+                FailedRegistrations--;
+                return Task.FromException(new InvalidOperationException("Invalid device credential."));
+            }
+
             return Task.CompletedTask;
         }
 

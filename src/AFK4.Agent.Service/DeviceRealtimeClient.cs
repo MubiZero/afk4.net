@@ -45,6 +45,10 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
     private int restarting;
     private bool restartFailed;
 
+    /// ПК зарегистрирован на открытом соединении. Открытое, но незарегистрированное соединение
+    /// команд не получает: сервер не знает, чьё оно.
+    private volatile bool registered;
+
     public DeviceRealtimeClient(
         IOptions<AgentOptions> options,
         IDeviceCommandHandler commandHandler,
@@ -124,7 +128,7 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
     /// </summary>
     public Task EnsureConnectedAsync(CancellationToken cancellationToken)
     {
-        if (!connection.IsDisconnected || Interlocked.Exchange(ref restarting, 1) == 1)
+        if ((!connection.IsDisconnected && registered) || Interlocked.Exchange(ref restarting, 1) == 1)
         {
             return Task.CompletedTask;
         }
@@ -136,7 +140,19 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
     {
         try
         {
-            await StartAsync(cancellationToken);
+            // Соединение открыто, а регистрация сорвалась (приёмка 30.09.2026: сервер ответил «Invalid
+            // device credential» в момент старта) — канал висел «подключённым», и поднимать его было
+            // незачем, а команды по нему не шли. Такому нужна только регистрация.
+            if (connection.IsDisconnected)
+            {
+                await StartAsync(cancellationToken);
+            }
+            else
+            {
+                await RegisterDeviceAsync(cancellationToken);
+                logger.LogInformation("Realtime device channel registered again for {DeviceId}.", options.DeviceId);
+            }
+
             restartFailed = false;
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
@@ -162,11 +178,13 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         return RegisterDeviceAsync(CancellationToken.None);
     }
 
-    private Task RegisterDeviceAsync(CancellationToken cancellationToken)
+    private async Task RegisterDeviceAsync(CancellationToken cancellationToken)
     {
+        registered = false;
         var request = DeviceConnectionRequestFactory.Create(
             options, DateTimeOffset.UtcNow, leaseStore, credentialStore?.Current);
-        return connection.InvokeAsync(DeviceRealtimeMethods.RegisterDeviceAsync, request, cancellationToken);
+        await connection.InvokeAsync(DeviceRealtimeMethods.RegisterDeviceAsync, request, cancellationToken);
+        registered = true;
     }
 
     private async Task HandleCommandAsync(DeviceCommandDto command)
