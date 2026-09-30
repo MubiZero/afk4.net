@@ -572,6 +572,11 @@ public sealed class WorkerTests
 
     private sealed class ThrowingRealtimeClient(Exception exception) : IDeviceRealtimeClient
     {
+        public Task EnsureConnectedAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             return Task.FromException(exception);
@@ -585,6 +590,11 @@ public sealed class WorkerTests
 
     private sealed class NoOpRealtimeClient : IDeviceRealtimeClient
     {
+        public Task EnsureConnectedAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             return Task.CompletedTask;

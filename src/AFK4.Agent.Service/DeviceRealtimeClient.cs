@@ -8,11 +8,20 @@ namespace AFK4.Agent.Service;
 public interface IDeviceRealtimeClient : IAsyncDisposable
 {
     Task StartAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Канал отпал насовсем — поднять заново. Зовётся из цикла сердцебиения и не держит его:
+    /// возвращённая задача — сама попытка, ждать её циклу не нужно.
+    /// </summary>
+    Task EnsureConnectedAsync(CancellationToken cancellationToken);
 }
 
 public interface IDeviceHubConnection : IAsyncDisposable
 {
     event Func<string?, Task>? Reconnected;
+
+    /// <summary>Соединение закрыто и само подниматься не будет.</summary>
+    bool IsDisconnected { get; }
 
     IDisposable On<T>(string methodName, Func<T, Task> handler);
 
@@ -32,6 +41,9 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
 
     /// null у тех, кто про смену ключа не знает (тесты хаба): тогда берётся ключ из конфига.
     private readonly IDeviceCredentialStore? credentialStore;
+
+    private int restarting;
+    private bool restartFailed;
 
     public DeviceRealtimeClient(
         IOptions<AgentOptions> options,
@@ -103,6 +115,48 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         logger.LogInformation("Realtime device channel connected for {DeviceId}.", options.DeviceId);
     }
 
+    /// <summary>
+    /// SignalR переподключается сам лишь четыре раза (0, 2, 10 и 30 секунд) и сдаётся, а старт без
+    /// сети не повторяет вовсе. На приёмке 30.09.2026 ПК 18 минут был без связи — канал закрылся
+    /// и не поднялся ни после возврата связи, ни после перезапуска сервера: команды Панели шли
+    /// только с сердцебиением, до 10 секунд вместо мгновения. Теперь цикл сердцебиения
+    /// поднимает закрытый канал сам. Одна попытка за раз, в журнал — только первая неудача подряд.
+    /// </summary>
+    public Task EnsureConnectedAsync(CancellationToken cancellationToken)
+    {
+        if (!connection.IsDisconnected || Interlocked.Exchange(ref restarting, 1) == 1)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RestartAsync(cancellationToken);
+    }
+
+    private async Task RestartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await StartAsync(cancellationToken);
+            restartFailed = false;
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (!restartFailed)
+            {
+                logger.LogWarning(exception, "Realtime device channel is down and could not be restarted. Commands arrive with the heartbeat until it is back.");
+            }
+
+            restartFailed = true;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            Volatile.Write(ref restarting, 0);
+        }
+    }
+
     private Task HandleReconnectedAsync(string? connectionId)
     {
         return RegisterDeviceAsync(CancellationToken.None);
@@ -160,6 +214,8 @@ internal sealed class SignalRDeviceHubConnection(HubConnection connection) : IDe
         add => connection.Reconnected += value;
         remove => connection.Reconnected -= value;
     }
+
+    public bool IsDisconnected => connection.State == HubConnectionState.Disconnected;
 
     public IDisposable On<T>(string methodName, Func<T, Task> handler)
     {
