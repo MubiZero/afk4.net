@@ -513,7 +513,9 @@ $vsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer
 if (-not (Test-Path -LiteralPath $vsWhere)) {
     throw "vswhere.exe not found; install Visual Studio with the 'Desktop development with C++' workload to build the BAFunctions DLL."
 }
-$msbuild = & $vsWhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+# -products * — иначе vswhere видит только полную Visual Studio, а машина сборки с одними
+# Build Tools (без IDE) остаётся без бандла: «MSBuild not found», хотя MSBuild и C++ на месте.
+$msbuild = & $vsWhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
 if (-not $msbuild) {
     throw "MSBuild not found via vswhere; install the 'Desktop development with C++' workload."
 }
