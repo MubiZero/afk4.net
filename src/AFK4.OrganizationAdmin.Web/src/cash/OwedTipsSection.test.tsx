@@ -102,6 +102,11 @@ describe('cashReasonLabel', () => {
     expect(cashReasonLabel('tip_payout:Шерзод', t)).toBe('op.cash.reason.tipPayout|Шерзод');
   });
 
+  it('служебные английские причины платежей подписывает словами', () => {
+    expect(cashReasonLabel('guest gameplay paid in cash', t)).toBe('op.cash.reason.guestGameplayCash|');
+    expect(cashReasonLabel('session checkout', t)).toBe('op.cash.reason.sessionCheckout|');
+  });
+
   it('причину, введённую сотрудником, показывает как есть', () => {
     expect(cashReasonLabel('Размен', t)).toBe('Размен');
     expect(cashReasonLabel(null, t)).toBe('');

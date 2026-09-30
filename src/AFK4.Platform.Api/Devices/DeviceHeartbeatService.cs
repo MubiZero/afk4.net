@@ -197,6 +197,7 @@ public sealed class DeviceHeartbeatService(
             .Select(session => new
             {
                 session.SessionId,
+                session.State,
                 session.StartedAtUtc,
                 session.EndsAtUtc,
                 session.PlayerAccountId,
@@ -209,6 +210,19 @@ public sealed class DeviceHeartbeatService(
             })
             .FirstOrDefaultAsync(cancellationToken);
         var busy = liveSession is not null;
+
+        // Запертый при идущей сессии ПК экран не должен выдавать за свободный: пауза и блокировка
+        // администратора держатся, и игроку за чужой сессией нечего делать, кроме как идти к стойке.
+        string? hold = null;
+        if (liveSession?.State == SessionStateNames.Paused)
+        {
+            hold = DeviceLiveSessionHoldNames.Paused;
+        }
+        else if (liveSession?.State == SessionStateNames.Active
+            && await SessionLockHold.IsHeldAsync(dbContext, request.DeviceId, liveSession.SessionId, cancellationToken))
+        {
+            hold = DeviceLiveSessionHoldNames.Operator;
+        }
 
         // На обслуживании ПК закрыт для игроков: код посадки звал бы к нему человека.
         var inMaintenance = device?.MaintenanceSinceUtc is not null;
@@ -266,7 +280,7 @@ public sealed class DeviceHeartbeatService(
             GameLibraryVersion: allowOperationalCommands ? branchInfo?.GameLibraryVersion ?? 0 : 0,
             LiveSession: liveSession is null
                 ? null
-                : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc));
+                : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc, hold));
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

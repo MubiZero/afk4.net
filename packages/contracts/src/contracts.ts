@@ -188,6 +188,13 @@ export type BranchSearchKindName = (typeof BranchSearchKindNames)[keyof typeof B
 export const CashMovementReasonNames = {
   /** «tip_payout:Шерзод» — выданы чаевые администратору. */
   TipPayout: 'tip_payout',
+  /**
+   * Гость оплатил игру наличными у стойки. Эта фраза уже записана в платежах, поэтому она и есть
+   * код: Панель узнаёт её и пишет по-русски, а не переименовывает чужие строки в базе.
+   */
+  GuestGameplayCash: 'guest gameplay paid in cash',
+  /** Наличные, принятые при расчёте сессии (запись платежа со времён единого расчёта). */
+  SessionCheckout: 'session checkout',
 } as const;
 export type CashMovementReasonName = (typeof CashMovementReasonNames)[keyof typeof CashMovementReasonNames];
 
@@ -392,6 +399,15 @@ export const DeviceEnrollmentStateNames = {
   Removed: 'removed',
 } as const;
 export type DeviceEnrollmentStateName = (typeof DeviceEnrollmentStateNames)[keyof typeof DeviceEnrollmentStateNames];
+
+/** Словарь: Devices/DeviceShellContextContracts.cs */
+export const DeviceLiveSessionHoldNames = {
+  /** Администратор поставил сессию на паузу. */
+  Paused: 'paused',
+  /** Администратор заблокировал ПК посреди сессии. */
+  Operator: 'operator',
+} as const;
+export type DeviceLiveSessionHoldName = (typeof DeviceLiveSessionHoldNames)[keyof typeof DeviceLiveSessionHoldNames];
 
 /** Словарь: Devices/DevicePlayerSignInContracts.cs */
 export const DevicePlayerSignInErrorCodeNames = {
@@ -3637,6 +3653,11 @@ export interface DeviceLiveSessionDto {
   startedAtUtc: IsoDateTime | null;
   /** null — открытый счёт: конца нет, экран показывает, сколько уже идёт. */
   endsAtUtc: IsoDateTime | null;
+  /**
+   * Почему ПК заперт при идущей сессии (DeviceLiveSessionHoldNames): оболочка не должна рисовать
+   * на нём витрину свободного места. null — ПК открыт игроку или вот-вот откроется.
+   */
+  hold?: DeviceLiveSessionHoldName | null;
 }
 
 /**
@@ -6306,6 +6327,11 @@ export interface PlayerShellStateDto {
    * Только запущенное им самим — системные процессы, оболочка и агент сюда не попадают.
    */
   launchedApps?: LaunchedAppDto[] | null;
+  /**
+   * Заперт, хотя на ПК есть чужая сессия (DeviceLiveSessionHoldNames): пауза или блокировка
+   * администратора. Экран пишет, что ПК занят, а не зовёт сесть. null — обычный свободный ПК.
+   */
+  holdKind?: DeviceLiveSessionHoldName | null;
 }
 
 /**
@@ -7361,6 +7387,11 @@ export interface SeatStatusDto {
    * Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
    */
   sessionBillingMode?: BillingModeName | null;
+  /**
+   * За местом сидит игрок со счётом клуба — даже если имя в его карточке пусто. Без этого признака
+   * безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
+   */
+  hasPlayerAccount?: boolean;
 }
 
 /**

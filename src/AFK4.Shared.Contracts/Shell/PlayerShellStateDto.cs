@@ -63,4 +63,7 @@ public sealed record PlayerShellStateDto(
     DateTimeOffset? SessionEndsAtUtc = null,
     // Что игрок запустил из библиотеки в этой сессии и что ещё работает: панель «Мои приложения».
     // Только запущенное им самим — системные процессы, оболочка и агент сюда не попадают.
-    IReadOnlyList<LaunchedAppDto>? LaunchedApps = null);
+    IReadOnlyList<LaunchedAppDto>? LaunchedApps = null,
+    // Заперт, хотя на ПК есть чужая сессия (DeviceLiveSessionHoldNames): пауза или блокировка
+    // администратора. Экран пишет, что ПК занят, а не зовёт сесть. null — обычный свободный ПК.
+    string? HoldKind = null);

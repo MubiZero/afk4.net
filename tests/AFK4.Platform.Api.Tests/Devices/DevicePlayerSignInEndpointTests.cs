@@ -197,6 +197,40 @@ public sealed class DevicePlayerSignInEndpointTests
         Assert.Equal(fixture.PlayerAccountId, playing.SessionOwner.PlayerAccountId);
     }
 
+    // Пауза и блокировка оператора держат ПК запертым, но место не свободно: сердцебиение называет
+    // причину, чтобы оболочка не рисовала на нём витрину свободного ПК.
+    [Fact]
+    public async Task Heartbeat_NamesWhyTheBusyPcIsHeld()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        var sessionId = await fixture.StartSessionAsync(fixture.PlayerAccountId);
+
+        Assert.Null((await fixture.HeartbeatAsync(sessionId)).LiveSession!.Hold);
+
+        var locked = await fixture.CommandAsync(DeviceCommandTypeNames.Lock);
+        Assert.True(locked.IsSuccessStatusCode);
+        Assert.Equal(DeviceLiveSessionHoldNames.Operator, (await fixture.HeartbeatAsync()).LiveSession!.Hold);
+
+        // Держит последняя команда по времени создания: часы теста стоят, и без сдвига порядок случаен.
+        fixture.Clock.Advance(TimeSpan.FromSeconds(1));
+        var unlocked = await fixture.CommandAsync(DeviceCommandTypeNames.Unlock);
+        Assert.True(unlocked.IsSuccessStatusCode);
+        Assert.Null((await fixture.HeartbeatAsync(sessionId)).LiveSession!.Hold);
+
+        await fixture.PauseSessionAsync(sessionId);
+        Assert.Equal(DeviceLiveSessionHoldNames.Paused, (await fixture.HeartbeatAsync()).LiveSession!.Hold);
+    }
+
+    [Fact]
+    public async Task Heartbeat_OfAFreePc_HasNoLiveSessionAndNoHold()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+
+        Assert.Null((await fixture.HeartbeatAsync()).LiveSession);
+    }
+
     [Fact]
     public async Task ForcedKeyRotation_SignsThePlayerOutOfThatPc()
     {

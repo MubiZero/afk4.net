@@ -49,4 +49,7 @@ public sealed record SeatStatusDto(
     string? LastFailedCommandType = null,
     // Как оплачена идущая сессия (BillingModeNames); пусто — гость без расчёта или места занято нет.
     // Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
-    string? SessionBillingMode = null);
+    string? SessionBillingMode = null,
+    // За местом сидит игрок со счётом клуба — даже если имя в его карточке пусто. Без этого признака
+    // безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
+    bool HasPlayerAccount = false);

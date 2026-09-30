@@ -80,6 +80,20 @@ public sealed class IdleShutdownTests
     }
 
     [Fact]
+    public void LockedForSomeonesPausedSession_NothingTurnsOff()
+    {
+        // Пауза держит ПК запертым, но сессия на нём чужая: выключить значило бы оборвать её.
+        var fixture = new Fixture(idleMinutes: 30);
+        fixture.Heartbeat.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(
+            Guid.NewGuid(), Start, null, AFK4.Shared.Contracts.Devices.DeviceLiveSessionHoldNames.Paused));
+
+        fixture.CheckAt(Start);
+        fixture.CheckAt(Start.AddHours(3));
+
+        Assert.Empty(fixture.Power.Scheduled);
+    }
+
+    [Fact]
     public void WithoutTheSetting_NothingTurnsOff()
     {
         var fixture = new Fixture(idleMinutes: null);
@@ -97,11 +111,12 @@ public sealed class IdleShutdownTests
 
         public Fixture(int? idleMinutes)
         {
-            monitor = new IdleShutdownMonitor(Runtime, new FixedProfile(idleMinutes), Presence, Power, time, NullLogger<IdleShutdownMonitor>.Instance);
+            monitor = new IdleShutdownMonitor(Runtime, new FixedProfile(idleMinutes), Presence, Power, time, NullLogger<IdleShutdownMonitor>.Instance, heartbeat: Heartbeat);
         }
 
         public IdleShutdownMonitor Monitor => monitor;
 
+        public AFK4.Agent.Service.Shell.ShellHeartbeatSnapshot Heartbeat { get; } = new();
         public FakeRuntime Runtime { get; } = new();
         public PlayerPresence Presence { get; } = new();
         public RecordingPower Power { get; } = new();

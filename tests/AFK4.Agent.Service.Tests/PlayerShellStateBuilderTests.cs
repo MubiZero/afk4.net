@@ -313,6 +313,48 @@ public sealed class PlayerShellStateBuilderTests
         Assert.True(known.LauncherApps[0].AgeLocked);
     }
 
+    // Пауза и блокировка администратора держат ПК запертым, но за ним чужая сессия: экран не должен
+    // рисовать витрину свободного места — сервер называет причину, агент её передаёт.
+    [Theory]
+    [InlineData(AFK4.Shared.Contracts.Devices.DeviceLiveSessionHoldNames.Paused)]
+    [InlineData(AFK4.Shared.Contracts.Devices.DeviceLiveSessionHoldNames.Operator)]
+    public void LockedPc_WithSomeonesSession_ReportsWhyItIsHeld(string hold)
+    {
+        var fixture = new Fixture();
+        fixture.Contact(Now.AddSeconds(-2), intervalSeconds: 10);
+        fixture.Heartbeat.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(SessionId, Now.AddMinutes(-5), Now.AddHours(1), hold));
+
+        var state = fixture.Build();
+
+        Assert.Equal(PlayerShellStateNames.Locked, state.State);
+        Assert.Equal(hold, state.HoldKind);
+        Assert.Null(state.SeatingCode);
+    }
+
+    [Fact]
+    public void FreeLockedPc_HasNoHold()
+    {
+        var fixture = new Fixture();
+        fixture.Contact(Now.AddSeconds(-2), intervalSeconds: 10);
+        fixture.Heartbeat.RecordLiveSession(null);
+
+        Assert.Null(fixture.Build().HoldKind);
+    }
+
+    [Fact]
+    public void HeldPc_WithoutConnection_SaysOffline_NotAStaleHold()
+    {
+        var fixture = new Fixture();
+        fixture.Contact(Now.AddMinutes(-5), intervalSeconds: 10);
+        fixture.Heartbeat.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(
+            SessionId, Now.AddMinutes(-9), Now.AddHours(1), AFK4.Shared.Contracts.Devices.DeviceLiveSessionHoldNames.Paused));
+
+        var state = fixture.Build();
+
+        Assert.Equal(PlayerShellStateNames.Offline, state.State);
+        Assert.Null(state.HoldKind);
+    }
+
     [Fact]
     public void Maintenance_StaysMaintenanceWithoutConnection_AndShowsNoSeatingCode()
     {

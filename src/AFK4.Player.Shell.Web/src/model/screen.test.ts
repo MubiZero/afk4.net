@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { PlayerShellStateNames } from '@afk4/contracts';
+import { DeviceLiveSessionHoldNames, PlayerShellStateNames } from '@afk4/contracts';
 import { devScenarioState } from '../host/devHost';
 import { selectScreen, type ShellScreen } from './screen';
 
@@ -18,6 +18,8 @@ describe('selectScreen — таблица экранов §3', () => {
     ['последняя минута', { state: state(PlayerShellStateNames.Ending), signedIn: true, approached: false }, 'ending'],
     ['связь пропала посреди сессии', { state: state(PlayerShellStateNames.Grace), signedIn: false, approached: false }, 'grace'],
     ['заперт и без связи', { state: state(PlayerShellStateNames.Offline), signedIn: false, approached: true }, 'offline'],
+    ['пауза чужой сессии — не витрина', { state: { ...state(PlayerShellStateNames.Locked), holdKind: DeviceLiveSessionHoldNames.Paused }, signedIn: false, approached: false }, 'paused'],
+    ['блокировка администратора — не витрина', { state: { ...state(PlayerShellStateNames.Locked), holdKind: DeviceLiveSessionHoldNames.Operator }, signedIn: false, approached: false }, 'held'],
     ['обслуживание', { state: state(PlayerShellStateNames.Maintenance), signedIn: true, approached: true }, 'maintenance'],
     ['сбой', { state: state(PlayerShellStateNames.Error), signedIn: false, approached: false }, 'error']
   ];
@@ -27,6 +29,12 @@ describe('selectScreen — таблица экранов §3', () => {
       expect(selectScreen(input)).toBe(expected);
     });
   }
+
+  it('к ПК на паузе подошли и даже вошли — входа и выбора времени нет', () => {
+    const paused = { ...state(PlayerShellStateNames.Locked), holdKind: DeviceLiveSessionHoldNames.Paused };
+    expect(selectScreen({ state: paused, signedIn: false, approached: true })).toBe('paused');
+    expect(selectScreen({ state: paused, signedIn: true, approached: true })).toBe('paused');
+  });
 
   it('без связи на запертом ПК войти нельзя, даже если вход уже был', () => {
     // Сервер коду не поверит, и звать человека к экрану выбора — обещать то, что не выполнить.

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { ShellBridgeRequestTypeNames } from '@afk4/contracts';
 import { PLAYER_UNAUTHORIZED_EVENT, apiBaseUrl } from './api/playerApi';
 import { useI18n, isLocale } from '@afk4/i18n';
-import { AlertOctagon, Loader2, WifiOff } from 'lucide-react';
+import { AlertOctagon, Loader2, Lock, Pause, WifiOff } from 'lucide-react';
 import { requestHost, useShellHost } from './host/shellHost';
 import { clubAccent } from './model/branding';
 import { selectScreen, type ShellScreen } from './model/screen';
@@ -180,6 +180,26 @@ export function App() {
             icon={<WifiOff />}
             title={t('playerShell.offline.title')}
             body={t('playerShell.offline.body')}
+          />
+        );
+      case 'paused':
+        return (
+          <StatusScreen
+            tone="warning"
+            top={seat}
+            icon={<Pause />}
+            title={t('playerShell.paused.title')}
+            body={t('playerShell.paused.body')}
+          />
+        );
+      case 'held':
+        return (
+          <StatusScreen
+            tone="warning"
+            top={seat}
+            icon={<Lock />}
+            title={t('playerShell.hold.title')}
+            body={t('playerShell.hold.body')}
           />
         );
       case 'maintenance':

@@ -59,6 +59,21 @@ describe('floor-map state', () => {
     });
   });
 
+  it('безымянный игрок со счётом — «Игрок», а не гость; гость без счёта остаётся гостем', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [],
+      seats: [
+        createSeat({ state: 'Active', activeSessionId: '33333333-3333-3333-3333-333333333333', hasPlayerAccount: true }),
+        createSeat({ state: 'Active', activeSessionId: '44444444-4444-4444-4444-444444444444', seatId: '99999999-9999-9999-9999-999999999999' })
+      ]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({ player: 'Игрок', playerDisplayName: 'Игрок' });
+    expect(state.seats[1]).toMatchObject({ player: 'Гость', playerDisplayName: null });
+  });
+
   it('shows live accrued cost for an open-tab session instead of a countdown', () => {
     const state = mapFloorMapDtoToState({
       branchId,
