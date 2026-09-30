@@ -16,7 +16,8 @@ public sealed class ShellBridgeHost(
     IShellAgentRequests agent,
     DevicePlayerSession session,
     Func<PlayerShellStateDto?> latestState,
-    ISystemControls? system = null)
+    ISystemControls? system = null,
+    IAppWindowControl? appWindows = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -28,6 +29,9 @@ public sealed class ShellBridgeHost(
 
     /// <summary>Вход или выход поменял, кто за ПК: окну надо разослать auth.changed.</summary>
     public event Action<ShellAuthStateDto>? AuthChanged;
+
+    /// <summary>Агент запустил игру: окну пора отступить и выпустить её окно вперёд.</summary>
+    public event Action? AppLaunched;
 
     public async Task<string> HandleAsync(string requestJson, CancellationToken cancellationToken)
     {
@@ -54,6 +58,8 @@ public sealed class ShellBridgeHost(
             ShellBridgeRequestTypeNames.AuthSignOut => await SignOutAsync(requestId, cancellationToken),
             ShellBridgeRequestTypeNames.AuthRefresh => await RefreshAuthAsync(requestId, cancellationToken),
             ShellBridgeRequestTypeNames.AppLaunch => await LaunchAsync(requestId, payload, cancellationToken),
+            ShellBridgeRequestTypeNames.AppFocus => FocusApp(requestId, payload),
+            ShellBridgeRequestTypeNames.AppClose => await CloseAppAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AssistCall => await AskAgentAsync(
                 requestId, ShellPipeRequestTypeNames.Assist, new Dictionary<string, string>(), cancellationToken),
             ShellBridgeRequestTypeNames.MaintenanceReturn => await AskAgentAsync(
@@ -117,7 +123,39 @@ public sealed class ShellBridgeHost(
         var appId = ReadString(payload, "appId");
         return string.IsNullOrWhiteSpace(appId)
             ? Task.FromResult(Error(requestId, ShellPipeErrorCodeNames.InvalidPayload, "app.launch needs an appId."))
-            : AskAgentAsync(requestId, ShellPipeRequestTypeNames.Launch, new Dictionary<string, string> { ["appId"] = appId }, cancellationToken);
+            : AskAgentAsync(
+                requestId,
+                ShellPipeRequestTypeNames.Launch,
+                new Dictionary<string, string> { ["appId"] = appId },
+                cancellationToken,
+                onOk: () => AppLaunched?.Invoke());
+    }
+
+    /// <summary>«Вернуться»: окна игры ищет хост — служба в сессии 0 окон игрока не видит.</summary>
+    private string FocusApp(string requestId, JsonElement payload)
+    {
+        if (!Guid.TryParse(ReadString(payload, "launchId"), out var launchId))
+        {
+            return Error(requestId, ShellPipeErrorCodeNames.InvalidPayload, "app.focus needs a launchId.");
+        }
+
+        var app = latestState()?.LaunchedApps?.FirstOrDefault(candidate => candidate.LaunchId == launchId);
+        if (app is null)
+        {
+            return Error(requestId, ShellPipeErrorCodeNames.AppNotRunning, "This app is no longer running.");
+        }
+
+        return appWindows?.Focus(app.ProcessIds) == true
+            ? Ok(requestId, null)
+            : Error(requestId, ShellBridgeErrorCodeNames.AppWindowNotFound, "The app has no window to bring back yet.");
+    }
+
+    private Task<string> CloseAppAsync(string requestId, JsonElement payload, CancellationToken cancellationToken)
+    {
+        var launchId = ReadString(payload, "launchId");
+        return !Guid.TryParse(launchId, out _)
+            ? Task.FromResult(Error(requestId, ShellPipeErrorCodeNames.InvalidPayload, "app.close needs a launchId."))
+            : AskAgentAsync(requestId, ShellPipeRequestTypeNames.CloseApp, new Dictionary<string, string> { ["launchId"] = launchId! }, cancellationToken);
     }
 
     /// <summary>Показ карточки витрины — агенту: он решает, что считать, и копит суммы.</summary>
@@ -189,9 +227,15 @@ public sealed class ShellBridgeHost(
         string requestId,
         string pipeType,
         IReadOnlyDictionary<string, string> pipePayload,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action? onOk = null)
     {
         var reply = await agent.RequestAsync(pipeType, pipePayload, cancellationToken);
+        if (reply.Ok)
+        {
+            onOk?.Invoke();
+        }
+
         return reply.Ok
             ? Ok(requestId, null)
             : Error(requestId, reply.ErrorCode ?? ShellBridgeErrorCodeNames.AgentUnavailable, reply.Message ?? "The PC service refused.");

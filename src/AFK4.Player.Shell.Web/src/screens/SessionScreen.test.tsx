@@ -252,3 +252,63 @@ describe('экран сессии', () => {
     expect(screen.getByTestId('countdown').textContent).toMatch(/^2:3\d:/);
   });
 });
+
+describe('«Мои приложения» и библиотека в сессии', () => {
+  const launched = { launchId: '00000000-0000-4000-8000-000000000030', appId: 'cs2', displayName: 'Counter-Strike 2', processIds: [100] };
+
+  function renderWith(patch: Partial<NonNullable<ReturnType<typeof devScenarioState>>>) {
+    const host = installFakeHost({ state: null });
+    const state = { ...devScenarioState('session')!, ...patch };
+    render(
+      <ShellI18nProvider initialLocale="ru">
+        <SessionScreen state={state} receivedAtMs={Date.now()} variant="session" auth={owner} />
+      </ShellI18nProvider>
+    );
+    return host;
+  }
+
+  it('кнопка в колонке открывает список запущенного игроком; число — сколько работает', () => {
+    renderWith({ launchedApps: [launched] });
+
+    const open = screen.getByRole('button', { name: /Мои приложения/ });
+    expect(open).toHaveTextContent('1');
+    fireEvent.click(open);
+
+    expect(screen.getByRole('dialog', { name: 'Мои приложения' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Вернуться: Counter-Strike 2' })).toBeInTheDocument();
+  });
+
+  it('гостю стойки кнопка тоже нужна: вернуться в игру и закрыть зависшую может любой', () => {
+    installFakeHost({ state: null });
+    const state = { ...devScenarioState('session')!, sessionOwnerKind: 'guest', sessionOwnerPlayerAccountId: null };
+    render(
+      <ShellI18nProvider initialLocale="ru">
+        <SessionScreen state={state} receivedAtMs={Date.now()} variant="session" />
+      </ShellI18nProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /Мои приложения/ })).toBeInTheDocument();
+  });
+
+  it('сочетание клавиш в игре: хост присылает событие, и лист открывается сам', async () => {
+    const host = renderWith({ launchedApps: [launched] });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    host.send('apps.panelRequested');
+
+    expect(await screen.findByRole('dialog', { name: 'Мои приложения' })).toBeInTheDocument();
+  });
+
+  it('пустой жанр не превращается в английское «Games»', () => {
+    renderWith({
+      launcherApps: [
+        { appId: 'cs2', displayName: 'Counter-Strike 2', category: '', iconUri: null, isAvailable: true },
+        { appId: 'dota2', displayName: 'Dota 2', category: 'MOBA', iconUri: null, isAvailable: true }
+      ]
+    });
+
+    expect(screen.queryByText('Games')).toBeNull();
+    expect(document.querySelectorAll('.library-tile__category')).toHaveLength(1);
+    expect(screen.getByText('MOBA')).toBeInTheDocument();
+  });
+});

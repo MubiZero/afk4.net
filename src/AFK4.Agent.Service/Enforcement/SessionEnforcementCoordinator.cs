@@ -29,7 +29,7 @@ public sealed class SessionEnforcementCoordinator(
         var before = runtimeStateStore.Current;
         leaseStore.Save(lease);
         runtimeStateStore.MarkActive(lease, timeProvider.GetUtcNow());
-        var unlock = await workstationLockController.UnlockAsync(cancellationToken);
+        var unlock = await workstationLockController.OpenForSessionAsync(cancellationToken);
 
         // Автозапуск — только в начале сессии: повторное открытие той же сессии не повод
         // запускать Discord второй раз. Не запустилось — сессия всё равно началась.

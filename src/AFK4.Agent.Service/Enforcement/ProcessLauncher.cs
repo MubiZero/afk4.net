@@ -14,12 +14,11 @@ public sealed class ProcessLauncher(
     IPlayerShellLaunchContext launchContext,
     IPlayerShellProcessStarter processStarter) : IProcessLauncher
 {
-    public Task LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken)
+    public Task<int?> LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken)
     {
         var target = launchContext.GetActiveUserSession()
             ?? throw new InvalidOperationException("No interactive user session is available to launch the app into.");
 
-        processStarter.Start(executablePath, arguments, target);
-        return Task.CompletedTask;
+        return Task.FromResult(processStarter.Start(executablePath, arguments, target));
     }
 }

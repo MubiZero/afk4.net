@@ -186,10 +186,10 @@ public sealed class SessionAutostartTests
     {
         public List<(string Path, string Arguments)> Launched { get; } = [];
 
-        public Task LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken)
+        public Task<int?> LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken)
         {
             Launched.Add((executablePath, arguments));
-            return Task.CompletedTask;
+            return Task.FromResult<int?>(null);
         }
     }
 }

@@ -3,7 +3,13 @@ namespace AFK4.Agent.Service.Cleanup;
 /// <summary>Процесс игрока в консольной сессии, как его видит агент.</summary>
 /// <param name="ExecutablePath">Полный путь к exe; null — прочитать не удалось.</param>
 /// <param name="StartedAtUtc">Когда процесс запущен; null — не удалось узнать.</param>
-public sealed record SessionProcess(int ProcessId, string ImageName, string? ExecutablePath, DateTimeOffset? StartedAtUtc);
+/// <param name="ParentProcessId">Кто его запустил; null — не удалось узнать. Номер мог достаться другому процессу — сверяют по времени старта.</param>
+public sealed record SessionProcess(
+    int ProcessId,
+    string ImageName,
+    string? ExecutablePath,
+    DateTimeOffset? StartedAtUtc,
+    int? ParentProcessId = null);
 
 /// <summary>
 /// Какие программы закрыть после сессии (спека оболочки, §6.4). Закрывается запущенное за сессию —

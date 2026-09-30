@@ -127,6 +127,8 @@ else
     builder.Services.AddSingleton<IPlayerSessionHost, UnsupportedPlayerSessionHost>();
 }
 
+// Что игрок запустил из библиотеки: «Мои приложения» и уборка в конце сессии.
+builder.Services.AddSingleton<LaunchedApps>();
 builder.Services.AddSingleton<ISessionCleanup, SessionCleanup>();
 
 // Библиотека игр филиала (спека оболочки, §6.6): список, лаунчеры этого ПК и обложки.

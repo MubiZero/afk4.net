@@ -39,6 +39,25 @@ public sealed class WorkstationLockController(
         return Task.FromResult(outcome);
     }
 
+    public Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken)
+    {
+        if (!policyStore.IsSupported)
+        {
+            return Task.FromResult(WorkstationLockOutcome.Nothing);
+        }
+
+        // Ставится, а не просто «не снимается»: политику могли убрать руками или профилем защиты.
+        var kept = new List<string>();
+        if (policyStore.Set(DisableTaskManagerPolicy, 1))
+        {
+            kept.Add("task manager stays disabled");
+        }
+
+        var outcome = new WorkstationLockOutcome(kept);
+        logger.LogInformation("Workstation opened for a session: {Kept}.", outcome.Describe());
+        return Task.FromResult(outcome);
+    }
+
     public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken)
     {
         if (!policyStore.IsSupported)

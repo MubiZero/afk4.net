@@ -1186,6 +1186,8 @@ abstract final class ShellBridgeErrorCodeNames {
   static const String notSupported = 'not_supported';
   /// Windows не дала поменять звук, микрофон или раскладку — например, нет устройства.
   static const String systemUnavailable = 'system_unavailable';
+  /// У запущенной игры нет окна, которое можно вывести вперёд: оно ещё не открылось или уже закрыто.
+  static const String appWindowNotFound = 'app_window_not_found';
 }
 
 /// Словарь: Shell/ShellBridgeContracts.cs
@@ -1200,6 +1202,8 @@ abstract final class ShellBridgeEventTypeNames {
   static const String inputIdle = 'input.idle';
   /// Громкость, микрофон, раскладка — ShellSystemStateDto.
   static const String systemChanged = 'system.changed';
+  /// Игрок нажал сочетание клавиш «Мои приложения»: страница открывает панель.
+  static const String appsPanelRequested = 'apps.panelRequested';
 }
 
 /// Мост хост ↔ интерфейс оболочки, версия 2 (спека оболочки, §4.4). Конверт запроса и ответа —
@@ -1222,6 +1226,10 @@ abstract final class ShellBridgeRequestTypeNames {
   static const String authRefresh = 'auth.refresh';
   /// Запустить игру из библиотеки клуба.
   static const String appLaunch = 'app.launch';
+  /// «Вернуться» в запущенную игру: хост выводит её окно вперёд. В теле — `launchId`.
+  static const String appFocus = 'app.focus';
+  /// «Закрыть» запущенную игру: агент закрывает её с дочерними процессами. В теле — `launchId`.
+  static const String appClose = 'app.close';
   /// Позвать администратора к этому ПК.
   static const String assistCall = 'assist.call';
   static const String systemSetVolume = 'system.setVolume';
@@ -1257,6 +1265,8 @@ abstract final class ShellPipeErrorCodeNames {
   /// Игра в списке клуба, но её файла на этом ПК нет.
   static const String appMissing = 'app_missing';
   static const String launchFailed = 'launch_failed';
+  /// Такой запуск уже не числится: игру закрыли сами или сессия кончилась.
+  static const String appNotRunning = 'app_not_running';
   /// До платформы не достучались — стойка о вызове не узнала.
   static const String platformUnreachable = 'platform_unreachable';
   /// Хосту некуда отправить запрос: агента нет на другом конце канала.
@@ -1304,6 +1314,9 @@ abstract final class ShellPipeRequestTypeNames {
   /// Рекламная карточка витрины отстояла на экране. В теле — `cardId` и `shownMs`.
   /// Агент считает только рекламу и только на свободном ПК.
   static const String showcaseImpression = 'showcase.impression';
+  /// Закрыть запущенную игроком игру вместе с дочерними процессами. В теле — `launchId` из
+  /// LaunchedAppDto. Закрываются только запуски из библиотеки в этой сессии.
+  static const String closeApp = 'app.close';
 }
 
 /// Машинные имена отказов по сменам и кассе. См. Tariffs.TariffErrorCodeNames — та же
@@ -8955,6 +8968,41 @@ class JobHealthDto {
       };
 }
 
+/// Запущенная из библиотеки игра, которая ещё работает на этом ПК.
+///
+/// Контракт: Shell/LauncherAppDto.cs
+class LaunchedAppDto {
+  const LaunchedAppDto({
+    required this.launchId,
+    required this.appId,
+    required this.displayName,
+    required this.processIds,
+  });
+
+
+  /// Номер запуска: по нему «Закрыть» и «Вернуться» находят именно эту копию игры.
+  final String launchId;
+  final String appId;
+  final String displayName;
+
+  /// Процессы игры и её дочерние. Окна ищет по ним оболочка: служба в сессии 0 окон игрока не видит.
+  final List<int> processIds;
+
+  factory LaunchedAppDto.fromJson(Map<String, dynamic> json) => LaunchedAppDto(
+        launchId: json['launchId'] as String,
+        appId: json['appId'] as String,
+        displayName: json['displayName'] as String,
+        processIds: (json['processIds'] as List<dynamic>).map((item) => (item as num).toInt()).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'launchId': launchId,
+        'appId': appId,
+        'displayName': displayName,
+        'processIds': processIds.map((item) => item).toList(),
+      };
+}
+
 /// Контракт: Shell/LauncherAppDto.cs
 class LauncherAppDto {
   const LauncherAppDto({
@@ -14354,6 +14402,7 @@ class PlayerShellStateDto {
     this.showcase,
     this.sessionStartedAtUtc,
     this.sessionEndsAtUtc,
+    this.launchedApps,
   });
 
   final String organizationId;
@@ -14430,6 +14479,10 @@ class PlayerShellStateDto {
   final DateTime? sessionStartedAtUtc;
   final DateTime? sessionEndsAtUtc;
 
+  /// Что игрок запустил из библиотеки в этой сессии и что ещё работает: панель «Мои приложения».
+  /// Только запущенное им самим — системные процессы, оболочка и агент сюда не попадают.
+  final List<LaunchedAppDto>? launchedApps;
+
   factory PlayerShellStateDto.fromJson(Map<String, dynamic> json) => PlayerShellStateDto(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -14464,6 +14517,7 @@ class PlayerShellStateDto {
         showcase: json['showcase'] == null ? null : (json['showcase'] as List<dynamic>).map((item) => ShowcaseCardDto.fromJson(item as Map<String, dynamic>)).toList(),
         sessionStartedAtUtc: json['sessionStartedAtUtc'] == null ? null : DateTime.parse(json['sessionStartedAtUtc'] as String),
         sessionEndsAtUtc: json['sessionEndsAtUtc'] == null ? null : DateTime.parse(json['sessionEndsAtUtc'] as String),
+        launchedApps: json['launchedApps'] == null ? null : (json['launchedApps'] as List<dynamic>).map((item) => LaunchedAppDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -14500,6 +14554,7 @@ class PlayerShellStateDto {
         'showcase': showcase?.map((item) => item.toJson()).toList(),
         'sessionStartedAtUtc': sessionStartedAtUtc?.toIso8601String(),
         'sessionEndsAtUtc': sessionEndsAtUtc?.toIso8601String(),
+        'launchedApps': launchedApps?.map((item) => item.toJson()).toList(),
       };
 }
 

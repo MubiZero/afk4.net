@@ -60,4 +60,7 @@ public sealed record PlayerShellStateDto(
     // Когда идущая сессия началась и когда кончится — отсчёт «Осталось» идёт от конца сессии, а не
     // от срока аренды. Конца нет у открытого счёта: экран показывает, сколько уже идёт.
     DateTimeOffset? SessionStartedAtUtc = null,
-    DateTimeOffset? SessionEndsAtUtc = null);
+    DateTimeOffset? SessionEndsAtUtc = null,
+    // Что игрок запустил из библиотеки в этой сессии и что ещё работает: панель «Мои приложения».
+    // Только запущенное им самим — системные процессы, оболочка и агент сюда не попадают.
+    IReadOnlyList<LaunchedAppDto>? LaunchedApps = null);

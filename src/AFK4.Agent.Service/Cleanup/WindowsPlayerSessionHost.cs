@@ -119,7 +119,8 @@ public sealed class WindowsPlayerSessionHost(IOptions<AgentOptions> options) : I
                             process.Id,
                             path is null ? process.ProcessName + ".exe" : Path.GetFileName(path),
                             path,
-                            StartTime(handle)));
+                            StartTime(handle),
+                            ParentProcessId(handle)));
                     }
                     finally
                     {
@@ -252,10 +253,32 @@ public sealed class WindowsPlayerSessionHost(IOptions<AgentOptions> options) : I
         return QueryFullProcessImageName(process, 0, builder, ref size) ? builder.ToString(0, size) : null;
     }
 
+    private static int? ParentProcessId(IntPtr process)
+    {
+        var information = new ProcessBasicInformation();
+        return NtQueryInformationProcess(process, 0, ref information, Marshal.SizeOf<ProcessBasicInformation>(), out _) == 0
+            ? (int)information.InheritedFromUniqueProcessId
+            : null;
+    }
+
     private static DateTimeOffset? StartTime(IntPtr process) =>
         GetProcessTimes(process, out var creation, out _, out _, out _)
             ? DateTimeOffset.FromFileTime(creation)
             : null;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessBasicInformation
+    {
+        public IntPtr ExitStatus;
+        public IntPtr PebBaseAddress;
+        public IntPtr AffinityMask;
+        public IntPtr BasePriority;
+        public IntPtr UniqueProcessId;
+        public IntPtr InheritedFromUniqueProcessId;
+    }
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(IntPtr process, int infoClass, ref ProcessBasicInformation info, int length, out int returnLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint access, bool inheritHandle, int processId);

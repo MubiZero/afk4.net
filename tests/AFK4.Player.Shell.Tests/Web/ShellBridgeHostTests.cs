@@ -260,6 +260,73 @@ public sealed class ShellBridgeHostTests
         Assert.Null(fixture.Bridge.Locale);
     }
 
+    // «Мои приложения»: «Вернуться» — дело хоста, окна игрока видит он, а не служба в сессии 0.
+    [Fact]
+    public async Task AppFocus_BringsTheWindowsOfTheLaunchedApp_ToTheFront()
+    {
+        var launchId = Guid.NewGuid();
+        var fixture = new Fixture { State = State() with { LaunchedApps = [new LaunchedAppDto(launchId, "cs2", "Counter-Strike 2", [100, 101])] } };
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AppFocus, new { launchId });
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal([100, 101], fixture.Windows.Focused.Single());
+    }
+
+    [Fact]
+    public async Task AppFocus_WhenTheGameHasNoWindow_SaysSoByName()
+    {
+        var launchId = Guid.NewGuid();
+        var fixture = new Fixture { State = State() with { LaunchedApps = [new LaunchedAppDto(launchId, "cs2", "Counter-Strike 2", [100])] } };
+        fixture.Windows.HasWindow = false;
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AppFocus, new { launchId });
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(ShellBridgeErrorCodeNames.AppWindowNotFound, response.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task AppFocus_OfALaunchTheAgentDoesNotKnow_IsRefused()
+    {
+        var fixture = new Fixture { State = State() with { LaunchedApps = [] } };
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AppFocus, new { launchId = Guid.NewGuid() });
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(ShellPipeErrorCodeNames.AppNotRunning, response.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty(fixture.Windows.Focused);
+    }
+
+    [Fact]
+    public async Task AppClose_GoesToTheAgent_WhichClosesTheAppWithItsChildren()
+    {
+        var launchId = Guid.NewGuid();
+        var fixture = new Fixture();
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AppClose, new { launchId });
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        var (type, payload) = Assert.Single(fixture.Agent.Requests);
+        Assert.Equal(ShellPipeRequestTypeNames.CloseApp, type);
+        Assert.Equal(launchId.ToString(), payload["launchId"]);
+    }
+
+    [Fact]
+    public async Task AFreshLaunch_TellsTheWindowToStepBack_AndOnlyWhenTheAgentStartedIt()
+    {
+        var fixture = new Fixture();
+        var launched = 0;
+        fixture.Bridge.AppLaunched += () => launched++;
+
+        await fixture.SendAsync(ShellBridgeRequestTypeNames.AppLaunch, new { appId = "cs2" });
+        Assert.Equal(1, launched);
+
+        fixture.Agent.Reply = new ShellPipeReplyDto(Guid.NewGuid(), Ok: false, ShellPipeErrorCodeNames.AppMissing, "no");
+        await fixture.SendAsync(ShellBridgeRequestTypeNames.AppLaunch, new { appId = "cs2" });
+        Assert.Equal(1, launched);
+    }
+
     [Fact]
     public void AnEvent_IsTypeAndPayload()
     {
@@ -296,8 +363,10 @@ public sealed class ShellBridgeHostTests
             Session = refresh is null
                 ? new DevicePlayerSession(new HttpClient(), () => null, TimeProvider.System)
                 : new DevicePlayerSession(new HttpClient(new StubHandler(refresh)), () => "https://api.example.test/", TimeProvider.System);
-            Bridge = new ShellBridgeHost(Agent, Session, () => State, system);
+            Bridge = new ShellBridgeHost(Agent, Session, () => State, system, Windows);
         }
+
+        public RecordingWindows Windows { get; } = new();
 
         public RecordingAgent Agent { get; } = new();
 
@@ -348,6 +417,23 @@ public sealed class ShellBridgeHostTests
             {
                 State = State with { Layout = label };
             }
+        }
+    }
+
+    private sealed class RecordingWindows : IAppWindowControl
+    {
+        public bool HasWindow { get; set; } = true;
+
+        public List<IReadOnlyCollection<int>> Focused { get; } = [];
+
+        public bool Focus(IReadOnlyCollection<int> processIds)
+        {
+            if (HasWindow)
+            {
+                Focused.Add(processIds);
+            }
+
+            return HasWindow;
         }
     }
 

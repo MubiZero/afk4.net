@@ -38,6 +38,33 @@ public sealed class KeyboardBlockPolicyTests
         Assert.False(ShouldBlock(ShellKeyMode.Locked, new KeyStroke(key, false, ctrl, shift), shellInFront: true));
     }
 
+    // Вместо диспетчера задач Windows — свой список «Мои приложения». Сочетание то же, что у
+    // SmartShell: игрок, пришедший из другого клуба, его уже знает.
+    [Fact]
+    public void InASession_CtrlAltF10_OpensMyApps_AndIsNotPassedToTheGame()
+    {
+        var hotkey = new KeyStroke(VkF10, Alt: true, Ctrl: true, Shift: false);
+
+        Assert.True(IsAppsHotkey(hotkey));
+        Assert.True(ShouldBlock(ShellKeyMode.Session, hotkey, shellInFront: false));
+    }
+
+    [Theory]
+    [InlineData(VkF10, true, false)]
+    [InlineData(VkF10, false, true)]
+    [InlineData(VkF10, false, false)]
+    [InlineData(VkA, true, true)]
+    public void OtherCombos_AreNotTheMyAppsHotkey(int key, bool alt, bool ctrl)
+    {
+        Assert.False(IsAppsHotkey(new KeyStroke(key, alt, ctrl, Shift: false)));
+    }
+
+    [Fact]
+    public void InMaintenance_TheHotkeyIsLeftAlone()
+    {
+        Assert.False(ShouldBlock(ShellKeyMode.Maintenance, new KeyStroke(VkF10, true, true, false), shellInFront: false));
+    }
+
     [Fact]
     public void InASession_TheStartMenuStaysShut()
     {
