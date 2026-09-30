@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError, requiresManagerApproval } from './apiErrors';
-import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto, ReservationDto } from './operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto, PlayersSummaryDto, SessionTimelineItemDto, WalletSummaryDto, ReservationDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
@@ -17,7 +17,7 @@ import {
   resolveReasonInput,
   toDateTimeInputValue
 } from './operatorHelpers';
-import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContextMap, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
+import { fixturePlayers, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContextMap, matchesSegment, withWallet, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
 import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
 import { Button, Money, SectionHeader } from '@afk4/ui/react';
 import { UserRoundPlus } from 'lucide-react';
@@ -70,6 +70,19 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : cachedSnapshot ? 'backend' : 'loading');
   const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : cachedSnapshot?.clients ?? []);
+  // Справочник идёт страницами: сколько строк уже взято с сервера (для следующей страницы — не
+  // clients.length, в него подмешиваются заведённые здесь карточки) и есть ли ещё.
+  const [hasMore, setHasMore] = useState(cachedSnapshot?.hasMore ?? false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageOffset, setPageOffset] = useState(cachedSnapshot?.clients.length ?? 0);
+  // Итоги по всем клиентам, подходящим под поиск, считает сервер: по загруженной странице они
+  // врали бы у клуба, где клиентов больше страницы.
+  const [summary, setSummary] = useState<PlayersSummaryDto | null>(null);
+  // Растёт, когда меняется состав или число клиентов (завели карточку, выключили) — не деньги.
+  const [summaryNonce, setSummaryNonce] = useState(0);
+  // null — неизвестно (нет права смотреть смену или запрос не ответил): тогда кнопку не гасим и
+  // причины не выдумываем, отказ всё равно скажет сервер.
+  const [shiftOpen, setShiftOpen] = useState<boolean | null>(null);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('');
   const [walletTopUpReason] = useState('');
@@ -124,6 +137,14 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     setSelectedClientId(openClient.playerAccountId);
   }, [openClient?.playerAccountId, openClient?.search]);
 
+  // Отбор «Долги»/«Неактивные» сервер применяет сам: страница, отфильтрованная на клиенте, была бы
+  // дырявой. «Все» — это и есть пустой отбор.
+  const segmentParam = activeSegment === 'all' ? undefined : activeSegment;
+  // Ключ выборки: ответ на более раннюю выборку не должен лечь в список после смены поиска или отбора.
+  const listKey = `${cacheKey}|${clientSearch}|${activeSegment}|${reloadTick}`;
+  const listKeyRef = useRef(listKey);
+  listKeyRef.current = listKey;
+
   useEffect(() => {
     if (backend === null) {
       setLoadStatus('fixture');
@@ -139,19 +160,22 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         setLoadStatus('loading');
       }
       try {
-        const { clients: nextClients } = await fetchPlayersData(backend, t, clientSearch);
+        const { clients: nextClients, hasMore: nextHasMore } = await fetchPlayersData(backend, t, clientSearch, { segment: segmentParam });
         if (disposed) {
           return;
         }
 
         setClients(nextClients);
+        setHasMore(nextHasMore);
+        setPageOffset(nextClients.length);
         setSelectedClientId((current) => {
           const resolved = current && nextClients.some((client) => client.playerAccountId === current)
             ? current
             : nextClients[0]?.playerAccountId ?? null;
-          // Кладём удачный снимок в кэш → следующий заход в раздел мгновенный (без ре-фетча с нуля).
-          if (cacheKey !== null) {
-            playersSnapshotCache.set(cacheKey, { clients: nextClients, selectedId: resolved });
+          // Снимок — только целого списка: снимок чьего-то поиска вернул бы при входе в раздел
+          // чужую выдачу под пустой строкой поиска.
+          if (cacheKey !== null && clientSearch === '' && segmentParam === undefined) {
+            playersSnapshotCache.set(cacheKey, { clients: nextClients, hasMore: nextHasMore, selectedId: resolved });
           }
           return resolved;
         });
@@ -169,7 +193,62 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
       disposed = true;
       window.clearTimeout(timer);
     };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode, reloadTick]);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, segmentParam, currencyCode, reloadTick]);
+
+  // Следующая страница справочника: той же выборки, с того места, где остановились.
+  const loadMoreClients = async () => {
+    if (backend === null || loadingMore || !hasMore) return;
+    const requestedKey = listKey;
+    setLoadingMore(true);
+    try {
+      const { clients: more, hasMore: nextHasMore } = await fetchPlayersData(backend, t, clientSearch, { segment: segmentParam, offset: pageOffset });
+      if (listKeyRef.current !== requestedKey) return;
+      setClients((current) => {
+        const seen = new Set(current.map((client) => client.playerAccountId));
+        return [...current, ...more.filter((client) => !seen.has(client.playerAccountId))];
+      });
+      setPageOffset((offset) => offset + more.length);
+      setHasMore(nextHasMore);
+    } catch (error) {
+      setFeedback({ label: t('op.players.error.loadFailed'), state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Итоги и счётчики отборов — по всем клиентам под поиск. Обновляются после любой денежной
+  // операции и при смене состава; ошибка итогов не роняет экран — шапка просто без чисел.
+  useEffect(() => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
+      setSummary(null);
+      return undefined;
+    }
+
+    let disposed = false;
+    const timer = window.setTimeout(() => {
+      createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayersSummary(backend.branchId, clientSearch)
+        .then((next) => { if (!disposed) setSummary(next); })
+        .catch(() => { if (!disposed) setSummary(null); });
+    }, 180);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, reloadTick, summaryNonce, walletReloadNonce]);
+
+  // Смена нужна, чтобы принять деньги: узнаём заранее и говорим рядом с кнопкой, а не после нажатия.
+  useEffect(() => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewShift)) {
+      setShiftOpen(null);
+      return undefined;
+    }
+
+    let disposed = false;
+    createAuthenticatedOperatorClients(backend.config, backend.session).shifts.getCurrentShift(backend.branchId)
+      .then((shift) => { if (!disposed) setShiftOpen(shift !== null); })
+      .catch(() => { if (!disposed) setShiftOpen(null); });
+    return () => { disposed = true; };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClientId]);
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
   const reputation = useReputation(backend, selectedClient?.phoneNumber ?? '', selectedClient?.platformPersonId ?? null);
@@ -226,6 +305,19 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
       disposed = true;
     };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source, walletReloadNonce]);
+
+  // Сводка кошелька пришла (после пополнения, списания, возврата…) — строка списка берёт из неё те
+  // же баланс и долг, что карточка. Приёмка 30.09.2026: карточка 258, а строка, шапка и окно
+  // «Посадить за ПК» держали старые 208.
+  useEffect(() => {
+    if (walletSummary === null) return;
+    const balanceMinorUnits = readMoney(walletSummary, 'walletBalance')?.minorUnits;
+    const debtMinorUnits = readMoney(walletSummary, 'debtBalance')?.minorUnits;
+    if (balanceMinorUnits === undefined || debtMinorUnits === undefined) return;
+    setClients((items) => items.map((item) => item.playerAccountId === walletSummary.playerAccountId
+      ? withWallet(item, balanceMinorUnits, debtMinorUnits)
+      : item));
+  }, [walletSummary]);
 
   // Журнал истории: серверный источник (paged ledger-эндпоинт), отдельно от wallet-summary.
   // Грузим первую страницу при входе на таб «История» / смене клиента / смене фильтра.
@@ -342,14 +434,17 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     setSelectedClientId(id);
   };
 
-  const segments = buildClientSegments(clients, t);
-  const overview = buildClientOverview(clients);
-  const visibleClients = clients.filter((client) => {
-    const searchMatches = `${client.name} ${playerStatusLabel(client.status, t)} ${client.detail} ${client.last}`
-      .toLowerCase()
-      .includes(clientSearch.trim().toLowerCase());
-    return matchesSegment(client, activeSegment) && searchMatches;
+  // Поиск и отбор уже сделал сервер; отбор перепроверяем здесь только ради строк, что изменились
+  // на этом экране (деактивировали — в «Неактивных» он виден сразу, а не после перезагрузки).
+  const segments = buildClientSegments(clients, t, summary === null ? undefined : {
+    all: summary.totalCount,
+    debt: summary.debtorCount,
+    inactive: summary.inactiveCount
   });
+  const overview = summary !== null
+    ? { balanceMinorUnits: summary.walletTotalMinorUnits, debtMinorUnits: summary.debtTotalMinorUnits }
+    : backend === null ? buildClientOverview(clients) : null;
+  const visibleClients = clients.filter((client) => matchesSegment(client, activeSegment));
 
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
@@ -495,6 +590,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
         const wallet = await retryKeys.send('wallet-top-up', [backendClient.playerAccountId, topUp], (idempotencyKey) =>
           apiClients.players.topUpWallet(backendClient.playerAccountId, { ...topUp, idempotencyKey }));
         setWalletSummary(wallet);
+        // Сумма внесена — поле пустеет: оставшаяся в нём, она позвала бы пополнить ещё раз.
+        setWalletTopUpAmount('');
         bumpLedger();
       } else if (id === 'writeOffDebt') {
         if (!hasPermission(nextBackend.session, permissionNames.payDebt)) {
@@ -561,6 +658,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           isActive: true
         }, t);
         setClients((items) => [createdClient, ...items]);
+        setSummaryNonce((n) => n + 1);
         handleSelectClient(createdClient.playerAccountId ?? null);
         setNewPlayerName('');
         setNewPlayerPhone('');
@@ -711,6 +809,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             tone: !isActive ? 'regular' : c.debtMinorUnits > 0 ? 'debt' : 'active'
           };
         }));
+        setSummaryNonce((n) => n + 1);
         setActiveStateOpen(false);
       } else {
         throw new Error(t('op.players.error.actionNotConnected'));
@@ -814,8 +913,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
     }
   };
 
-  const bumpLedger = () => setLedgerReloadNonce((n) => n + 1);
-  const bumpWallet = () => setWalletReloadNonce((n) => n + 1);
+  // Всё, что пишет в журнал, могло тронуть и деньги: пакет и старт сессии списывают с баланса, бронь
+  // придерживает его. Поэтому вместе с журналом перечитывается кошелёк — а с ним строка списка и итоги.
+  const bumpLedger = () => {
+    setLedgerReloadNonce((n) => n + 1);
+    setWalletReloadNonce((n) => n + 1);
+  };
 
   const openEditProfile = () => {
     setEditName(selectedClient?.name ?? '');
@@ -840,8 +943,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
       <SectionHeader
         title={t('op.players.title')}
         counts={[
-          { label: t('op.players.overview.balances'), value: <Money minorUnits={overview.balanceMinorUnits} currencyCode={currencyCode} /> },
-          { label: t('op.players.overview.debts'), value: <Money minorUnits={overview.debtMinorUnits} currencyCode={currencyCode} />, tone: overview.debtMinorUnits > 0 ? 'warning' : undefined }
+          // Пока сервер не насчитал итоги (или не ответил), вместо суммы прочерк: ноль выглядел бы фактом.
+          { label: t('op.players.overview.balances'), value: overview === null ? '—' : <Money minorUnits={overview.balanceMinorUnits} currencyCode={currencyCode} /> },
+          { label: t('op.players.overview.debts'), value: overview === null ? '—' : <Money minorUnits={overview.debtMinorUnits} currencyCode={currencyCode} />, tone: overview !== null && overview.debtMinorUnits > 0 ? 'warning' : undefined }
         ]}
         action={canCreatePlayer ? (
           <Button variant="primary" onClick={() => setNewClientOpen(true)}>
@@ -864,6 +968,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           canCreatePlayer={canCreatePlayer}
           liveContextByClient={liveContextByClient}
           nowMs={nowMs}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={() => void loadMoreClients()}
           canImport={canImportPlayers}
           onImport={() => setImportOpen(true)}
           onSearchChange={setClientSearch}
@@ -885,6 +992,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
             packagesErrorDetail={packagesErrorDetail}
             topUpAmount={walletTopUpAmount}
             canTopUp={canTopUpWallet}
+            topUpBlockedReason={shiftOpen === false ? t('op.players.actions.topUpNeedsShift') : null}
             onChangeTopUpAmount={setWalletTopUpAmount}
             onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
             onOpenDcTopUp={() => setDcTopUpOpen(true)}
@@ -1018,7 +1126,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
           branchId={backend.branchId}
           playerAccountId={selectedClient.playerAccountId}
           onClose={() => setDcTopUpOpen(false)}
-          onCredited={() => { bumpLedger(); bumpWallet(); }}
+          onCredited={bumpLedger}
         />
       )}
 

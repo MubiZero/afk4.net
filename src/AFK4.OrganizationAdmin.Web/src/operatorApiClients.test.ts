@@ -173,6 +173,18 @@ describe('operator API clients', () => {
     });
   });
 
+  it('asks for a directory page with segment and offset, and for totals with the same query', async () => {
+    const { clients, calls } = createRecordedClients();
+
+    await clients.players.searchPlayers(branchId, '', 51, true, { segment: 'debt', offset: 50 });
+    await clients.players.getPlayersSummary(branchId, 'Амир');
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `GET /api/organizations/organization-id/branches/${branchId}/players?limit=51&includeInactive=true&segment=debt&offset=50`,
+      `GET /api/organizations/organization-id/branches/${branchId}/players/summary?query=%D0%90%D0%BC%D0%B8%D1%80`
+    ]);
+  });
+
   it('posts multipart POS settlements to the settlement route', async () => {
     const { clients, calls } = createRecordedClients();
     const request: SettlePosSaleRequest = {

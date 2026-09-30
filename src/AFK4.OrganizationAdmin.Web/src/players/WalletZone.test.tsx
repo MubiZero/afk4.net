@@ -34,4 +34,16 @@ describe('WalletZone', () => {
     fireEvent.submit(screen.getByLabelText('Сумма пополнения').closest('form')!);
     expect(onTopUp).toHaveBeenCalledTimes(2);
   });
+
+  // приёмка 30.09.2026: при закрытой смене кнопка была активна и молчала до нажатия.
+  it('говорит причину рядом с погашенной кнопкой и не пополняет по Enter', () => {
+    const onTopUp = mock(() => {});
+    renderZone({ onTopUp, blockedReason: 'Откройте смену.' });
+    const button = screen.getByRole('button', { name: 'Пополнить баланс' });
+    expect(button).toBeDisabled();
+    expect(screen.getByText('Откройте смену.')).toBeInTheDocument();
+    expect(button).toHaveAccessibleDescription('Откройте смену.');
+    fireEvent.submit(screen.getByLabelText('Сумма пополнения').closest('form')!);
+    expect(onTopUp).not.toHaveBeenCalled();
+  });
 });

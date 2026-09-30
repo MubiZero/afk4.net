@@ -900,15 +900,43 @@ function players(): MockPlayer[] {
   return mutablePlayers;
 }
 
-function filterPlayers(query: string | null, includeInactive: boolean): MockPlayer[] {
+// Справочник клиентов как у сервера (SearchPlayersAsync): пустой запрос — «всех по имени», без
+// права голоса у длины запроса; отбор «debt»/«inactive», сдвиг и потолок страницы. Раньше учебный
+// бэкенд отдавал всех без страниц и отбора, а сервер на пустом запросе — []: демо и тесты были
+// зелёные, а настоящий экран «Клиенты» пустой (приёмка 30.09.2026).
+function matchingPlayers(query: string | null, includeInactive: boolean): MockPlayer[] {
   const q = (query ?? '').trim().toLowerCase();
-  const digits = q.replace(/\D/g, '');
+  // Телефон ищут, только если набрано похожее на номер (≥3 цифр и без букв) — как PhoneQuery на сервере.
+  const digits = /\p{L}/u.test(q) ? '' : q.replace(/\D/g, '');
   return players().filter((p) => {
     if (!includeInactive && !p.isActive) return false;
     if (!q) return true;
     return p.displayName.toLowerCase().includes(q)
-      || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits));
+      || (digits.length >= 3 && p.phoneNumber.replace(/\D/g, '').includes(digits));
   });
+}
+
+function filterPlayers(params: URLSearchParams): MockPlayer[] {
+  const segment = params.get('segment');
+  const includeInactive = params.get('includeInactive') === 'true' || segment === 'inactive';
+  const limit = Math.min(Math.max(Number(params.get('limit') ?? 20) || 20, 1), 100);
+  const offset = Math.max(Number(params.get('offset') ?? 0) || 0, 0);
+  return matchingPlayers(params.get('query'), includeInactive)
+    .filter((p) => segment === 'inactive' ? !p.isActive : segment === 'debt' ? p.debtBalanceMinorUnits > 0 : true)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru'))
+    .slice(offset, offset + limit);
+}
+
+// Итоги по всем подходящим под запрос (а не по странице) — как GetPlayersSummaryAsync.
+function playersSummary(query: string | null) {
+  const all = matchingPlayers(query, true);
+  return {
+    totalCount: all.length,
+    debtorCount: all.filter((p) => p.debtBalanceMinorUnits > 0).length,
+    inactiveCount: all.filter((p) => !p.isActive).length,
+    walletTotalMinorUnits: all.reduce((sum, p) => sum + Math.max(0, p.walletBalanceMinorUnits), 0),
+    debtTotalMinorUnits: all.reduce((sum, p) => sum + Math.max(0, p.debtBalanceMinorUnits), 0)
+  };
 }
 
 // Длинный детерминированный журнал операций клиента для превью пагинации/фильтра. Фикс-даты
@@ -1121,7 +1149,10 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     return signIn;
   }
   if (url.pathname.endsWith('/players') && method === 'GET') {
-    return json(filterPlayers(url.searchParams.get('query'), url.searchParams.get('includeInactive') === 'true'));
+    return json(filterPlayers(url.searchParams));
+  }
+  if (url.pathname.endsWith('/players/summary') && method === 'GET') {
+    return json(playersSummary(url.searchParams.get('query')));
   }
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
@@ -1356,7 +1387,27 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     previewDevices = previewDevices.filter((device) => device.deviceId !== removeDeviceMatch[1]);
     return json(removed);
   }
-  if ((url.pathname.endsWith('/wallet/top-ups') || url.pathname.endsWith('/debts/payments')) && method === 'POST') {
+  // Пополнение ложится в журнал, как на сервере, и строка клиента в списке получает тот же баланс,
+  // что сводка кошелька: иначе в демо «пополнил» ничего не меняло.
+  if (url.pathname.endsWith('/wallet/top-ups') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const amount = req.amount as { currencyCode: string; minorUnits: number } | undefined;
+    if (amount && amount.minorUnits > 0) {
+      prependLedger({
+        ledgerEntryId: `le-t${nextLedgerSeq++}`, organizationId: ORG, branchId: BRANCH, playerAccountId: 'pl-1',
+        sessionId: null, playerPackageId: null, entryType: 'top_up', accountType: 'wallet', amount,
+        quantitySeconds: 0, description: 'Пополнение кошелька', reason: (req.reason as string) ?? '',
+        reversesLedgerEntryId: null, createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+        createdAtUtc: minutesAgoUtc(0)
+      });
+    }
+    const summary = walletSummary();
+    const row = players().find((p) => p.playerAccountId === summary.playerAccountId);
+    if (row) row.walletBalanceMinorUnits = summary.walletBalance.minorUnits;
+    return json(summary);
+  }
+  if (url.pathname.endsWith('/debts/payments') && method === 'POST') {
     return json(walletSummary());
   }
   // Брони с фильтром по клиенту (профиль «Клиенты» спрашивает ближайшую бронь конкретного игрока).
