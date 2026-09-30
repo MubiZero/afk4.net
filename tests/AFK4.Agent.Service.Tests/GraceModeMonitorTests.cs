@@ -59,6 +59,34 @@ public sealed class GraceModeMonitorTests
     }
 
     [Fact]
+    public async Task EnforceAsync_OfflineLongerThanGraceButLeaseRunsToPaidEnd_DoesNotLock()
+    {
+        // Сервер выдаёт аренду до оплаченного конца сеанса. Связи нет уже 40 минут — дольше любого
+        // льготного окна, — но оплачено ещё 50: игрок играет, а не смотрит на экран блокировки.
+        var leaseStore = new InMemorySessionLeaseStore();
+        var lease = CreateLease(Now.AddMinutes(50));
+        leaseStore.Save(lease);
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-70));
+        var lockController = new RecordingWorkstationLockController();
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddMinutes(-40), effectiveGraceMinutes: 15);
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(grace),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal(lease, leaseStore.Current);
+        Assert.Equal(PlayerShellStateNames.Active, runtimeStore.Current.State);
+        Assert.Equal(0, lockController.LockCount);
+    }
+
+    [Fact]
     public async Task EnforceAsync_WithExpiredLeaseButWithinOfflineGrace_DoesNotLock()
     {
         var leaseStore = new InMemorySessionLeaseStore();

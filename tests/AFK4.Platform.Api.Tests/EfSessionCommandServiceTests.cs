@@ -504,6 +504,11 @@ public sealed class EfSessionCommandServiceTests
         Assert.Equal(2, result.Response.Session.Version);
         var session = await db.Sessions.SingleAsync();
         Assert.Equal(2, session.Version);
+
+        // После продления аренда тянется до нового оплаченного конца: обрыв связи не отнимет минуты,
+        // которые игрок только что докупил.
+        var currentLease = await db.SessionLeases.SingleAsync(lease => lease.SessionLeaseId == session.CurrentLeaseId);
+        Assert.Equal(session.EndsAtUtc, currentLease.ExpiresAtUtc);
     }
 
     [Fact]

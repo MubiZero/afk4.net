@@ -206,7 +206,7 @@ public sealed class EfSessionStartWorkflow(
             SessionStateNames.Active,
             Sequence: 1,
             IssuedAtUtc: now,
-            ExpiresAtUtc: now.AddMinutes(LeaseMinutes));
+            ExpiresAtUtc: SessionLeaseTerm.ExpiresAtUtc(now, endsAtUtc, SessionStateNames.Active, LeaseMinutes));
         var leaseEntity = CreateLeaseEntity(lease);
         var session = new SessionEntity
         {

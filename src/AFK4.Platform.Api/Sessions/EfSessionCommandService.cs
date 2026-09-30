@@ -868,7 +868,7 @@ public sealed class EfSessionCommandService(
             session.State,
             previousSequence + 1,
             now,
-            now.AddMinutes(LeaseMinutes));
+            SessionLeaseTerm.ExpiresAtUtc(now, session.EndsAtUtc, session.State, LeaseMinutes));
         var leaseEntity = CreateLeaseEntity(lease);
         session.CurrentLeaseId = leaseEntity.SessionLeaseId;
         dbContext.SessionLeases.Add(leaseEntity);

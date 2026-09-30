@@ -17,6 +17,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
     private const string HeartbeatLeaseEventType = "session-lease-refreshed-by-heartbeat";
     private const string SessionEndedEventType = "session-ended";
     private static readonly TimeSpan RefreshThreshold = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan MinUsefulExtension = TimeSpan.FromMinutes(1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string[] AcceptedTerminalStatuses = ["Accepted", "Completed"];
     private static readonly string[] PlanningSessionStates =
@@ -104,8 +105,11 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         }
 
         var latestLeaseSequence = await LoadLatestLeaseSequenceAsync(session.SessionId, cancellationToken);
-        var leaseIsNearExpiry = heartbeat.ActiveSessionLeaseExpiresAtUtc is null ||
-            heartbeat.ActiveSessionLeaseExpiresAtUtc.Value <= now.Add(RefreshThreshold);
+        // Аренда, которая уже дотянулась до оплаченного конца, новой не ждёт: иначе в последние пять
+        // минут сеанса каждое сердцебиение выпускало бы одну и ту же аренду заново.
+        var leaseIsNearExpiry = heartbeat.ActiveSessionLeaseExpiresAtUtc is not { } reportedExpiry ||
+            (reportedExpiry <= now.Add(RefreshThreshold) &&
+                await TargetLeaseExpiryAsync(session, now, cancellationToken) > reportedExpiry.Add(MinUsefulExtension));
         var leaseIsMissingOrStale = latestLeaseSequence == 0 ||
             heartbeat.ActiveSessionLeaseSequence is null ||
             heartbeat.ActiveSessionLeaseSequence.Value < latestLeaseSequence;
@@ -277,6 +281,21 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             .MaxAsync(cancellationToken) ?? 0;
     }
 
+    private async Task<DateTimeOffset> TargetLeaseExpiryAsync(
+        SessionEntity session,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var branchGraceMinutes = await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.BranchId == session.BranchId)
+            .Select(branch => branch.GraceLeaseMinutes)
+            .FirstOrDefaultAsync(cancellationToken);
+        var effectiveGraceMinutes = GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes);
+
+        return SessionLeaseTerm.ExpiresAtUtc(now, session.EndsAtUtc, session.State, effectiveGraceMinutes);
+    }
+
     private async Task<SessionLeaseDto> IssueNextLeaseAsync(
         SessionEntity session,
         DateTimeOffset now,
@@ -284,12 +303,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         CancellationToken cancellationToken)
     {
         var previousSequence = await LoadLatestLeaseSequenceAsync(session.SessionId, cancellationToken);
-        var branchGraceMinutes = await dbContext.Branches
-            .AsNoTracking()
-            .Where(branch => branch.BranchId == session.BranchId)
-            .Select(branch => branch.GraceLeaseMinutes)
-            .FirstOrDefaultAsync(cancellationToken);
-        var effectiveGraceMinutes = GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes);
+        var targetExpiresAtUtc = await TargetLeaseExpiryAsync(session, now, cancellationToken);
         var lease = leaseSigner.Sign(
             session.SessionId,
             session.OrganizationId,
@@ -299,7 +313,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             session.State,
             previousSequence + 1,
             now,
-            now.AddMinutes(effectiveGraceMinutes));
+            targetExpiresAtUtc);
         var leaseEntity = CreateLeaseEntity(lease);
 
         session.CurrentLeaseId = leaseEntity.SessionLeaseId;

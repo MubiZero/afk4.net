@@ -63,7 +63,9 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
         Assert.NotNull(payloadLease);
         Assert.Equal(SessionId, payloadLease.SessionId);
         Assert.Equal(1, payloadLease.Sequence);
-        Assert.Equal(Now.AddMinutes(15), payloadLease.ExpiresAtUtc);
+        // Сеанс оплачен на час — аренда идёт до оплаченного конца, а не на 15 минут: без связи игрок
+        // не теряет оплаченное время.
+        Assert.Equal(Now.AddHours(1), payloadLease.ExpiresAtUtc);
 
         var lease = await db.SessionLeases.SingleAsync();
         var session = await db.Sessions.SingleAsync();
@@ -76,7 +78,7 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
     }
 
     [Fact]
-    public async Task PlanAsync_WithBranchGraceOverride_IssuesLeaseWithBranchTtl()
+    public async Task PlanAsync_OpenTabWithBranchGraceOverride_IssuesLeaseWithBranchTtl()
     {
         await using var db = CreateDbContext();
         db.Branches.Add(new BranchEntity
@@ -88,7 +90,8 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
             CreatedAtUtc = Now
         });
         await db.SaveChangesAsync();
-        await SeedSessionAsync(db, SessionStateNames.Active);
+        // Открытый счёт оплаченного конца не имеет — для него остаётся льготное окно филиала.
+        await SeedSessionAsync(db, SessionStateNames.Active, openTab: true);
         var planner = CreatePlanner(db);
 
         var plans = await planner.PlanAsync(
@@ -101,6 +104,80 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
             JsonOptions);
         Assert.NotNull(payloadLease);
         Assert.Equal(Now.AddMinutes(30), payloadLease.ExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task PlanAsync_LongPaidSession_CapsLeaseAtMaxPaidLease()
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Active, endsAtUtc: Now.AddHours(10));
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        var payloadLease = JsonSerializer.Deserialize<SessionLeaseDto>(
+            Assert.Single(plans).Command.Payload["sessionLease"],
+            JsonOptions);
+        Assert.NotNull(payloadLease);
+        Assert.Equal(Now + SessionLeaseTerm.MaxPaidLease, payloadLease.ExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task PlanAsync_LeaseAlreadyAtPaidEnd_DoesNotReissueEveryHeartbeat()
+    {
+        // В последние пять минут сеанса аренда «вот-вот истечёт», но новой, дальше конца, не бывает:
+        // выпускать её заново на каждом сердцебиении значило бы засорять очередь команд ПК.
+        await using var db = CreateDbContext();
+        var endsAtUtc = Now.AddMinutes(3);
+        await SeedSessionAsync(
+            db,
+            SessionStateNames.Active,
+            currentLeaseSequence: 2,
+            currentLeaseExpiresAtUtc: endsAtUtc,
+            endsAtUtc: endsAtUtc);
+        var signer = new RecordingSessionLeaseSigner();
+        var planner = CreatePlanner(db, signer);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(
+                activeSessionId: SessionId,
+                activeSessionLeaseExpiresAtUtc: endsAtUtc,
+                activeSessionLeaseSequence: 2),
+            CancellationToken.None);
+
+        Assert.Empty(plans);
+        Assert.Empty(signer.SignedLeases);
+    }
+
+    [Fact]
+    public async Task PlanAsync_ExtendedSessionWithShortLease_RefreshesLeaseToNewPaidEnd()
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(
+            db,
+            SessionStateNames.Active,
+            currentLeaseSequence: 2,
+            currentLeaseExpiresAtUtc: Now.AddMinutes(3),
+            endsAtUtc: Now.AddHours(2));
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(
+                activeSessionId: SessionId,
+                activeSessionLeaseExpiresAtUtc: Now.AddMinutes(3),
+                activeSessionLeaseSequence: 2),
+            CancellationToken.None);
+
+        var payloadLease = JsonSerializer.Deserialize<SessionLeaseDto>(
+            Assert.Single(plans).Command.Payload["sessionLease"],
+            JsonOptions);
+        Assert.NotNull(payloadLease);
+        Assert.Equal(Now.AddHours(2), payloadLease.ExpiresAtUtc);
     }
 
     [Fact]
@@ -332,7 +409,9 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
         PlatformDbContext dbContext,
         string state,
         int? currentLeaseSequence = null,
-        DateTimeOffset? currentLeaseExpiresAtUtc = null)
+        DateTimeOffset? currentLeaseExpiresAtUtc = null,
+        bool openTab = false,
+        DateTimeOffset? endsAtUtc = null)
     {
         var session = new SessionEntity
         {
@@ -348,7 +427,7 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
             State = state,
             RequestedAtUtc = Now,
             StartedAtUtc = Now,
-            EndsAtUtc = Now.AddHours(1),
+            EndsAtUtc = openTab ? null : endsAtUtc ?? Now.AddHours(1),
             EndedAtUtc = null,
             CurrentLeaseId = null,
             UpdatedAtUtc = Now
