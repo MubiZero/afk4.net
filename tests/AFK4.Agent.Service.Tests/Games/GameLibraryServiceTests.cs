@@ -42,6 +42,17 @@ public sealed class GameLibraryServiceTests
         Assert.Equal("g1", fixture.Service.Find("G1")!.AppId);
     }
 
+    // Жанр в клубе не задан — игроку не подсовываем выдуманный: пустая строка, а не «Games».
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ")]
+    public void AGameWithoutAGenre_HasAnEmptyCategory(string? genre)
+    {
+        var fixture = new Fixture(stored: new DeviceGameLibraryDto(3, [Dota() with { Genre = genre }]));
+
+        Assert.Equal(string.Empty, Assert.Single(fixture.Service.Entries()).Category);
+    }
+
     [Fact]
     public async Task ANewVersion_IsFetched_Stored_AndShownToTheShell()
     {

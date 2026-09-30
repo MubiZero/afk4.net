@@ -23,6 +23,11 @@ public sealed class SetupWizardDeviceSetup(
     /// <summary>Приложение встало, а служба агента не запустилась.</summary>
     public const string AgentStartFailedStatus = "agent_start_failed";
 
+    /// <summary>Служба запущена, но агент настройку не принял (негодный адрес, нет ключа): ПК молчит.</summary>
+    public const string AgentNotReadyStatus = "agent_not_ready";
+
+    public static bool AgentIsDown(string status) => status is AgentStartFailedStatus or AgentNotReadyStatus;
+
     public bool KioskInstalled => kiosk?.IsInstalled ?? false;
 
     /// <summary>
@@ -116,7 +121,7 @@ public sealed class SetupWizardDeviceSetup(
         // читает один раз, при старте.
         var kioskOutcome = role == DeviceRoleNames.GamingPc ? ProvisionKiosk() : null;
         var outcome = StartAgentService(new WizardShellOutcome(status, result.ExitCode, null, kioskOutcome));
-        if (outcome.Status == AgentStartFailedStatus)
+        if (AgentIsDown(outcome.Status))
         {
             return outcome;
         }
@@ -146,6 +151,11 @@ public sealed class SetupWizardDeviceSetup(
         {
             completionAction.Complete();
             return installOutcome;
+        }
+        catch (AgentDidNotAcceptSettingsException exception)
+        {
+            SetupWizardStartupLog.Write("The agent service started but did not accept its settings.", exception);
+            return new WizardShellOutcome(AgentNotReadyStatus, installOutcome.ExitCode, exception.Message, installOutcome.Kiosk);
         }
         catch (Exception exception)
         {

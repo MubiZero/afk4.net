@@ -407,7 +407,7 @@ export function App() {
           <BrandMark className="wizard-brand-logo" />
           <div className="wizard-brand-text">
             <strong>
-              AFK4<span className="wizard-brand-accent">.net</span>
+              AFK4<span className="wizard-brand-accent">.NET</span>
             </strong>
             <span className="wizard-brand-product">{t('setup.wizard.titlebar.product')}</span>
           </div>

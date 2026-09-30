@@ -209,7 +209,7 @@ public sealed class PlayerShellStateBuilder(
             .Select(app => new LauncherAppDto(
                 AppId: app.AppId,
                 DisplayName: string.IsNullOrWhiteSpace(app.DisplayName) ? app.AppId : app.DisplayName,
-                Category: string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
+                Category: app.Category?.Trim() ?? string.Empty,
                 IconUri: null,
                 IsAvailable: File.Exists(app.ExecutablePath)))
             .ToList();
