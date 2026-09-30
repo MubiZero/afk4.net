@@ -180,8 +180,10 @@ public sealed class SetupWizardDeviceSetup(
     }
 
     /// <summary>
-    /// «Снять киоск»: вернуть проводник и настройки входа, удалить учётку игрока — и перезапустить
-    /// агента, чтобы канал с оболочкой снова пускал любого вошедшего, а не удалённую учётку.
+    /// «Снять киоск»: вернуть проводник и настройки входа (автовход — вместе с паролем), удалить
+    /// учётку игрока — и перезапустить агента. Агент без учётки игрока снимает запреты, которые
+    /// ставил AFK4, докладывает серверу «ПК не киоск», а канал с оболочкой снова пускает любого
+    /// вошедшего, а не удалённую учётку.
     /// </summary>
     /// <returns>Остался ли киоск на ПК.</returns>
     public bool RemoveKiosk()
@@ -192,7 +194,7 @@ public sealed class SetupWizardDeviceSetup(
         }
 
         kiosk.Remove();
-        SetupWizardStartupLog.Write("Kiosk removed: the player account and autologon are gone.");
+        SetupWizardStartupLog.Write("Kiosk removed: the player account is gone and the former sign-in settings are back.");
         completionAction.Complete();
         return kiosk.IsInstalled;
     }

@@ -23,7 +23,6 @@ public sealed class WindowsKioskMachine : IKioskMachine
     private const uint UfScript = 0x0001;
     private const uint UfPasswdCantChange = 0x0040;
     private const uint UfDontExpirePasswd = 0x10000;
-    private const string AutologonSecretName = "DefaultPassword";
     private const string TemporaryHiveName = "AFK4.KioskSetup";
 
     public string EnsureUser(string userName, string password)
@@ -72,35 +71,69 @@ public sealed class WindowsKioskMachine : IKioskMachine
         }
     }
 
-    public void StoreAutologonPassword(string? password)
+    public string? ReadSecret(string name)
+    {
+        var attributes = new LsaObjectAttributes { Length = Marshal.SizeOf<LsaObjectAttributes>() };
+        const uint policyGetPrivateInformation = 0x00000004;
+        ThrowOnLsaError(LsaOpenPolicy(IntPtr.Zero, ref attributes, policyGetPrivateInformation, out var policy), "open the LSA policy");
+        var keyBuffer = Marshal.StringToHGlobalUni(name);
+        try
+        {
+            var key = UnicodeString(keyBuffer, name.Length);
+            var status = LsaRetrievePrivateData(policy, ref key, out var data);
+            const uint statusObjectNameNotFound = 0xC0000034;
+            if (status == statusObjectNameNotFound)
+            {
+                return null;
+            }
+
+            ThrowOnLsaError(status, $"read the LSA secret '{name}'");
+            try
+            {
+                var text = Marshal.PtrToStructure<LsaUnicodeString>(data);
+                return text.Buffer == IntPtr.Zero ? null : Marshal.PtrToStringUni(text.Buffer, text.Length / 2);
+            }
+            finally
+            {
+                LsaFreeMemory(data);
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(keyBuffer);
+            LsaClose(policy);
+        }
+    }
+
+    public void StoreSecret(string name, string? value)
     {
         var attributes = new LsaObjectAttributes { Length = Marshal.SizeOf<LsaObjectAttributes>() };
         const uint policyCreateSecret = 0x00000020;
         ThrowOnLsaError(LsaOpenPolicy(IntPtr.Zero, ref attributes, policyCreateSecret, out var policy), "open the LSA policy");
-        var keyBuffer = Marshal.StringToHGlobalUni(AutologonSecretName);
-        var dataBuffer = password is null ? IntPtr.Zero : Marshal.StringToHGlobalUni(password);
+        var keyBuffer = Marshal.StringToHGlobalUni(name);
+        var dataBuffer = value is null ? IntPtr.Zero : Marshal.StringToHGlobalUni(value);
         try
         {
-            var key = UnicodeString(keyBuffer, AutologonSecretName.Length);
-            if (password is null)
+            var key = UnicodeString(keyBuffer, name.Length);
+            if (value is null)
             {
                 // Нулевые данные удаляют секрет. Его может и не быть — это тоже «удалён».
                 const uint statusObjectNameNotFound = 0xC0000034;
                 var deleted = LsaStorePrivateData(policy, ref key, IntPtr.Zero);
                 if (deleted != statusObjectNameNotFound)
                 {
-                    ThrowOnLsaError(deleted, "delete the autologon secret");
+                    ThrowOnLsaError(deleted, $"delete the LSA secret '{name}'");
                 }
 
                 return;
             }
 
-            var data = UnicodeString(dataBuffer, password.Length);
+            var data = UnicodeString(dataBuffer, value.Length);
             var dataPointer = Marshal.AllocHGlobal(Marshal.SizeOf<LsaUnicodeString>());
             try
             {
                 Marshal.StructureToPtr(data, dataPointer, fDeleteOld: false);
-                ThrowOnLsaError(LsaStorePrivateData(policy, ref key, dataPointer), "store the autologon secret");
+                ThrowOnLsaError(LsaStorePrivateData(policy, ref key, dataPointer), $"store the LSA secret '{name}'");
             }
             finally
             {
@@ -331,6 +364,12 @@ public sealed class WindowsKioskMachine : IKioskMachine
 
     [DllImport("advapi32.dll")]
     private static extern uint LsaStorePrivateData(IntPtr policy, ref LsaUnicodeString key, IntPtr privateData);
+
+    [DllImport("advapi32.dll")]
+    private static extern uint LsaRetrievePrivateData(IntPtr policy, ref LsaUnicodeString key, out IntPtr privateData);
+
+    [DllImport("advapi32.dll")]
+    private static extern uint LsaFreeMemory(IntPtr buffer);
 
     [DllImport("advapi32.dll")]
     private static extern uint LsaNtStatusToWinError(uint status);
