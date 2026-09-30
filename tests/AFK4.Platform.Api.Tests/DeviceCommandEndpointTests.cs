@@ -690,7 +690,7 @@ public sealed class DeviceCommandEndpointTests
     {
         return client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/devices/{deviceId:D}/commands",
-            new DispatchDeviceCommandRequest(
+            new CreateDeviceCommandRequest(
                 type,
                 new Dictionary<string, string> { ["reason"] = "operator-request" },
                 idempotencyKey));

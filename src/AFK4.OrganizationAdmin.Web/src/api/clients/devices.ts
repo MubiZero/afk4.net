@@ -9,7 +9,7 @@ import type {
   DeviceHardwareDto,
   DeviceInventoryItemDto,
   DeviceStateChangeRequest,
-  DispatchDeviceCommandRequest,
+  CreateDeviceCommandRequest,
   RenameDeviceRequest,
   RevokeDeviceCredentialResponse,
   RotateDeviceCredentialResponse,
@@ -22,7 +22,7 @@ export type {
   DeviceHardwareDto,
   DeviceInventoryItemDto,
   DeviceStateChangeRequest,
-  DispatchDeviceCommandRequest,
+  CreateDeviceCommandRequest,
   RenameDeviceRequest,
   RevokeDeviceCredentialResponse,
   RotateDeviceCredentialResponse,
@@ -43,8 +43,8 @@ export function createDeviceClient(api: PlatformApiClient) {
       return api.post<DeviceAssistanceStateDto, DeviceStateChangeRequest>(
         `devices/${deviceId}/assistance-request/resolve`, request);
     },
-    dispatchDeviceCommand(deviceId: Guid, request: DispatchDeviceCommandRequest): Promise<DeviceCommandDto> {
-      return api.post<DeviceCommandDto, DispatchDeviceCommandRequest>(`devices/${deviceId}/commands`, request);
+    dispatchDeviceCommand(deviceId: Guid, request: CreateDeviceCommandRequest): Promise<DeviceCommandDto> {
+      return api.post<DeviceCommandDto, CreateDeviceCommandRequest>(`devices/${deviceId}/commands`, request);
     },
     listDeviceCommands(deviceId: Guid, query?: DeviceCommandSearchQuery): Promise<DeviceCommandStatusDto[]> {
       return api.get<DeviceCommandStatusDto[]>(`devices/${deviceId}/commands`, normalizeDeviceCommandQuery(query));
