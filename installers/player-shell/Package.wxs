@@ -5,7 +5,7 @@
       Version="$(var.PackageVersion)"
       UpgradeCode="{A234E9ED-8992-4852-9A27-C39D1F46D35A}"
       Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Player Shell is already installed." />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of AFK4.NET Player Shell is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- EdgeUpdate records the runtime version (pv) in three places: the 64-bit client key read
