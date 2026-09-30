@@ -419,6 +419,7 @@ function AppInner() {
     return (
       <PostAuthShiftGate
         controller={shiftGate}
+        backend={backendContext}
         organizationId={authSession.organizationId}
         currencyCode={config.currencyCode}
         onSignOut={handleSignOut}

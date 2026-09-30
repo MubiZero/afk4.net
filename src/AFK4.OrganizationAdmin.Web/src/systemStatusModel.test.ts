@@ -22,7 +22,7 @@ describe('systemStatusModel', () => {
     ]);
     expect(model.connection.tone).toBe('ok');
     expect(model.server.tone).toBe('ok');
-    expect(model.version.value).toBe('2.45.1');
+    expect(model.version?.value).toBe('2.45.1');
   });
 
   it('keeps an unknown backend role visible and never fabricates missing data', () => {
@@ -40,7 +40,8 @@ describe('systemStatusModel', () => {
     expect(model.connection.tone).toBe('bad');
     expect(model.server.value).toBe('Недоступен');
     expect(model.server.tone).toBe('bad');
-    expect(model.version.value).toBe('—');
+    // Приёмка 30.09.2026: в браузере версии нет, и «Вер.: —» в строке состояния ничего не говорил.
+    expect(model.version).toBeNull();
   });
 
   it('uses warning tone while realtime is connecting', () => {

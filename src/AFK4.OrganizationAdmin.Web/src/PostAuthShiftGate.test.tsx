@@ -21,11 +21,33 @@ function createController(
   };
 }
 
-function renderGate(controller: PostAuthShiftGateController, onSignOut = mock(() => {})) {
+const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't', organizationId: ORG_ID }, branchId: 'b1' } as never;
+
+function closedShift(countedMinorUnits: number | null) {
+  return {
+    shifts: [{
+      shiftId: 's-prev', state: 'closed',
+      cash: { starting: money(0), expected: money(countedMinorUnits ?? 0), counted: countedMinorUnits === null ? null : money(countedMinorUnits), difference: null }
+    }],
+    limit: 1
+  } as never;
+}
+
+function money(minorUnits: number) {
+  return { currencyCode: 'TJS', minorUnits };
+}
+
+function renderGate(
+  controller: PostAuthShiftGateController,
+  onSignOut = mock(() => {}),
+  shiftHistory?: { history: (branchId: string, limit?: number) => Promise<never> }
+) {
   render(
     <I18nProvider>
       <PostAuthShiftGate
         controller={controller}
+        backend={shiftHistory ? backend : null}
+        shiftHistory={shiftHistory}
         organizationId={ORG_ID}
         currencyCode="TJS"
         onSignOut={onSignOut}
@@ -43,7 +65,7 @@ describe('PostAuthShiftGate', () => {
     expect(screen.queryByRole('button', { name: 'Открыть смену' })).not.toBeInTheDocument();
   });
 
-  it('submits starting cash and the default note without a dismiss action', async () => {
+  it('submits starting cash with an empty note unless the operator writes one, without a dismiss action', async () => {
     const controller = createController();
     renderGate(controller);
 
@@ -55,8 +77,40 @@ describe('PostAuthShiftGate', () => {
     await waitFor(() => expect(controller.openShift).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: ORG_ID,
       startingCash: { currencyCode: 'TJS', minorUnits: 10050 },
-      openingNote: 'Утренняя смена'
+      openingNote: ''
     })));
+  });
+
+  // Приёмка 30.09.2026: «Старт наличных» был пуст, хотя прошлая смена закрылась с посчитанной
+  // суммой; комментарий «Утренняя смена» подставлялся в любое время суток.
+  it('подставляет в «Старт наличных» остаток прошлой смены', async () => {
+    const history = mock(async () => closedShift(324500));
+    renderGate(createController(), undefined, { history });
+
+    await waitFor(() => expect(screen.getByLabelText('Старт наличных')).toHaveValue('3245'));
+    expect(history).toHaveBeenCalledWith('b1', 1);
+    expect(screen.getByLabelText('Комментарий')).toHaveValue('');
+  });
+
+  it('не затирает сумму, которую оператор уже ввёл, когда остаток приехал позже', async () => {
+    let resolve: (value: never) => void = () => {};
+    const history = mock(() => new Promise<never>((r) => { resolve = r; }));
+    renderGate(createController(), undefined, { history });
+
+    fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '500' } });
+    resolve(closedShift(324500));
+    await waitFor(() => expect(history).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.getByLabelText('Старт наличных')).toHaveValue('500');
+  });
+
+  it('без остатка (нет прав на отчёты, смены не было) оставляет ноль и не падает', async () => {
+    const history = mock(async () => { throw new Error('403'); });
+    renderGate(createController(), undefined, { history });
+
+    await waitFor(() => expect(history).toHaveBeenCalled());
+    expect(screen.getByLabelText('Старт наличных')).toHaveValue('0');
   });
 
   it('rejects malformed or negative starting cash locally', () => {

@@ -22,6 +22,7 @@ import { OpenShiftModal } from './OpenShiftModal';
 import { CashMovementModal } from './CashMovementModal';
 import { useFeedbackToasts } from '../useFeedbackToasts';
 import { CloseShiftModal } from './CloseShiftModal';
+import { usePrefillStartingCash, type ClosedShiftHistoryReader } from './useLastClosingCash';
 
 export interface CashShiftActionsClient {
   openShift(branchId: string, request: OpenShiftRequest): Promise<unknown>;
@@ -52,7 +53,8 @@ export function CashShiftCommandBar({
   revenue = null,
   onShiftChanged,
   actions: injectedActions,
-  closeContext: injectedCloseContext
+  closeContext: injectedCloseContext,
+  shiftHistory
 }: {
   backend: OperatorBackendContext | null;
   session: OperatorAuthSession | null;
@@ -67,6 +69,7 @@ export function CashShiftCommandBar({
   onShiftChanged: () => void;
   actions?: CashShiftActionsClient;
   closeContext?: CloseShiftContextClient;
+  shiftHistory?: ClosedShiftHistoryReader;
 }) {
   const { t } = useI18n();
   // Реальный клиент строим лениво (только при вызове run), потому что PlatformApiClient
@@ -83,7 +86,8 @@ export function CashShiftCommandBar({
   const [feedback, setFeedback] = useState<Feedback>({ label: '', state: 'idle' });
   useFeedbackToasts(feedback);
   const [startingCash, setStartingCash] = useState('0');
-  const [openingNote, setOpeningNote] = useState(t('op.cash.open.defaultNote'));
+  // Пусто, а не «Утренняя смена»: подстановка врала в любое время суток, а комментарий необязателен.
+  const [openingNote, setOpeningNote] = useState('');
   // Пустое поле, а не предзаполненные 10.00: в спешке легко подтвердить чужую сумму, просто
   // не заметив, что в поле уже что-то стоит.
   const [movementAmount, setMovementAmount] = useState('');
@@ -164,6 +168,7 @@ export function CashShiftCommandBar({
     && openedByStaffUserId === session.staffUserId
     && hasPermission(session, permissionNames.closeOwnShift);
   const canClose = canCloseAny || canCloseOwn;
+  usePrefillStartingCash(backend, canOpen, setStartingCash, shiftHistory);
   const canXReport = isOpen && hasPermission(session, permissionNames.viewReports);
 
   const run = async (label: string, fn: (actions: CashShiftActionsClient) => Promise<void>) => {
