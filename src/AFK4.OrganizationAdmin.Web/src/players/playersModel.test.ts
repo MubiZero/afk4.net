@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTranslator } from '@afk4/i18n';
-import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, buildClientContextMap, matchesSegment, isNewClient, relativeVisitLabel, activePackageLabel, type ClientSegmentId } from './playersModel';
+import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, buildClientContextMap, matchesSegment, withWallet, isNewClient, relativeVisitLabel, activePackageLabel, type ClientSegmentId } from './playersModel';
 import type { TFunc, PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
 import { aReservation } from '../test/reservationFixture';
@@ -230,6 +230,21 @@ describe('client segments (stable ids — survive locale change)', () => {
     expect(byId('all').label).toBe('op.players.segments.all');
   });
 
+  it('buildClientSegments takes the server counts over the loaded page', () => {
+    // приёмка 30.09.2026: счётчики считались по загруженной странице — у клуба с сотнями клиентов врали.
+    const segments = buildClientSegments([client({ status: 'active' })], t, { all: 412, debt: 17, inactive: 9 });
+    expect(segments.map((s) => s.count)).toEqual([412, 17, 9]);
+  });
+
+  it('withWallet puts the fresh balance and debt mark into the row', () => {
+    const row = client({ balanceMinorUnits: 20800, debtMinorUnits: 0, status: 'active', tone: 'active' });
+    expect(withWallet(row, 25800, 0).balanceMinorUnits).toBe(25800);
+    const indebted = withWallet(row, 0, 500);
+    expect(indebted.status).toBe('debt');
+    expect(indebted.tone).toBe('debt');
+    expect(withWallet(row, 20800, 0)).toBe(row);
+  });
+
   it('matchesSegment filters by real fields', () => {
     expect(matchesSegment(client({ status: 'active' }), 'all')).toBe(true);
     expect(matchesSegment(client({ debtMinorUnits: 100 }), 'debt')).toBe(true);
@@ -339,8 +354,18 @@ describe('isNewClient (тег «Новый» — клиент зарегистр
 });
 
 describe('relativeVisitLabel (последний визит — компактная колонка таблицы)', () => {
-  it('«сейчас» для того же дня', () => {
-    expect(relativeVisitLabel(daysAgoIso(0), NOW, rt)).toBe('сейчас');
+  // приёмка 30.09.2026: игрок ушёл в 11:32, а в колонке «Визит» стояло «сейчас» — «сегодня» не значит «сейчас».
+  it('ушедшему два часа назад не пишет «сейчас»: считает часы', () => {
+    expect(relativeVisitLabel(new Date(NOW - 2 * 60 * 60_000).toISOString(), NOW, rt)).toBe('2 ч назад');
+  });
+
+  it('считает минуты, и не меньше одной', () => {
+    expect(relativeVisitLabel(new Date(NOW - 12 * 60_000).toISOString(), NOW, rt)).toBe('12 мин назад');
+    expect(relativeVisitLabel(new Date(NOW - 20_000).toISOString(), NOW, rt)).toBe('1 мин назад');
+  });
+
+  it('сутки без часа — ещё часы, а не «вчера»', () => {
+    expect(relativeVisitLabel(new Date(NOW - 23 * 60 * 60_000).toISOString(), NOW, rt)).toBe('23 ч назад');
   });
 
   it('«вчера» для ровно одного дня назад', () => {

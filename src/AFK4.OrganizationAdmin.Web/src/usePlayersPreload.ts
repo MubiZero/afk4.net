@@ -32,9 +32,9 @@ export function usePlayersPreload(
 
     let disposed = false;
     void fetchPlayersData({ config, session: authSession, branchId }, t, '')
-      .then(({ clients }) => {
+      .then(({ clients, hasMore }) => {
         if (!disposed) {
-          playersSnapshotCache.set(branchId, { clients, selectedId: clients[0]?.playerAccountId ?? null });
+          playersSnapshotCache.set(branchId, { clients, hasMore, selectedId: clients[0]?.playerAccountId ?? null });
         }
       })
       .catch(() => { /* прогрев best-effort — реальную ошибку покажет воркспейс при открытии раздела */ });
