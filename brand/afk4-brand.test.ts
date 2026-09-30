@@ -40,11 +40,28 @@ test("maskable icon keeps content inside the safe zone via scale", () => {
   expect(svg).toContain("scale(");
 });
 
-test("horizontal lockup has wordmark with accent .net", () => {
-  const svg = read("afk4-logo-horizontal.svg");
-  expect(svg).toContain(">AFK4<");
-  expect(svg).toContain('fill="#2DD4A7">.net<');
-  expect(svg).toContain("#E2F1EC"); // wordmark text color (dark surface)
+// Надпись всегда заглавными — «AFK4.NET», как в README и в текстах (решение владельца 29.09.2026).
+// Этот тест раньше требовал строчное «.net», и шапка Панели с Пультом так и показывала «AFK4.net».
+test("both lockups spell the wordmark AFK4.NET in capitals", () => {
+  for (const file of ["afk4-logo-horizontal.svg", "afk4-logo-horizontal-light.svg", "afk4-logo-vertical.svg", "afk4-logo-vertical-light.svg"]) {
+    const svg = read(file);
+    expect(svg).toContain(">AFK4<");
+    expect(svg).toMatch(/>\.NET</);
+    expect(svg).not.toMatch(/>\.net</);
+  }
+  expect(read("afk4-logo-horizontal.svg")).toContain("#E2F1EC"); // wordmark text color (dark surface)
+});
+
+// Шапки Панели и Пульта берут логотип из своих public/, а не отсюда. Холст там уже (206 против 250 —
+// плотнее в шапке), но надпись обязана быть той же, что в мастере: разошедшаяся копия и показывала «AFK4.net».
+test("web apps ship the brand wordmark unchanged", () => {
+  const wordmark = (svg: string) => svg.match(/<text[\s\S]*?<\/text>/)?.[0];
+  for (const app of ["AFK4.OrganizationAdmin.Web", "AFK4.PlatformControl.Web"]) {
+    for (const file of ["afk4-logo-horizontal.svg", "afk4-logo-horizontal-light.svg"]) {
+      const copy = readFileSync(join(BRAND, "..", "src", app, "public", file), "utf8");
+      expect(wordmark(copy)).toBe(wordmark(read(file)));
+    }
+  }
 });
 
 test("vertical lockup exists and stacks mark over wordmark", () => {
