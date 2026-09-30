@@ -11,7 +11,7 @@
       UpgradeCode="{5B345D78-17AE-4CC7-9FE7-7E5F4203FAF1}"
       Scope="perMachine">
     <SummaryInformation Codepage="1251" />
-    <MajorUpgrade DowngradeErrorMessage="Уже установлена более новая версия Панели AFK4.NET." />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="Уже установлена более новая версия Панели AFK4.NET." />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- EdgeUpdate records the runtime version (pv) in three places: the 64-bit client key read
