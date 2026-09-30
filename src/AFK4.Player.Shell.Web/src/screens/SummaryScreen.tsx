@@ -73,7 +73,8 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
     return t(key, values);
   };
 
-  const minutes = (receipt && playedMinutes(receipt)) ?? visit.selfEnd?.billedMinutes ?? null;
+  const played = playedMinutes(receipt, visit);
+  const billed = visit.selfEnd?.billedMinutes ?? null;
   const refunded = visit.selfEnd?.refunded;
   const packageMinutes = visit.selfEnd?.packageMinutesReturned ?? 0;
 
@@ -90,7 +91,9 @@ export function SummaryScreen({ state, visit, baseUrl, activity, onPlayMore, onL
   };
 
   const facts: { key: MessageKey; values: Record<string, string>; strong?: boolean }[] = [];
-  if (minutes !== null) facts.push({ key: 'playerShell.summary.billed', values: { duration: duration(minutes) } });
+  if (played !== null) facts.push({ key: 'playerShell.summary.played', values: { duration: duration(played) } });
+  // Минимум тарифа: посидел двадцать минут, оплачен час. Сказать это прямо, а не выдать час за сыгранное.
+  if (billed !== null && billed !== played) facts.push({ key: 'playerShell.summary.charged', values: { duration: duration(billed) } });
   if (refunded && refunded.minorUnits > 0) {
     facts.push({ key: 'playerShell.summary.refund', values: { amount: money(refunded.minorUnits, refunded.currencyCode) }, strong: true });
   }
