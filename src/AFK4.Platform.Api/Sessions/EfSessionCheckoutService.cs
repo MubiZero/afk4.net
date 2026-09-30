@@ -270,7 +270,7 @@ public sealed class EfSessionCheckoutService(
             if (trackedSession.PlayerAccountId is Guid earlyEndPlayerId)
             {
                 var earlyEnd = await PlayerEarlyEnd.QuoteAsync(dbContext, trackedSession, earlyEndPlayerId, now, cancellationToken);
-                PlayerEarlyEnd.AppendEntries(dbContext, trackedSession, earlyEndPlayerId, earlyEnd, actorStaffUserId, now);
+                await PlayerEarlyEnd.AppendEntriesAsync(dbContext, trackedSession, earlyEndPlayerId, earlyEnd, actorStaffUserId, now, cancellationToken);
             }
 
             // Wallet store credit consumed to fund the bill.
