@@ -29,6 +29,9 @@ public partial class WebViewPlayerWindow : Window
     private readonly HttpClient apiHttp;
     private readonly InputActivityTracker input = new(InputActivityTracker.DefaultIdleAfter, InputActivityTracker.DefaultActivityEvery);
     private readonly GameForegroundTracker game = new(GameForegroundTracker.DefaultSettle);
+    private readonly NativeWindows appWindows = new();
+    private readonly LaunchFocusWatcher launchFocus = new(LaunchFocusWatcher.DefaultWatch);
+    private readonly EmptyScreenGuard emptyScreen = new(EmptyScreenGuard.DefaultSettle);
     private readonly LocalizationService localization = LocalizationService.LoadEmbedded("ru");
     private readonly DispatcherTimer tick = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
     private PlayerShellStateDto? latestState;
@@ -61,8 +64,10 @@ public partial class WebViewPlayerWindow : Window
         agentPipe = new ShellPipeClient(options);
         apiHttp = new HttpClient();
         session = new DevicePlayerSession(apiHttp, ApiBaseUrl, TimeProvider.System);
-        bridge = new ShellBridgeHost(agentPipe, session, () => latestState, systemControls);
+        bridge = new ShellBridgeHost(agentPipe, session, () => latestState, systemControls, appWindows);
         bridge.AuthChanged += auth => PostToPage(ShellBridgeEventTypeNames.AuthChanged, auth);
+        bridge.AppLaunched += () => _ = Dispatcher.InvokeAsync(BeginLaunchFocus);
+        keyboard.AppsHotkeyPressed += () => _ = Dispatcher.InvokeAsync(ShowAppsPanelAsync);
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -352,7 +357,21 @@ public partial class WebViewPlayerWindow : Window
             var now = DateTimeOffset.UtcNow;
             var shellInFront = NativeInput.ShellInFront();
             keyboard.SetShellInFront(shellInFront);
-            if (game.Observe(shellInFront, latestState, now) is { } gameActive)
+
+            // Окна приложений — только в сессии: на запертом экране чужое окно впереди не игра, и
+            // экран блокировки оболочка держит сама.
+            var sessionRuns = ShellWindowPolicy.SessionRuns(latestState);
+            var visibleApps = sessionRuns ? NativeWindows.VisibleAppWindows() : [];
+            StepBackForLaunchedApp(now, visibleApps);
+
+            // Экран в сессии не бывает пустым: окон нет — оболочка возвращается, а страница просыпается.
+            var appVisible = visibleApps.Count > 0;
+            if (emptyScreen.Observe(sessionRuns, shellInFront, appVisible, now))
+            {
+                BringShellForward();
+            }
+
+            if (game.Observe(shellInFront || (sessionRuns && !appVisible), latestState, now) is { } gameActive)
             {
                 await SetPageAsleepAsync(gameActive);
             }
@@ -424,9 +443,50 @@ public partial class WebViewPlayerWindow : Window
         }
     }
 
+    /// <summary>
+    /// «Играть» нажато и агент запустил игру: окно игры выйдет вперёд, когда появится, а оболочка
+    /// отступит. Наблюдатель помнит окна, что были до запуска, — они не новые.
+    /// </summary>
+    private void BeginLaunchFocus() =>
+        launchFocus.Begin(DateTimeOffset.UtcNow, NativeWindows.VisibleAppWindows().Select(window => window.Handle).ToList());
+
+    private void StepBackForLaunchedApp(DateTimeOffset now, IReadOnlyList<WindowInfo> visibleApps)
+    {
+        var handles = visibleApps.Select(window => window.Handle).ToList();
+        if (launchFocus.Observe(now, handles) is not { } window)
+        {
+            return;
+        }
+
+        if (!NativeWindows.BringToFront(window))
+        {
+            // Windows не отдала передний план: оболочка сворачивается сама, и окно игры открыто. Если
+            // оно закроется, страж пустого экрана вернёт оболочку.
+            WindowState = WindowState.Minimized;
+        }
+    }
+
+    /// <summary>Сочетание «Мои приложения»: оболочка выходит вперёд, и страница открывает панель.</summary>
+    private async Task ShowAppsPanelAsync()
+    {
+        if (!ShellWindowPolicy.SessionRuns(latestState))
+        {
+            return;
+        }
+
+        BringShellForward();
+        await SetPageAsleepAsync(false);
+        PostToPage(ShellBridgeEventTypeNames.AppsPanelRequested, null);
+    }
+
     /// <summary>«Продлить» в окне поверх игры: оболочка выходит вперёд, продление подтверждают там.</summary>
     private void BringShellForward()
     {
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+
         Topmost = true;
         Activate();
         Topmost = ShellWindowPolicy.ShouldStayOnTop(latestState);

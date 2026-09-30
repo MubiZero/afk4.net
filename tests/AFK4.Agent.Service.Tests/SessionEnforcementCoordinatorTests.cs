@@ -34,7 +34,7 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal("Accepted", result.Status);
         Assert.Equal(lease, leaseStore.Current);
         Assert.Equal(PlayerShellStateNames.Active, runtimeStore.Current.State);
-        Assert.Equal(1, lockController.UnlockCount);
+        Assert.Equal(1, lockController.OpenCount);
         Assert.Equal(0, lockController.LockCount);
     }
 
@@ -56,7 +56,7 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal("Accepted", result.Status);
         Assert.Equal(newLease, leaseStore.Current);
         Assert.Equal(newLease.SessionId, runtimeStore.Current.ActiveSessionId);
-        Assert.Equal(0, lockController.UnlockCount);
+        Assert.Equal(0, lockController.OpenCount);
         Assert.Equal(0, lockController.LockCount);
     }
 
@@ -146,7 +146,7 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal("Rejected", result.Status);
         Assert.Contains("device", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Null(leaseStore.Current);
-        Assert.Equal(0, lockController.UnlockCount);
+        Assert.Equal(0, lockController.OpenCount);
     }
 
     // «Заперто» и «заперто, но на самой машине ничего не применилось» — разные новости для
@@ -255,7 +255,7 @@ public sealed class SessionEnforcementCoordinatorTests
     {
         public int LockCount { get; private set; }
 
-        public int UnlockCount { get; private set; }
+        public int OpenCount { get; private set; }
 
         public Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken)
         {
@@ -263,10 +263,13 @@ public sealed class SessionEnforcementCoordinatorTests
             return Task.FromResult(new WorkstationLockOutcome(["task manager disabled"]));
         }
 
-        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken)
+        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("A player's session must not release the machine lock: that is for maintenance.");
+
+        public Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken)
         {
-            UnlockCount++;
-            return Task.FromResult(new WorkstationLockOutcome(["task manager restored"]));
+            OpenCount++;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager stays disabled"]));
         }
     }
 
@@ -277,6 +280,9 @@ public sealed class SessionEnforcementCoordinatorTests
             Task.FromResult(WorkstationLockOutcome.Nothing);
 
         public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(WorkstationLockOutcome.Nothing);
+
+        public Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken) =>
             Task.FromResult(WorkstationLockOutcome.Nothing);
     }
 

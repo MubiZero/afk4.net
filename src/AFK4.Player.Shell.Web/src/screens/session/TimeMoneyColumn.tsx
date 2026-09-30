@@ -4,7 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import { ORDER_STATUS_KEYS } from '../../model/bar';
 import { INTL_LOCALES, clubTime } from '../../model/offers';
 import type { SessionRole } from '../../model/session';
-import { LogOut } from 'lucide-react';
+import { AppWindow, LogOut } from 'lucide-react';
 import { AssistButton } from '../../ui/AssistButton';
 import { Countdown, Elapsed } from '../../ui/Countdown';
 import { sessionUntilUtc } from '../../model/sessionTime';
@@ -26,6 +26,10 @@ interface TimeMoneyColumnProps {
   onEndEarly: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
+  /** «Мои приложения»: что игрок запустил из библиотеки — вернуться в окно или закрыть. */
+  onOpenApps?: () => void;
+  /** Сколько запущенных из библиотеки ещё работает — число на кнопке. */
+  runningApps?: number;
 }
 
 /**
@@ -44,7 +48,9 @@ export function TimeMoneyColumn({
   onExtend,
   onEndEarly,
   onSignIn,
-  onSignOut
+  onSignOut,
+  onOpenApps,
+  runningApps = 0
 }: TimeMoneyColumnProps) {
   const { t, locale } = useI18n();
   const until = sessionUntilUtc(state);
@@ -92,6 +98,16 @@ export function TimeMoneyColumn({
         <button type="button" className="time-money__order" onClick={onOpenBar} aria-live="polite">
           <span className="time-money__label">{t('playerShell.bar.orderTitle')}</span>
           <span className="time-money__order-status">{t(ORDER_STATUS_KEYS[activeOrder.status] ?? 'playerShell.bar.status.placed')}</span>
+        </button>
+      ) : null}
+
+      {onOpenApps ? (
+        // Кнопка — выше денежных действий и у любой роли: вернуться в игру или закрыть зависшую
+        // нужно и гостю стойки. Диспетчера задач Windows в сессии нет, это его замена.
+        <button type="button" className="btn btn--ghost btn--wide time-money__apps" onClick={onOpenApps}>
+          <AppWindow aria-hidden="true" />
+          {t('playerShell.apps.open')}
+          {runningApps > 0 ? <span className="time-money__apps-count" aria-hidden="true">{runningApps}</span> : null}
         </button>
       ) : null}
 

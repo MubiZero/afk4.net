@@ -13,7 +13,8 @@ public interface IPlayerShellProcessQuery
 
 public interface IPlayerShellProcessStarter
 {
-    void Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget);
+    /// <summary>Номер запущенного процесса; null — не известен.</summary>
+    int? Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget);
 }
 
 public interface IPlayerShellLaunchContext
@@ -174,12 +175,11 @@ public sealed class PlayerShellProcessQuery : IPlayerShellProcessQuery
 
 public sealed class PlayerShellProcessStarter : IPlayerShellProcessStarter
 {
-    public void Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
+    public int? Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
     {
         if (launchTarget.IsCurrentProcessSession)
         {
-            StartInCurrentSession(executablePath, arguments);
-            return;
+            return StartInCurrentSession(executablePath, arguments);
         }
 
         if (!OperatingSystem.IsWindows())
@@ -187,10 +187,10 @@ public sealed class PlayerShellProcessStarter : IPlayerShellProcessStarter
             throw new PlatformNotSupportedException("Starting Player Shell in another user session requires Windows.");
         }
 
-        WindowsInteractiveProcessLauncher.Start(executablePath, arguments, launchTarget.SessionId);
+        return WindowsInteractiveProcessLauncher.Start(executablePath, arguments, launchTarget.SessionId);
     }
 
-    private static void StartInCurrentSession(string executablePath, string arguments)
+    private static int? StartInCurrentSession(string executablePath, string arguments)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -200,7 +200,7 @@ public sealed class PlayerShellProcessStarter : IPlayerShellProcessStarter
             WorkingDirectory = Path.GetDirectoryName(executablePath) ?? Environment.CurrentDirectory
         };
 
-        Process.Start(startInfo);
+        return Process.Start(startInfo)?.Id;
     }
 }
 
@@ -218,7 +218,7 @@ internal static class WindowsInteractiveProcessLauncher
         NativeMethods.TokenAdjustSessionId;
     private const uint CreateUnicodeEnvironment = 0x00000400;
 
-    public static void Start(string executablePath, string arguments, int sessionId)
+    public static int Start(string executablePath, string arguments, int sessionId)
     {
         var userToken = IntPtr.Zero;
         var primaryToken = IntPtr.Zero;
@@ -279,6 +279,7 @@ internal static class WindowsInteractiveProcessLauncher
 
             NativeMethods.CloseHandle(processInformation.hProcess);
             NativeMethods.CloseHandle(processInformation.hThread);
+            return processInformation.dwProcessId;
         }
         finally
         {

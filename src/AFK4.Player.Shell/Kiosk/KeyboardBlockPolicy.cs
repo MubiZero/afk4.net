@@ -24,7 +24,8 @@ public readonly record struct KeyStroke(int VirtualKey, bool Alt, bool Ctrl, boo
 /// готовым правилам — ни канала, ни диска.
 ///
 /// | заперт    | Win, Alt+Tab, Alt+Esc, Ctrl+Esc, Alt+F4, Ctrl+Shift+Esc |
-/// | сессия    | Win, Ctrl+Esc; Alt+F4 — только для окна оболочки         |
+/// | сессия    | Win, Ctrl+Esc; Alt+F4 — только для окна оболочки;        |
+/// |           | Ctrl+Alt+F10 — «Мои приложения», игре не передаётся      |
 /// | обслуживание | ничего                                                |
 ///
 /// Ctrl+Alt+Del перехватить нельзя — его меню режут политики (§6.2, профили защиты).
@@ -36,11 +37,15 @@ public static class KeyboardBlockPolicy
     public const int VkLeftWin = 0x5B;
     public const int VkRightWin = 0x5C;
     public const int VkF4 = 0x73;
+    public const int VkF10 = 0x79;
 
     public static ShellKeyMode ModeFor(PlayerShellStateDto? state) =>
         state?.State == PlayerShellStateNames.Maintenance ? ShellKeyMode.Maintenance
         : ShellWindowPolicy.SessionRuns(state) ? ShellKeyMode.Session
         : ShellKeyMode.Locked;
+
+    /// <summary>Ctrl+Alt+F10 — «Мои приложения» (вместо диспетчера задач Windows, он в сессии выключен).</summary>
+    public static bool IsAppsHotkey(KeyStroke key) => key.VirtualKey == VkF10 && key.Alt && key.Ctrl && !key.Shift;
 
     /// <param name="shellInFront">Впереди окно оболочки: в сессии Alt+F4 закрывает игру, но не оболочку.</param>
     public static bool ShouldBlock(ShellKeyMode mode, KeyStroke key, bool shellInFront)
@@ -48,6 +53,12 @@ public static class KeyboardBlockPolicy
         if (mode == ShellKeyMode.Maintenance)
         {
             return false;
+        }
+
+        // Сочетание глотается и в сессии: иначе игра получила бы F10 с зажатыми Ctrl и Alt.
+        if (mode == ShellKeyMode.Session && IsAppsHotkey(key))
+        {
+            return true;
         }
 
         var win = key.VirtualKey is VkLeftWin or VkRightWin;

@@ -13,6 +13,8 @@ public sealed class KioskKeyboardHook : IDisposable
     private const int WhKeyboardLl = 13;
     private const int WmQuit = 0x0012;
     private const int LlkhfAltDown = 0x20;
+    private const int WmKeyDown = 0x0100;
+    private const int WmSysKeyDown = 0x0104;
     private const int VkShift = 0x10;
     private const int VkControl = 0x11;
 
@@ -29,6 +31,9 @@ public sealed class KioskKeyboardHook : IDisposable
         callback = OnKey;
         thread = new Thread(Run) { IsBackground = true, Name = "AFK4 kiosk keyboard hook" };
     }
+
+    /// <summary>Нажато сочетание «Мои приложения». Вызывается из потока перехвата: обработчик только ставит дело в очередь.</summary>
+    public event Action? AppsHotkeyPressed;
 
     public void Start() => thread.Start();
 
@@ -70,6 +75,12 @@ public sealed class KioskKeyboardHook : IDisposable
             // Глотается и нажатие, и отпускание: меню «Пуск» Windows открывает на отпускании Win.
             if (KeyboardBlockPolicy.ShouldBlock(mode, stroke, shellInFront))
             {
+                var keyDown = (int)message is WmKeyDown or WmSysKeyDown;
+                if (keyDown && mode == ShellKeyMode.Session && KeyboardBlockPolicy.IsAppsHotkey(stroke))
+                {
+                    AppsHotkeyPressed?.Invoke();
+                }
+
                 return 1;
             }
         }

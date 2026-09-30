@@ -3,6 +3,16 @@ import type { Catalog } from '../core';
 
 export const playerShellCatalog: Catalog = {
   ru: {
+    "playerShell.apps.close": "Закрыть",
+    "playerShell.apps.closing": "Закрываем…",
+    "playerShell.apps.empty": "Пока ничего не запущено. Запустите игру из списка — она появится здесь.",
+    "playerShell.apps.error.gone": "Это приложение уже закрыто.",
+    "playerShell.apps.error.window": "Окно игры ещё не открылось. Подождите немного.",
+    "playerShell.apps.hint": "Здесь только то, что вы запустили из списка игр в этой сессии. Закрытие — как выключение кнопкой: несохранённый прогресс пропадёт.",
+    "playerShell.apps.hotkey": "Открыть в любой момент: Ctrl+Alt+F10.",
+    "playerShell.apps.open": "Мои приложения",
+    "playerShell.apps.return": "Вернуться",
+    "playerShell.apps.title": "Мои приложения",
     "playerShell.assist.call": "Позвать администратора",
     "playerShell.assist.failed": "Не дозвались до стойки. Подойдите сами.",
     "playerShell.assist.sent": "Администратор идёт",
@@ -200,6 +210,16 @@ export const playerShellCatalog: Catalog = {
     "playerShell.warning.lowBalance": "На балансе почти не осталось денег — пополните, чтобы продлить сессию."
   },
   en: {
+    "playerShell.apps.close": "Close",
+    "playerShell.apps.closing": "Closing…",
+    "playerShell.apps.empty": "Nothing is running yet. Start a game from the list and it will appear here.",
+    "playerShell.apps.error.gone": "This app has already closed.",
+    "playerShell.apps.error.window": "The game window has not opened yet. Wait a moment.",
+    "playerShell.apps.hint": "Only what you started from the game list during this session. Closing works like a power button: unsaved progress is lost.",
+    "playerShell.apps.hotkey": "Open any time: Ctrl+Alt+F10.",
+    "playerShell.apps.open": "My apps",
+    "playerShell.apps.return": "Switch to",
+    "playerShell.apps.title": "My apps",
     "playerShell.assist.call": "Call the admin",
     "playerShell.assist.failed": "Couldn't reach the desk. Please walk over.",
     "playerShell.assist.sent": "The admin is on the way",
@@ -397,6 +417,16 @@ export const playerShellCatalog: Catalog = {
     "playerShell.warning.lowBalance": "Your balance is almost empty — top up to extend the session."
   },
   tg: {
+    "playerShell.apps.close": "Пӯшидан",
+    "playerShell.apps.closing": "Пӯшида истодааст…",
+    "playerShell.apps.empty": "Ҳоло чизе оғоз нашудааст. Бозиро аз рӯйхат оғоз кунед — он дар ин ҷо пайдо мешавад.",
+    "playerShell.apps.error.gone": "Ин барнома аллакай пӯшида шудааст.",
+    "playerShell.apps.error.window": "Тирезаи бозӣ ҳанӯз кушода нашудааст. Каме интизор шавед.",
+    "playerShell.apps.hint": "Дар ин ҷо танҳо он чизест, ки шумо дар ин сессия аз рӯйхати бозиҳо оғоз кардед. Пӯшидан мисли хомӯш кардан бо тугма аст: пешрафти захиранашуда аз байн меравад.",
+    "playerShell.apps.hotkey": "Дар ҳар лаҳза кушодан мумкин: Ctrl+Alt+F10.",
+    "playerShell.apps.open": "Барномаҳои ман",
+    "playerShell.apps.return": "Баргаштан",
+    "playerShell.apps.title": "Барномаҳои ман",
     "playerShell.assist.call": "Маъмурро даъват кардан",
     "playerShell.assist.failed": "Ба мизи қабул расида натавонистем. Худатон биёед.",
     "playerShell.assist.sent": "Маъмур меояд",

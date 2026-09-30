@@ -77,7 +77,8 @@ public sealed class SessionCleanup(
     IPlayerSessionHost host,
     IProtectionEnforcer protection,
     ILogger<SessionCleanup> logger,
-    Func<TimeSpan, CancellationToken, Task>? delay = null) : ISessionCleanup
+    Func<TimeSpan, CancellationToken, Task>? delay = null,
+    AFK4.Agent.Service.Games.LaunchedApps? launched = null) : ISessionCleanup
 {
     /// <summary>Сколько ждать, пока закрытые программы действительно выйдут.</summary>
     internal static readonly TimeSpan ExitWait = TimeSpan.FromSeconds(5);
@@ -90,12 +91,14 @@ public sealed class SessionCleanup(
     {
         if (!host.IsSupported)
         {
+            launched?.Clear();
             return SessionCleanupOutcome.NotRun("needs Windows");
         }
 
         var user = host.ConsoleUser();
         if (user is null)
         {
+            launched?.Clear();
             return SessionCleanupOutcome.NotRun("no one is signed in to Windows");
         }
 
@@ -155,9 +158,17 @@ public sealed class SessionCleanup(
         CancellationToken cancellationToken)
     {
         var protectedRoots = host.ProtectedRoots;
-        var closing = host.Processes(user)
-            .Where(process => SessionProcessPolicy.ShouldClose(process, sessionStartedAtUtc, alwaysClose, protectedRoots))
+        var processes = host.Processes(user);
+
+        // Запущенное игроком из библиотеки закрывается по записи о запуске, а не по времени: время
+        // старта читается с часов ПК, начало сессии — с часов платформы, и при расхождении часов
+        // правило по времени не узнаёт ни одной игры.
+        var launchedIds = launched?.Attribute(processes).SelectMany(app => app.ProcessIds).ToHashSet() ?? [];
+        var closing = processes
+            .Where(process => launchedIds.Contains(process.ProcessId)
+                || SessionProcessPolicy.ShouldClose(process, sessionStartedAtUtc, alwaysClose, protectedRoots))
             .ToList();
+        launched?.Clear();
         var terminated = closing.Where(process => host.TryTerminate(process.ProcessId)).ToList();
 
         var waited = TimeSpan.Zero;

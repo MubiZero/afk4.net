@@ -68,12 +68,13 @@ public sealed class OrganizationAdminProcessLauncherTests
         public string? Arguments { get; private set; }
         public PlayerShellLaunchTarget? Target { get; private set; }
         public Exception? Failure { get; init; }
-        public void Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
+        public int? Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
         {
             Count++;
             Arguments = arguments;
             Target = launchTarget;
             if (Failure is not null) throw Failure;
+            return null;
         }
     }
 

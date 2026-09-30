@@ -276,6 +276,11 @@ public sealed class GraceModeMonitorTests
         {
             return Task.FromResult(WorkstationLockOutcome.Nothing);
         }
+
+        public Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(WorkstationLockOutcome.Nothing);
+        }
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

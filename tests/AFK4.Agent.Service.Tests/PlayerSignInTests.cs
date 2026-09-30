@@ -223,7 +223,7 @@ public sealed class PlayerSignInTests
 
     private sealed class NoLauncher : IProcessLauncher
     {
-        public Task LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken) =>
+        public Task<int?> LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 
