@@ -17,6 +17,7 @@ import { requestHost } from '../host/shellHost';
 import { isOrderActive } from '../model/bar';
 import { clubTime } from '../model/offers';
 import { sessionRole } from '../model/session';
+import { withConfirmedEnd } from '../model/sessionTime';
 import { SeatBadge } from '../ui/SeatBadge';
 import { SystemControls } from '../ui/SystemControls';
 import { BarTab } from './session/BarTab';
@@ -65,6 +66,8 @@ export function SessionScreen({
   const { t, locale } = useI18n();
   const [sheet, setSheet] = useState<'extend' | 'end' | 'apps' | null>(null);
   const [extendedUntil, setExtendedUntil] = useState<string | null>(null);
+  // В отличие от плашки «Продлено до …», не гаснет: агент может догнать конец и позже тридцати секунд.
+  const [confirmedEnd, setConfirmedEnd] = useState<{ sessionId: string; endsAtUtc: string } | null>(null);
   const baseUrl = apiBaseUrl(state);
   const role = sessionRole(state, auth);
   const offline = variant === 'grace' || !state.isOnline;
@@ -209,7 +212,7 @@ export function SessionScreen({
       </div>
 
       <TimeMoneyColumn
-        state={state}
+        state={withConfirmedEnd(state, confirmedEnd)}
         receivedAtMs={receivedAtMs}
         role={role}
         signedIn={auth.signedIn}
@@ -237,6 +240,7 @@ export function SessionScreen({
           onExtended={(endsAtUtc) => {
             setSheet(null);
             setExtendedUntil(endsAtUtc);
+            if (state.sessionId) setConfirmedEnd({ sessionId: state.sessionId, endsAtUtc });
             void reloadBalance();
           }}
         />
@@ -284,6 +288,8 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
     }
   };
 
+  // Жанр не задан в клубе — не показываем ничего, а не выдуманное слово.
+  const category = app.category.trim();
   const cover = app.iconUri
     ? <img className="library-tile__cover" src={app.iconUri} alt="" loading="lazy" decoding="async" />
     : <span className="library-tile__cover library-tile__cover--name" aria-hidden="true">{app.displayName.slice(0, 1)}</span>;
@@ -300,7 +306,7 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
       <div className={app.ageLocked ? 'library-tile library-tile--locked' : 'library-tile library-tile--unavailable'}>
         {cover}
         {title}
-        {app.category ? <span className="library-tile__category">{app.category}</span> : null}
+        {category ? <span className="library-tile__category">{category}</span> : null}
         <span className="library-tile__missing">
           {app.ageLocked
             // Возраст из дня рождения в профиле: агент такую игру и не запустит.
@@ -332,7 +338,7 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
           </span>
         </span>
         {title}
-        {app.category ? <span className="library-tile__category">{app.category}</span> : null}
+        {category ? <span className="library-tile__category">{category}</span> : null}
       </button>
       {launch === 'failed' ? <p className="banner banner--danger library-tile__error" role="alert">{t('playerShell.session.launchFailed')}</p> : null}
     </>

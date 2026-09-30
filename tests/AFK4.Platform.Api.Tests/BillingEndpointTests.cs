@@ -196,6 +196,29 @@ public sealed class BillingEndpointTests
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
     }
 
+    // Деньги у стойки принимает смена: без открытой смены нечего сверять с кассой. Приложение игрока
+    // пополняет онлайн и смены не требует (см. CreditOnlineTopUpAsync) — это другой путь.
+    [Fact]
+    public async Task TopUpWallet_AtTheCounterWithoutAnOpenShift_IsRefusedWithACodeAndMovesNoMoney()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+        await SeedPlayerAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/wallet/top-ups",
+            new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-noshift-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // Код, по которому Панель говорит «сначала откройте смену» на языке кассира.
+        Assert.Contains("open_shift_required", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await dbContext.LedgerEntries.AnyAsync());
+    }
+
     [Fact]
     public async Task TopUpWallet_WithTechnicianForUnknownPlayer_ReturnsForbiddenAndWritesDeniedAudit()
     {

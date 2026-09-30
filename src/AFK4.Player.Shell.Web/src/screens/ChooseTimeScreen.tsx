@@ -33,6 +33,8 @@ import { TopUpPanel } from './session/TopUpPanel';
 export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; auth: ShellAuthStateDto }) {
   const { t, locale } = useI18n();
   const baseUrl = apiBaseUrl(state);
+  // Игрок без имени — бывает: «Здравствуйте, » с пустотой читалось как поломка.
+  const name = auth.displayName?.trim();
   const { offers, failed, loading, reload } = useStartOffers(baseUrl);
   const [choice, setChoice] = useState<OfferChoice | null>(null);
   const [starting, setStarting] = useState(false);
@@ -100,7 +102,9 @@ export function ChooseTimeScreen({ state, auth }: { state: PlayerShellStateDto; 
       </header>
 
       <div className="choose-time__heading">
-        <p className="choose-time__greeting">{t('playerShell.chooseTime.greeting', { name: auth.displayName ?? '' })}</p>
+        <p className="choose-time__greeting">
+          {name ? t('playerShell.chooseTime.greeting', { name }) : t('playerShell.chooseTime.greetingAnonymous')}
+        </p>
         <h1 className="choose-time__title">{t('playerShell.chooseTime.title')}</h1>
       </div>
 

@@ -868,7 +868,7 @@ public sealed class EfSessionCommandService(
             session.State,
             previousSequence + 1,
             now,
-            now.AddMinutes(LeaseMinutes));
+            GraceLeasePolicy.ExpiresAt(session.State, session.EndsAtUtc, now, LeaseMinutes));
         var leaseEntity = CreateLeaseEntity(lease);
         session.CurrentLeaseId = leaseEntity.SessionLeaseId;
         dbContext.SessionLeases.Add(leaseEntity);

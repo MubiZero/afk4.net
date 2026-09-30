@@ -1,8 +1,11 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -196,6 +199,113 @@ public sealed class AuthenticatedInstallEndpointTests
             client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 13", publicKey: "другой-ключ");
 
         Assert.Equal(HttpStatusCode.Conflict, other.Response.StatusCode);
+    }
+
+    // Переустановили Windows: ключ новый, имя машины и место прежние, а прежняя запись давно молчит.
+    // Раньше мастер места не предлагал, запись оставалась в зале мёртвой, и сервер молча заводил
+    // второе устройство с тем же именем.
+    [Fact]
+    public async Task AuthEnroll_ReinstalledMachine_TakesOverTheSeatAndRetiresItsOldRecord()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+        var before = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        await MakeSilentAsync(factory, before.Body!.DeviceId);
+
+        var after = await EnrollAsync(
+            client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12", publicKey: "ключ-после-переустановки");
+
+        Assert.Equal(HttpStatusCode.OK, after.Response.StatusCode);
+        Assert.NotEqual(before.Body.DeviceId, after.Body!.DeviceId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var old = await db.Devices.SingleAsync(device => device.DeviceId == before.Body.DeviceId);
+        Assert.Equal(DeviceEnrollmentStateNames.Removed, old.EnrollmentState);
+        Assert.Equal(1, await db.Devices.CountAsync(device => device.EnrollmentState != DeviceEnrollmentStateNames.Removed));
+        var holder = await db.DeviceSeatAssignments.SingleAsync(row => row.SeatId == TestIds.SeatId && row.DetachedAtUtc == null);
+        Assert.Equal(after.Body.DeviceId, holder.DeviceId);
+        // Ключ прежней записи больше не работает.
+        Assert.False(await db.DeviceCredentials.AnyAsync(credential =>
+            credential.DeviceId == before.Body.DeviceId && credential.RevokedAtUtc == null));
+        // Убранное без человека не остаётся без следа.
+        var audit = await db.AuditRecords.SingleAsync(row => row.Action == AuditActionNames.RemoveDevice);
+        Assert.Equal(before.Body.DeviceId.ToString("D"), audit.TargetId);
+        Assert.Contains("replaced_by_reinstall", audit.DetailsJson, StringComparison.Ordinal);
+    }
+
+    // Одно имя у двух живых машин — это не переустановка (клон образа, опечатка в имени): чужую
+    // запись не трогаем, место остаётся за тем, кто на связи.
+    [Fact]
+    public async Task AuthEnroll_SameNameAsAMachineThatIsStillAlive_ReplacesNothing()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+        var alive = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        await MakeSilentAsync(factory, alive.Body!.DeviceId);
+        await ReportHeartbeatAsync(factory, alive.Body.DeviceId);
+
+        var clone = await EnrollAsync(
+            client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12", publicKey: "ключ-клона");
+
+        Assert.Equal(HttpStatusCode.Conflict, clone.Response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(
+            DeviceEnrollmentStateNames.Approved,
+            (await db.Devices.SingleAsync(device => device.DeviceId == alive.Body.DeviceId)).EnrollmentState);
+    }
+
+    // Переустановка не добавляет машин: на полном тарифе её не отказывают, как отказали бы новую.
+    [Fact]
+    public async Task AuthEnroll_ReinstalledMachineAtThePlanLimit_IsNotRefused()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+        var before = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        await MakeSilentAsync(factory, before.Body!.DeviceId);
+        await SetDeviceLimitAsync(factory, maxDevicesPerBranch: 1);
+
+        var after = await EnrollAsync(
+            client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12", publicKey: "ключ-после-переустановки");
+
+        Assert.Equal(HttpStatusCode.OK, after.Response.StatusCode);
+    }
+
+    private static async Task SetDeviceLimitAsync(PlatformApiFactory factory, int maxDevicesPerBranch)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organization = await db.Organizations.SingleAsync(row => row.OrganizationId == TestIds.OrganizationId);
+        organization.LimitsJson = OrganizationLimitsJson.Serialize(
+            new OrganizationLimitsDto(null, maxDevicesPerBranch, null, null));
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task MakeSilentAsync(PlatformApiFactory factory, Guid deviceId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var device = await db.Devices.SingleAsync(row => row.DeviceId == deviceId);
+        var longAgo = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow().AddHours(-3);
+        device.EnrolledAtUtc = longAgo;
+        device.LastHeartbeatAtUtc = longAgo;
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task ReportHeartbeatAsync(PlatformApiFactory factory, Guid deviceId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var device = await db.Devices.SingleAsync(row => row.DeviceId == deviceId);
+        device.LastHeartbeatAtUtc = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow().AddSeconds(-30);
+        await db.SaveChangesAsync();
     }
 
     // Машину переделали из игровой в рабочее место управляющего: место обязано освободиться.

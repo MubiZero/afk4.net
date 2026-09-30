@@ -351,6 +351,18 @@ abstract final class DeviceSessionOwnerKindNames {
   static const String player = 'player';
 }
 
+/// Причины предупреждения игроку (DeviceCommandTypeNames.Warn, поле reason в теле).
+/// Агент показывает только эти: придумывать за сервер, чем пугать игрока, он не вправе. Поэтому и
+/// сервер другой причины не принимает — раньше она доезжала до ПК, агент отвечал отказом, а Панель
+/// считала сообщение ушедшим.
+///
+/// Словарь: Devices/DeviceWarnReasonNames.cs
+abstract final class DeviceWarnReasonNames {
+  static const String timeAlmostUp = 'time-almost-up';
+  static const String creditLimit = 'credit-limit';
+  static const String lowBalance = 'low-balance';
+}
+
 /// Что с дружбой прямо сейчас.
 ///
 /// Словарь: Friends/FriendDtos.cs
@@ -1207,6 +1219,11 @@ abstract final class ShellBridgeRequestTypeNames {
   /// Войти номером и ПИН-кодом — через агента, токены привязаны к этому ПК.
   static const String authSignIn = 'auth.signIn';
   static const String authSignOut = 'auth.signOut';
+  /// Сервер ответил странице 401 — хост проверяет, кончился ли вход. Доступ игрока на ПК живёт
+  /// 15 минут и без связи успевает истечь, а обновление живёт 12 часов: хост идёт за новым
+  /// доступом, и игрок остаётся в своей сессии. Ответ — ShellAuthStateDto; если сервер отказал
+  /// и обновлению, вход забывается и страница узнаёт об этом событием auth.changed.
+  static const String authRefresh = 'auth.refresh';
   /// Запустить игру из библиотеки клуба.
   static const String appLaunch = 'app.launch';
   /// «Вернуться» в запущенную игру: хост выводит её окно вперёд. В теле — `launchId`.
@@ -4341,6 +4358,35 @@ class CreateDcTopUpRequest {
       };
 }
 
+/// Команда ПК из Панели и между службами платформы. IdempotencyKey — ключ одного нажатия: связь
+/// оборвалась до ответа, и Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную
+/// команду, а не пошлёт на ПК вторую перезагрузку. Null — повтор не распознаётся.
+///
+/// Контракт: Devices/CreateDeviceCommandRequest.cs
+class CreateDeviceCommandRequest {
+  const CreateDeviceCommandRequest({
+    required this.type,
+    required this.payload,
+    this.idempotencyKey,
+  });
+
+  final String type;
+  final Map<String, String> payload;
+  final String? idempotencyKey;
+
+  factory CreateDeviceCommandRequest.fromJson(Map<String, dynamic> json) => CreateDeviceCommandRequest(
+        type: json['type'] as String,
+        payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
+        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'payload': payload.map((key, value) => MapEntry(key, value)),
+        'idempotencyKey': idempotencyKey,
+      };
+}
+
 /// Код установки: техник ставит AFK4 на ПК зала без мастера —
 /// `afk4-client.exe /quiet AFK4_INSTALL_CODE=…`. Код многоразовый, но ограничен сроком и
 /// числом новых ПК; сервер хранит его хешем, открытым он виден один раз — при выдаче.
@@ -6704,7 +6750,7 @@ class DeviceInventoryItemDto {
 }
 
 /// Идущая на ПК сессия: когда началась и когда кончится. Отсчёт «Осталось» считается от конца
-/// сессии, а не от срока аренды — аренда подписана на 15 минут и продлевается, пока сессия идёт.
+/// сессии, а не от срока аренды — у открытого счёта аренда короткая и продлевается, пока сессия идёт.
 ///
 /// Контракт: Devices/DeviceShellContextContracts.cs
 class DeviceLiveSessionDto {
@@ -7406,35 +7452,6 @@ class DeviceUpdateStatusSnapshotDto {
         'status': status,
         'message': message,
         'updatedAtUtc': updatedAtUtc.toIso8601String(),
-      };
-}
-
-/// Команда ПК из Панели. IdempotencyKey — ключ одного нажатия: связь оборвалась до ответа, и
-/// Панель шлёт команду снова с тем же ключом — сервер вернёт уже записанную команду, а не
-/// пошлёт на ПК вторую перезагрузку.
-///
-/// Контракт: Devices/DispatchDeviceCommandRequest.cs
-class DispatchDeviceCommandRequest {
-  const DispatchDeviceCommandRequest({
-    required this.type,
-    required this.payload,
-    this.idempotencyKey,
-  });
-
-  final String type;
-  final Map<String, String> payload;
-  final String? idempotencyKey;
-
-  factory DispatchDeviceCommandRequest.fromJson(Map<String, dynamic> json) => DispatchDeviceCommandRequest(
-        type: json['type'] as String,
-        payload: (json['payload'] as Map<String, dynamic>).map((key, value) => MapEntry(key, value as String)),
-        idempotencyKey: json['idempotencyKey'] == null ? null : json['idempotencyKey'] as String,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'type': type,
-        'payload': payload.map((key, value) => MapEntry(key, value)),
-        'idempotencyKey': idempotencyKey,
       };
 }
 
@@ -15524,7 +15541,8 @@ class ProtectionItemReportDto {
 
 /// Профиль защиты ПК филиала (спека оболочки, §6.3): что агент запрещает на игровом ПК. Версия
 /// растёт с каждым сохранением и едет в сердцебиении — по её смене агент перечитывает профиль.
-/// Версия 0 — клуб профиль не настраивал, действует только постоянная база киоска.
+/// Версия 0 — клуб профиль не сохранял: действуют умолчания (ProtectionProfileDefaults.Initial)
+/// и постоянная основа киоска.
 ///
 /// Контракт: Devices/ProtectionProfileContracts.cs
 class ProtectionProfileDto {

@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ShellI18nProvider } from './i18n/ShellI18nProvider';
 import { PlayerShellStateNames, ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/contracts';
 import { App, CONNECTING_STUCK_MS } from './App';
+import { PLAYER_UNAUTHORIZED_EVENT } from './api/playerApi';
 import { devScenarioState } from './host/devHost';
 import { installFakeHost } from './test/fakeHost';
 
@@ -153,7 +154,19 @@ describe('действия идут через хост', () => {
     expect(await screen.findByText('Игра не запустилась. Позовите администратора.')).toBeInTheDocument();
   });
 
-  it('«Администратор идёт» — только когда стойка узнала', async () => {
+  // Принять вызов может только человек у стойки; кнопка честно говорит «позвали», а не «идёт».
+  it('вызов дошёл до стойки — «Администратора позвали»', async () => {
+    installFakeHost({ state: devScenarioState('error') });
+    renderShell();
+    const call = await screen.findByRole('button', { name: 'Позвать администратора' });
+
+    await act(async () => call.click());
+
+    expect(await screen.findByText('Администратора позвали')).toBeInTheDocument();
+    expect(screen.queryByText('Администратор идёт')).not.toBeInTheDocument();
+  });
+
+  it('«Администратора позвали» — только когда стойка узнала', async () => {
     installFakeHost({
       state: devScenarioState('error'),
       reply: (type) =>
@@ -167,7 +180,7 @@ describe('действия идут через хост', () => {
     await act(async () => call.click());
 
     expect(await screen.findByText('Не дозвались до стойки. Подойдите сами.')).toBeInTheDocument();
-    expect(screen.queryByText('Администратор идёт')).not.toBeInTheDocument();
+    expect(screen.queryByText('Администратора позвали')).not.toBeInTheDocument();
   });
 
   it('язык филиала, пришедший позже, не перебивает выбор человека', async () => {
@@ -246,5 +259,39 @@ describe('вход без сессии', () => {
 
     await waitFor(() =>
       expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthSignOut)).toBe(true));
+  });
+
+  // 401 не значит «вход кончился»: доступ живёт 15 минут и за время обрыва связи успевает истечь.
+  // Выходить сразу — выкинуть игрока из идущей сессии; решает хост, который идёт за новым доступом.
+  it('401 от сервера спрашивает хост об обновлении входа, а не выводит игрока', async () => {
+    const host = installFakeHost({
+      state: devScenarioState('session'),
+      auth: { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
+    });
+    renderShell();
+    expect(await screen.findByText('Counter-Strike 2')).toBeInTheDocument();
+
+    act(() => { window.dispatchEvent(new Event(PLAYER_UNAUTHORIZED_EVENT)); });
+
+    await waitFor(() =>
+      expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthRefresh)).toBe(true));
+    expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthSignOut)).toBe(false);
+  });
+
+  it('пачка 401 подряд — один запрос обновления', async () => {
+    const host = installFakeHost({
+      state: devScenarioState('session'),
+      auth: { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
+    });
+    renderShell();
+    expect(await screen.findByText('Counter-Strike 2')).toBeInTheDocument();
+
+    act(() => {
+      for (let i = 0; i < 5; i += 1) window.dispatchEvent(new Event(PLAYER_UNAUTHORIZED_EVENT));
+    });
+
+    await waitFor(() =>
+      expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthRefresh)).toBe(true));
+    expect(host.requests.filter((request) => request.type === ShellBridgeRequestTypeNames.AuthRefresh)).toHaveLength(1);
   });
 });

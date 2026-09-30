@@ -214,6 +214,43 @@ describe('экран сессии', () => {
 
     expect(await screen.findByText(/продлевают новым стартом/)).toBeInTheDocument();
   });
+
+  // Жанр в клубе не задан — плитка не пишет ничего: английское «Games» в русском экране
+  // выглядело как недоперевод.
+  it('игра без жанра не подписана выдуманным словом', () => {
+    installFakeHost({ state: null });
+    const base = devScenarioState('session')!;
+    const state = {
+      ...base,
+      launcherApps: [
+        { appId: 'a', displayName: 'Без жанра', category: '', iconUri: null, isAvailable: true },
+        { appId: 'b', displayName: 'С жанром', category: 'MOBA', iconUri: null, isAvailable: true }
+      ]
+    };
+    const { container } = render(
+      <ShellI18nProvider initialLocale="ru">
+        <SessionScreen state={state} receivedAtMs={Date.now()} variant="session" auth={owner} />
+      </ShellI18nProvider>
+    );
+
+    const categories = Array.from(container.querySelectorAll('.library-tile__category')).map((node) => node.textContent);
+    expect(categories).toEqual(['MOBA']);
+  });
+
+  // Продление подтверждено сразу, а агент принесёт новый конец только с сердцебиением: таймер не
+  // должен ещё четверть минуты считать до старого.
+  it('после «Продлить» таймер сразу считает до нового конца', async () => {
+    renderSession({ auth: owner });
+    expect(screen.getByTestId('countdown').textContent).toMatch(/^1:3\d:/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Продлить' }));
+    const hour = await screen.findByRole('button', { name: /^\+1 ч,/ });
+    await act(async () => fireEvent.click(hour));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /Продлить · 10/ })));
+
+    await screen.findByText(/Продлено до/);
+    expect(screen.getByTestId('countdown').textContent).toMatch(/^2:3\d:/);
+  });
 });
 
 describe('«Мои приложения» и библиотека в сессии', () => {

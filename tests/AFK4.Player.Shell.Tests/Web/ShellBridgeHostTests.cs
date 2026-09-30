@@ -87,6 +87,43 @@ public sealed class ShellBridgeHostTests
         Assert.False(announced!.SignedIn);
     }
 
+    // Страница получила 401 и спрашивает хост, кончился ли вход. Хост сам идёт за новым доступом:
+    // удалось — игрок остаётся, отказал сервер — вход забывается и страница узнаёт событием.
+    [Fact]
+    public async Task AuthRefresh_KeepsThePlayerWhenTheServerRenewsTheToken()
+    {
+        var fixture = new Fixture(refresh: _ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = System.Net.Http.Json.JsonContent.Create(Session())
+        });
+        fixture.Session.Accept(Session());
+        ShellAuthStateDto? announced = null;
+        fixture.Bridge.AuthChanged += auth => announced = auth;
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AuthRefresh);
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.True(response.GetProperty("payload").GetProperty("signedIn").GetBoolean());
+        Assert.True(fixture.Session.Current.SignedIn);
+        Assert.Null(announced);
+    }
+
+    [Fact]
+    public async Task AuthRefresh_ForgetsThePlayerWhenTheServerRefuses_AndTellsThePage()
+    {
+        var fixture = new Fixture(refresh: _ => new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized));
+        fixture.Session.Accept(Session());
+        ShellAuthStateDto? announced = null;
+        fixture.Bridge.AuthChanged += auth => announced = auth;
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AuthRefresh);
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.False(response.GetProperty("payload").GetProperty("signedIn").GetBoolean());
+        Assert.False(fixture.Session.Current.SignedIn);
+        Assert.False(announced!.SignedIn);
+    }
+
     [Fact]
     public async Task Launch_AndAssist_AreAskedOfTheAgent()
     {
@@ -319,10 +356,13 @@ public sealed class ShellBridgeHostTests
 
     private sealed class Fixture
     {
-        public Fixture(ISystemControls? system = null)
+        public Fixture(ISystemControls? system = null, Func<HttpRequestMessage, HttpResponseMessage>? refresh = null)
         {
-            // Без адреса API выход не ходит на сервер — мосту это и не нужно проверять.
-            Session = new DevicePlayerSession(new HttpClient(), () => null, TimeProvider.System);
+            // Без адреса API выход не ходит на сервер — мосту это и не нужно проверять; обновление
+            // входа получает адрес и подставной ответ сервера.
+            Session = refresh is null
+                ? new DevicePlayerSession(new HttpClient(), () => null, TimeProvider.System)
+                : new DevicePlayerSession(new HttpClient(new StubHandler(refresh)), () => "https://api.example.test/", TimeProvider.System);
             Bridge = new ShellBridgeHost(Agent, Session, () => State, system, Windows);
         }
 
@@ -346,6 +386,12 @@ public sealed class ShellBridgeHostTests
             Assert.Equal("r-1", document.RootElement.GetProperty("requestId").GetString());
             return document.RootElement.Clone();
         }
+    }
+
+    private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(respond(request));
     }
 
     private sealed class FakeSystemControls : ISystemControls

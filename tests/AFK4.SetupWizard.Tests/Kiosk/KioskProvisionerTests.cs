@@ -105,6 +105,111 @@ public sealed class KioskProvisionerTests
         Assert.Equal("0", fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoAdminLogon").Text);
     }
 
+    /// <summary>
+    /// Обещание «настройки входа вернутся» выполняется целиком: вернуть AutoAdminLogon и имя, не вернув
+    /// пароль, значило оставить ПК на экране входа — после первой неудачи Windows сама сбрасывает
+    /// автовход в 0.
+    /// </summary>
+    [Fact]
+    public void Remove_GivesTheFormerAutologonBackWithItsPassword_FromTheLsaSecret()
+    {
+        var fixture = new Fixture();
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "AutoAdminLogon", KioskRegistryValue.Of("1"));
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "DefaultUserName", KioskRegistryValue.Of("admin"));
+        fixture.Machine.SetSecret(KioskSettings.AutologonSecret, "admin-secret");
+        fixture.Provisioner.Provision(Host);
+        Assert.NotEqual("admin-secret", fixture.Machine.AutologonPassword);
+
+        fixture.Provisioner.Remove();
+
+        Assert.Equal("1", fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoAdminLogon").Text);
+        Assert.Equal("admin", fixture.Machine.Value(KioskSettings.WinlogonKey, "DefaultUserName").Text);
+        Assert.Equal("admin-secret", fixture.Machine.AutologonPassword);
+        // Запасной секрет после отката не остаётся: пароль не должен жить в LSA вечно под чужим именем.
+        Assert.Null(fixture.Machine.Secret(KioskSettings.SavedAutologonSecret));
+    }
+
+    /// <summary>Пароль автовхода лежал открытым текстом — возвращается уже секретом LSA, а не в реестр.</summary>
+    [Fact]
+    public void Remove_MovesAPlainTextAutologonPassword_IntoTheLsaSecret()
+    {
+        var fixture = new Fixture();
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "AutoAdminLogon", KioskRegistryValue.Of("1"));
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "DefaultPassword", KioskRegistryValue.Of("hunter2"));
+        fixture.Provisioner.Provision(Host);
+
+        fixture.Provisioner.Remove();
+
+        Assert.Equal("hunter2", fixture.Machine.AutologonPassword);
+        Assert.True(fixture.Machine.Value(KioskSettings.WinlogonKey, "DefaultPassword").IsAbsent);
+    }
+
+    [Fact]
+    public void Remove_BringsBackTheLogonCounter_ThatProvisionDropped()
+    {
+        var fixture = new Fixture();
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "AutoLogonCount", KioskRegistryValue.Of(3));
+        fixture.Provisioner.Provision(Host);
+        Assert.True(fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoLogonCount").IsAbsent);
+
+        fixture.Provisioner.Remove();
+
+        Assert.Equal(3, fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoLogonCount").Number);
+    }
+
+    /// <summary>
+    /// Автовхода не было — после отката его нет, и киоскового пароля в LSA тоже: он открывал бы вход
+    /// в учётку, которой больше не существует.
+    /// </summary>
+    [Fact]
+    public void Remove_WhenThereWasNoAutologon_LeavesNoPasswordBehind()
+    {
+        var fixture = new Fixture();
+        fixture.Provisioner.Provision(Host);
+
+        fixture.Provisioner.Remove();
+
+        Assert.Null(fixture.Machine.AutologonPassword);
+        Assert.True(fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoAdminLogon").IsAbsent);
+    }
+
+    /// <summary>
+    /// Киоск поставила прежняя версия мастера: прежний пароль потерян навсегда. Вернуть автовход
+    /// без него нельзя — он бы не сработал и сам выключился, — поэтому его выключают явно.
+    /// </summary>
+    [Fact]
+    public void Remove_AfterAnOlderWizardSetTheKiosk_TurnsAutologonOff_InsteadOfLeavingItBroken()
+    {
+        var fixture = new Fixture();
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "AutoAdminLogon", KioskRegistryValue.Of("1"));
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "DefaultUserName", KioskRegistryValue.Of("admin"));
+        fixture.Provisioner.Provision(Host);
+        fixture.State.Save(fixture.State.Load()! with { AutologonPasswordSaved = false });
+
+        fixture.Provisioner.Remove();
+
+        Assert.Equal("0", fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoAdminLogon").Text);
+        Assert.Equal("admin", fixture.Machine.Value(KioskSettings.WinlogonKey, "DefaultUserName").Text);
+        Assert.Null(fixture.Machine.AutologonPassword);
+    }
+
+    /// <summary>Не прочиталось — киоск всё равно встаёт (он важнее), а откат выключит автовход.</summary>
+    [Fact]
+    public void WhenThePreviousPasswordCannotBeRead_TheKioskStillStands_AndRemovalTurnsAutologonOff()
+    {
+        var fixture = new Fixture();
+        fixture.Machine.Set(KioskSettings.WinlogonKey, "AutoAdminLogon", KioskRegistryValue.Of("1"));
+        fixture.Machine.ReadSecretFailure = new InvalidOperationException("LSA is unavailable");
+
+        fixture.Provisioner.Provision(Host);
+        Assert.True(fixture.Provisioner.IsInstalled);
+        fixture.Machine.ReadSecretFailure = null;
+
+        fixture.Provisioner.Remove();
+
+        Assert.Equal("0", fixture.Machine.Value(KioskSettings.WinlogonKey, "AutoAdminLogon").Text);
+    }
+
     [Fact]
     public void Remove_WithoutAKiosk_TouchesNothing()
     {
@@ -142,7 +247,15 @@ public sealed class KioskProvisionerTests
 
         public Dictionary<(string Sid, string Key, string Name), string> UserValues { get; } = new();
 
-        public string? AutologonPassword { get; private set; }
+        private readonly Dictionary<string, string> secrets = new();
+
+        public string? AutologonPassword => Secret(KioskSettings.AutologonSecret);
+
+        public string? Secret(string name) => secrets.GetValueOrDefault(name);
+
+        public void SetSecret(string name, string value) => secrets[name] = value;
+
+        public Exception? ReadSecretFailure { get; set; }
 
         public KioskRegistryValue Value(string key, string name) => ReadMachineValue(key, name);
 
@@ -164,7 +277,20 @@ public sealed class KioskProvisionerTests
 
         public void DeleteUser(string userName, string sid) => Users.RemoveAll(user => user.Name == userName);
 
-        public void StoreAutologonPassword(string? password) => AutologonPassword = password;
+        public string? ReadSecret(string name) =>
+            ReadSecretFailure is not null ? throw ReadSecretFailure : secrets.GetValueOrDefault(name);
+
+        public void StoreSecret(string name, string? value)
+        {
+            if (value is null)
+            {
+                secrets.Remove(name);
+            }
+            else
+            {
+                secrets[name] = value;
+            }
+        }
 
         public KioskRegistryValue ReadMachineValue(string key, string name) =>
             machine.TryGetValue((key, name), out var value) ? value : new KioskRegistryValue(null, null);

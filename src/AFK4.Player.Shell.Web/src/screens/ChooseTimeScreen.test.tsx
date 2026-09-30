@@ -130,4 +130,20 @@ describe('сколько играем', () => {
 
     expect(await screen.findByText('Стандарт')).toBeInTheDocument();
   });
+
+  // Игрок без имени: «Здравствуйте, » с пустотой после запятой читалось как поломка.
+  it('игрок без имени — приветствие без запятой и пустоты', async () => {
+    serve(() => ({ status: 200, body: devStartOffers(Date.now()) }));
+    installFakeHost({ state: null });
+    const state = { ...devScenarioState('idle')!, apiBaseUrl: 'https://api.example.test/' };
+    render(
+      <ShellI18nProvider initialLocale="ru">
+        <ChooseTimeScreen state={state} auth={{ signedIn: true, displayName: '  ', playerAccountId: null }} />
+      </ShellI18nProvider>
+    );
+
+    await screen.findByText('Стандарт');
+    expect(screen.getByText('Здравствуйте')).toBeInTheDocument();
+    expect(screen.queryByText(/Здравствуйте,/)).toBeNull();
+  });
 });

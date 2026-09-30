@@ -78,20 +78,38 @@ export function DeviceScreen({
     return branch.seats.filter((seat) => free.has(seat.seatId));
   }, [branch.freeSeatIds, branch.seats, requiresSeat]);
 
-  // Умолчание: место, чьё имя совпадает с именем машины, иначе первое свободное. Человек
-  // подтверждает догадку вместо того, чтобы искать себя в списке.
+  // Место прежней записи этой же машины: Windows переустановили, ключ новый, а имя то же, и
+  // старая запись, если давно молчит, держит своё место. Раньше его не было в списке — свободным
+  // оно не числилось, — и ПК вставал на чужое или заводил лишнее. Сервер заменяет такую запись
+  // только когда она действительно молчит; здесь лишь предлагаем место.
+  const machineName = defaultDisplayName.trim().toLowerCase();
+  const previousSeat = useMemo(() => {
+    if (!requiresSeat) return null;
+    const free = new Set(branch.freeSeatIds);
+    return branch.seats.find((seat) =>
+      !free.has(seat.seatId)
+      && seat.isOnline !== true
+      && seat.deviceName?.trim().toLowerCase() === machineName) ?? null;
+  }, [branch.freeSeatIds, branch.seats, machineName, requiresSeat]);
+  const selectableSeats = useMemo(
+    () => (previousSeat ? [previousSeat, ...freeSeats] : freeSeats),
+    [freeSeats, previousSeat],
+  );
+
+  // Умолчание: место прежней записи этого ПК, затем место с именем машины, иначе первое
+  // свободное. Человек подтверждает догадку вместо того, чтобы искать себя в списке.
   const [seatChoice, setSeatChoice] = useState<string>(() => {
-    if (freeSeats.length === 0) return NEW_SEAT;
+    if (selectableSeats.length === 0) return NEW_SEAT;
     const previous = initialDraft?.seatChoice;
-    if (previous != null && (previous === NEW_SEAT || freeSeats.some((seat) => seat.seatId === previous))) {
+    if (previous != null && (previous === NEW_SEAT || selectableSeats.some((seat) => seat.seatId === previous))) {
       return previous;
     }
-    const machineName = defaultDisplayName.trim().toLowerCase();
+    if (previousSeat) return previousSeat.seatId;
     const matched = freeSeats.find((seat) => seat.pcName.trim().toLowerCase() === machineName);
     return (matched ?? freeSeats[0]).seatId;
   });
 
-  const selectedExistingSeat = freeSeats.find((seat) => seat.seatId === seatChoice) ?? null;
+  const selectedExistingSeat = selectableSeats.find((seat) => seat.seatId === seatChoice) ?? null;
   const createsSeat = requiresSeat && seatChoice === NEW_SEAT;
   const canEnroll =
     displayNameValid
@@ -166,7 +184,7 @@ export function DeviceScreen({
       title={t(titleKey)}
       subtitle={t(subtitleKey)}
       onSubmit={handleSubmit}
-      onBack={() => onBack({ displayName, seatChoice: freeSeats.length > 0 ? seatChoice : null })}
+      onBack={() => onBack({ displayName, seatChoice: selectableSeats.length > 0 ? seatChoice : null })}
       backDisabled={busy}
       primary={(
         <Button type="submit" variant="primary" disabled={!canEnroll || busy}>
@@ -187,7 +205,7 @@ export function DeviceScreen({
       <div className="wizard-form">
         {/* Свободных мест нет — место заведётся само, и сказать об этом надо до нажатия:
             иначе в зале молча появляется ещё одна строка, о которой человек узнаёт из панели. */}
-        {requiresSeat && freeSeats.length === 0 && defaultZone !== null && (
+        {requiresSeat && selectableSeats.length === 0 && defaultZone !== null && (
           <p className="ui-field-hint">
             {t('setup.wizard.device.seat.willCreate', { name: trimmedDisplayName || defaultDisplayName })}
           </p>
@@ -201,18 +219,24 @@ export function DeviceScreen({
           </div>
         )}
 
-        {freeSeats.length > 0 && (
+        {selectableSeats.length > 0 && (
           <label className="ui-field">
             <span className="ui-field-label">{t('setup.wizard.device.seat.label')}</span>
             <select value={seatChoice} onChange={(event) => setSeatChoice(event.target.value)}>
-              {freeSeats.map((seat) => (
+              {selectableSeats.map((seat) => (
                 <option key={seat.seatId} value={seat.seatId}>
-                  {seat.zoneName} · {seat.pcName}
+                  {seat.zoneName} · {seat.seatId === previousSeat?.seatId
+                    ? t('setup.wizard.device.seat.previous', { name: seat.pcName })
+                    : seat.pcName}
                 </option>
               ))}
               <option value={NEW_SEAT}>{t('setup.wizard.device.seat.new')}</option>
             </select>
-            <span className="ui-field-hint">{t('setup.wizard.device.seat.hint')}</span>
+            <span className="ui-field-hint">
+              {previousSeat !== null && seatChoice === previousSeat.seatId
+                ? t('setup.wizard.device.seat.previousHint')
+                : t('setup.wizard.device.seat.hint')}
+            </span>
           </label>
         )}
 

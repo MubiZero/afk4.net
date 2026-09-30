@@ -100,6 +100,38 @@ public sealed class DeviceCommandPolicyEndpointTests
         Assert.Contains((await fixture.HeartbeatAsync()).Commands, command => command.Type == DeviceCommandTypeNames.Message);
     }
 
+    // Агент показывает только известные ему причины, а на остальные отвечает отказом — и Панель,
+    // которой сервер уже ответил «принято», считала бы предупреждение ушедшим, когда игрок ничего не
+    // увидел. Поэтому отказывает сервер, и сразу, с кодом.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("moon-phase")]
+    public async Task AWarning_NeedsAReasonTheAgentKnows(string? reason)
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+        var payload = reason is null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["reason"] = reason };
+
+        var refused = await fixture.CommandAsync(DeviceCommandTypeNames.Warn, payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        Assert.Contains(DeviceCommandErrorCodeNames.InvalidPayload, await refused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.DoesNotContain(DeviceCommandTypeNames.Warn, (await fixture.HeartbeatAsync()).Commands.Select(command => command.Type));
+    }
+
+    [Fact]
+    public async Task AWarningWithAKnownReason_IsHandedToTheAgent()
+    {
+        await using var fixture = DevicePlayerFixture.Create();
+        await fixture.SeedAsync();
+
+        var sent = await fixture.CommandAsync(DeviceCommandTypeNames.Warn, new() { ["reason"] = DeviceWarnReasonNames.LowBalance });
+
+        Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
+        Assert.Contains((await fixture.HeartbeatAsync()).Commands, command => command.Type == DeviceCommandTypeNames.Warn);
+    }
+
     [Fact]
     public void Maintenance_IsItsOwnRight_GivenToThoseWhoLookAfterThePcs()
     {

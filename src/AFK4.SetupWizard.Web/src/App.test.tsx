@@ -366,4 +366,15 @@ describe('App · «Назад» не теряет введённое', () => {
     expect(screen.queryByText('483 920')).toBeNull();
     expect(screen.getByLabelText('Имя')).toHaveValue('');
   });
+
+  // Бренд пишется «AFK4.NET» заглавными, как на сайте и в Панели; «AFK4.net» в шапке выбивался.
+  it('в шапке называет бренд AFK4.NET', () => {
+    const { container } = render(
+      <I18nProvider initialLocale="ru">
+        <App />
+      </I18nProvider>,
+    );
+
+    expect(container.querySelector('.wizard-brand-text strong')?.textContent).toBe('AFK4.NET');
+  });
 });

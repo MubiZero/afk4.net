@@ -5,7 +5,7 @@ import { ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/co
 import { App } from '../App';
 import { devScenarioState } from '../host/devHost';
 import { installFakeHost } from '../test/fakeHost';
-import { pcSignInUrl } from './SignInPanel';
+import { pcSignInUrl, SignInPanel } from './SignInPanel';
 
 function renderShell() {
   return render(
@@ -176,5 +176,24 @@ describe('pcSignInUrl', () => {
     expect(pcSignInUrl('482913', '11111111-1111-1111-1111-111111111111'))
       .toBe('https://afk4.net/s/482913?o=11111111-1111-1111-1111-111111111111');
     expect(pcSignInUrl('482913', null)).toBe('https://afk4.net/s/482913');
+  });
+
+  // Над идущей сессией родитель перерисовывается каждую секунду и отдаёт новый onClose. Эффект с
+  // фокусом зависел от него и возвращал курсор в телефон, стоило уйти в ПИН-код по Tab.
+  it('перерисовка родителя не отбирает фокус у ПИН-кода', () => {
+    installFakeHost({ state: null });
+    const state = devScenarioState('idle')!;
+    const view = (onClose: () => void) => (
+      <ShellI18nProvider initialLocale="ru">
+        <SignInPanel state={state} onClose={onClose} />
+      </ShellI18nProvider>
+    );
+    const { rerender } = render(view(() => {}));
+    expect(screen.getByLabelText('Номер телефона')).toHaveFocus();
+
+    screen.getByLabelText('ПИН-код').focus();
+    rerender(view(() => {}));
+
+    expect(screen.getByLabelText('ПИН-код')).toHaveFocus();
   });
 });

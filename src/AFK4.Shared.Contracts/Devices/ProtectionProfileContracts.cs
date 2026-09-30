@@ -3,7 +3,8 @@ namespace AFK4.Shared.Contracts.Devices;
 /// <summary>
 /// Профиль защиты ПК филиала (спека оболочки, §6.3): что агент запрещает на игровом ПК. Версия
 /// растёт с каждым сохранением и едет в сердцебиении — по её смене агент перечитывает профиль.
-/// Версия 0 — клуб профиль не настраивал, действует только постоянная база киоска.
+/// Версия 0 — клуб профиль не сохранял: действуют умолчания (<see cref="ProtectionProfileDefaults.Initial"/>)
+/// и постоянная основа киоска.
 /// </summary>
 public sealed record ProtectionProfileDto(
     int Version,
@@ -27,6 +28,25 @@ public sealed record ProtectionProfileDto(
     int? IdleShutdownMinutes = null,
     /// Правила клуба на экране ПК — текст клуба как есть, на его языке.
     string? ClubRules = null);
+
+/// <summary>
+/// Профиль филиала, который ни разу не сохраняли: разумный набор сразу, а не голый киоск. Из игры
+/// через диалог «Открыть» игрок иначе попадает в обычное окно Windows и оттуда — в консоль,
+/// Диспетчер задач и реестр. Флешки и браузер клуб включает сам: у кого-то на них держится работа.
+/// Один набор и на сервере (Панель показывает его как действующий), и у агента до первого ответа
+/// сервера — чтобы ПК без связи не оставался открытым.
+/// </summary>
+public static class ProtectionProfileDefaults
+{
+    public static readonly ProtectionProfileDto Initial = new(
+        0, false, false, false, true, [], [],
+        [
+            new BlockedWindowRuleDto(null, "ConsoleWindowClass"),
+            new BlockedWindowRuleDto(null, "TaskManagerWindow"),
+            new BlockedWindowRuleDto(null, "RegEdit_RegEdit")
+        ],
+        SessionTraceNames.All);
+}
 
 /// <summary>
 /// Следы, которые агент стирает, когда сессия кончилась и ПК заперт (спека оболочки, §6.4). Пути

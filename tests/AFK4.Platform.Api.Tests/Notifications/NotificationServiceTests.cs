@@ -69,6 +69,29 @@ public sealed class NotificationServiceTests
         Assert.Contains(row.NotificationOutboxId, handle.OutboxIds);
     }
 
+    // Значения нужны одному SMS-каналу; письму и подавленному SMS (без номера) хранить код незачем.
+    [Fact]
+    public async Task SendAsync_KeepsTheTokensOnlyForASmsThatWillBeSent()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var recipient = new NotificationRecipient(Locale: "ru", EmailAddress: "player@example.com", PhoneNumber: "+992900000001");
+        var withPhone = Request(idempotencyKey: "with-phone") with { Recipient = recipient };
+        var withoutPhone = Request(idempotencyKey: "no-phone") with { Recipient = recipient with { PhoneNumber = null } };
+
+        await service.SendAsync(withPhone with { PreferredChannels = [NotificationChannel.Email, NotificationChannel.Sms] }, CancellationToken.None);
+        await service.SendAsync(withoutPhone with { PreferredChannels = [NotificationChannel.Sms] }, CancellationToken.None);
+
+        var rows = await db.NotificationOutbox.ToListAsync();
+        var sentSms = rows.Single(row => row.IdempotencyKey == "with-phone:sms");
+        Assert.Contains("123456", sentSms.TokensJson, StringComparison.Ordinal);
+        Assert.Null(rows.Single(row => row.IdempotencyKey == "with-phone:email").TokensJson);
+        var suppressed = rows.Single(row => row.IdempotencyKey == "no-phone:sms");
+        Assert.Equal(NotificationOutboxStatus.Suppressed, suppressed.Status);
+        Assert.Null(suppressed.TokensJson);
+        Assert.DoesNotContain("123456", suppressed.BodyText, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task SendAsync_DefaultsToEmailWhenNoPreferredChannels()
     {

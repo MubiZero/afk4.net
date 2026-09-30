@@ -23,6 +23,11 @@ public sealed class SetupWizardDeviceSetup(
     /// <summary>Приложение встало, а служба агента не запустилась.</summary>
     public const string AgentStartFailedStatus = "agent_start_failed";
 
+    /// <summary>Служба запущена, но агент настройку не принял (негодный адрес, нет ключа): ПК молчит.</summary>
+    public const string AgentNotReadyStatus = "agent_not_ready";
+
+    public static bool AgentIsDown(string status) => status is AgentStartFailedStatus or AgentNotReadyStatus;
+
     public bool KioskInstalled => kiosk?.IsInstalled ?? false;
 
     /// <summary>
@@ -116,7 +121,7 @@ public sealed class SetupWizardDeviceSetup(
         // читает один раз, при старте.
         var kioskOutcome = role == DeviceRoleNames.GamingPc ? ProvisionKiosk() : null;
         var outcome = StartAgentService(new WizardShellOutcome(status, result.ExitCode, null, kioskOutcome));
-        if (outcome.Status == AgentStartFailedStatus)
+        if (AgentIsDown(outcome.Status))
         {
             return outcome;
         }
@@ -146,6 +151,11 @@ public sealed class SetupWizardDeviceSetup(
         {
             completionAction.Complete();
             return installOutcome;
+        }
+        catch (AgentDidNotAcceptSettingsException exception)
+        {
+            SetupWizardStartupLog.Write("The agent service started but did not accept its settings.", exception);
+            return new WizardShellOutcome(AgentNotReadyStatus, installOutcome.ExitCode, exception.Message, installOutcome.Kiosk);
         }
         catch (Exception exception)
         {
@@ -180,8 +190,10 @@ public sealed class SetupWizardDeviceSetup(
     }
 
     /// <summary>
-    /// «Снять киоск»: вернуть проводник и настройки входа, удалить учётку игрока — и перезапустить
-    /// агента, чтобы канал с оболочкой снова пускал любого вошедшего, а не удалённую учётку.
+    /// «Снять киоск»: вернуть проводник и настройки входа (автовход — вместе с паролем), удалить
+    /// учётку игрока — и перезапустить агента. Агент без учётки игрока снимает запреты, которые
+    /// ставил AFK4, докладывает серверу «ПК не киоск», а канал с оболочкой снова пускает любого
+    /// вошедшего, а не удалённую учётку.
     /// </summary>
     /// <returns>Остался ли киоск на ПК.</returns>
     public bool RemoveKiosk()
@@ -192,7 +204,7 @@ public sealed class SetupWizardDeviceSetup(
         }
 
         kiosk.Remove();
-        SetupWizardStartupLog.Write("Kiosk removed: the player account and autologon are gone.");
+        SetupWizardStartupLog.Write("Kiosk removed: the player account is gone and the former sign-in settings are back.");
         completionAction.Complete();
         return kiosk.IsInstalled;
     }
