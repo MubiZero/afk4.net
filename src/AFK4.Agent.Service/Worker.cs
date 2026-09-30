@@ -87,6 +87,7 @@ public sealed class Worker(
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            _ = realtimeClient.EnsureConnectedAsync(stoppingToken);
             await TryEnforceGraceModeAsync(stoppingToken);
             await TryEnforceProcessPolicyAsync(stoppingToken);
             await TryMaintainPlayerShellAsync(stoppingToken);
