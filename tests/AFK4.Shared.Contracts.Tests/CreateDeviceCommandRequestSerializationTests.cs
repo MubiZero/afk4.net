@@ -3,12 +3,12 @@ using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Shared.Contracts.Tests;
 
-public sealed class DispatchDeviceCommandRequestSerializationTests
+public sealed class CreateDeviceCommandRequestSerializationTests
 {
     [Fact]
-    public void DispatchDeviceCommandRequest_RoundTripsPayload()
+    public void CreateDeviceCommandRequest_RoundTripsPayload()
     {
-        var request = new DispatchDeviceCommandRequest(
+        var request = new CreateDeviceCommandRequest(
             Type: "lock",
             Payload: new Dictionary<string, string>
             {
@@ -16,7 +16,7 @@ public sealed class DispatchDeviceCommandRequestSerializationTests
             });
 
         var json = JsonSerializer.Serialize(request);
-        var copy = JsonSerializer.Deserialize<DispatchDeviceCommandRequest>(json);
+        var copy = JsonSerializer.Deserialize<CreateDeviceCommandRequest>(json);
 
         Assert.NotNull(copy);
         Assert.Equal("lock", copy.Type);

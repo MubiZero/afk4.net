@@ -56,6 +56,14 @@ public static class TariffBilling
     }
 
     /// <summary>
+    /// Цена продления идущей сессии. Минимум тарифа — минимум сессии, его оплатили на старте: к
+    /// продлению он не применяется, иначе «+30 мин» на тарифе с минимумом в час стоят час. Шаг
+    /// округления остаётся.
+    /// </summary>
+    public static TariffComputation? ComputeForExtension(int additionalMinutes, TariffPricing pricing) =>
+        ComputeForMinutes(additionalMinutes, pricing with { MinimumBillableMinutes = 0 });
+
+    /// <summary>
     /// Compute the billable amount from an elapsed wall-clock duration. Elapsed
     /// time is rounded up to whole minutes before the minimum/rounding rules
     /// apply. A non-positive elapsed time produces a zero charge (an open tab

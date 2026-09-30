@@ -75,6 +75,47 @@ public sealed class NotificationDispatchRunnerTests
         Assert.Equal(seeded.NotificationOutboxId, row.NotificationOutboxId);
     }
 
+    // Код из SMS после отправки никому не нужен, а в таблице он лежал бы открытым текстом.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunAsync_SmsRowFinished_NoLongerHoldsTheCode(bool delivered)
+    {
+        await using var db = CreateDb();
+        var channel = new FakeChannel(
+            NotificationChannel.Sms,
+            _ => delivered ? ChannelResult.Sent() : ChannelResult.PermanentFailure("no template"));
+        var runner = CreateRunner(db, channel);
+        var seeded = await SeedAsync(db, channel: "Sms");
+        seeded.TokensJson = "{\"code\":\"482913\"}";
+        seeded.BodyText = "AFK4.NET: invite code 482913.";
+        await db.SaveChangesAsync();
+
+        await runner.RunAsync(max: 10, CancellationToken.None);
+
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Null(row.TokensJson);
+        Assert.DoesNotContain("482913", row.BodyText, StringComparison.Ordinal);
+    }
+
+    // Пока сообщение не ушло, повтор берёт значения из строки: стирать их рано.
+    [Fact]
+    public async Task RunAsync_SmsRowWaitingForRetry_KeepsTheCode()
+    {
+        await using var db = CreateDb();
+        var channel = new FakeChannel(NotificationChannel.Sms, _ => ChannelResult.TransientFailure("gateway timeout"));
+        var runner = CreateRunner(db, channel);
+        var seeded = await SeedAsync(db, channel: "Sms");
+        seeded.TokensJson = "{\"code\":\"482913\"}";
+        await db.SaveChangesAsync();
+
+        await runner.RunAsync(max: 10, CancellationToken.None);
+
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
+        Assert.Contains("482913", row.TokensJson, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task RunAsync_TransientFailureSchedulesRetryWithBackoff()
     {

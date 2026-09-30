@@ -224,6 +224,8 @@ public sealed class PlayerShellStateBuilderTests
             var live = apps.Single(app => app.AppId == "cs2");
             Assert.Equal("Шутеры", live.Category);
             Assert.True(live.IsAvailable);
+            // Жанр не задан — значит, пусто: прежнее английское «Games» попадало в русский экран.
+            Assert.Equal(string.Empty, apps.Single(app => app.AppId == "removed-game").Category);
             Assert.False(apps.Single(app => app.AppId == "removed-game").IsAvailable);
             Assert.DoesNotContain(apps, app => app.AppId == "disabled-game");
         }

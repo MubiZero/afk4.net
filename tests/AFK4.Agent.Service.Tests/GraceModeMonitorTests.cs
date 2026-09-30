@@ -117,6 +117,69 @@ public sealed class GraceModeMonitorTests
         Assert.Equal(1, lockController.LockCount);
     }
 
+    // Оплаченное время кончилось, пока связи нет: аренда подписана ровно до этого конца, и льгота
+    // «после обрыва» не должна дарить сверху ещё несколько минут. Без неё игрок, у которого сеть
+    // пропала за пять минут до конца, сидел бы бесплатно до конца окна от последнего контакта.
+    [Fact]
+    public async Task EnforceAsync_WhenThePaidEndHasPassedOffline_LocksDespiteTheGraceWindow()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var lease = CreateLease(Now.AddSeconds(-1));
+        leaseStore.Save(lease);
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-60));
+        var lockController = new RecordingWorkstationLockController();
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddMinutes(-3), effectiveGraceMinutes: 15);
+        var snapshot = new AFK4.Agent.Service.Shell.ShellHeartbeatSnapshot();
+        snapshot.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(lease.SessionId, Now.AddMinutes(-60), lease.ExpiresAtUtc));
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(grace),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance,
+            heartbeatSnapshot: snapshot);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Null(leaseStore.Current);
+        Assert.Equal(PlayerShellStateNames.Locked, runtimeStore.Current.State);
+        Assert.Equal(1, lockController.LockCount);
+    }
+
+    // Аренда, выданная до перехода на «до конца оплаченного», кончается раньше конца сессии. Пока
+    // конец впереди, льгота работает как раньше: заплатившего не запирают из-за короткой аренды.
+    [Fact]
+    public async Task EnforceAsync_WhenTheOldLeaseLapsesBeforeThePaidEnd_StillHonoursTheGraceWindow()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var lease = CreateLease(Now.AddSeconds(-1));
+        leaseStore.Save(lease);
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-15));
+        var lockController = new RecordingWorkstationLockController();
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddMinutes(-3), effectiveGraceMinutes: 15);
+        var snapshot = new AFK4.Agent.Service.Shell.ShellHeartbeatSnapshot();
+        snapshot.RecordLiveSession(new AFK4.Shared.Contracts.Devices.DeviceLiveSessionDto(lease.SessionId, Now.AddMinutes(-15), Now.AddMinutes(40)));
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(grace),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance,
+            heartbeatSnapshot: snapshot);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal(lease, leaseStore.Current);
+        Assert.Equal(0, lockController.LockCount);
+        Assert.Equal(PlayerShellStateNames.Grace, runtimeStore.Current.State);
+    }
+
     private static SessionLeaseDto CreateLease(DateTimeOffset expiresAtUtc)
     {
         return new SessionLeaseDto(

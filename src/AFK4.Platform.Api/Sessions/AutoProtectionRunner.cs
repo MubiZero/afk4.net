@@ -159,7 +159,7 @@ public sealed class AutoProtectionRunner(
                 return false;
             }
 
-            await DispatchAsync(session, DeviceCommandTypeNames.Warn, "time-almost-up", cancellationToken);
+            await DispatchAsync(session, DeviceCommandTypeNames.Warn, DeviceWarnReasonNames.TimeAlmostUp, cancellationToken);
             session.AutoWarnedAtUtc = now;
             session.UpdatedAtUtc = now;
             return true;
@@ -198,7 +198,7 @@ public sealed class AutoProtectionRunner(
 
         if (session.AutoWarnedAtUtc is null)
         {
-            await DispatchAsync(session, DeviceCommandTypeNames.Warn, "credit-limit", cancellationToken);
+            await DispatchAsync(session, DeviceCommandTypeNames.Warn, DeviceWarnReasonNames.CreditLimit, cancellationToken);
             session.AutoWarnedAtUtc = now;
         }
 

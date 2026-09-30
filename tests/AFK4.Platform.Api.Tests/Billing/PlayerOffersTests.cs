@@ -69,6 +69,16 @@ public sealed class PlayerOffersTests
         Assert.Equal(currentEnd.AddMinutes(30), options[0].EndsAtUtc);
     }
 
+    [Fact]
+    public void ExtensionOnATariffWithAMinimum_CostsOnlyTheAddedMinutes()
+    {
+        // Минимум в час сессия уже оплатила на старте: полчаса продления — это полчаса, а не час.
+        var options = PlayerOffers.ForExtension(new TariffPricing(10, 60, 15, "TJS"), 10_000, Now);
+
+        Assert.Equal(30, options[0].BillableMinutes);
+        Assert.Equal(300, options[0].Amount.MinorUnits);
+    }
+
     private static TariffOptionDto Tariff(long pricePerMinute, int minimumMinutes, int roundingMinutes, bool appliesNow) =>
         new(
             TariffId: Guid.NewGuid(),

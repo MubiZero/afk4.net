@@ -107,12 +107,14 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
     }
 
     /// <summary>
-    /// Обновить доступ, если он вот-вот истечёт. true — вход кончился (сервер отказал в обновлении):
-    /// странице надо сказать об этом, иначе она рисовала бы вошедшего, чьи запросы сыплют 401.
+    /// Обновить доступ, если он вот-вот истечёт, а с <paramref name="force"/> — в любом случае:
+    /// так делают, когда сервер уже ответил 401 на токен, который по часам ещё живой. true — вход
+    /// кончился (сервер отказал в обновлении): странице надо сказать об этом, иначе она рисовала бы
+    /// вошедшего, чьи запросы сыплют 401.
     /// </summary>
-    public async Task<bool> EnsureFreshAsync(CancellationToken cancellationToken)
+    public async Task<bool> EnsureFreshAsync(CancellationToken cancellationToken, bool force = false)
     {
-        if (!NeedsRefresh(out _))
+        if (!NeedsRefresh(force, out _))
         {
             return false;
         }
@@ -120,7 +122,7 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
         await refreshing.WaitAsync(cancellationToken);
         try
         {
-            if (!NeedsRefresh(out var current) || Endpoint("/api/public/player/refresh") is not { } endpoint)
+            if (!NeedsRefresh(force, out var current) || Endpoint("/api/public/player/refresh") is not { } endpoint)
             {
                 return false;
             }
@@ -168,12 +170,12 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
         }
     }
 
-    private bool NeedsRefresh(out PlatformPersonSessionResponse? current)
+    private bool NeedsRefresh(bool force, out PlatformPersonSessionResponse? current)
     {
         lock (gate)
         {
             current = session;
-            return current is not null && timeProvider.GetUtcNow() >= current.AccessTokenExpiresAtUtc - RefreshSkew;
+            return current is not null && (force || timeProvider.GetUtcNow() >= current.AccessTokenExpiresAtUtc - RefreshSkew);
         }
     }
 

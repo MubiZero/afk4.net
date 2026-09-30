@@ -826,6 +826,24 @@ Named, not done: the
 shell redesign by the concept (choreography, sign-in window size) still waits for
 the owner; nothing here was seen in the native WebView2 or on a live PC.
 
+## Offline Until The Paid End (2026-09-30)
+
+First acceptance on a real Windows PC (items 21 and 24): with the connection lost the PC locked after about
+10 minutes (lease expiry) while the server kept the session running and charging, and after reconnect the player
+was signed out on the PC. Owner decision: without a connection the PC stays open until the paid end, then locks.
+
+- **Lease to the paid end.** For an active session with a fixed end the server signs the lease up to that end
+  (`GraceLeasePolicy.ExpiresAt`, used at start, extend, resume, transfer and heartbeat refresh); open-tab and
+  paused sessions keep the short branch grace window. The heartbeat no longer re-issues a lease that already
+  reaches the paid end. The Agent's grace window is not applied once the server-named paid end has passed.
+- **Stay signed in after reconnect.** The 401 that follows a reconnect (the 15-minute access token expired while
+  offline) no longer signs the player out: the page asks the host (`auth.refresh`), the host renews with the
+  12-hour refresh token and only forgets the sign-in if the server refuses that too.
+- **Known limits.** A session ended early at the counter while its PC is offline keeps the PC open until it
+  reconnects or the paid end passes. A restart of the Agent service while offline loses the server-named paid
+  end, so the old grace window may add up to its length after the lease lapses. The shell part could only be
+  compiled and unit-tested here; the live PC run is the acceptance.
+
 ## Latest Verification
 
 - Design pass merged (2026-09-29). #587 (screens of every part) passed

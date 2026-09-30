@@ -104,8 +104,11 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         }
 
         var latestLeaseSequence = await LoadLatestLeaseSequenceAsync(session.SessionId, cancellationToken);
-        var leaseIsNearExpiry = heartbeat.ActiveSessionLeaseExpiresAtUtc is null ||
-            heartbeat.ActiveSessionLeaseExpiresAtUtc.Value <= now.Add(RefreshThreshold);
+        // Аренда, уже дотянувшаяся до конца оплаченного времени, не устаревает: обновлять её
+        // каждые десять минут значило бы писать новую строку на каждое сердцебиение у самого конца.
+        var paidEndUtc = GraceLeasePolicy.PaidEnd(session.State, session.EndsAtUtc, now);
+        var leaseIsNearExpiry = heartbeat.ActiveSessionLeaseExpiresAtUtc is not { } leaseExpiresAtUtc ||
+            (leaseExpiresAtUtc <= now.Add(RefreshThreshold) && (paidEndUtc is null || leaseExpiresAtUtc < paidEndUtc));
         var leaseIsMissingOrStale = latestLeaseSequence == 0 ||
             heartbeat.ActiveSessionLeaseSequence is null ||
             heartbeat.ActiveSessionLeaseSequence.Value < latestLeaseSequence;
@@ -299,7 +302,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             session.State,
             previousSequence + 1,
             now,
-            now.AddMinutes(effectiveGraceMinutes));
+            GraceLeasePolicy.ExpiresAt(session.State, session.EndsAtUtc, now, effectiveGraceMinutes));
         var leaseEntity = CreateLeaseEntity(lease);
 
         session.CurrentLeaseId = leaseEntity.SessionLeaseId;

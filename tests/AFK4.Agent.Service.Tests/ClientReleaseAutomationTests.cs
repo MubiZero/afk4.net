@@ -788,7 +788,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("'internal' = 'https://api.afk4.net'", script, StringComparison.Ordinal);
         Assert.Contains("'beta' = 'https://api.afk4.net'", script, StringComparison.Ordinal);
         Assert.Contains("'stable' = 'https://app.afk4.net'", script, StringComparison.Ordinal);
-        Assert.Contains("$platformBaseUrl = $platformBaseUrlByChannel[$Channel]", script, StringComparison.Ordinal);
+        // Адрес канала — по умолчанию; -PlatformBaseUrl переопределяет его только для приёмки против
+        // локального API (виртуалка ходит к Mac по 10.0.2.2).
+        Assert.Contains("[string] $PlatformBaseUrl = ''", script, StringComparison.Ordinal);
+        Assert.Contains("$platformBaseUrl = if ($PlatformBaseUrl) { $PlatformBaseUrl } else { $platformBaseUrlByChannel[$Channel] }", script, StringComparison.Ordinal);
         Assert.Contains("No platform base URL is configured for channel", script, StringComparison.Ordinal);
         Assert.Contains("-p:AFK4PlatformBaseUrl=\"$platformBaseUrl\"", script, StringComparison.Ordinal);
     }

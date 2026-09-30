@@ -35,7 +35,7 @@ public sealed class SessionBillingService(
             tariffVersionId,
             playerPackageId,
             durationMinutes,
-            checkTariffSchedule: true,
+            isExtension: false,
             cancellationToken);
     }
 
@@ -58,8 +58,9 @@ public sealed class SessionBillingService(
             playerPackageId,
             additionalMinutes,
             // Продление расписанием не проверяется: сессия началась в часы своего тарифа и до
-            // конца считается по нему — решение владельца 2026-09-23.
-            checkTariffSchedule: false,
+            // конца считается по нему — решение владельца 2026-09-23. Минимум тарифа к продлению
+            // тоже не применяется: его оплатили на старте.
+            isExtension: true,
             cancellationToken);
     }
 
@@ -113,7 +114,7 @@ public sealed class SessionBillingService(
         Guid? tariffVersionId,
         Guid? playerPackageId,
         int durationMinutes,
-        bool checkTariffSchedule,
+        bool isExtension,
         CancellationToken cancellationToken)
     {
         if (durationMinutes <= 0)
@@ -162,7 +163,7 @@ public sealed class SessionBillingService(
                 tariffVersionId,
                 durationMinutes,
                 requireWalletBalance: true,
-                checkTariffSchedule,
+                isExtension,
                 cancellationToken),
             BillingModeNames.PostpaidDebt => await ValidateTariffBillingAsync(
                 organizationId,
@@ -171,7 +172,7 @@ public sealed class SessionBillingService(
                 tariffVersionId,
                 durationMinutes,
                 requireWalletBalance: false,
-                checkTariffSchedule,
+                isExtension,
                 cancellationToken),
             BillingModeNames.Package => await ValidatePackageBillingAsync(
                 organizationId,
@@ -201,7 +202,7 @@ public sealed class SessionBillingService(
         Guid? tariffVersionId,
         int durationMinutes,
         bool requireWalletBalance,
-        bool checkTariffSchedule,
+        bool isExtension,
         CancellationToken cancellationToken)
     {
         if (tariffVersionId is null)
@@ -216,7 +217,7 @@ public sealed class SessionBillingService(
         //
         // Проверяется только момент старта (решение владельца 2026-09-23): начатая сессия до конца
         // считается по своему тарифу, сколько бы ни длилась и сколько бы её ни продлевали.
-        if (checkTariffSchedule && !await TariffAvailability.AppliesAtAsync(
+        if (!isExtension && !await TariffAvailability.AppliesAtAsync(
             dbContext, organizationId, branchId, tariffVersionId.Value, timeProvider.GetUtcNow(),
             cancellationToken))
         {
@@ -226,7 +227,8 @@ public sealed class SessionBillingService(
         var calculation = await tariffService.CalculateAsync(
             branchId,
             new CalculateTariffRequest(organizationId, tariffVersionId.Value, durationMinutes),
-            cancellationToken);
+            cancellationToken,
+            extension: isExtension);
 
         if (calculation is null)
         {

@@ -1,6 +1,8 @@
 ﻿using System.Security.Cryptography;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Tenancy;
@@ -22,7 +24,9 @@ public sealed class EfInstallService(
     TimeProvider timeProvider,
     EfPlanLimitGuard planLimitGuard,
     EfOrganizationStatusGuard organizationStatusGuard,
-    EfDeviceBoundPlayerTokens? deviceTokens = null)
+    EfDeviceBoundPlayerTokens? deviceTokens = null,
+    IAuditRecordWriter? auditRecordWriter = null,
+    IOptions<BranchDiagnosticsOptions>? diagnosticsOptions = null)
 {
     /// <summary>
     /// Сколько раз повторить установку по коду, если в ту же секунду код потратил соседний ПК.
@@ -93,12 +97,15 @@ public sealed class EfInstallService(
         }
 
         var devicePublicKey = (request.DevicePublicKey ?? string.Empty).Trim();
-        var knownDevice = devicePublicKey.Length > 0 && await dbContext.Devices.AnyAsync(
+        var knownDevice = devicePublicKey.Length > 0 && (await dbContext.Devices.AnyAsync(
             device =>
                 device.OrganizationId == code.OrganizationId &&
                 device.BranchId == code.BranchId &&
                 device.DevicePublicKey == devicePublicKey,
-            cancellationToken);
+            cancellationToken)
+            // Та же машина после переустановки Windows: ключ новый, имя и место прежние.
+            || (await FindReplaceableDevicesAsync(
+                code.OrganizationId, code.BranchId, request.MachineName ?? string.Empty, devicePublicKey, cancellationToken)).Count > 0);
         // Переустановка того же ПК код не тратит — и исчерпанный код её пускает: иначе ПК, у
         // которого слетела система, не вернуть в зал тем же скриптом, которым его туда ставили.
         if (!knownDevice && code.UsedDevices >= code.MaxDevices)
@@ -108,7 +115,8 @@ public sealed class EfInstallService(
 
         var seatName = string.IsNullOrWhiteSpace(request.SeatName) ? request.MachineName : request.SeatName;
         var seatId = await FindFreeSeatByNameAsync(
-            code.OrganizationId, code.BranchId, seatName ?? string.Empty, devicePublicKey, cancellationToken);
+            code.OrganizationId, code.BranchId, seatName ?? string.Empty, request.MachineName ?? string.Empty,
+            devicePublicKey, cancellationToken);
 
         var result = await EnrollResolvedAsync(
             code.OrganizationId,
@@ -154,6 +162,7 @@ public sealed class EfInstallService(
         Guid organizationId,
         Guid branchId,
         string seatName,
+        string machineName,
         string devicePublicKey,
         CancellationToken cancellationToken)
     {
@@ -178,14 +187,27 @@ public sealed class EfInstallService(
         }
 
         var seatId = matches[0];
-        var occupantKey = await dbContext.DeviceSeatAssignments
+        var occupantId = await dbContext.DeviceSeatAssignments
             .Where(assignment => assignment.SeatId == seatId && assignment.DetachedAtUtc == null)
-            .SelectMany(assignment => dbContext.Devices
-                .Where(device => device.DeviceId == assignment.DeviceId)
-                .Select(device => device.DevicePublicKey))
+            .Select(assignment => (Guid?)assignment.DeviceId)
             .FirstOrDefaultAsync(cancellationToken);
+        if (occupantId is null)
+        {
+            return seatId;
+        }
 
-        return occupantKey is null || occupantKey == devicePublicKey ? seatId : null;
+        var occupant = await dbContext.Devices
+            .AsNoTracking()
+            .SingleOrDefaultAsync(device => device.DeviceId == occupantId, cancellationToken);
+        if (occupant is null || occupant.DevicePublicKey == devicePublicKey)
+        {
+            return seatId;
+        }
+
+        // Место держит прежняя запись этой же машины (переустановили Windows): оно её.
+        var predecessors = await FindReplaceableDevicesAsync(
+            organizationId, branchId, machineName, devicePublicKey, cancellationToken);
+        return predecessors.Any(device => device.DeviceId == occupantId) ? seatId : null;
     }
 
     /// <param name="seatRequired">
@@ -300,9 +322,17 @@ public sealed class EfInstallService(
                 candidate.DevicePublicKey == devicePublicKey,
             cancellationToken);
 
+        // Та же машина после переустановки Windows: ключ уже другой, а имя прежнее. Без этого
+        // прежняя запись оставалась в зале мёртвой, держала место, и сервер молча заводил второе
+        // устройство с тем же именем.
+        IReadOnlyList<DeviceEntity> replacedDevices = existingDevice is null
+            ? await FindReplaceableDevicesAsync(organizationId, branchId, machineName, devicePublicKey, cancellationToken)
+            : [];
+
         // Лимит тарифа — только для нового ПК: переустановка того же места в зале не добавляет.
         // Раньше его проверял лишь старый вход по коду, и мастер ставил ПК сверх тарифа.
         if (existingDevice is null &&
+            replacedDevices.Count == 0 &&
             await planLimitGuard.CheckDeviceAsync(organizationId, branchId, cancellationToken, normalizedRole) is not null)
         {
             return InstallOperationResult<InstallEnrollResponse>.Conflict(
@@ -339,7 +369,9 @@ public sealed class EfInstallService(
                     assignment.DetachedAtUtc == null)
                 .Select(assignment => (Guid?)assignment.DeviceId)
                 .FirstOrDefaultAsync(cancellationToken);
-            if (occupyingDeviceId is not null && occupyingDeviceId != existingDevice?.DeviceId)
+            if (occupyingDeviceId is not null
+                && occupyingDeviceId != existingDevice?.DeviceId
+                && replacedDevices.All(device => device.DeviceId != occupyingDeviceId))
             {
                 return InstallOperationResult<InstallEnrollResponse>.Conflict(
                     "Seat already has an active device assignment.",
@@ -351,6 +383,11 @@ public sealed class EfInstallService(
 
         var now = timeProvider.GetUtcNow();
         var deviceId = existingDevice?.DeviceId ?? Guid.NewGuid();
+        foreach (var replaced in replacedDevices)
+        {
+            await RetireReplacedDeviceAsync(replaced, now, cancellationToken);
+        }
+
         var credentialId = Guid.NewGuid();
         var credentialSecret = DeviceCredentialSecrets.CreateCredentialSecret();
         var enrollmentState = branch.RequireManualDeviceApproval
@@ -421,6 +458,11 @@ public sealed class EfInstallService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        foreach (var replaced in replacedDevices)
+        {
+            await WriteReplacedAuditAsync(replaced, deviceId, cancellationToken);
+        }
+
         var assignedSeatName = seat?.Name ?? (requiresSeatAssignment && existingDevice is not null
             ? await CurrentSeatNameAsync(deviceId, cancellationToken)
             : null);
@@ -445,6 +487,90 @@ public sealed class EfInstallService(
             response,
             organizationId,
             branchId);
+    }
+
+    /// <summary>
+    /// Прежние записи машины, которую поставили заново: то же имя в филиале, другой ключ, давно
+    /// молчат и сеанса на них нет. Живую машину с тем же именем — например, клон образа — не
+    /// трогаем: там это не «она же», и решать должен человек в Панели.
+    /// </summary>
+    private async Task<IReadOnlyList<DeviceEntity>> FindReplaceableDevicesAsync(
+        Guid organizationId,
+        Guid branchId,
+        string machineName,
+        string devicePublicKey,
+        CancellationToken cancellationToken)
+    {
+        var normalizedName = machineName.Trim().ToUpperInvariant();
+        if (normalizedName.Length == 0)
+        {
+            return [];
+        }
+
+        var silentBefore = timeProvider.GetUtcNow()
+            - TimeSpan.FromSeconds((diagnosticsOptions?.Value ?? new BranchDiagnosticsOptions()).StaleHeartbeatSeconds);
+        var candidates = await dbContext.Devices
+            .Where(device =>
+                device.OrganizationId == organizationId &&
+                device.BranchId == branchId &&
+                device.MachineName.ToUpper() == normalizedName &&
+                device.DevicePublicKey != devicePublicKey &&
+                device.EnrollmentState != DeviceEnrollmentStateNames.Removed &&
+                device.EnrollmentState != DeviceEnrollmentStateNames.Rejected)
+            .ToListAsync(cancellationToken);
+
+        var replaceable = new List<DeviceEntity>();
+        foreach (var candidate in candidates)
+        {
+            // Свежая запись без сердцебиения — машина только что встала; молчит она с момента установки.
+            var lastSeen = candidate.LastHeartbeatAtUtc ?? candidate.EnrolledAtUtc;
+            if (lastSeen >= silentBefore || await Endpoints.EndpointHelpers.HasActiveDeviceSessionAsync(dbContext, candidate, cancellationToken))
+            {
+                continue;
+            }
+
+            replaceable.Add(candidate);
+        }
+
+        return replaceable;
+    }
+
+    /// <summary>Тот же порядок, что у «Убрать ПК» в Панели: запись остаётся для истории, место и ключи — нет.</summary>
+    private async Task RetireReplacedDeviceAsync(DeviceEntity device, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        device.EnrollmentState = DeviceEnrollmentStateNames.Removed;
+        device.IsOnline = false;
+        await DetachFromSeatsAsync(device.OrganizationId, device.DeviceId, now, cancellationToken);
+        await RevokeActiveCredentialsAsync(device.DeviceId, now, cancellationToken);
+        if (deviceTokens is not null)
+        {
+            await deviceTokens.RevokeForDeviceAsync(device.DeviceId, cancellationToken);
+        }
+    }
+
+    private async Task WriteReplacedAuditAsync(DeviceEntity replaced, Guid replacedByDeviceId, CancellationToken cancellationToken)
+    {
+        if (auditRecordWriter is null)
+        {
+            return;
+        }
+
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: replaced.OrganizationId,
+            BranchId: replaced.BranchId,
+            ActorStaffUserId: null,
+            Action: AuditActionNames.RemoveDevice,
+            TargetType: "Device",
+            TargetId: replaced.DeviceId.ToString("D"),
+            Outcome: AuditOutcome.Succeeded,
+            SourceApp: "PlatformApi",
+            DetailsJson: System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Reason = "replaced_by_reinstall",
+                ReplacedByDeviceId = replacedByDeviceId,
+                replaced.MachineName
+            })),
+            cancellationToken);
     }
 
     private Task<string?> CurrentSeatNameAsync(Guid deviceId, CancellationToken cancellationToken) =>

@@ -199,4 +199,43 @@ describe('FinishedScreen', () => {
 
     expect(screen.getByText('Общий зал · ПК-5')).toBeInTheDocument();
   });
+
+  // Ради этого тест и написан: служба запущена, а агент настройку не принял — и экран говорил
+  // «ПК подключён, принимает команды» про машину, которая молчит.
+  it('агент не принял настройку — не говорит «ПК подключён», а называет что не так', () => {
+    renderFinished('gaming_pc', { status: 'agent_not_ready', exitCode: 0, message: 'the agent idles' });
+
+    expect(screen.getByRole('heading', { name: 'ПК записан, но пока не на связи' })).toBeInTheDocument();
+    expect(screen.queryByText('ПК подключён')).toBeNull();
+    expect(screen.queryByText('ПК уже принимает команды от сервера.')).toBeNull();
+    expect(screen.getByText(/служба AFK4 не приняла настройку/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить установку' })).toBeInTheDocument();
+  });
+
+  it('служба не запустилась — тоже не «подключён»', () => {
+    renderFinished('gaming_pc', agentStartFailed);
+
+    expect(screen.getByRole('heading', { name: 'ПК записан, но пока не на связи' })).toBeInTheDocument();
+  });
+
+  it('приложение не встало — агент не запускали, «подключён» тоже не говорим', () => {
+    renderFinished('gaming_pc', failedShell);
+
+    expect(screen.queryByText('ПК подключён')).toBeNull();
+  });
+
+  // Удачный повтор должен сменить и заголовок, а не только убрать строку с ошибкой.
+  it('удачный повтор возвращает «ПК подключён»', async () => {
+    renderFinished('gaming_pc', { status: 'agent_not_ready', exitCode: 0, message: null });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить установку' }));
+
+    expect(await screen.findByRole('heading', { name: 'ПК подключён' })).toBeInTheDocument();
+  });
+
+  it('агент принял настройку — «ПК подключён»', () => {
+    renderFinished('gaming_pc', installed);
+
+    expect(screen.getByRole('heading', { name: 'ПК подключён' })).toBeInTheDocument();
+  });
 });

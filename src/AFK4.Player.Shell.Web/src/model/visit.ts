@@ -8,6 +8,8 @@ export interface EndedVisit {
   selfEnd: PlayerSelfEndSessionResponse | null;
   /** Когда сессия кончилась, по часам ПК: от него живёт окно входа после сессии. */
   endedAtMs: number;
+  /** Когда началась — из состояния ПК; по ней итог говорит, сколько сыграно, когда чека нет. */
+  startedAtUtc: string | null;
 }
 
 /**
@@ -32,9 +34,19 @@ export function endedSessionId(
   return isSessionScreen(previous.screen) && current === 'chooseTime' ? previous.sessionId : null;
 }
 
-/** Сыграно по чеку, в минутах; меньше минуты — всё равно минута. */
-export function playedMinutes(receipt: Pick<PlayerVisitReceiptDto, 'startedAtUtc' | 'endedAtUtc'>): number | null {
-  if (!receipt.endedAtUtc) return null;
-  const minutes = Math.floor((Date.parse(receipt.endedAtUtc) - Date.parse(receipt.startedAtUtc)) / 60_000);
+/**
+ * Сколько сыграно, в минутах: по чеку, а без чека — по началу сессии и её концу на ПК. Меньше
+ * минуты — всё равно минута. Оплаченные минуты сюда не подставляются: при минимуме тарифа в час
+ * они сказали бы «Сыграно 1 ч» тому, кто посидел двадцать минут.
+ */
+export function playedMinutes(
+  receipt: Pick<PlayerVisitReceiptDto, 'startedAtUtc' | 'endedAtUtc'> | null,
+  visit: Pick<EndedVisit, 'startedAtUtc' | 'endedAtMs'>
+): number | null {
+  const started = receipt ? receipt.startedAtUtc : visit.startedAtUtc;
+  const endedAtUtc = receipt ? receipt.endedAtUtc : null;
+  if (!started || (receipt && !endedAtUtc)) return null;
+  const ended = endedAtUtc ? Date.parse(endedAtUtc) : visit.endedAtMs;
+  const minutes = Math.floor((ended - Date.parse(started)) / 60_000);
   return Number.isFinite(minutes) ? Math.max(1, minutes) : null;
 }

@@ -93,12 +93,20 @@ export function App() {
     if (screenNow.current === 'chooseTime') void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
   }, [host.idle]);
 
-  // Сервер отказал входу (401): токены погашены — по сроку или новым входом. Экран с чужим именем и
-  // балансом держать незачем: выходим, как при тишине.
+  // Сервер отказал входу (401). Это не обязательно конец: доступ живёт 15 минут и без связи успевает
+  // истечь, а первый же запрос после её возврата приходит раньше круга обновления на хосте. Выходить
+  // сразу — выкинуть игрока из идущей сессии. Решает хост: идёт за новым доступом, и только если
+  // сервер отказал и обновлению (токены погашены сессией или новым входом), забывает вход и
+  // присылает auth.changed — экран с чужим именем и балансом тогда уходит сам.
+  const refreshingAuth = useRef(false);
   useEffect(() => {
     const onUnauthorized = () => {
-      setEnded(null);
-      void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
+      // Пачка запросов с одним протухшим токеном даёт пачку 401 — обновлять достаточно один раз.
+      if (refreshingAuth.current) return;
+      refreshingAuth.current = true;
+      void requestHost(ShellBridgeRequestTypeNames.AuthRefresh)
+        .catch(() => {})
+        .finally(() => { refreshingAuth.current = false; });
     };
     window.addEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
@@ -134,19 +142,19 @@ export function App() {
   // Сессия вошедшего закрылась сама — по таймеру или у стойки: итог нужен и тогда. Смотрим на экран
   // без учёта итога, иначе он сам себя и перекрывал бы.
   const baseScreen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
-  const previous = useRef<{ screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null }>({
-    screen: baseScreen, sessionId: null, ownerPlayerAccountId: null
+  const previous = useRef<{ screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null; startedAtUtc: string | null }>({
+    screen: baseScreen, sessionId: null, ownerPlayerAccountId: null, startedAtUtc: null
   });
   const signedInAccountId = host.auth.signedIn ? host.auth.playerAccountId ?? null : null;
   const sessionOwnerAccountId = state?.sessionOwnerPlayerAccountId ?? null;
   useEffect(() => {
     const sessionId = endedSessionId(previous.current, baseScreen, signedInAccountId);
-    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now() });
+    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now(), startedAtUtc: previous.current.startedAtUtc });
     // Кончилась сессия — следующее состояние уже без неё: помним, чья была последняя.
     previous.current = state?.sessionId
-      ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId }
+      ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId, startedAtUtc: state.sessionStartedAtUtc ?? null }
       : { ...previous.current, screen: baseScreen };
-  }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId]);
+  }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId, state?.sessionStartedAtUtc]);
   // Состояния ещё нет — служба ПК не ответила, и связь с клубом не проверена вовсе.
   const online = state ? state.isOnline : null;
 
@@ -200,7 +208,7 @@ export function App() {
               system={host.system}
               auth={host.auth}
               onSignIn={() => setSigningIn(true)}
-              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd, endedAtMs: Date.now() })}
+              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd, endedAtMs: Date.now(), startedAtUtc: state.sessionStartedAtUtc ?? null })}
             />
             {signingIn && !host.auth.signedIn ? <SignInPanel state={state!} onClose={() => setSigningIn(false)} /> : null}
           </>

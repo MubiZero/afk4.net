@@ -56,7 +56,8 @@ export interface WizardEnrollResult {
 export interface WizardShellOutcome {
   /// 'agent_start_failed' — приложение встало, а служба AFK4 не запустилась: машина
   /// зарегистрирована и настроена, но на связь не выйдет.
-  status: 'installed' | 'already_present' | 'skipped' | 'failed' | 'agent_start_failed';
+  /// 'agent_not_ready' — служба запущена, но настройку не приняла (простаивает): то же самое.
+  status: 'installed' | 'already_present' | 'skipped' | 'failed' | 'agent_start_failed' | 'agent_not_ready';
   exitCode: number | null;
   message: string | null;
   /// Киоск на игровом ПК (спека оболочки, §6.1). Нет поля — киоск не ставили: другая роль или

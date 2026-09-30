@@ -133,6 +133,16 @@ public sealed class SilentInstallerTests
         Assert.Equal(SilentInstallExitCodes.SetupFailed, await harness.RunAsync(new SilentInstallOptions("код", null)));
     }
 
+    // Служба поднялась, а агент настройку не принял: тихая установка не должна рапортовать успех.
+    [Fact]
+    public async Task AgentThatDidNotAcceptItsSettings_FailsTheRun()
+    {
+        var harness = new Harness(_ => Task.FromResult(Enrolled));
+        harness.Completion.Failure = new AgentDidNotAcceptSettingsException("the agent idles");
+
+        Assert.Equal(SilentInstallExitCodes.SetupFailed, await harness.RunAsync(new SilentInstallOptions("код", null)));
+    }
+
     [Fact]
     public async Task ConfigurationThatDidNotWrite_FailsTheRun()
     {
