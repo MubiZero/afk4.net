@@ -844,7 +844,40 @@ was signed out on the PC. Owner decision: without a connection the PC stays open
   end, so the old grace window may add up to its length after the lease lapses. The shell part could only be
   compiled and unit-tested here; the live PC run is the acceptance.
 
+## Acceptance On A Windows VM (2026-09-30)
+
+The first live run of the Windows client stack: Windows 11 Pro 25H2 ARM64 in UTM on the owner's Mac (x64
+emulation), the Agent, Player Shell, Setup Wizard and MSIs from this repo against a local API. Two rounds:
+0.9.1 found 43 items, the fixes were built into 0.9.2 and re-run.
+
+- **Fixed and seen fixed on the VM:** the AFK4 data folder is writable only by the system and administrators
+  (#598); a reinstalled Windows replaces its old PC record instead of adding a dead twin (#597); a new branch
+  gets a sensible protection profile and player restrictions live in the player's hive, not HKLM (#595); a
+  game launched from the library comes to the front, «Мои приложения» (own task manager, owner's decision)
+  lists and closes the player's apps, the shell comes back when the game closes, and the end of a session
+  closes everything the player started (#594); offline the PC stays open until the paid end — 18 minutes
+  without a connection held, the player stayed signed in after reconnect (#593, lease capped at 4 hours —
+  owner, 2026-09-30); a warn command with an unknown reason is refused by the server (#597); wizard and
+  shell copy (#596); the MSI builds again with Cyrillic in the shortcut and packages take a local API address
+  (#591). Money at the counter needs an open shift (#597, owner's decision).
+- **Found on the re-run and fixed:** an extension paid the tariff minimum again («+30 мин» on a tariff with a
+  one-hour minimum cost the whole hour) — #599; the visit summary showed the billed minutes as played
+  («Сыграно 1 ч» after 22 minutes) — #600; on Windows 11 the console opens in Windows Terminal, which the
+  console rule did not close — #601; after «Снять киоск» the Agent kept disabling the task manager for the
+  whole machine — #602.
+- **Not seen live:** «Снять киоск» on 0.9.2 (the wizard needs administrator rights; from the player account
+  only through UAC, which is the owner's step); games and GPU (ARM VM); the bar, QR sign-in, update channel,
+  idle shutdown, tips, Tajik and English shell text.
+- **Named, not done:** prepaid-wallet sessions never get a receipt, so the summary never shows «Итого»;
+  DisableTaskMgr stays machine-wide while the kiosk is installed (the player's hive is not loaded before
+  sign-in; maintenance lifts it for a technician).
+
 ## Latest Verification
+
+- VM acceptance merged (2026-09-30): #591, #593–#602. The integration branch passed
+  `scripts/verify.sh --all` (API on real PostgreSQL, contracts, Agent, web, Flutter) and the Windows lane on
+  the VM before the re-run; #599–#602 were verified per PR (affected API tests, shell 153, Agent 510 and shell
+  148 on Windows). Every PR merged on a green CI including Windows.
 
 - Design pass merged (2026-09-29). #587 (screens of every part) passed
   `scripts/verify.sh --all` — API 3325 on real PostgreSQL, Agent 445 (+30
