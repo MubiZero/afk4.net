@@ -751,14 +751,19 @@ Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\session-lease.json -Raw
 
 ## Lease Refresh And Lease Expiry
 
-The backend issues 15-minute leases by default and refreshes when the Agent
-heartbeat reports a matching lease that is within 5 minutes of expiry.
+For a session with a fixed paid end the backend signs the lease up to that
+end, so `leaseExpiresAtUtc` equals the session end and the lease is not
+refreshed again until the session is extended or resumed. A session without a
+fixed end (open tab) and a paused session get the short branch grace window
+(15 minutes by default), refreshed when the Agent heartbeat reports a matching
+lease within 5 minutes of expiry.
 
 Basic lease refresh check:
 
 1. Keep the Agent online after session start.
-2. Wait until the first lease has less than 5 minutes remaining. With default
-   settings this is about 10 minutes after the first unlock.
+2. Use an open-tab session (no fixed duration) and wait until the first lease
+   has less than 5 minutes remaining. With default settings this is about 10
+   minutes after the first unlock.
 3. Confirm a `refresh-session-lease` command appears and is acknowledged.
 
 ```powershell
@@ -768,16 +773,25 @@ $deviceDetail.recentCommands | Where-Object { $_.type -eq 'refresh-session-lease
 
 Basic lease expiry check:
 
-1. Confirm a valid active `session-lease.json` exists.
+1. Start a fixed-duration session (for example 15 minutes) and confirm a valid
+   active `session-lease.json` exists with `leaseExpiresAtUtc` equal to the
+   session end.
 2. Temporarily disconnect only the test PC from the network.
-3. Wait until the local `leaseExpiresAtUtc` time passes.
-4. Reconnect the test PC.
-5. Record whether the Agent cleared the lease, marked runtime locked, and
+3. Confirm the PC stays open and the player stays in the game well past the old
+   10-minute mark, until `leaseExpiresAtUtc`.
+4. Confirm the PC locks at `leaseExpiresAtUtc` and not later.
+5. Reconnect the test PC.
+6. Record whether the Agent cleared the lease, marked runtime locked, and
    requested lock enforcement.
 
-Pass for this step means lease expiry is observed and the Agent returns to
-locked local runtime state. Physical desktop lock is a separate enforcement
-result and must be recorded separately.
+Pass for this step means the PC stayed open until the paid end, lease expiry is
+observed and the Agent returns to locked local runtime state. Physical desktop
+lock is a separate enforcement result and must be recorded separately.
+
+Reconnect-without-sign-out check: start a longer session as a signed-in player,
+disconnect the PC for more than 15 minutes (the access token lifetime), then
+reconnect before the session ends. Pass means the session screen still shows the
+player signed in (no "sign in to extend" hint) and extend / stand-up work.
 
 ## Session End And Lock Smoke
 

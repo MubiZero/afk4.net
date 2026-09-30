@@ -1,4 +1,5 @@
 ﻿using AFK4.Agent.Service.Cleanup;
+using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Agent.Service.Enforcement;
@@ -15,7 +16,8 @@ public sealed class GraceModeMonitor(
     OfflineLeaseExtender offlineLeaseExtender,
     TimeProvider timeProvider,
     ILogger<GraceModeMonitor> logger,
-    ISessionCleanup? sessionCleanup = null) : IGraceModeMonitor
+    ISessionCleanup? sessionCleanup = null,
+    ShellHeartbeatSnapshot? heartbeatSnapshot = null) : IGraceModeMonitor
 {
     public async Task EnforceAsync(CancellationToken cancellationToken)
     {
@@ -35,7 +37,9 @@ public sealed class GraceModeMonitor(
         // The signed lease has lapsed, but if the network only just dropped the customer paid for this
         // time — keep the PC unlocked through the grace window (measured from last contact, not from the
         // last lease refresh). The lease is retained so a reconnect can refresh or reconcile it.
-        if (offlineLeaseExtender.ShouldExtend(lease, now))
+        // Не после конца оплаченного времени: аренда подписана именно до него, и льгота сверху
+        // дарила бы минуты, за которые никто не платил.
+        if (!PaidTimeIsOver(lease.SessionId, now) && offlineLeaseExtender.ShouldExtend(lease, now))
         {
             EnterGraceMode(lease.SessionId, lease.ExpiresAtUtc, now);
             logger.LogInformation(
@@ -57,6 +61,13 @@ public sealed class GraceModeMonitor(
             outcome.Describe());
         await CleanUpAfterAsync(ended, cancellationToken);
     }
+
+    /// <summary>
+    /// Сервер в последнем сердцебиении назвал конец оплаченного времени этой сессии, и он уже позади.
+    /// Значение приходит по проверенному каналу и только запирает раньше, а не открывает дольше.
+    /// </summary>
+    private bool PaidTimeIsOver(Guid sessionId, DateTimeOffset now) =>
+        heartbeatSnapshot?.LiveSession is { } live && live.SessionId == sessionId && live.EndsAtUtc is { } endsAtUtc && endsAtUtc <= now;
 
     // Сессия кончилась без сервера — по аренде или после перезапуска службы: следы следующему
     // игроку остаются ровно так же, как после команды «Запереть».

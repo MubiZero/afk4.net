@@ -93,12 +93,20 @@ export function App() {
     if (screenNow.current === 'chooseTime') void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
   }, [host.idle]);
 
-  // Сервер отказал входу (401): токены погашены — по сроку или новым входом. Экран с чужим именем и
-  // балансом держать незачем: выходим, как при тишине.
+  // Сервер отказал входу (401). Это не обязательно конец: доступ живёт 15 минут и без связи успевает
+  // истечь, а первый же запрос после её возврата приходит раньше круга обновления на хосте. Выходить
+  // сразу — выкинуть игрока из идущей сессии. Решает хост: идёт за новым доступом, и только если
+  // сервер отказал и обновлению (токены погашены сессией или новым входом), забывает вход и
+  // присылает auth.changed — экран с чужим именем и балансом тогда уходит сам.
+  const refreshingAuth = useRef(false);
   useEffect(() => {
     const onUnauthorized = () => {
-      setEnded(null);
-      void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
+      // Пачка запросов с одним протухшим токеном даёт пачку 401 — обновлять достаточно один раз.
+      if (refreshingAuth.current) return;
+      refreshingAuth.current = true;
+      void requestHost(ShellBridgeRequestTypeNames.AuthRefresh)
+        .catch(() => {})
+        .finally(() => { refreshingAuth.current = false; });
     };
     window.addEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);

@@ -380,7 +380,9 @@ Success criteria:
 ### Journey 10: Device Goes Offline During Active Session
 
 1. Agent loses cloud connectivity.
-2. Existing active session continues only within last valid signed lease.
+2. Existing active session continues only within last valid signed lease; for a session with a
+   fixed paid end the lease covers the whole paid time, so the PC stays open until that end and
+   then locks.
 3. Player Shell shows state based on local lease.
 4. Agent records local event backlog.
 5. After reconnect, Agent sends local state and backlog.
@@ -389,7 +391,8 @@ Success criteria:
 Success criteria:
 
 - no new sessions, payments, POS sales, or time extensions happen offline;
-- existing active session does not immediately fail due to short outage;
+- existing active session does not fail before its paid end because of an outage, and the player
+  is not signed out of the running session when the connection returns;
 - backend remains the authority after reconnect.
 
 ### Journey 11: Close A Shift

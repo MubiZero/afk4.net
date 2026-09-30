@@ -206,7 +206,7 @@ public sealed class EfSessionStartWorkflow(
             SessionStateNames.Active,
             Sequence: 1,
             IssuedAtUtc: now,
-            ExpiresAtUtc: now.AddMinutes(LeaseMinutes));
+            ExpiresAtUtc: GraceLeasePolicy.ExpiresAt(SessionStateNames.Active, endsAtUtc, now, LeaseMinutes));
         var leaseEntity = CreateLeaseEntity(lease);
         var session = new SessionEntity
         {
