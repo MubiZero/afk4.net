@@ -43,14 +43,14 @@ function serve(options: { receipt?: boolean; reviewStatus?: number; reviewError?
   }) as unknown as typeof fetch;
 }
 
-function renderSummary(selfEnd: PlayerSelfEndSessionResponse | null = null) {
+function renderSummary(selfEnd: PlayerSelfEndSessionResponse | null = null, startedAtUtc: string | null = null) {
   const onPlayMore = mock(() => {});
   const onLeave = mock(() => {});
   render(
     <ShellI18nProvider initialLocale="ru">
       <SummaryScreen
         state={devScenarioState('idle')!}
-        visit={{ sessionId: 's-1', selfEnd, endedAtMs: Date.now() }}
+        visit={{ sessionId: 's-1', selfEnd, endedAtMs: Date.now(), startedAtUtc }}
         baseUrl="https://api.example.test/"
         activity={0}
         onPlayMore={onPlayMore}
@@ -90,11 +90,28 @@ describe('итог визита', () => {
 
   it('чека нет — итог говорит то, что знает, без выдуманных сумм', async () => {
     serve({ receipt: false });
-    renderSummary({ billedMinutes: 35, refunded: { currencyCode: 'TJS', minorUnits: 0 }, packageMinutesReturned: 0 });
+    renderSummary(
+      { billedMinutes: 35, refunded: { currencyCode: 'TJS', minorUnits: 0 }, packageMinutesReturned: 0 },
+      new Date(Date.now() - 35 * 60_000).toISOString()
+    );
 
     expect(await screen.findByText('Сыграно 35 мин')).toBeInTheDocument();
+    expect(screen.queryByText(/По тарифу/)).toBeNull();
     expect(screen.queryByText(/Итого/)).toBeNull();
     expect(screen.queryByText(/Вернули/)).toBeNull();
+  });
+
+  // Приёмка на виртуалке: посидел 22 минуты на тарифе с минимумом в час — итог сказал «Сыграно 1 ч».
+  // Оплаченные минуты — не сыгранные: сыгранное по часам, минимум — отдельной строкой.
+  it('минимум тарифа не выдаётся за сыгранное время', async () => {
+    serve({ receipt: false });
+    renderSummary(
+      { billedMinutes: 60, refunded: { currencyCode: 'TJS', minorUnits: 4_200 }, packageMinutesReturned: 0 },
+      new Date(Date.now() - 22 * 60_000).toISOString()
+    );
+
+    expect(await screen.findByText('Сыграно 22 мин')).toBeInTheDocument();
+    expect(screen.getByText('По тарифу — 1 ч')).toBeInTheDocument();
   });
 
   it('оценка уходит звёздами и комментарием, потом «спасибо»', async () => {

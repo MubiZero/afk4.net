@@ -23,9 +23,16 @@ describe('визит кончился', () => {
     expect(endedSessionId({ screen: 'session', sessionId: 's-1', ownerPlayerAccountId: null }, 'chooseTime', me)).toBeNull();
   });
 
+  const visit = { startedAtUtc: null, endedAtMs: Date.parse('2026-09-25T12:00:00Z') };
+
   it('сыграно — по чеку, меньше минуты всё равно минута', () => {
-    expect(playedMinutes({ startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: '2026-09-25T11:35:40Z' })).toBe(95);
-    expect(playedMinutes({ startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: '2026-09-25T10:00:20Z' })).toBe(1);
-    expect(playedMinutes({ startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: null })).toBeNull();
+    expect(playedMinutes({ startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: '2026-09-25T11:35:40Z' }, visit)).toBe(95);
+    expect(playedMinutes({ startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: '2026-09-25T10:00:20Z' }, visit)).toBe(1);
+    expect(playedMinutes({ startedAtUtc: '2026-09-25T10:00:00Z', endedAtUtc: null }, visit)).toBeNull();
+  });
+
+  it('чека нет — сыграно по началу сессии и её концу на ПК, а не по оплаченным минутам', () => {
+    expect(playedMinutes(null, { startedAtUtc: '2026-09-25T11:38:00Z', endedAtMs: visit.endedAtMs })).toBe(22);
+    expect(playedMinutes(null, visit)).toBeNull();
   });
 });

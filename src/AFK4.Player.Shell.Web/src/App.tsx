@@ -134,19 +134,19 @@ export function App() {
   // Сессия вошедшего закрылась сама — по таймеру или у стойки: итог нужен и тогда. Смотрим на экран
   // без учёта итога, иначе он сам себя и перекрывал бы.
   const baseScreen = selectScreen({ state, signedIn: host.auth.signedIn, approached });
-  const previous = useRef<{ screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null }>({
-    screen: baseScreen, sessionId: null, ownerPlayerAccountId: null
+  const previous = useRef<{ screen: ShellScreen; sessionId: string | null; ownerPlayerAccountId: string | null; startedAtUtc: string | null }>({
+    screen: baseScreen, sessionId: null, ownerPlayerAccountId: null, startedAtUtc: null
   });
   const signedInAccountId = host.auth.signedIn ? host.auth.playerAccountId ?? null : null;
   const sessionOwnerAccountId = state?.sessionOwnerPlayerAccountId ?? null;
   useEffect(() => {
     const sessionId = endedSessionId(previous.current, baseScreen, signedInAccountId);
-    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now() });
+    if (sessionId) setEnded((current) => current ?? { sessionId, selfEnd: null, endedAtMs: Date.now(), startedAtUtc: previous.current.startedAtUtc });
     // Кончилась сессия — следующее состояние уже без неё: помним, чья была последняя.
     previous.current = state?.sessionId
-      ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId }
+      ? { screen: baseScreen, sessionId: state.sessionId, ownerPlayerAccountId: sessionOwnerAccountId, startedAtUtc: state.sessionStartedAtUtc ?? null }
       : { ...previous.current, screen: baseScreen };
-  }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId]);
+  }, [baseScreen, signedInAccountId, state?.sessionId, sessionOwnerAccountId, state?.sessionStartedAtUtc]);
   // Состояния ещё нет — служба ПК не ответила, и связь с клубом не проверена вовсе.
   const online = state ? state.isOnline : null;
 
@@ -200,7 +200,7 @@ export function App() {
               system={host.system}
               auth={host.auth}
               onSignIn={() => setSigningIn(true)}
-              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd, endedAtMs: Date.now() })}
+              onEnded={(selfEnd) => state?.sessionId && setEnded({ sessionId: state.sessionId, selfEnd, endedAtMs: Date.now(), startedAtUtc: state.sessionStartedAtUtc ?? null })}
             />
             {signingIn && !host.auth.signedIn ? <SignInPanel state={state!} onClose={() => setSigningIn(false)} /> : null}
           </>
