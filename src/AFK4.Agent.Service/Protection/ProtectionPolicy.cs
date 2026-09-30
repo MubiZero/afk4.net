@@ -2,8 +2,21 @@ using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Agent.Service.Protection;
 
-/// <summary>Одна запись в HKLM: число, строка или список строк подключом «1», «2»… (как URLBlocklist).</summary>
-public sealed record RegistryWrite(string Key, string Name, int? Number = null, string? Text = null, IReadOnlyList<string>? List = null)
+/// <summary>
+/// Чьей ветки реестра касается запись. Машинная (HKLM) действует на всех, включая администратора
+/// и техника; игрока — только запись в его кусте (HKU\&lt;SID&gt;): так запрет «Выполнить» не мешает
+/// тому, кто обслуживает ПК под своей учёткой.
+/// </summary>
+public enum PolicyScope
+{
+    Machine,
+    Player
+}
+
+/// <summary>Одна запись: число, строка или список строк подключом «1», «2»… (как URLBlocklist).</summary>
+public sealed record RegistryWrite(
+    string Key, string Name, int? Number = null, string? Text = null, IReadOnlyList<string>? List = null,
+    PolicyScope Scope = PolicyScope.Machine)
 {
     public bool IsList => List is not null;
 }
@@ -26,18 +39,24 @@ public static class ProtectionPolicy
     public const string Chrome = @"SOFTWARE\Policies\Google\Chrome";
     public const string Edge = @"SOFTWARE\Policies\Microsoft\Edge";
 
+    // Всё, что Windows умеет по-пользовательски, ставится игроку; машинным остаётся только то, что
+    // по-другому не работает: HideFastUserSwitching читается лишь из HKLM, а Chrome и Edge берут
+    // обязательные политики из машинной ветки.
+    private static RegistryWrite ForPlayer(string key, string name, int number) =>
+        new(key, name, Number: number, Scope: PolicyScope.Player);
+
     public static IReadOnlyList<ProtectionItem> Plan(ProtectionProfileDto profile) =>
     [
         // Основа киоска — всегда вне обслуживания (§6.2): Ctrl+Alt+Del не перехватить, режут меню.
         new(ProtectionItemNames.KioskBaseline, true,
         [
-            new(SystemPolicies, "DisableLockWorkstation", Number: 1),
-            new(SystemPolicies, "DisableChangePassword", Number: 1),
+            ForPlayer(SystemPolicies, "DisableLockWorkstation", 1),
+            ForPlayer(SystemPolicies, "DisableChangePassword", 1),
             new(SystemPolicies, "HideFastUserSwitching", Number: 1),
-            new(ExplorerPolicies, "NoLogoff", Number: 1)
+            ForPlayer(ExplorerPolicies, "NoLogoff", 1)
         ], ProtectionItemStatusNames.Applied),
         new(ProtectionItemNames.RemovableStorage, profile.BlockRemovableStorage,
-            [new(RemovableStorage, "Deny_All", Number: 1)], ProtectionItemStatusNames.Applied),
+            [ForPlayer(RemovableStorage, "Deny_All", 1)], ProtectionItemStatusNames.Applied),
         new(ProtectionItemNames.BrowserDownloads, profile.BlockBrowserDownloads,
         [
             // 3 — «запретить все загрузки».
@@ -56,10 +75,10 @@ public static class ProtectionPolicy
             new(Edge, "URLBlocklist", List: profile.UrlBlocklist)
         ], ProtectionItemStatusNames.Applied),
         new(ProtectionItemNames.RunDialog, profile.DisableRunDialog,
-            [new(ExplorerPolicies, "NoRun", Number: 1)], ProtectionItemStatusNames.Applied),
+            [ForPlayer(ExplorerPolicies, "NoRun", 1)], ProtectionItemStatusNames.Applied),
         // Скрытые диски — только в Проводнике. Программа откроет диск по пути, и отчёт так и говорит.
         new(ProtectionItemNames.HiddenDrives, profile.HiddenDrives.Count > 0,
-            [new(ExplorerPolicies, "NoDrives", Number: DriveMask(profile.HiddenDrives))], ProtectionItemStatusNames.ExplorerOnly)
+            [ForPlayer(ExplorerPolicies, "NoDrives", DriveMask(profile.HiddenDrives))], ProtectionItemStatusNames.ExplorerOnly)
     ];
 
     /// <summary>NoDrives — битовая маска: бит 0 — A, бит 25 — Z.</summary>

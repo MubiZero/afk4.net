@@ -67,11 +67,10 @@ public sealed class ProtectionEnforcer(
     private DeviceProtectionReportRequest? unsentReport;
     private DateTimeOffset retryFetchAfter = DateTimeOffset.MinValue;
 
-    private ProtectionProfileDto Current => current ??= store.Load() ?? EmptyProfile;
-
-    // Профиля ещё нет — стираем всё: следующий игрок не должен войти в чужой Steam потому, что
-    // агент не успел спросить сервер.
-    private static ProtectionProfileDto EmptyProfile { get; } = new(0, false, false, false, false, [], [], [], SessionTraceNames.All);
+    // Профиля ещё нет — умолчания и стирание всего: следующий игрок не должен войти в чужой Steam
+    // потому, что агент не успел спросить сервер. Сохранённая версия 0 — тоже «нет»: прежние
+    // агенты писали в неё пустой набор, а умолчания с тех пор другие.
+    private ProtectionProfileDto Current => current ??= store.Load() is { Version: > 0 } stored ? stored : ProtectionProfileDefaults.Initial;
 
     private bool InMaintenance => runtimeState.Current.State == PlayerShellStateNames.Maintenance;
 
@@ -200,20 +199,57 @@ public sealed class ProtectionEnforcer(
         ProtectionProfileDto profile, bool release, CancellationToken cancellationToken)
     {
         var items = new List<ProtectionItemReportDto>();
-        foreach (var item in ProtectionPolicy.Plan(profile))
+        var deferred = false;
+        var plan = ProtectionPolicy.Plan(profile);
+        if (registry.IsSupported)
         {
-            var report = !registry.IsSupported
-                ? item.Enabled ? new ProtectionItemReportDto(item.Name, ProtectionItemStatusNames.Unsupported, "Machine policies need Windows.") : null
-                : release || !item.Enabled
-                    ? Remove(item, release)
-                    : Write(item);
+            RemoveLegacyMachineWrites(plan);
+        }
+
+        foreach (var item in plan)
+        {
+            var playerBound = item.Writes.Any(write => write.Scope == PolicyScope.Player);
+            ProtectionItemReportDto? report;
+            if (!registry.IsSupported)
+            {
+                report = item.Enabled ? new ProtectionItemReportDto(item.Name, ProtectionItemStatusNames.Unsupported, "Machine policies need Windows.") : null;
+            }
+            else if (playerBound && !registry.HasPlayerAccount)
+            {
+                // Киоска нет (не ставили или сняли): запрещать некому, а машинное от прежнего применения
+                // не должно остаться на учётке администратора.
+                Remove(item with { Writes = MachineWrites(item) }, release: false);
+                report = item.Enabled
+                    ? new ProtectionItemReportDto(item.Name, ProtectionItemStatusNames.Unsupported, "This PC has no player account: the kiosk is not installed.")
+                    : null;
+            }
+            else
+            {
+                // Игрок ещё не вошёл (ПК только включился): в его куст не пишем, машинное — сразу;
+                // остальное доедет со следующим сердцебиением.
+                var waiting = playerBound && !registry.PlayerSignedIn;
+                deferred |= waiting;
+                var part = waiting ? item with { Writes = MachineWrites(item) } : item;
+                report = release || !item.Enabled
+                    ? Remove(part, release)
+                    : Write(part);
+            }
+
             if (report is not null)
             {
                 items.Add(report);
             }
         }
 
-        applied = !release;
+        applied = !release && !deferred;
+        // Отчёт о применении ждёт входа игрока: неполный отчёт был бы враньём. Снятие на обслуживание
+        // ждать нельзя — технику нужна Windows сейчас.
+        if (deferred && !release)
+        {
+            logger.LogInformation("Protection profile v{Version}: the player has not signed in yet; their policies wait.", profile.Version);
+            return items;
+        }
+
         var agentOptions = options.Value;
         await TryReportAsync(
             new DeviceProtectionReportRequest(
@@ -223,6 +259,26 @@ public sealed class ProtectionEnforcer(
         logger.LogInformation("Protection profile v{Version} {Action}: {Items}.", profile.Version, release ? "released" : "applied", Describe(items));
         return items;
     }
+
+    // Прежние версии агента писали игроцкие запреты в HKLM, то есть на всех: после обновления они
+    // остались бы и на учётке администратора. Снимаем каждый раз — это одно чтение ключа на значение.
+    private void RemoveLegacyMachineWrites(IReadOnlyList<ProtectionItem> plan)
+    {
+        foreach (var write in plan.SelectMany(item => item.Writes).Where(write => write.Scope == PolicyScope.Player))
+        {
+            try
+            {
+                registry.Remove(write with { Scope = PolicyScope.Machine });
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException or PlatformNotSupportedException)
+            {
+                logger.LogWarning(exception, "The machine-wide copy of {Policy} could not be removed.", write.Name);
+            }
+        }
+    }
+
+    private static IReadOnlyList<RegistryWrite> MachineWrites(ProtectionItem item) =>
+        item.Writes.Where(write => write.Scope == PolicyScope.Machine).ToList();
 
     private ProtectionItemReportDto Write(ProtectionItem item)
     {

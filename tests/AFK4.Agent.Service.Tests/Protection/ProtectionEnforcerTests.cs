@@ -154,6 +154,101 @@ public sealed class ProtectionEnforcerTests
         Assert.Equal(DeviceCommandOutcomeNames.ProtectionUnavailable, failed.Outcome);
     }
 
+    /// <summary>
+    /// Запреты для игрока живут в его кусте, а не в HKLM: иначе они задевали бы и администратора с техником.
+    /// Машинным остаётся только то, что Windows по-другому не читает.
+    /// </summary>
+    [Fact]
+    public async Task PlayerRestrictions_GoToThePlayersHive_AndOnlyWhatMustBeMachineWideStaysInHklm()
+    {
+        var fixture = new Fixture(stored: Profile(2) with { DisableRunDialog = true });
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        foreach (var name in new[] { "NoRun", "NoLogoff", "DisableLockWorkstation", "DisableChangePassword", "Deny_All", "NoDrives" })
+        {
+            Assert.Equal(PolicyScope.Player, fixture.Registry.Scopes[name]);
+        }
+
+        Assert.Equal(PolicyScope.Machine, fixture.Registry.Scopes["HideFastUserSwitching"]);
+    }
+
+    /// <summary>ПК только включился: игрок ещё не вошёл, его куст не загружен — писать в него нельзя.</summary>
+    [Fact]
+    public async Task UntilThePlayerSignsIn_OnlyMachinePoliciesAreWritten_AndTheRestIsAppliedWithTheNextHeartbeat()
+    {
+        var fixture = new Fixture(stored: Profile(2));
+        fixture.Registry.SignedIn = false;
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        Assert.Equal(["HideFastUserSwitching"], fixture.Registry.Scopes.Keys);
+        Assert.Empty(fixture.Platform.Reports);
+
+        fixture.Registry.SignedIn = true;
+        await fixture.Enforcer.SyncAsync(2, CancellationToken.None);
+
+        Assert.Contains(("Deny_All", 1), fixture.Registry.Values);
+        Assert.Equal(ProtectionItemStatusNames.Applied, Status(fixture.Platform.Reports.Single(), ProtectionItemNames.RemovableStorage));
+    }
+
+    /// <summary>Киоск снят: запрещать некому, а машинное от прежнего применения не должно остаться на администраторе.</summary>
+    [Fact]
+    public async Task WithoutAPlayerAccount_NothingIsWrittenForThePlayer_AndTheReportSaysSo()
+    {
+        var fixture = new Fixture(stored: Profile(2));
+        fixture.Registry.PlayerAccount = false;
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        Assert.Empty(fixture.Registry.Values);
+        Assert.Contains("HideFastUserSwitching", fixture.Registry.Removed);
+        var report = fixture.Platform.Reports.Single();
+        Assert.Equal(ProtectionItemStatusNames.Unsupported, Status(report, ProtectionItemNames.KioskBaseline));
+        Assert.Equal(ProtectionItemStatusNames.Unsupported, Status(report, ProtectionItemNames.RemovableStorage));
+    }
+
+    /// <summary>Прежний агент писал эти запреты в HKLM — на всех; после обновления они не должны остаться на администраторе.</summary>
+    [Fact]
+    public async Task MachineWideCopiesLeftByAnOlderAgent_AreRemoved()
+    {
+        var fixture = new Fixture(stored: Profile(2) with { DisableRunDialog = true });
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        foreach (var name in new[] { "NoRun", "NoLogoff", "DisableLockWorkstation", "DisableChangePassword", "Deny_All", "NoDrives" })
+        {
+            Assert.Contains(name, fixture.Registry.RemovedMachineWide);
+        }
+
+        Assert.DoesNotContain("HideFastUserSwitching", fixture.Registry.RemovedMachineWide);
+    }
+
+    [Fact]
+    public async Task ABranchThatNeverSavedAProfile_GetsTheDefaults()
+    {
+        var fixture = new Fixture(stored: null);
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        Assert.Contains(("NoRun", 1), fixture.Registry.Values);
+        Assert.DoesNotContain(("Deny_All", 1), fixture.Registry.Values);
+        Assert.Equal(
+            ["ConsoleWindowClass", "TaskManagerWindow", "RegEdit_RegEdit"],
+            fixture.Enforcer.BlockedWindows.Select(rule => rule.ClassName));
+    }
+
+    /// <summary>Прежние агенты сохраняли в версию 0 пустой набор: после обновления ПК берёт умолчания, а не его.</summary>
+    [Fact]
+    public async Task AnEmptyVersionZeroSavedByAnOlderAgent_IsReplacedByTheDefaults()
+    {
+        var fixture = new Fixture(stored: new ProtectionProfileDto(0, false, false, false, false, [], [], [], SessionTraceNames.All));
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        Assert.Contains(("NoRun", 1), fixture.Registry.Values);
+    }
+
     private static string? Status(DeviceProtectionReportRequest report, string item) =>
         report.Items.SingleOrDefault(candidate => candidate.Item == item)?.Status;
 
@@ -194,16 +289,31 @@ public sealed class ProtectionEnforcerTests
     {
         public bool Supported { get; set; } = true;
 
+        public bool PlayerAccount { get; set; } = true;
+
+        public bool SignedIn { get; set; } = true;
+
+        /// <summary>В какую ветку ушла каждая запись — по имени значения.</summary>
+        public Dictionary<string, PolicyScope> Scopes { get; } = [];
+
         public string? FailOn { get; set; }
 
         public List<(string Name, int? Number)> Values { get; } = [];
 
         public List<string> Removed { get; } = [];
 
+        public List<string> RemovedMachineWide { get; } = [];
+
         public bool IsSupported => Supported;
+
+        public bool HasPlayerAccount => PlayerAccount;
+
+        public bool PlayerSignedIn => SignedIn;
 
         public void Write(RegistryWrite write)
         {
+            Assert.True(write.Scope == PolicyScope.Machine || (PlayerAccount && SignedIn), "A player write needs a signed-in player.");
+            Scopes[write.Name] = write.Scope;
             if (write.Name == FailOn)
             {
                 throw new UnauthorizedAccessException("Access is denied.");
@@ -212,7 +322,15 @@ public sealed class ProtectionEnforcerTests
             Values.Add((write.Name, write.Number));
         }
 
-        public void Remove(RegistryWrite write) => Removed.Add(write.Name);
+        public void Remove(RegistryWrite write)
+        {
+            Assert.True(write.Scope == PolicyScope.Machine || (PlayerAccount && SignedIn), "A player write needs a signed-in player.");
+            Removed.Add(write.Name);
+            if (write.Scope == PolicyScope.Machine)
+            {
+                RemovedMachineWide.Add(write.Name);
+            }
+        }
     }
 
     internal sealed class MemoryStore(ProtectionProfileDto? initial) : IProtectionProfileStore
@@ -226,7 +344,7 @@ public sealed class ProtectionEnforcerTests
 
     internal sealed class FakePlatform : IProtectionPlatformClient
     {
-        public ProtectionProfileDto Profile { get; set; } = new(0, false, false, false, false, [], [], [], SessionTraceNames.All);
+        public ProtectionProfileDto Profile { get; set; } = ProtectionProfileDefaults.Initial;
 
         public bool FailFetch { get; set; }
 

@@ -15,11 +15,9 @@ public static class ProtectionProfiles
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public static readonly ProtectionProfileDto Empty = new(0, false, false, false, false, [], [], [], SessionTraceNames.All);
-
     public static ProtectionProfileDto For(BranchProtectionProfileEntity? entity) =>
         entity is null
-            ? Empty
+            ? ProtectionProfileDefaults.Initial
             : new ProtectionProfileDto(
                 entity.Version,
                 entity.BlockRemovableStorage,

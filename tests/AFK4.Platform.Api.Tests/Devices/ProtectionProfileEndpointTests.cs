@@ -37,7 +37,7 @@ public sealed class ProtectionProfileEndpointTests
             clearAfterSession ?? SessionTraceNames.All);
 
     [Fact]
-    public async Task ABranchThatNeverSetItUp_HasAnEmptyProfileAtVersionZero()
+    public async Task ABranchThatNeverSetItUp_GetsTheDefaultProfileAtVersionZero()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -46,7 +46,15 @@ public sealed class ProtectionProfileEndpointTests
         var profile = await client.GetFromJsonAsync<BranchProtectionProfileDto>(Route);
 
         Assert.Equal(0, profile!.Profile.Version);
+        // Умолчания владельца: «Выполнить» закрыто, консоль, Диспетчер и реестр закрываются; флешки
+        // и браузер клуб включает сам. Панель показывает именно их — они и действуют на ПК.
+        Assert.True(profile.Profile.DisableRunDialog);
+        Assert.Equal(
+            ["ConsoleWindowClass", "TaskManagerWindow", "RegEdit_RegEdit"],
+            profile.Profile.BlockedWindows.Select(rule => rule.ClassName));
         Assert.False(profile.Profile.BlockRemovableStorage);
+        Assert.False(profile.Profile.BlockBrowserDownloads);
+        Assert.False(profile.Profile.BlockBrowserIncognito);
         Assert.Empty(profile.Profile.UrlBlocklist);
         Assert.Null(profile.UpdatedAtUtc);
         // Следы стираются и у клуба, который страницу не открывал: иначе следующий игрок войдёт в
@@ -208,6 +216,10 @@ public sealed class ProtectionProfileEndpointTests
         await using var fixture = DevicePlayerFixture.Create();
         await fixture.SeedAsync();
         Assert.Equal(0, (await fixture.HeartbeatAsync()).PolicyProfileVersion);
+
+        // До первого сохранения агент получает те же умолчания, что показывает Панель.
+        var initial = await ReadAsAgentAsync(fixture, fixture.Device.CredentialSecret);
+        Assert.True((await initial.Content.ReadFromJsonAsync<ProtectionProfileDto>())!.DisableRunDialog);
 
         Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(Route, Request())).StatusCode);
         Assert.Equal(1, (await fixture.HeartbeatAsync()).PolicyProfileVersion);
