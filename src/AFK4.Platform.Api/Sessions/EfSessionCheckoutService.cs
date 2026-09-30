@@ -8,6 +8,7 @@ using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shifts;
+using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Inventory;
@@ -344,7 +345,7 @@ public sealed class EfSessionCheckoutService(
                     PaymentMethod = part.PaymentMethod,
                     CurrencyCode = currency,
                     AmountMinorUnits = part.Amount.MinorUnits,
-                    Note = "session checkout",
+                    Note = CashMovementReasonNames.SessionCheckout,
                     CreatedAtUtc = now
                 });
             }

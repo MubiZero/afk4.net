@@ -106,7 +106,12 @@ public sealed class PlayerShellStateBuilder(
             BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows,
             SessionStartedAtUtc: lease is null ? null : liveSession?.StartedAtUtc,
             SessionEndsAtUtc: lease is null ? null : liveSession?.EndsAtUtc,
-            LaunchedApps: LaunchedFor(state));
+            LaunchedApps: LaunchedFor(state),
+            // Только у запертого на связи ПК: без связи экран честнее скажет «нет связи», а не
+            // пересказ того, что сервер знал минуту назад.
+            HoldKind: string.Equals(state, PlayerShellStateNames.Locked, StringComparison.Ordinal)
+                ? heartbeatSnapshot.LiveSession?.Hold
+                : null);
     }
 
     /// <summary>Запущенное игроком — только пока идёт сессия: следующему игроку чужие запуски не показываются.</summary>
