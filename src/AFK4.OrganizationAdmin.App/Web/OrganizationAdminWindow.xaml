@@ -38,7 +38,8 @@
                            Text="Панель AFK4.NET"
                            Foreground="#F5F7FA"
                            FontSize="24"
-                           FontWeight="SemiBold" />
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap" />
                 <TextBlock x:Name="StatusText"
                            Margin="0,12,0,0"
                            Text="Loading operator workspace..."

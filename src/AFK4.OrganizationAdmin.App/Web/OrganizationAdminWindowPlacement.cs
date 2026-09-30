@@ -55,6 +55,31 @@ public sealed record OrganizationAdminWindowPlacement
         return this with { Left = left, Top = top, Width = width, Height = height };
     }
 
+    /// <summary>
+    /// Первый запуск, сохранённого положения нет. Размер по умолчанию вписывается в рабочую область
+    /// экрана (без панели задач) и встаёт по её центру. Окно без рамки Windows: на приёмке 30.09.2026
+    /// на экране 1280×800 окно 1152×840 по центру ушло шапкой за верхний край — ни перетащить, ни
+    /// закрыть. У стоек клубов 1366×768 — то же самое.
+    /// </summary>
+    public static OrganizationAdminWindowPlacement FirstRun(
+        double workLeft,
+        double workTop,
+        double workWidth,
+        double workHeight,
+        double defaultWidth,
+        double defaultHeight)
+    {
+        var width = Math.Min(defaultWidth, workWidth);
+        var height = Math.Min(defaultHeight, workHeight);
+        return new OrganizationAdminWindowPlacement
+        {
+            Left = workLeft + (workWidth - width) / 2,
+            Top = workTop + (workHeight - height) / 2,
+            Width = width,
+            Height = height
+        };
+    }
+
     private static double Clamp(double value, double min, double max)
     {
         if (max < min)
