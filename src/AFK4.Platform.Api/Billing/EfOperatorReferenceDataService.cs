@@ -11,50 +11,51 @@ public sealed class EfOperatorReferenceDataService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider)
 {
-    private const int MinimumSearchLength = 2;
     private const int DefaultLimit = 20;
-    private const int MaximumLimit = 50;
+    // Справочник клиентов просит страницу в 50 плюс одну: лишняя строка говорит, что страница не
+    // последняя, и ответ не нужно оборачивать в конверт ради одного флага.
+    private const int MaximumLimit = 100;
 
+    // Окна поиска и справочник клиентов (вкладка «Клиенты») спрашивают одно и то же, но справочнику
+    // нужен и пустой запрос («покажи всех»), и отбор, и страницы — пустой запрос раньше отдавал [],
+    // и экран «Клиенты» был пуст у каждого клуба.
     public async Task<IReadOnlyList<PlayerSearchResultDto>> SearchPlayersAsync(
         Guid organizationId,
         Guid branchId,
         string? query,
         int limit,
         bool includeInactive,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? segment = null,
+        int offset = 0)
     {
-        var trimmedQuery = query?.Trim() ?? string.Empty;
-        if (trimmedQuery.Length < MinimumSearchLength)
-        {
-            return [];
-        }
-
-        var normalizedQuery = trimmedQuery.ToUpperInvariant();
-        var digits = PhoneQuery.Digits(trimmedQuery);
         var take = limit <= 0
             ? DefaultLimit
             : Math.Min(limit, MaximumLimit);
 
-        var players = await dbContext.PlayerAccounts
-            .AsNoTracking()
-            .Where(player =>
-                player.OrganizationId == organizationId &&
-                player.HomeBranchId == branchId &&
-                (includeInactive || player.IsActive))
-            // Номер набирают подряд цифрами, а записан он с пробелами и дефисами — сравниваем
-            // цифры с цифрами, иначе поиск по телефону молча не находит никого (см. PhoneQuery).
-            .Where(player =>
-                player.DisplayName.ToUpper().Contains(normalizedQuery) ||
-                (digits.Length > 0 && player.PhoneNumber != null &&
-                    player.PhoneNumber
-                        .Replace(" ", string.Empty)
-                        .Replace("-", string.Empty)
-                        .Replace("(", string.Empty)
-                        .Replace(")", string.Empty)
-                        .Replace("+", string.Empty)
-                        .Contains(digits)))
+        var matching = MatchingPlayers(organizationId, branchId, query, includeInactive || segment == PlayerDirectorySegments.Inactive);
+        if (segment == PlayerDirectorySegments.Inactive)
+        {
+            matching = matching.Where(player => !player.IsActive);
+        }
+        else if (segment == PlayerDirectorySegments.Debt)
+        {
+            var debtors = dbContext.LedgerEntries
+                .Where(entry =>
+                    entry.OrganizationId == organizationId &&
+                    entry.BranchId == branchId &&
+                    entry.AccountType == LedgerAccountTypeNames.Debt)
+                .GroupBy(entry => entry.PlayerAccountId)
+                .Where(group => group.Sum(entry => entry.AmountMinorUnits) > 0)
+                .Select(group => group.Key);
+            matching = matching.Where(player => debtors.Contains(player.PlayerAccountId));
+        }
+
+        // ponytail: offset-страницы — на тысячах клиентов хватает; курсор по (имя, id), если дойдёт до сотен тысяч.
+        var players = await matching
             .OrderBy(player => player.DisplayName)
             .ThenBy(player => player.PlayerAccountId)
+            .Skip(Math.Max(0, offset))
             .Take(take)
             .ToListAsync(cancellationToken);
 
@@ -185,6 +186,79 @@ public sealed class EfOperatorReferenceDataService(
                         : null);
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Итоги по всем клиентам, подходящим под запрос, а не по той странице, что открыта на экране:
+    /// у клуба с сотнями клиентов итог «по первым пятидесяти» молча врал.
+    /// </summary>
+    public async Task<PlayersSummaryDto> GetPlayersSummaryAsync(
+        Guid organizationId,
+        Guid branchId,
+        string? query,
+        CancellationToken cancellationToken)
+    {
+        var players = MatchingPlayers(organizationId, branchId, query, includeInactive: true);
+        var totalCount = await players.CountAsync(cancellationToken);
+        var inactiveCount = await players.CountAsync(player => !player.IsActive, cancellationToken);
+
+        // Сумма по клиенту, а не по записи: у одного кошелёк в плюсе, у другого долг — и минус одного
+        // не гасит плюс другого. Как и в строке списка, отрицательный остаток в итог не идёт.
+        var perPlayer = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.OrganizationId == organizationId &&
+                entry.BranchId == branchId &&
+                (entry.AccountType == LedgerAccountTypeNames.Wallet ||
+                    entry.AccountType == LedgerAccountTypeNames.Debt))
+            .Join(players, entry => entry.PlayerAccountId, player => player.PlayerAccountId, (entry, _) => entry)
+            .GroupBy(entry => new { entry.PlayerAccountId, entry.AccountType })
+            .Select(group => new { group.Key.AccountType, Balance = group.Sum(entry => entry.AmountMinorUnits) })
+            .ToListAsync(cancellationToken);
+
+        var walletTotal = perPlayer
+            .Where(row => row.AccountType == LedgerAccountTypeNames.Wallet && row.Balance > 0)
+            .Sum(row => row.Balance);
+        var debts = perPlayer
+            .Where(row => row.AccountType == LedgerAccountTypeNames.Debt && row.Balance > 0)
+            .ToList();
+
+        return new PlayersSummaryDto(totalCount, debts.Count, inactiveCount, walletTotal, debts.Sum(row => row.Balance));
+    }
+
+    private IQueryable<PlayerAccountEntity> MatchingPlayers(
+        Guid organizationId,
+        Guid branchId,
+        string? query,
+        bool includeInactive)
+    {
+        var trimmedQuery = query?.Trim() ?? string.Empty;
+        var normalizedQuery = trimmedQuery.ToUpperInvariant();
+        var digits = PhoneQuery.Digits(trimmedQuery);
+
+        var players = dbContext.PlayerAccounts
+            .AsNoTracking()
+            .Where(player =>
+                player.OrganizationId == organizationId &&
+                player.HomeBranchId == branchId &&
+                (includeInactive || player.IsActive));
+        if (trimmedQuery.Length == 0)
+        {
+            return players;
+        }
+
+        // Номер набирают подряд цифрами, а записан он с пробелами и дефисами — сравниваем
+        // цифры с цифрами, иначе поиск по телефону молча не находит никого (см. PhoneQuery).
+        return players.Where(player =>
+            player.DisplayName.ToUpper().Contains(normalizedQuery) ||
+            (digits.Length > 0 && player.PhoneNumber != null &&
+                player.PhoneNumber
+                    .Replace(" ", string.Empty)
+                    .Replace("-", string.Empty)
+                    .Replace("(", string.Empty)
+                    .Replace(")", string.Empty)
+                    .Replace("+", string.Empty)
+                    .Contains(digits)));
     }
 
     public async Task<IReadOnlyList<TariffOptionDto>> GetTariffOptionsAsync(

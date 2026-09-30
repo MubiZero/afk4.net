@@ -98,6 +98,13 @@ public partial class OrganizationAdminWindow : Window
             MinHeight);
         if (sane is null)
         {
+            var work = SystemParameters.WorkArea;
+            var fitted = OrganizationAdminWindowPlacement.FirstRun(work.Left, work.Top, work.Width, work.Height, Width, Height);
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = fitted.Left;
+            Top = fitted.Top;
+            Width = fitted.Width;
+            Height = fitted.Height;
             return;
         }
 

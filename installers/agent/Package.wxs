@@ -9,7 +9,7 @@
     <!-- Ярлык мастера назван по-русски — кириллице нужна кодовая страница 1251, по умолчанию WiX
          берёт 1252 и падает с WIX0311 (как у пакета Панели). -->
     <SummaryInformation Codepage="1251" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Agent is already installed." />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of AFK4.NET Agent is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">

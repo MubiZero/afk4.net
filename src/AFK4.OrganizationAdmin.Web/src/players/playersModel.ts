@@ -152,7 +152,11 @@ export function matchesSegment(client: PlayerClientItem, id: ClientSegmentId): b
   }
 }
 
-export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): ClientSegment[] {
+export type ClientSegmentCounts = Record<ClientSegmentId, number>;
+
+// counts — то, что насчитал сервер по всем клиентам; без них (учебный режим, пока итоги в пути)
+// считаем по загруженному списку.
+export function buildClientSegments(clients: PlayerClientItem[], t: TFunc, counts?: ClientSegmentCounts): ClientSegment[] {
   const ids: ClientSegmentId[] = ['all', 'debt', 'inactive'];
   const labels: Record<ClientSegmentId, MessageKey> = {
     all: 'op.players.segments.all',
@@ -162,8 +166,22 @@ export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): Clie
   return ids.map((id) => ({
     id,
     label: t(labels[id]),
-    count: clients.filter((c) => matchesSegment(c, id)).length
+    count: counts?.[id] ?? clients.filter((c) => matchesSegment(c, id)).length
   }));
+}
+
+// Строка списка после денежной операции: баланс и долг — из свежей сводки кошелька, а вместе с
+// ними и отметка «долг». Без этого список, шапка и окна, что берут баланс из строки («Посадить за
+// ПК»), показывали старую сумму, пока карточка уже показывала новую.
+export function withWallet(client: PlayerClientItem, balanceMinorUnits: number, debtMinorUnits: number): PlayerClientItem {
+  if (client.balanceMinorUnits === balanceMinorUnits && client.debtMinorUnits === debtMinorUnits) return client;
+  return {
+    ...client,
+    balanceMinorUnits,
+    debtMinorUnits,
+    status: !client.isActive ? 'inactive' : debtMinorUnits > 0 ? 'debt' : 'active',
+    tone: !client.isActive ? 'regular' : debtMinorUnits > 0 ? 'debt' : 'active'
+  };
 }
 
 // Денежная картина базы для шапки раздела: сколько лежит на балансах и сколько должны, по
@@ -251,16 +269,24 @@ export function isNewClient(createdAtUtc: string | null, nowMs: number, threshol
   return nowMs - createdMs < thresholdDays * MS_PER_DAY;
 }
 
-// Компактная метка последнего визита для узкой колонки таблицы: сейчас/вчера/N дн./N нед./—.
-// «N дн.»/«N нед.» — намеренно плюрал-инвариантная форма (не ICU-plural): в русском «1 дн.»/
-// «5 дн.» звучат нормально сокращённо, а полная фраза «5 дней» не влезает в колонку.
+// Компактная метка последнего визита для узкой колонки таблицы: N мин/N ч назад, вчера, N дн., N нед.,
+// «—». «Сейчас» здесь нет намеренно: так пишет таблица только тому, у кого идёт сессия (есть живой
+// контекст), а по одной отметке «заходил сегодня» не отличить игрока за ПК от ушедшего два часа
+// назад — приёмка 30.09.2026 показала «сейчас» у ушедшего в 11:32. «N дн.»/«N нед.» — намеренно
+// плюрал-инвариантная форма (не ICU-plural): сокращённо «1 дн.»/«5 дн.» звучат нормально, а полная
+// фраза «5 дней» не влезает в колонку.
 export function relativeVisitLabel(lastActivityAtUtc: string | null, nowMs: number, t: TFunc): string {
   if (!lastActivityAtUtc) return '—';
   const lastMs = new Date(lastActivityAtUtc).getTime();
   if (Number.isNaN(lastMs)) return '—';
 
-  const days = Math.floor(Math.max(0, nowMs - lastMs) / MS_PER_DAY);
-  if (days === 0) return t('op.players.visit.now');
+  const elapsedMs = Math.max(0, nowMs - lastMs);
+  const minutes = Math.floor(elapsedMs / 60_000);
+  if (minutes < 60) return t('op.players.visit.minutesAgo', { n: Math.max(1, minutes) });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t('op.players.visit.hoursAgo', { n: hours });
+
+  const days = Math.floor(elapsedMs / MS_PER_DAY);
   if (days === 1) return t('op.players.visit.yesterday');
   if (days < 7) return t('op.players.visit.daysAgo', { n: days });
   return t('op.players.visit.weeksAgo', { n: Math.ceil(days / 7) });

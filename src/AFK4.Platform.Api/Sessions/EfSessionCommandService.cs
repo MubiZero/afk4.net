@@ -271,10 +271,15 @@ public sealed class EfSessionCommandService(
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
+            // Запертый автозащитой (время вышло, лимит) ПК сердцебиение само не откроет: lock держится
+            // до unlock. Продление — это и есть «играй дальше», поэтому открывает ПК, а не только
+            // обновляет аренду.
             var command = await deviceCommandDispatchService.EnqueueAsync(
                 session.DeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: DeviceCommandTypeNames.RefreshSessionLease,
+                    Type: session.AutoLockedAtUtc is null
+                        ? DeviceCommandTypeNames.RefreshSessionLease
+                        : DeviceCommandTypeNames.Unlock,
                     Payload: LeasePayload(session.SessionId, lease, "session-extend")),
                 cancellationToken);
             deviceIdToNotify = session.DeviceId;
@@ -736,7 +741,8 @@ public sealed class EfSessionCommandService(
             if (session.PlayerAccountId is { } playerAccountId)
             {
                 earlyEnd = await PlayerEarlyEnd.QuoteAsync(dbContext, session, playerAccountId, now, cancellationToken);
-                PlayerEarlyEnd.AppendEntries(dbContext, session, playerAccountId, earlyEnd, actorStaffUserId, now);
+                await PlayerEarlyEnd.AppendEntriesAsync(
+                    dbContext, session, playerAccountId, earlyEnd, actorStaffUserId, now, cancellationToken);
             }
 
             session.State = SessionStateNames.Ending;

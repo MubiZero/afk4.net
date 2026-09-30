@@ -872,7 +872,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               setPayOpen(true);
             }}>{t('op.pos.payment.acceptBtn')}</button>
             {paymentBlockedKey !== null && <p className="pos-tender-blocked" role="status">{t(paymentBlockedKey)}</p>}
-            <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
+            <button type="button" className="ui-btn pos-secondary-action" disabled={cartItems.length === 0} onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
           </div>
         </section>
       </section>

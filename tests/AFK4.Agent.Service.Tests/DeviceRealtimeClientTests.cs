@@ -46,6 +46,72 @@ public sealed class DeviceRealtimeClientTests
         });
     }
 
+    /// <summary>
+    /// Приёмка 30.09.2026: ПК 18 минут был без связи, SignalR исчерпал свои четыре попытки и закрыл
+    /// канал — команды Панели потом шли только с сердцебиением. Закрытый канал поднимается снова,
+    /// сколько бы попыток ни сорвалось, и заново регистрирует ПК.
+    /// </summary>
+    [Fact]
+    public async Task EnsureConnected_RestartsAClosedChannel_UntilItComesBack()
+    {
+        var connection = new CapturingDeviceHubConnection { Disconnected = true, FailedStarts = 2 };
+        var client = new DeviceRealtimeClient(
+            TestOptions(), new NoOpDeviceCommandHandler(TestOptions().Value), NullLogger<DeviceRealtimeClient>.Instance, connection);
+
+        await client.EnsureConnectedAsync(CancellationToken.None);
+        await client.EnsureConnectedAsync(CancellationToken.None);
+        await client.EnsureConnectedAsync(CancellationToken.None);
+        await client.EnsureConnectedAsync(CancellationToken.None);
+
+        Assert.Equal(3, connection.StartAttempts);
+        Assert.False(connection.Disconnected);
+        Assert.Single(connection.Invocations, invocation => invocation.MethodName == DeviceRealtimeMethods.RegisterDeviceAsync);
+    }
+
+    /// <summary>
+    /// Приёмка 30.09.2026: соединение открылось, а регистрация упала («Invalid device credential») —
+    /// канал висел «подключённым», и команды по нему не шли. Такой канал регистрируется заново, без
+    /// переподключения.
+    /// </summary>
+    [Fact]
+    public async Task EnsureConnected_RegistersAgainWhenTheConnectionIsOpenButRegistrationFailed()
+    {
+        var connection = new CapturingDeviceHubConnection { FailedRegistrations = 1 };
+        var client = new DeviceRealtimeClient(
+            TestOptions(), new NoOpDeviceCommandHandler(TestOptions().Value), NullLogger<DeviceRealtimeClient>.Instance, connection);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => client.StartAsync(CancellationToken.None));
+        await client.EnsureConnectedAsync(CancellationToken.None);
+        await client.EnsureConnectedAsync(CancellationToken.None);
+
+        Assert.Equal(1, connection.StartAttempts);
+        Assert.Equal(2, connection.Invocations.Count(invocation => invocation.MethodName == DeviceRealtimeMethods.RegisterDeviceAsync));
+    }
+
+    [Fact]
+    public async Task EnsureConnected_LeavesAnOpenChannelAlone()
+    {
+        var connection = new CapturingDeviceHubConnection();
+        var client = new DeviceRealtimeClient(
+            TestOptions(), new NoOpDeviceCommandHandler(TestOptions().Value), NullLogger<DeviceRealtimeClient>.Instance, connection);
+
+        await client.StartAsync(CancellationToken.None);
+        await client.EnsureConnectedAsync(CancellationToken.None);
+
+        Assert.Equal(1, connection.StartAttempts);
+        Assert.Single(connection.Invocations, invocation => invocation.MethodName == DeviceRealtimeMethods.RegisterDeviceAsync);
+    }
+
+    private static IOptions<AgentOptions> TestOptions() => Options.Create(new AgentOptions
+    {
+        PlatformBaseUrl = new Uri("https://platform.example"),
+        OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+        BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+        DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+        MachineName = "PC-001",
+        DeviceCredentialSecret = "device-secret"
+    });
+
     private sealed class NoOpDeviceCommandHandler(AgentOptions options) : IDeviceCommandHandler
     {
         public Task<DeviceCommandResultDto> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken)
@@ -78,14 +144,38 @@ public sealed class DeviceRealtimeClientTests
             return EmptyDisposable.Instance;
         }
 
+        public bool Disconnected { get; set; }
+
+        public int FailedStarts { get; set; }
+
+        public int StartAttempts { get; private set; }
+
+        public bool IsDisconnected => Disconnected;
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            StartAttempts++;
+            if (FailedStarts > 0)
+            {
+                FailedStarts--;
+                return Task.FromException(new HttpRequestException("No connection could be made."));
+            }
+
+            Disconnected = false;
             return Task.CompletedTask;
         }
+
+        public int FailedRegistrations { get; set; }
 
         public Task InvokeAsync(string methodName, object? argument, CancellationToken cancellationToken = default)
         {
             Invocations.Add(new Invocation(methodName, argument));
+            if (methodName == DeviceRealtimeMethods.RegisterDeviceAsync && FailedRegistrations > 0)
+            {
+                FailedRegistrations--;
+                return Task.FromException(new InvalidOperationException("Invalid device credential."));
+            }
+
             return Task.CompletedTask;
         }
 

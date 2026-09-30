@@ -3,22 +3,30 @@ import { AlertTriangle, LoaderCircle, LogOut, RefreshCw, Unlock } from 'lucide-r
 import { useI18n } from '@afk4/i18n';
 import { AuthFrame } from './AuthFrame';
 import { parseNonNegativeMoneyInputMinorUnits } from './operatorHelpers';
+import { usePrefillStartingCash, type ClosedShiftHistoryReader } from './cash/useLastClosingCash';
+import type { OperatorBackendContext } from './operatorTypes';
 import type { PostAuthShiftGateController } from './usePostAuthShiftGate';
 
 export function PostAuthShiftGate({
   controller,
+  backend = null,
+  shiftHistory,
   organizationId,
   currencyCode,
   onSignOut
 }: {
   controller: PostAuthShiftGateController;
+  /** Откуда взять остаток прошлой смены для «Старта наличных»; нет — поле начинается с нуля. */
+  backend?: OperatorBackendContext | null;
+  shiftHistory?: ClosedShiftHistoryReader;
   organizationId: string;
   currencyCode: string;
   onSignOut: () => void;
 }) {
   const { t } = useI18n();
   const [startingCash, setStartingCash] = useState('0');
-  const [openingNote, setOpeningNote] = useState(t('op.cash.open.defaultNote'));
+  // Пусто, а не «Утренняя смена»: подстановка врала в любое время суток, а комментарий необязателен.
+  const [openingNote, setOpeningNote] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const checking = controller.status === 'checking';
   const opening = controller.status === 'opening';
@@ -26,6 +34,8 @@ export function PostAuthShiftGate({
   const showForm = controller.status === 'required'
     || opening
     || (controller.status === 'failed' && controller.failureKind === 'open');
+
+  usePrefillStartingCash(backend, showForm, setStartingCash, shiftHistory);
 
   const submit = () => {
     if (opening) return;

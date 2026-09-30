@@ -14737,6 +14737,43 @@ class PlayerSignOutRequest {
       };
 }
 
+/// Итоги справочника клиентов по всем подходящим под запрос, а не по открытой странице: шапка
+/// «На балансах / Долги» и счётчики отборов. Деньги — сумма положительных остатков по клиентам:
+/// минус у одного не гасит плюс у другого.
+///
+/// Контракт: Operator/PlayersSummaryDto.cs
+class PlayersSummaryDto {
+  const PlayersSummaryDto({
+    required this.totalCount,
+    required this.debtorCount,
+    required this.inactiveCount,
+    required this.walletTotalMinorUnits,
+    required this.debtTotalMinorUnits,
+  });
+
+  final int totalCount;
+  final int debtorCount;
+  final int inactiveCount;
+  final int walletTotalMinorUnits;
+  final int debtTotalMinorUnits;
+
+  factory PlayersSummaryDto.fromJson(Map<String, dynamic> json) => PlayersSummaryDto(
+        totalCount: (json['totalCount'] as num).toInt(),
+        debtorCount: (json['debtorCount'] as num).toInt(),
+        inactiveCount: (json['inactiveCount'] as num).toInt(),
+        walletTotalMinorUnits: (json['walletTotalMinorUnits'] as num).toInt(),
+        debtTotalMinorUnits: (json['debtTotalMinorUnits'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'totalCount': totalCount,
+        'debtorCount': debtorCount,
+        'inactiveCount': inactiveCount,
+        'walletTotalMinorUnits': walletTotalMinorUnits,
+        'debtTotalMinorUnits': debtTotalMinorUnits,
+      };
+}
+
 /// Что можно купить, сев за этот ПК, — одним запросом, с готовыми суммами (спека оболочки,
 /// §5.5). Клиент цену не считает: суммы считает тот же расчёт, что и списание, иначе экран
 /// однажды пообещал бы одну цифру, а касса списала бы другую.

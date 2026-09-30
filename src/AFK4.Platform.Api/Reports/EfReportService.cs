@@ -360,7 +360,9 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                  // Погашение на расчёте сессии — её же оплата наличными уже в списке выше.
                  (entry.EntryType == LedgerEntryTypeNames.DebtPayment && entry.SessionId == null) ||
                  entry.EntryType == LedgerEntryTypeNames.ManualCorrection ||
-                 entry.EntryType == LedgerEntryTypeNames.Refund));
+                 // Возврат за игру уходит на баланс игрока, касса не двигается; в кассовых
+                 // операциях остаётся возврат пополнения — оно и было деньгами в ящике.
+                 (entry.EntryType == LedgerEntryTypeNames.Refund && entry.SessionId == null)));
 
         if (query.FromUtc is not null)
         {
@@ -625,11 +627,16 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         var sales = data.Sales.Where(s => s.ShiftId == shift.ShiftId).ToList();
         var cashMovements = data.CashMovements.Where(m => m.ShiftId == shift.ShiftId).ToList();
 
+        // Возврат за игру (досрочный уход) вычитается: клуб заработал только сыгранное. Без этого «Заработано»
+        // смены завышалось на все возвраты и расходилось со Сводкой (приёмка 30.09.2026: 663 против 164).
+        // Возврат за игру всегда с сессией (как в Сводке); возврат пополнения — без неё и заработка не касается.
         var earnedTime =
             -ledger.Where(e => e.EntryType == LedgerEntryTypeNames.GameplayCharge && Cur(e.CurrencyCode))
                    .Sum(e => e.AmountMinorUnits)
             + ledger.Where(e => e.EntryType == LedgerEntryTypeNames.PostpaidDebt && Cur(e.CurrencyCode))
-                    .Sum(e => e.AmountMinorUnits);
+                    .Sum(e => e.AmountMinorUnits)
+            - ledger.Where(e => e.EntryType == LedgerEntryTypeNames.Refund && e.SessionId != null && Cur(e.CurrencyCode))
+                    .Sum(e => Math.Abs(e.AmountMinorUnits));
         // Удержанная за неявку предоплата — заработок клуба, но не проданное время: в earnedTime её
         // класть нельзя, иначе отчёт покажет наигранные часы, которых не было. В журнале это
         // отрицательная запись кошелька, поэтому знак переворачивается, как у обычного списания.

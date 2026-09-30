@@ -156,6 +156,121 @@ public sealed class SessionReconciliationEndpointTests
             sessionEvent => sessionEvent.EventType == "device-reconciled");
     }
 
+    [Fact]
+    public async Task SessionReconciliation_WithPausedCloudSessionAndNoLocalLease_DoesNotUnlockThePc()
+    {
+        // Приёмка 30.09.2026: сверка отпирала ПК на паузе так же, как сердцебиение.
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var enrollment = await EnrollDeviceAsync(client);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        var started = await StartSessionAsync(client);
+        var pause = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{started.Session.SessionId:D}/pause",
+            new PauseSessionRequest("Отошёл", $"pause-{Guid.NewGuid():N}"));
+        Assert.Equal(HttpStatusCode.OK, pause.StatusCode);
+
+        var body = await PostReconciliationAsync(
+            client,
+            enrollment,
+            CreateSnapshot(enrollment.DeviceId, activeLease: null));
+
+        Assert.Equal("continue", body.Action);
+        Assert.Null(body.Lease);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(await dbContext.DeviceCommands
+            .Where(command => command.DeviceId == enrollment.DeviceId && command.Type == "unlock")
+            .ToListAsync());
+    }
+
+    [Fact]
+    public async Task SessionReconciliation_WithALockTheOperatorSetMidSession_DoesNotUnlockThePc()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var enrollment = await EnrollDeviceAsync(client);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        await StartSessionAsync(client);
+        var locked = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{enrollment.DeviceId:D}/commands",
+            new CreateDeviceCommandRequest(
+                "lock",
+                new Dictionary<string, string> { ["reason"] = "operator-pc-control", ["source"] = "operator-map" }));
+        Assert.Equal(HttpStatusCode.OK, locked.StatusCode);
+
+        var body = await PostReconciliationAsync(
+            client,
+            enrollment,
+            CreateSnapshot(enrollment.DeviceId, activeLease: null));
+
+        Assert.Equal("continue", body.Action);
+        Assert.Null(body.Lease);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(await dbContext.DeviceCommands
+            .Where(command => command.DeviceId == enrollment.DeviceId && command.Type == "unlock")
+            .ToListAsync());
+    }
+
+    [Fact]
+    public async Task OperatorUnlockMidSession_CarriesTheLeaseAndReleasesTheHeldLock()
+    {
+        // Без аренды агент отвечает «sessionLease обязателен» и не отпирает: блокировка оператора,
+        // которая держится до его unlock, оказалась бы вечной.
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var enrollment = await EnrollDeviceAsync(client);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        var started = await StartSessionAsync(client);
+        await PostOperatorCommandAsync(client, enrollment.DeviceId, "lock");
+
+        var unlock = await PostOperatorCommandAsync(client, enrollment.DeviceId, "unlock");
+
+        Assert.Equal(started.Session.SessionId.ToString("D"), unlock.Payload["sessionId"]);
+        var lease = System.Text.Json.JsonSerializer.Deserialize<SessionLeaseDto>(
+            unlock.Payload["sessionLease"],
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.NotNull(lease);
+        Assert.Equal(started.Session.SessionId, lease.SessionId);
+        Assert.True(lease.Sequence > started.Session.CurrentLease!.Sequence);
+        Assert.Equal("operator-pc-control", unlock.Payload["reason"]);
+
+        var body = await PostReconciliationAsync(
+            client,
+            enrollment,
+            CreateSnapshot(enrollment.DeviceId, activeLease: null));
+        Assert.Equal("unlock", body.Action);
+    }
+
+    [Fact]
+    public async Task OperatorUnlockOnAFreePc_GoesThroughAsItIs()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+        var enrollment = await EnrollDeviceAsync(client);
+
+        var unlock = await PostOperatorCommandAsync(client, enrollment.DeviceId, "unlock");
+
+        Assert.DoesNotContain("sessionLease", unlock.Payload.Keys);
+    }
+
+    private static async Task<DeviceCommandDto> PostOperatorCommandAsync(HttpClient client, Guid deviceId, string type)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{deviceId:D}/commands",
+            new CreateDeviceCommandRequest(
+                type,
+                new Dictionary<string, string> { ["reason"] = "operator-pc-control", ["source"] = "operator-map" }));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return (await response.Content.ReadFromJsonAsync<DeviceCommandDto>())!;
+    }
+
     private static async Task<SessionReconciliationResponse> PostReconciliationAsync(
         HttpClient client,
         InstallEnrollResponse enrollment,

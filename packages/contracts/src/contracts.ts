@@ -6370,6 +6370,21 @@ export interface PlayerSignOutRequest {
 }
 
 /**
+ * Итоги справочника клиентов по всем подходящим под запрос, а не по открытой странице: шапка
+ * «На балансах / Долги» и счётчики отборов. Деньги — сумма положительных остатков по клиентам:
+ * минус у одного не гасит плюс у другого.
+ *
+ * Контракт: Operator/PlayersSummaryDto.cs
+ */
+export interface PlayersSummaryDto {
+  totalCount: number;
+  debtorCount: number;
+  inactiveCount: number;
+  walletTotalMinorUnits: number;
+  debtTotalMinorUnits: number;
+}
+
+/**
  * Что можно купить, сев за этот ПК, — одним запросом, с готовыми суммами (спека оболочки,
  * §5.5). Клиент цену не считает: суммы считает тот же расчёт, что и списание, иначе экран
  * однажды пообещал бы одну цифру, а касса списала бы другую.

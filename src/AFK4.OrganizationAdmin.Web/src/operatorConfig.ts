@@ -28,6 +28,13 @@ const fallbackConfig: OperatorConfig = {
 // building (e.g. `VITE_PLATFORM_BASE_URL=https://<platform-host> bun run build`) — never hardcode a
 // real URL here. Missing it in a real production build is a deploy misconfiguration, so this throws
 // rather than silently pointing the browser build at localhost.
+//
+// Один объект на все вызовы: getOperatorConfig() зовётся на каждой отрисовке, а конфиг стоит в
+// зависимостях useMemo и useCallback по всему приложению. Новый объект каждый раз перезапускал
+// эффекты по кругу — Панель в браузере против настоящего API зависала на первом же нажатии
+// (приёмка 30.09.2026). Хост WebView2 и так подставляет один объект.
+let browserConfig: OperatorConfig | undefined;
+
 function browserConfigFromEnv(): OperatorConfig {
   const platformBaseUrl = import.meta.env.VITE_PLATFORM_BASE_URL;
   if (!platformBaseUrl) {
@@ -35,15 +42,20 @@ function browserConfigFromEnv(): OperatorConfig {
       'operatorConfig: VITE_PLATFORM_BASE_URL is not set. The browser build needs it at build time to reach the platform API.'
     );
   }
-  return {
+  const setupInstallerUrl = import.meta.env.VITE_SETUP_INSTALLER_URL || undefined;
+  if (browserConfig?.platformBaseUrl === platformBaseUrl && browserConfig.setupInstallerUrl === setupInstallerUrl) {
+    return browserConfig;
+  }
+  browserConfig = {
     product: 'organization-admin',
     compatibilityEpoch: 2,
     runtime: 'browser',
     shellMode: 'web',
     platformBaseUrl,
     currencyCode: 'TJS',
-    setupInstallerUrl: import.meta.env.VITE_SETUP_INSTALLER_URL || undefined
+    setupInstallerUrl
   };
+  return browserConfig;
 }
 
 export function getOperatorConfig(): OperatorConfig {

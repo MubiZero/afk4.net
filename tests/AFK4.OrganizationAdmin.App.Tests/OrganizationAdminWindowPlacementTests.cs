@@ -14,6 +14,34 @@ public sealed class OrganizationAdminWindowPlacementTests
     private static OrganizationAdminWindowPlacement? Sanitize(OrganizationAdminWindowPlacement placement) =>
         placement.Sanitize(ScreenLeft, ScreenTop, ScreenWidth, ScreenHeight, MinWidth, MinHeight);
 
+    /// <summary>
+    /// Приёмка 30.09.2026: экран 1280×800, рабочая область 752 по высоте. Окно 1152×840 по центру
+    /// уходило шапкой за верхний край, а рамки Windows у него нет — ни перетащить, ни закрыть.
+    /// </summary>
+    [Theory]
+    [InlineData(1280, 752)]
+    [InlineData(1366, 720)]
+    public void FirstRun_OnASmallScreen_KeepsTheWholeWindowInsideTheWorkArea(double workWidth, double workHeight)
+    {
+        var placement = OrganizationAdminWindowPlacement.FirstRun(0, 0, workWidth, workHeight, 1152, 840);
+
+        Assert.True(placement.Top >= 0);
+        Assert.True(placement.Left >= 0);
+        Assert.True(placement.Top + placement.Height <= workHeight);
+        Assert.True(placement.Left + placement.Width <= workWidth);
+    }
+
+    [Fact]
+    public void FirstRun_OnALargeScreen_KeepsTheDefaultSizeCentred()
+    {
+        var placement = OrganizationAdminWindowPlacement.FirstRun(0, 0, 1920, 1032, 1152, 840);
+
+        Assert.Equal(1152, placement.Width);
+        Assert.Equal(840, placement.Height);
+        Assert.Equal((1920 - 1152) / 2.0, placement.Left);
+        Assert.Equal((1032 - 840) / 2.0, placement.Top);
+    }
+
     [Fact]
     public void Sanitize_KeepsAFullyVisibleWindowUnchanged()
     {

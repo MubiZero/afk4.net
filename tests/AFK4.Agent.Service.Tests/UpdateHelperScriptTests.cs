@@ -382,6 +382,22 @@ public sealed class UpdateHelperScriptTests
         Assert.Empty(offenders);
     }
 
+    // Код продукта WiX генерирует на каждую сборку заново: две сборки одной версии — разные продукты.
+    // Без AllowSameVersionUpgrades вторая не заменяет первую, msiexec отвечает 1603, и мастер пишет
+    // «Не удалось установить Панель» без причины. Приёмка 30.09.2026: Панель той же версии уже стояла
+    // из отдельного MSI. Бывает и в клубе: из канала обновлений, потом переустановка через мастер.
+    [Fact]
+    public void EveryWixPackageReplacesAnotherBuildOfTheSameVersion()
+    {
+        var installers = Path.Combine(GetRepositoryRoot(), "installers");
+        var offenders = Directory.EnumerateFiles(installers, "Package.wxs", SearchOption.AllDirectories)
+            .Where(path => !File.ReadAllText(path).Contains("<MajorUpgrade AllowSameVersionUpgrades=\"yes\"", StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(installers, path))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
     private static string GetRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

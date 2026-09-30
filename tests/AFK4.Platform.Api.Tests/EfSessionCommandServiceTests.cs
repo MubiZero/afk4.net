@@ -507,6 +507,58 @@ public sealed class EfSessionCommandServiceTests
     }
 
     [Fact]
+    public async Task ExtendSessionAsync_AfterAnAutoProtectionLock_UnlocksThePcWithTheNewLease()
+    {
+        // Автозащита заперла ПК по времени, оператор продлил. Lock теперь держится до unlock — сердцебиение
+        // само его больше не снимает, — поэтому продление обязано отдать unlock, а не обновление аренды.
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        (await db.Sessions.SingleAsync()).AutoLockedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1"),
+            CancellationToken.None);
+
+        var command = Assert.Single(result.Response!.DeviceCommands);
+        Assert.Equal(DeviceCommandTypeNames.Unlock, command.Type);
+        Assert.Contains("sessionLease", command.Payload.Keys);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_WithoutAnAutoProtectionLock_OnlyRefreshesTheLease()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1"),
+            CancellationToken.None);
+
+        Assert.Equal(DeviceCommandTypeNames.RefreshSessionLease, Assert.Single(result.Response!.DeviceCommands).Type);
+    }
+
+    [Fact]
     public async Task StartGuestSessionAsync_PersistsTheBillingModeOnTheSession()
     {
         await using var db = CreateDbContext();

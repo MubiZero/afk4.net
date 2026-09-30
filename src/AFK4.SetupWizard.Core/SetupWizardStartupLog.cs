@@ -5,14 +5,19 @@ namespace AFK4.SetupWizard.Core;
 // Minimal best-effort crash log for the setup wizard, written next to the agent log
 // (%ProgramData%\AFK4\logs\setup-wizard.log). The wizard has no other logging sink, so a
 // startup/enrollment failure otherwise only surfaces as a raw .NET crash dialog. Failures here
-// are swallowed: logging must never be the reason the wizard can't run.
+// are swallowed: logging must never be the reason the wizard can't run. AFK4_SETUP_WIZARD_LOG
+// overrides the path: tests point it at a temp file, otherwise a Windows test run writes its fakes
+// into the real PC's wizard log.
 public static class SetupWizardStartupLog
 {
-    private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "AFK4",
-        "logs",
-        "setup-wizard.log");
+    private static readonly string LogPath =
+        Environment.GetEnvironmentVariable("AFK4_SETUP_WIZARD_LOG") is { Length: > 0 } overridePath
+            ? overridePath
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "AFK4",
+                "logs",
+                "setup-wizard.log");
 
     public static void Write(string message, Exception? exception = null)
     {
