@@ -53,13 +53,33 @@ public sealed class ProtectionPolicyTests
         Assert.Equal(0b100, ProtectionPolicy.DriveMask(["C", "c", "not-a-drive"]));
     }
 
+    /// <summary>Ни одного сохранения — то, что владелец назвал разумным: «Выполнить» закрыто, флешки и браузер — выбор клуба.</summary>
     [Fact]
-    public void AnEmptyProfile_EnablesOnlyTheBaseline()
+    public void ABranchThatNeverSavedAProfile_GetsTheBaselineAndTheRunDialogOff()
     {
-        var enabled = ProtectionPolicy.Plan(new ProtectionProfileDto(0, false, false, false, false, [], [], [], []))
+        var enabled = ProtectionPolicy.Plan(ProtectionProfileDefaults.Initial)
             .Where(item => item.Enabled)
             .Select(item => item.Name);
 
-        Assert.Equal([ProtectionItemNames.KioskBaseline], enabled);
+        Assert.Equal([ProtectionItemNames.KioskBaseline, ProtectionItemNames.RunDialog], enabled);
+        Assert.Equal(
+            ["ConsoleWindowClass", "TaskManagerWindow", "RegEdit_RegEdit"],
+            ProtectionProfileDefaults.Initial.BlockedWindows.Select(rule => rule.ClassName));
+        Assert.All(ProtectionProfileDefaults.Initial.BlockedWindows, rule => Assert.Null(rule.TitleContains));
+    }
+
+    /// <summary>Машинными остаются только политики, которых у пользователя нет: остальное задевало бы администратора и техника.</summary>
+    [Fact]
+    public void OnlyWhatWindowsReadsNowhereElse_StaysMachineWide()
+    {
+        var machineWide = ProtectionPolicy.Plan(Everything)
+            .SelectMany(item => item.Writes)
+            .Where(write => write.Scope == PolicyScope.Machine)
+            .Select(write => write.Name)
+            .ToHashSet();
+
+        Assert.Equal(
+            new[] { "HideFastUserSwitching", "DownloadRestrictions", "IncognitoModeAvailability", "InPrivateModeAvailability", "URLBlocklist" }.Order(),
+            machineWide.Order());
     }
 }

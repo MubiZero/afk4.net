@@ -44,19 +44,20 @@ export const idleShutdownOptions = [15, 30, 60, 120] as const;
 /** Диски, которые предлагаем скрыть. A и B — дисководы, которых давно нет. */
 export const hideableDrives = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
+// Как на сервере у филиала, который ни разу не сохранял профиль (ProtectionProfileDefaults.Initial):
+// «Выполнить» закрыто, консоль, Диспетчер задач и редактор реестра закрываются.
 export const protectionDefaults: ProtectionForm = {
   version: 0,
   blockRemovableStorage: false,
   blockBrowserDownloads: false,
   blockBrowserIncognito: false,
-  disableRunDialog: false,
+  disableRunDialog: true,
   hiddenDrives: [],
   urlBlocklist: '',
   blockedTitles: '',
-  blockedClasses: '',
+  blockedClasses: 'ConsoleWindowClass\nTaskManagerWindow\nRegEdit_RegEdit',
   compoundWindows: [],
-  // Как на сервере без профиля: следующий игрок не входит в чужой Steam потому, что клуб не
-  // открыл эту страницу.
+  // Следующий игрок не входит в чужой Steam потому, что клуб не открыл эту страницу.
   clearAfterSession: [...sessionTraces],
   idleShutdownMinutes: '',
   clubRules: ''
