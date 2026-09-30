@@ -62,6 +62,13 @@ describe('getOperatorConfig', () => {
       });
     });
 
+    // Конфиг зовут на каждой отрисовке, и он в зависимостях эффектов: новый объект каждый раз
+    // крутил их по кругу, и Панель в браузере зависала на первом нажатии.
+    it('returns the same object on every call, so effects keyed on it do not rerun forever', () => {
+      env.VITE_PLATFORM_BASE_URL = 'https://api.example/';
+      expect(getOperatorConfig()).toBe(getOperatorConfig());
+    });
+
     it('throws a configuration error instead of silently falling back to localhost', () => {
       delete env.VITE_PLATFORM_BASE_URL;
       expect(() => getOperatorConfig()).toThrow(/VITE_PLATFORM_BASE_URL/);
