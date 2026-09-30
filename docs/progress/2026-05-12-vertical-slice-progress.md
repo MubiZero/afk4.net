@@ -872,6 +872,32 @@ emulation), the Agent, Player Shell, Setup Wizard and MSIs from this repo agains
   DisableTaskMgr stays machine-wide while the kiosk is installed (the player's hive is not loaded before
   sign-in; maintenance lifts it for a technician).
 
+## A Guest Pays Cash At The Desk (2026-09-30)
+
+Acceptance item P6: «Посадить гостя» in the Panel seated a guest for free (no tariff, no amount, nothing in the
+books). Owner decision: a guest picks a tariff and a time and pays cash at the desk, in an open shift.
+
+- **Fixed time:** billing mode `prepaid_cash` (guest only). Start quotes the price by the tariff rules (minimum,
+  then rounding) and takes it: one cash `Payment` in the shift drawer plus one `GameplayCharge` ledger entry with
+  no player (account type `cash`, `ledger_entries.PlayerAccountId` is now nullable — migration
+  `AllowGuestLedgerEntries`). Game revenue is counted from the ledger, so the Z-report, the revenue summary and
+  the gameplay report see the guest like any prepaid player. No shift: `open_shift_required`, nothing written.
+  The Panel sends the amount it named (`ExpectedChargeMinorUnits`); a changed tariff refuses with `price_changed`.
+- **Open tab:** empty mode with a tariff; nothing at start, priced by the fact at «Завершить и рассчитать», paid
+  in cash parts; the settlement writes the game-revenue entry.
+- **+15/+30:** a new cash payment at the session's own tariff; the card asks first
+  (`GET sessions/{id}/extend/quote`). Extending never changes whose session it is.
+- **Settlement window:** shows played time, what was paid up front and what returns (wallet) — the quote carries
+  `PlayedSeconds`, `PrepaidCharged`, `PrepaidRefund`; the header says «Гость». Settling now returns unplayed
+  prepaid time like «Закончить» does (it did not before).
+- **Found on the way:** the shift drawer counted a player's cash settlement twice (the checkout payment and the
+  debt-payment entry it writes); fixed in `ShiftExpectedCash` and the cash-operations report.
+- **Named, not done:** a guest who leaves early gets no automatic refund (cash goes back by hand through a cash
+  movement); the API still accepts an unbilled guest (empty mode, no tariff) — only the Panel stopped sending it;
+  the status-bar/platform revenue rule (`BranchRevenue.PosNet`) counts every payment including session payments,
+  so guest and player session cash shows there on top of game revenue (the revenue summary does not) — read from
+  the code, no test covers it yet.
+
 ## Latest Verification
 
 - VM acceptance merged (2026-09-30): #591, #593–#602. The integration branch passed

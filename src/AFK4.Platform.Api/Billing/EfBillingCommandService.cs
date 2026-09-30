@@ -755,7 +755,7 @@ public sealed class EfBillingCommandService(
             }
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, entry.PlayerAccountId, cancellationToken);
+            var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, entry.PlayerAccountId!.Value, cancellationToken);
             if (summary is null)
             {
                 return BillingCommandServiceResult<WalletSummaryDto>.Missing("Player wallet summary was not found.");

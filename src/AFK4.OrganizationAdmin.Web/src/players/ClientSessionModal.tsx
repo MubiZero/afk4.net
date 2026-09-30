@@ -3,12 +3,12 @@ import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
 import { SessionStartForm, SessionStartSkeleton, createSessionStartSelection, type SessionStartSelection } from '../session/SessionStartForm';
 import { DeferredSkeleton, SkeletonControl, SkeletonLine } from '../LoadingSkeleton';
-import { createAuthenticatedOperatorClients } from '../operatorHelpers';
+import { createAuthenticatedOperatorClients, serverBillingMode } from '../operatorHelpers';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { projectOperatorError } from '../apiErrors';
 import { retryKeys } from '../unsettledKeys';
 import type { PlayerClientItem } from '../operatorHelpers';
-import type { OperatorBackendContext } from '../operatorTypes';
+import type { OperatorBackendContext, SessionBillingModeId } from '../operatorTypes';
 import { isSeatReadyForGuest } from '../floorMapState';
 
 interface FreeSeat {
@@ -97,7 +97,7 @@ export function ClientSessionModal({ backend, player, currencyCode, onClose, onS
         durationMinutes: isOpenTab ? null : selection.durationMinutes,
         tariffRuleVersionId: selection.tariffRuleVersionId,
         playerAccountId: player.playerAccountId,
-        billingMode: selection.billingMode === 'guest' ? '' : selection.billingMode,
+        billingMode: serverBillingMode(selection.billingMode as SessionBillingModeId, selection.durationMode, selection.isComp),
         tariffVersionId: selection.tariffVersionId,
         playerPackageId: selection.playerPackageId,
         isComp: selection.isComp,

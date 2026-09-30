@@ -612,9 +612,26 @@ function checkoutQuote() {
     grandTotal: money(5450),
     billableSeconds: 3720,
     playerAccountId: null,
-    walletBalance: money(3000)
+    walletBalance: money(3000),
+    playedSeconds: 3700,
+    prepaidCharged: null,
+    prepaidRefund: null
   };
 }
+
+// Цена тарифа учебного клуба за N минут — те же правила, что у сервера (TariffBilling): минимум
+// тарифа, потом шаг округления вверх. Превью обязано считать так же, иначе гостю назовут одну
+// сумму, а «сервер» возьмёт другую, и расхождение увидит только живой клуб.
+function previewTariffPrice(tariffVersionId: unknown, minutes: number, extension = false): number | null {
+  const tariff = tariffOptions().find((item) => item.tariffVersionId === tariffVersionId);
+  if (tariff === undefined || !(minutes > 0)) return null;
+  let billable = Math.max(minutes, extension ? 0 : tariff.minimumBillableMinutes);
+  if (tariff.roundingIncrementMinutes > 1) billable = Math.ceil(billable / tariff.roundingIncrementMinutes) * tariff.roundingIncrementMinutes;
+  return billable * tariff.pricePerMinuteMinorUnits;
+}
+
+// Тариф, по которому идёт гостевая сессия учебного клуба, и как она оплачена.
+const previewSessionTariffs = new Map<string, { tariffVersionId: string; billingMode: string }>();
 
 // Эхо успешной оплаты — чтобы подтверждение кассы в превью отрабатывало без ошибки.
 function checkoutResult(init?: RequestInit) {
@@ -805,7 +822,7 @@ function demoNews() {
 
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
-function route(pathname: string, method: string): unknown | undefined {
+function route(pathname: string, method: string, search = ''): unknown | undefined {
   // Preview sign-in: any credentials succeed (no real backend behind the mock), mirroring what the
   // dev host-bridge stub used to fake over the WebView2 auth bridge before auth moved to plain HTTP.
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession({ withoutBranch: PREVIEW_WITHOUT_BRANCH });
@@ -831,6 +848,13 @@ function route(pathname: string, method: string): unknown | undefined {
   if (/\/shifts\/[^/]+\/tips$/.test(pathname) && method === 'GET') return shiftTips();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
+  const extendQuote = pathname.match(/\/sessions\/([^/]+)\/extend\/quote$/);
+  if (extendQuote && method === 'GET') {
+    const paidTariff = previewSessionTariffs.get(extendQuote[1]);
+    const minutes = Number(new URLSearchParams(search).get('additionalMinutes') ?? 0);
+    const price = paidTariff === undefined ? null : previewTariffPrice(paidTariff.tariffVersionId, minutes, true);
+    return { sessionId: extendQuote[1], additionalMinutes: minutes, charge: money(price ?? 0) };
+  }
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/packages/options')) return packageOptions();
   if (pathname.endsWith('/floor-map')) {
@@ -1218,12 +1242,33 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     }
 
     const isOpenTab = request.durationMode === 'open';
+    // Как на сервере: гость платит наличными вперёд (prepaid_cash) — по тарифу, и названная сумма
+    // должна совпасть с расчётом; открытый счёт с тарифом деньги берёт при расчёте.
+    const billingMode = typeof request.billingMode === 'string' ? request.billingMode : '';
+    const tariffVersionId = typeof request.tariffVersionId === 'string' ? request.tariffVersionId : null;
+    const tariffName = tariffVersionId === null ? undefined : tariffOptions().find((item) => item.tariffVersionId === tariffVersionId)?.name;
+    if (billingMode === 'prepaid_cash') {
+      if (request.playerAccountId) {
+        return jsonError(400, 'cash_billing_guest_only', 'Cash billing is for a guest without an account.');
+      }
+      const price = previewTariffPrice(tariffVersionId, Number(request.durationMinutes ?? 0));
+      if (price === null) {
+        return jsonError(400, '', 'Tariff version id is required for tariff billing.');
+      }
+      if (typeof request.expectedChargeMinorUnits === 'number' && request.expectedChargeMinorUnits !== price) {
+        return jsonError(409, 'price_changed', 'The price changed since it was quoted; quote it again.');
+      }
+    }
     const sessionId = `preview-session-${previewSessionSequence++}`;
+    if (tariffVersionId !== null && (billingMode === 'prepaid_cash' || (billingMode === '' && tariffName !== undefined))) {
+      previewSessionTariffs.set(sessionId, { tariffVersionId, billingMode });
+    }
+    Object.assign(seat, { sessionBillingMode: billingMode === '' ? null : billingMode });
     seat.state = 'Active';
     seat.activeSessionId = sessionId;
     seat.sessionStartedAtUtc = new Date().toISOString();
     seat.playerDisplayName = undefined;
-    seat.tariffName = 'Почасовой';
+    seat.tariffName = tariffName ?? 'Почасовой';
     seat.remainingSeconds = isOpenTab ? null : Number(request.durationMinutes ?? 60) * 60;
     seat.accruedCostMinorUnits = isOpenTab ? 0 : undefined;
     seat.isDeviceLocked = false;
@@ -1255,6 +1300,15 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     });
 
     if (action === 'extend') {
+      // Гость, заплативший наличными, доплачивает по тарифу своей сессии; названная сумма должна
+      // совпасть с расчётом (как на сервере — иначе price_changed).
+      const paidTariff = previewSessionTariffs.get(sessionId);
+      if (paidTariff?.billingMode === 'prepaid_cash' && typeof request.expectedChargeMinorUnits === 'number') {
+        const price = previewTariffPrice(paidTariff.tariffVersionId, Number(request.additionalMinutes ?? 0), true);
+        if (price !== request.expectedChargeMinorUnits) {
+          return jsonError(409, 'price_changed', 'The price changed since it was quoted; quote it again.');
+        }
+      }
       if (seat.remainingSeconds !== null) {
         seat.remainingSeconds += Number(request.additionalMinutes ?? 0) * 60;
       }
@@ -1274,6 +1328,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
         sessionStartedAtUtc: seat.sessionStartedAtUtc,
         accruedCostMinorUnits: seat.accruedCostMinorUnits,
         currencyCode: seat.currencyCode,
+        sessionBillingMode: (seat as { sessionBillingMode?: string | null }).sessionBillingMode ?? null,
         isDeviceLocked: false
       });
     }
@@ -1285,6 +1340,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
       tariffName: undefined,
       sessionStartedAtUtc: undefined,
       accruedCostMinorUnits: undefined,
+      sessionBillingMode: null,
       isDeviceLocked: true
     });
     return action === 'checkout' ? json(checkoutResult(init)) : acknowledged(action === 'transfer' ? 'Active' : 'Ended');
@@ -1393,7 +1449,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.endsWith('/audit') && method === 'GET') {
     return json(previewAudit(url.searchParams));
   }
-  const matched = route(url.pathname, method);
+  const matched = route(url.pathname, method, url.search);
   if (matched !== undefined) {
     return json(matched);
   }

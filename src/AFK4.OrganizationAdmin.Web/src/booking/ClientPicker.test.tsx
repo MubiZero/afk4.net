@@ -52,6 +52,17 @@ describe('ClientPicker', () => {
     expect(screen.getByText('Клиент клуба')).toBeInTheDocument();
   });
 
+  // Приёмка 30.09.2026: подсказка игрока в «Новой сессии» показывала номер как хранится —
+  // «+992000000101». В остальных списках клиентов он пишется «+992 00 000 01 01».
+  it('показывает номер в принятом формате, а не как он хранится', async () => {
+    render(<Harness search={async () => [client({ phoneNumber: '+992000000101' })]} onPick={() => {}} />);
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Аз' } });
+
+    expect(await screen.findByText('+992 00 000 01 01')).toBeInTheDocument();
+    expect(screen.queryByText('+992000000101')).toBeNull();
+  });
+
   it('не ищет при вводе короче 2 символов', async () => {
     const search = mock(async () => [client({})]);
     render(<Harness search={search} onPick={() => {}} />);

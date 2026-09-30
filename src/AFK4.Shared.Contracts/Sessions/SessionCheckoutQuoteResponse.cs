@@ -15,4 +15,13 @@ public sealed record SessionCheckoutQuoteResponse(
     MoneyDto GrandTotal,
     int BillableSeconds,
     Guid? PlayerAccountId,
-    MoneyDto? WalletBalance);
+    MoneyDto? WalletBalance,
+    // Сколько сыграно (от старта за вычетом пауз) — одно число для «Сыграно» в окне расчёта, в
+    // отличие от BillableSeconds, которое у предоплаты ноль: время уже оплачено.
+    int PlayedSeconds = 0,
+    // Сколько за время этой сессии уплачено вперёд: списано с кошелька при старте и продлениях
+    // или отдано наличными гостем. Null — вперёд ничего не платили.
+    MoneyDto? PrepaidCharged = null,
+    // Что вернётся игроку, если закончить сейчас — на кошелёк, по правилам раннего ухода. Null —
+    // возвращать нечего; у гостя, заплатившего наличными, автоматического возврата нет.
+    MoneyDto? PrepaidRefund = null);

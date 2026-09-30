@@ -46,4 +46,7 @@ public sealed record SeatStatusDto(
     // Какая команда администратора (DeviceCommandTypeNames) упала на ПК последней и с тех пор не
     // сменилась успешной. Null — сбоя нет. По ней карта показывает «Сбой команды» и кнопку
     // «Повторить …»: без неё было видно, что что-то не прошло, но не что именно повторять.
-    string? LastFailedCommandType = null);
+    string? LastFailedCommandType = null,
+    // Как оплачена идущая сессия (BillingModeNames); пусто — гость без расчёта или места занято нет.
+    // Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
+    string? SessionBillingMode = null);

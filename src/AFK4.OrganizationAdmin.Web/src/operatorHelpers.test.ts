@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { billingLabel, initials, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, shouldShowBillingBanner } from './operatorHelpers';
+import { billingLabel, initials, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, serverBillingMode, shouldShowBillingBanner, tariffPriceForMinutes } from './operatorHelpers';
 import type { OrganizationBillingStatusDto } from './operatorApiClients';
 import type { OperatorAuthSession } from './authClient';
 import type { SeatSummary } from './operatorData';
@@ -182,5 +182,32 @@ describe('подписи команд ПК', () => {
     for (const status of Object.values(DeviceCommandStatusNames)) {
       expect(commandStatusLabel(status, t)).not.toBe(status);
     }
+  });
+});
+
+// Гостю называют сумму и берут её из кассы, поэтому цена в Панели обязана совпадать с серверной
+// (TariffBilling.ComputeForMinutes). Правила те же, что проверены на сервере в TariffBillingTests.
+describe('tariffPriceForMinutes', () => {
+  const tariff = { pricePerMinuteMinorUnits: 50, minimumBillableMinutes: 30, roundingIncrementMinutes: 15 };
+
+  it('applies the minimum first and the rounding step after', () => {
+    expect(tariffPriceForMinutes(tariff, 60)).toBe(3000);
+    expect(tariffPriceForMinutes(tariff, 10)).toBe(1500);
+    expect(tariffPriceForMinutes(tariff, 31)).toBe(1500 + 15 * 50);
+    expect(tariffPriceForMinutes({ ...tariff, roundingIncrementMinutes: 0 }, 31)).toBe(31 * 50);
+  });
+
+  it('prices nothing for a non-positive duration', () => {
+    expect(tariffPriceForMinutes(tariff, 0)).toBe(0);
+    expect(tariffPriceForMinutes(tariff, -5)).toBe(0);
+  });
+});
+
+describe('serverBillingMode', () => {
+  it('sends a guest paying for fixed time as cash up front, and an open tab or a comp as the empty mode', () => {
+    expect(serverBillingMode('guest', 'fixed', false)).toBe('prepaid_cash');
+    expect(serverBillingMode('guest', 'open', false)).toBe('');
+    expect(serverBillingMode('guest', 'fixed', true)).toBe('');
+    expect(serverBillingMode('prepaid_wallet', 'fixed', false)).toBe('prepaid_wallet');
   });
 });

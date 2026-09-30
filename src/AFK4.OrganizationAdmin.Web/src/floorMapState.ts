@@ -204,7 +204,9 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     name: dto.seatName,
     tone,
     stateLabel: idleOutsidePlan ? t('op.floor.outsidePlan') : seatStatusLabel(tone, t),
-    player: playerDisplayName ?? (hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
+    // Идущая сессия без имени — гость без аккаунта: «Активный клиент» в шапке расчёта звал его так,
+    // будто у него есть карточка клуба (приёмка 30.09.2026).
+    player: playerDisplayName ?? (hasActiveSession || tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
     remaining: idleOutsidePlan
       ? t('op.floor.outsidePlan')
       : isOpenTab
@@ -239,6 +241,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     assistanceRequestedAtUtc: dto.assistanceRequestedAtUtc ?? null,
     maintenanceSinceUtc: dto.maintenanceSinceUtc ?? null,
     sessionState: dto.state,
+    sessionBillingMode: dto.sessionBillingMode ?? null,
     isConsole,
     isOutsidePlan,
     lastFailedCommandType

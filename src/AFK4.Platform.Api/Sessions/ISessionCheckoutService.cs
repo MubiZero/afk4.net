@@ -25,6 +25,21 @@ public sealed record SessionCheckoutResult(
         new(false, false, false, error, null, MachineErrorCode.Resolve(error, code));
 }
 
+public sealed record SessionExtendQuoteResult(
+    bool Succeeded,
+    bool NotFound,
+    string? Error,
+    SessionExtendQuoteResponse? Response,
+    string? Code = null)
+{
+    public static SessionExtendQuoteResult Ok(SessionExtendQuoteResponse response) => new(true, false, null, response);
+
+    public static SessionExtendQuoteResult Missing(string error) => new(false, true, error, null);
+
+    public static SessionExtendQuoteResult Invalid(string error, string? code = null) =>
+        new(false, false, error, null, MachineErrorCode.Resolve(error, code));
+}
+
 public sealed record SessionCheckoutQuoteResult(
     bool Succeeded,
     bool NotFound,

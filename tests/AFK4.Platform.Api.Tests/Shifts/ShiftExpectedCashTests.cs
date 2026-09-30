@@ -53,6 +53,30 @@ public sealed class ShiftExpectedCashTests
         Assert.Equal(10_000 - 1_500 + 3_000 - 1_000 + 5_700, cash.Expected);
     }
 
+    // Приёмка 30.09.2026: расчёт сессии пишет и оплату наличными, и погашение долга сессии. Ящик ждал
+    // за один расчёт вдвое больше денег, чем получил, — и кассир при закрытии видел недостачу.
+    [Fact]
+    public void DebtSettledAtASessionCheckout_IsNotCountedAgain_ItsCashIsAlreadyInTheCheckoutPayment()
+    {
+        var shift = new ShiftEntity { ShiftId = ShiftId, CurrencyCode = "TJS", StartingCashMinorUnits = 1_000 };
+
+        var cash = ShiftExpectedCash.Compute(
+            shift,
+            [],
+            [Payment(PaymentMethodNames.Cash, "payment", 2_250)],
+            [
+                new LedgerEntryEntity
+                {
+                    ShiftId = ShiftId, SessionId = Guid.NewGuid(), EntryType = LedgerEntryTypeNames.DebtPayment,
+                    CurrencyCode = "TJS", AmountMinorUnits = -2_250
+                },
+                // Погашение долга на кассе без сессии — настоящий приход наличных, как и раньше.
+                Ledger(LedgerEntryTypeNames.DebtPayment, -400),
+            ]);
+
+        Assert.Equal(1_000 + 2_250 + 400, cash.Expected);
+    }
+
     private static CashMovementEntity Movement(string type, long amount) =>
         new() { ShiftId = ShiftId, MovementType = type, CurrencyCode = "TJS", AmountMinorUnits = amount };
 

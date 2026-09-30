@@ -162,13 +162,34 @@ function CheckoutDialog({
     startedClock ? t('op.checkout.startedAt', { time: startedClock }) : null
   ].filter((part): part is string => Boolean(part));
 
+  // Окно говорит правду и про предоплаченную сессию: сколько сыграно, сколько уплачено вперёд и что
+  // вернётся. «Время · 0м, 0 с.» у всех выглядело так, будто время не считалось вовсе (приёмка
+  // 30.09.2026). Предоплаченное время — не строка счёта: к оплате по нему ноль, оно уже оплачено.
+  const prepaid = quote?.prepaidCharged?.minorUnits ?? 0;
+  const isGuestPrepaid = prepaid > 0 && quote?.playerAccountId == null;
+  const notes: string[] = quote
+    ? [
+        t('op.checkout.played', { duration: formatBilledDuration(quote.playedSeconds ?? 0, t) }),
+        ...(prepaid > 0
+          ? [t(isGuestPrepaid ? 'op.checkout.prepaidCash' : 'op.checkout.prepaidWallet', { amount: formatMinorUnits(prepaid, currencyCode) })]
+          : []),
+        ...(prepaid > 0
+          ? [(quote.prepaidRefund?.minorUnits ?? 0) > 0
+            ? t('op.checkout.refundWallet', { amount: formatMinorUnits(quote.prepaidRefund?.minorUnits ?? 0, currencyCode) })
+            : t(isGuestPrepaid ? 'op.checkout.refundNoneGuest' : 'op.checkout.refundNone')]
+          : [])
+      ]
+    : [];
+
   // Позиции чека сессии: время (по наигранным секундам) + снеки/POS, если есть.
   const lines: PaymentBillLine[] = quote
     ? [
-        {
-          label: `${t('op.checkout.lineTime')} · ${formatBilledDuration(quote.billableSeconds ?? 0, t)}`,
-          amountMinorUnits: quote.timeCharge?.minorUnits ?? 0
-        },
+        ...(prepaid > 0 && (quote.timeCharge?.minorUnits ?? 0) === 0
+          ? []
+          : [{
+            label: `${t('op.checkout.lineTime')} · ${formatBilledDuration(quote.billableSeconds ?? 0, t)}`,
+            amountMinorUnits: quote.timeCharge?.minorUnits ?? 0
+          }]),
         ...((quote.posTotal?.minorUnits ?? 0) > 0
           ? [{ label: t('op.map.panel.billableSnacks'), amountMinorUnits: quote.posTotal?.minorUnits ?? 0 }]
           : [])
@@ -178,7 +199,7 @@ function CheckoutDialog({
   return (
     <PanelModal
       title={t('op.map.panel.checkoutLabel')}
-      subtitle={`${seat.name} · ${seat.player}`}
+      subtitle={`${seat.name} · ${seat.playerDisplayName?.trim() || t('op.floor.player.guest')}`}
       onClose={onCancel}
       tone="warning"
     >
@@ -190,6 +211,7 @@ function CheckoutDialog({
       {status === 'ready' && quote && (
         <PaymentDialog
           contextLine={contextParts.length > 0 ? contextParts.join(' · ') : undefined}
+          notes={notes}
           lines={lines}
           dueLabel={t('op.map.panel.checkoutDue')}
           grandTotalMinorUnits={grandTotal}
@@ -203,6 +225,67 @@ function CheckoutDialog({
           onConfirm={onConfirm}
         />
       )}
+    </PanelModal>
+  );
+}
+
+/**
+ * «+15 / +30 мин» у гостя, заплатившего наличными: продление — это новая оплата у стойки, поэтому
+ * до нажатия сервер называет точную сумму по тарифу самой сессии, и оператор берёт именно её.
+ * Открытой смены нет — причина видна сразу, а не после нажатия.
+ */
+function GuestExtendDialog({
+  seat,
+  backend,
+  minutes,
+  disabled,
+  onCancel,
+  onConfirm
+}: {
+  seat: SeatSummary;
+  backend: OperatorBackendContext;
+  minutes: number;
+  disabled: boolean;
+  onCancel: () => void;
+  onConfirm: (chargeMinorUnits: number) => void;
+}) {
+  const { t } = useI18n();
+  const [quote, setQuote] = useState<{ minorUnits: number; currencyCode: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    const sessionId = seat.activeSessionId;
+    if (!sessionId) {
+      setError(t('op.map.panel.noActiveSession'));
+      return undefined;
+    }
+    setQuote(null);
+    setError(null);
+    createAuthenticatedOperatorClients(backend.config, backend.session).sessions.getExtendQuote(sessionId, minutes)
+      .then((result) => { if (!disposed) setQuote({ minorUnits: result.charge.minorUnits, currencyCode: result.charge.currencyCode }); })
+      .catch((fetchError) => { if (!disposed) setError(projectOperatorError(fetchError, t).detail); });
+    return () => { disposed = true; };
+  }, [seat.activeSessionId, minutes, backend.config.platformBaseUrl, backend.session.accessToken]);
+
+  return (
+    <PanelModal title={t('op.map.panel.guestExtendTitle')} subtitle={seat.name} onClose={onCancel} tone="warning">
+      <p className="checkout-subtitle">{t('op.map.panel.guestExtendBody', { minutes })}</p>
+      {quote === null && error === null && <p className="checkout-loading">{t('op.map.panel.checkoutLoading')}</p>}
+      {error !== null && <p className="checkout-error" role="alert">{error}</p>}
+      {quote !== null && (
+        <p className="start-price start-cash" role="status">{t('op.map.panel.guestCashDue', { amount: formatMinorUnits(quote.minorUnits, quote.currencyCode) })}</p>
+      )}
+      <div className="critical-confirmation-actions">
+        <Button onClick={onCancel} disabled={disabled}>{t('common.cancel')}</Button>
+        <Button
+          variant="primary"
+          disabled={disabled || quote === null}
+          onClick={() => quote !== null && onConfirm(quote.minorUnits)}
+        >
+          {quote === null ? t('op.checkout.finish') : t('op.checkout.confirmAmount', { amount: formatMinorUnits(quote.minorUnits, quote.currencyCode) })}
+        </Button>
+      </div>
     </PanelModal>
   );
 }
@@ -287,7 +370,10 @@ export function MapSidePanel({
   const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
   const [startClient, setStartClient] = useState<SessionStartClient | null>(null);
   const [startFormValid, setStartFormValid] = useState(true);
-  const [dialog, setDialog] = useState<'start' | 'checkout' | 'end-session' | 'transfer' | null>(null);
+  // Сколько гость отдаст наличными за выбранное время — её видит форма и называет кнопка.
+  const [startCharge, setStartCharge] = useState<number | null>(null);
+  const [dialog, setDialog] = useState<'start' | 'checkout' | 'end-session' | 'transfer' | 'extend-cash' | null>(null);
+  const [cashExtendMinutes, setCashExtendMinutes] = useState<15 | 30>(15);
   const [commandPlan, setCommandPlan] = useState<BulkPlan | null>(null);
   // Тот же вопрос, что «можно ли сюда посадить гостя» (см. isSeatReadyForGuest в floorMapState) —
   // ПК со сбоем прошлой команды, но на связи, годится и для переноса сессии.
@@ -419,11 +505,20 @@ export function MapSidePanel({
     // Прежде сюда уходил выбор из формы «Новая сессия» — игрок или тариф, отмеченные там для
     // другого ПК, попадали в продление чужой сессии.
     const label = t(minutes === 15 ? 'op.map.panel.extend15Action' : 'op.map.panel.extend30Action');
+    // Гость, заплативший наличными, доплачивает за продление: сумма называется до нажатия.
+    const paysCash = seat.sessionBillingMode === 'prepaid_cash' && backend !== null;
     return (
       <Button
         key={`extend-${minutes}`}
         disabled={!actionsEnabled || isBusy}
-        onClick={() => void runSeatAction(label, { type: 'extend', seat, minutes, billing: guestBillingSelection })}
+        onClick={() => {
+          if (paysCash) {
+            setCashExtendMinutes(minutes);
+            setDialog('extend-cash');
+            return;
+          }
+          void runSeatAction(label, { type: 'extend', seat, minutes, billing: guestBillingSelection });
+        }}
       >
         <Plus size={14} aria-hidden="true" />{label}
       </Button>
@@ -434,6 +529,15 @@ export function MapSidePanel({
       {t('op.map.panel.transferOpen')}
     </Button>
   ) : null;
+  // Гость на фиксированное время платит наличными сразу: кнопка называет сумму, которую надо взять.
+  const startCashDue = startSelection.billingMode === 'guest' && !startSelection.isComp && startSelection.durationMode === 'fixed'
+    ? startCharge
+    : null;
+  const startLabel = startSelection.durationMode === 'open'
+    ? t('op.map.panel.startOpen')
+    : startCashDue !== null
+      ? t('op.map.panel.startCashCta', { amount: formatMinorUnits(startCashDue, currencyCode) })
+      : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) });
   const endLabel = state === 'open-tab' && seat.accruedCostMinorUnits != null
     ? t('op.map.panel.finishAndTake', { amount: formatMinorUnits(seat.accruedCostMinorUnits, currencyCode) })
     : t('op.map.panel.finishLabel');
@@ -628,6 +732,19 @@ export function MapSidePanel({
           onEndWithoutPayment={() => void runSeatAction(t('op.map.panel.stopAction'), { type: 'end', seat })}
         />
       )}
+      {dialog === 'extend-cash' && backend !== null && (
+        <GuestExtendDialog
+          seat={seat}
+          backend={backend}
+          minutes={cashExtendMinutes}
+          disabled={isBusy}
+          onCancel={() => setDialog(null)}
+          onConfirm={(chargeMinorUnits) => void runSeatAction(
+            t(cashExtendMinutes === 15 ? 'op.map.panel.extend15Action' : 'op.map.panel.extend30Action'),
+            { type: 'extend', seat, minutes: cashExtendMinutes, billing: guestBillingSelection, expectedChargeMinorUnits: chargeMinorUnits }
+          )}
+        />
+      )}
       {dialog === 'transfer' && (
         <PanelModal title={t('op.map.panel.transferTitle')} subtitle={seat.name} onClose={() => setDialog(null)}>
           <PanelSelect
@@ -675,21 +792,23 @@ export function MapSidePanel({
           loadTariffs={loadStartTariffs}
           loadPackages={loadStartPackages}
           onValidityChange={(valid) => setStartFormValid(valid)}
+          onChargeChange={setStartCharge}
         />
         <div className="critical-confirmation-actions">
           <Button onClick={() => setDialog(null)} disabled={isBusy}>{t('common.cancel')}</Button>
           <Button
             variant="primary"
             disabled={!actionsEnabled || !can.start || !startFormValid || isBusy}
-            onClick={() => void runSeatAction(startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) }), {
+            onClick={() => void runSeatAction(startLabel, {
               type: 'start', seat, billing: billingSelection,
               durationMode: startSelection.durationMode === 'open' ? 'open' : 'fixed',
               durationMinutes: startSelection.durationMinutes,
               isComp: startSelection.isComp,
-              compReason: startSelection.compReason
+              compReason: startSelection.compReason,
+              expectedChargeMinorUnits: startCashDue
             })}
           >
-            {startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) })}
+            {startLabel}
           </Button>
         </div>
       </PanelModal>

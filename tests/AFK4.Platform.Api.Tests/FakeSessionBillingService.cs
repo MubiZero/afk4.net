@@ -62,7 +62,7 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -75,7 +75,7 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         Guid? playerPackageId,
         string billingMode,
         DateTimeOffset now,
@@ -96,7 +96,7 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         Guid sessionId,
         Guid actorStaffUserId,
         SessionBillingValidationResult validation,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {

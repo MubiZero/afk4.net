@@ -267,7 +267,9 @@ export function MapWorkspace({
     const label = t(item.feedbackKey);
     const run = item.run;
     if (run.kind === 'start-guest') {
-      void runSeatAction(label, { type: 'start', seat, billing: guestBillingSelection, durationMode: 'fixed' });
+      // Гость платит наличными: сначала тариф, время и названная сумма, а не сессия в один тап.
+      onSelectSeat(seat.id);
+      onStartSeat?.(seat.id);
     } else if (run.kind === 'extend') {
       void runSeatAction(label, { type: 'extend', seat, minutes: run.minutes, billing: guestBillingSelection });
     } else if (run.kind === 'resolve-assistance') {

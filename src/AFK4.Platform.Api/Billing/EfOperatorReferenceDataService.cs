@@ -72,10 +72,10 @@ public sealed class EfOperatorReferenceDataService(
             .Where(entry =>
                 entry.OrganizationId == organizationId &&
                 entry.BranchId == branchId &&
-                playerIds.Contains(entry.PlayerAccountId) &&
+                playerIds.Contains(entry.PlayerAccountId!.Value) &&
                 (entry.AccountType == LedgerAccountTypeNames.Wallet ||
                     entry.AccountType == LedgerAccountTypeNames.Debt))
-            .GroupBy(entry => new { entry.PlayerAccountId, entry.AccountType })
+            .GroupBy(entry => new { PlayerAccountId = entry.PlayerAccountId!.Value, entry.AccountType })
             .Select(group => new
             {
                 group.Key.PlayerAccountId,

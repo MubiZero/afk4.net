@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Search, UserCheck, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { displayPhone } from '@afk4/formatting';
 import type { PlayerClientItem } from '../operatorHelpers';
 import { useDeferredFlag } from '../useDeferredFlag';
 
@@ -195,7 +196,7 @@ export function ClientPicker({
                 onClick={() => pick(client)}
               >
                 <strong>{client.name}</strong>
-                <span>{client.phoneNumber || '—'}</span>
+                <span>{client.phoneNumber ? displayPhone(client.phoneNumber) : '—'}</span>
               </li>
             ))
           ) : (

@@ -240,6 +240,26 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Equal(0, workflow.StageCalls);
     }
 
+    // Гость по брони платит наличными у стойки — игрок ему для этого не нужен, в отличие от кошелька
+    // и пакета (решение владельца 30.09.2026).
+    [Fact]
+    public async Task StartAsync_GuestReservationMayPayCash_TheRequestReachesTheSessionWorkflow()
+    {
+        await using var db = CreateDbContext();
+        await SeedReservationAsync(db, hasPlayer: false);
+        var coordinator = CreateCoordinator(db, new InvalidWorkflow("Seat or device already has an active session."));
+
+        var result = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            Request(expectedVersion: 1) with { BillingMode = BillingModeNames.PrepaidCash },
+            CancellationToken.None);
+
+        // Дошла до сценария старта (отказ — его, а не «нужен игрок»).
+        Assert.Equal("seat_unavailable", result.Code);
+    }
+
     [Theory]
     [InlineData("", false)]
     [InlineData(BillingModeNames.Package, false)]
@@ -1231,7 +1251,7 @@ public sealed class EfReservationSessionCoordinatorTests
             Guid sessionId,
             Guid actorStaffUserId,
             SessionBillingValidationResult validation,
-            Guid playerAccountId,
+            Guid? playerAccountId,
             Guid? playerPackageId,
             string billingMode,
             DateTimeOffset now,
@@ -1260,9 +1280,9 @@ public sealed class EfReservationSessionCoordinatorTests
 
         public Task<SessionBillingValidationResult> ComputeCompValueAsync(Guid organizationId, Guid branchId, Guid tariffVersionId, int durationMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(durationMinutes));
         public Task<SessionBillingValidationResult> ValidateExtendAsync(Guid organizationId, Guid branchId, Guid? playerAccountId, string billingMode, Guid? tariffVersionId, Guid? playerPackageId, int additionalMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(additionalMinutes));
-        public Task AppendExtendLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid playerAccountId, Guid? playerPackageId, string billingMode, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AppendExtendLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid? playerAccountId, Guid? playerPackageId, string billingMode, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(Valid(0));
-        public Task AppendCheckoutLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid playerAccountId, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AppendCheckoutLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid? playerAccountId, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
 
         private static SessionBillingValidationResult Valid(int minutes) =>
             new(true, null, "manual-v1", null, minutes * 60, 100, "TJS");

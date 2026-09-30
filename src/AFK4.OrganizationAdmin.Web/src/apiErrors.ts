@@ -112,6 +112,9 @@ const codeMessageKeys = {
   insufficient_package_time: 'op.error.code.insufficientPackageTime',
   tariff_outside_its_hours: 'op.error.code.tariffOutsideItsHours',
   checkout_split_mismatch: 'op.error.code.checkoutSplitMismatch',
+  // Гость платит наличными у стойки: сумма, названная гостю, или режим не сошлись с сервером.
+  price_changed: 'op.error.code.priceChanged',
+  cash_billing_guest_only: 'op.error.code.cashBillingGuestOnly',
   // Касса: чек могли оплатить или аннулировать в другом окне, категорию скрыли, пока чек
   // собирали. Каталог склада: имя категории, артикул или штрихкод уже заняты.
   pos_sale_not_voidable: 'op.error.code.posSaleNotVoidable',

@@ -37,12 +37,14 @@ public static class ShiftExpectedCash
             .Sum(payment => payment.AmountMinorUnits);
         var posCashPayments = posCash.Sum(payment => payment.AmountMinorUnits) - posCashRefunds;
         // Пополнение и ручная правка кладут наличные в ящик, погашение долга — тоже, но в журнале
-        // оно записано со знаком списания с игрока.
+        // оно записано со знаком списания с игрока. Погашение, привязанное к сессии, — это
+        // закрытие счёта на расчёте: деньги за него лежат в оплатах расчёта (выше), и считать их
+        // ещё и здесь значило бы ждать в ящике вдвое больше, чем туда положили (приёмка 30.09.2026).
         var billingCashTotal = ledgerEntries
             .Where(entry => entry.ShiftId is { } shiftId &&
                             InShift(shiftId, entry.CurrencyCode) &&
                             (entry.EntryType == LedgerEntryTypeNames.TopUp ||
-                             entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                             (entry.EntryType == LedgerEntryTypeNames.DebtPayment && entry.SessionId is null) ||
                              entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
             .Sum(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment
                 ? -entry.AmountMinorUnits

@@ -196,7 +196,8 @@ public sealed class EfFloorMapReadService(
             MaintenanceSinceUtc: device?.MaintenanceSinceUtc,
             IsConsole: isConsole,
             IsOutsidePlan: device is not null && allowance.Outside.Contains(device.DeviceId),
-            LastFailedCommandType: device is not null && lastFailedCommands.TryGetValue(device.DeviceId, out var failedType) ? failedType : null);
+            LastFailedCommandType: device is not null && lastFailedCommands.TryGetValue(device.DeviceId, out var failedType) ? failedType : null,
+            SessionBillingMode: string.IsNullOrEmpty(activeSession?.BillingMode) ? null : activeSession.BillingMode);
     }
 
     // Команды, которые администратор шлёт ПК сам и может повторить той же кнопкой. Служебные
