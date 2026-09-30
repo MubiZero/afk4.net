@@ -430,7 +430,8 @@ public sealed class EfTariffService(
     public async Task<TariffCalculationResult?> CalculateAsync(
         Guid branchId,
         CalculateTariffRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool extension = false)
     {
         if (request.DurationMinutes <= 0)
         {
@@ -454,7 +455,9 @@ public sealed class EfTariffService(
             return null;
         }
 
-        var computation = TariffBilling.ComputeForMinutes(request.DurationMinutes, ToPricing(version));
+        var computation = extension
+            ? TariffBilling.ComputeForExtension(request.DurationMinutes, ToPricing(version))
+            : TariffBilling.ComputeForMinutes(request.DurationMinutes, ToPricing(version));
         if (computation is null)
         {
             return null;

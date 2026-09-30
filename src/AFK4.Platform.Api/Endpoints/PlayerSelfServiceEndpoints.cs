@@ -1423,7 +1423,7 @@ internal static class PlayerSelfServiceEndpoints
             var pricing = new TariffPricing(
                 version.PricePerMinuteMinorUnits, version.MinimumBillableMinutes,
                 version.RoundingIncrementMinutes, version.CurrencyCode);
-            var charge = TariffBilling.ComputeForMinutes(request.AdditionalMinutes, pricing);
+            var charge = TariffBilling.ComputeForExtension(request.AdditionalMinutes, pricing);
             if (charge is null) return Results.BadRequest(new { error = "invalid_duration" });
 
             var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
