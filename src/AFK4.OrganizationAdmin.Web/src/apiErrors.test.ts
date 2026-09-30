@@ -132,6 +132,20 @@ describe('projectOperatorError', () => {
     });
   });
 
+  // Приёмка 30.09.2026: продление и пополнение отвечали `{"error":"open_shift_required","code":null}`,
+  // а «Сервер не принял эти данные. Проверьте, что ввели» оператор видел там, где вводить нечего.
+  // Теперь сервер называет причину в `code`, а фраза в `error` остаётся для журналов.
+  it.each([
+    ['open_shift_required', 'open_shift_required', 'Чтобы принять оплату, сначала откройте смену.'],
+    ['insufficient_funds', 'Insufficient wallet balance.', 'На балансе клиента недостаточно средств.'],
+    ['insufficient_package_time', 'Insufficient package time remaining.', 'В пакете клиента не хватает времени на это продление.'],
+    ['tariff_outside_its_hours', 'tariff_outside_its_hours', 'Этот тариф сейчас не действует. Выберите другой тариф.']
+  ])('называет причину по code %s, а не просит проверить ввод', (code, phrase, expectedDetail) => {
+    const error = new PlatformApiError('request failed', 400, 'Bad Request', JSON.stringify({ error: phrase, code }));
+
+    expect(projectOperatorError(error, t).detail).toBe(expectedDetail);
+  });
+
   it('не принимает свободный текст в error за код отказа', () => {
     // `error` у сервера бывает и пояснением для человека. Подставлять под него фразу из
     // словаря нельзя: оператор прочитал бы не то, что случилось.

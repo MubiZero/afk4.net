@@ -24,6 +24,7 @@ import {
   createAuthenticatedOperatorClients,
   emptyFeedback,
   formatMinorUnits,
+  guestBillingSelection,
   projectOperatorFacingError,
   type PlayerClientItem,
   projectPlayerClient,
@@ -414,12 +415,15 @@ export function MapSidePanel({
   };
 
   const extend = (minutes: 15 | 30) => {
+    // Продление не несёт условий оплаты: тариф, способ и клиента сервер берёт из самой сессии.
+    // Прежде сюда уходил выбор из формы «Новая сессия» — игрок или тариф, отмеченные там для
+    // другого ПК, попадали в продление чужой сессии.
     const label = t(minutes === 15 ? 'op.map.panel.extend15Action' : 'op.map.panel.extend30Action');
     return (
       <Button
         key={`extend-${minutes}`}
         disabled={!actionsEnabled || isBusy}
-        onClick={() => void runSeatAction(label, { type: 'extend', seat, minutes, billing: billingSelection })}
+        onClick={() => void runSeatAction(label, { type: 'extend', seat, minutes, billing: guestBillingSelection })}
       >
         <Plus size={14} aria-hidden="true" />{label}
       </Button>

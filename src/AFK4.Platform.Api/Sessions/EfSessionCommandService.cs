@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
@@ -207,6 +208,13 @@ public sealed class EfSessionCommandService(
             ? session.BillingMode
             : request.BillingMode;
 
+        // Тариф и пакет — то же самое наследование: стойка шлёт «продлить на 15 минут», а не
+        // перечень условий сессии. Сессия хранит тариф (или пакет) в TariffRuleVersionId, как его
+        // читает и самопродление игрока; явное имя в запросе по-прежнему главнее.
+        var (sessionTariffVersionId, sessionPackageId) = ReadSessionBillingReferences(session, effectiveBillingMode);
+        var tariffVersionId = request.TariffVersionId ?? sessionTariffVersionId;
+        var playerPackageId = request.PlayerPackageId ?? sessionPackageId;
+
         Guid? deviceIdToNotify = null;
         DeviceCommandDto? commandToNotify = null;
         var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
@@ -216,14 +224,16 @@ public sealed class EfSessionCommandService(
                 session.BranchId,
                 playerAccountId,
                 effectiveBillingMode,
-                request.TariffVersionId,
-                request.PlayerPackageId,
+                tariffVersionId,
+                playerPackageId,
                 request.AdditionalMinutes,
                 cancellationToken);
 
             if (!billingValidation.Succeeded)
             {
-                return SessionCommandServiceResult.Invalid(billingValidation.Error ?? "Session billing validation failed.");
+                return SessionCommandServiceResult.Invalid(
+                    billingValidation.Error ?? "Session billing validation failed.",
+                    billingValidation.Code);
             }
 
             var now = timeProvider.GetUtcNow();
@@ -245,7 +255,7 @@ public sealed class EfSessionCommandService(
                     actorStaffUserId,
                     billingValidation,
                     playerAccountId.Value,
-                    request.PlayerPackageId,
+                    playerPackageId,
                     effectiveBillingMode,
                     now,
                     cancellationToken);
@@ -292,6 +302,25 @@ public sealed class EfSessionCommandService(
         }
 
         return result;
+    }
+
+    private const string PackageReferencePrefix = "package:";
+
+    private static (Guid? TariffVersionId, Guid? PlayerPackageId) ReadSessionBillingReferences(
+        SessionEntity session,
+        string billingMode)
+    {
+        if (session.TariffRuleVersionId.StartsWith(PackageReferencePrefix, StringComparison.Ordinal))
+        {
+            return (null, Guid.TryParse(session.TariffRuleVersionId[PackageReferencePrefix.Length..], out var packageId)
+                ? packageId
+                : null);
+        }
+
+        return billingMode is BillingModeNames.PrepaidWallet or BillingModeNames.PostpaidDebt &&
+               Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId)
+            ? (tariffVersionId, null)
+            : (null, null);
     }
 
     public async Task<SessionCommandServiceResult> TransferSessionAsync(
