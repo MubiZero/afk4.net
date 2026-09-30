@@ -249,7 +249,7 @@ public sealed class SessionBillingService(
             var walletBalance = await GetBalanceAsync(playerAccountId, LedgerAccountTypeNames.Wallet, cancellationToken);
             if (walletBalance < calculation.Amount.MinorUnits)
             {
-                return Invalid("Insufficient wallet balance.");
+                return Invalid("Insufficient wallet balance.", "insufficient_funds");
             }
         }
 
@@ -305,7 +305,7 @@ public sealed class SessionBillingService(
 
         if (remaining.IncludedSeconds + remaining.BonusSeconds < requestedSeconds)
         {
-            return Invalid("Insufficient package time remaining.");
+            return Invalid("Insufficient package time remaining.", "insufficient_package_time");
         }
 
         return new SessionBillingValidationResult(
@@ -787,7 +787,7 @@ public sealed class SessionBillingService(
             .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
     }
 
-    private static SessionBillingValidationResult Invalid(string error)
+    private static SessionBillingValidationResult Invalid(string error, string? code = null)
     {
         return new SessionBillingValidationResult(
             Succeeded: false,
@@ -796,6 +796,7 @@ public sealed class SessionBillingService(
             TariffVersionId: null,
             BillableSeconds: 0,
             AmountMinorUnits: 0,
-            DefaultCurrencyCode);
+            DefaultCurrencyCode,
+            code);
     }
 }

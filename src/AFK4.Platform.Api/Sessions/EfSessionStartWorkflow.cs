@@ -172,7 +172,7 @@ public sealed class EfSessionStartWorkflow(
             cancellationToken);
         if (!billingValidation.Succeeded)
         {
-            return Invalid(billingValidation.Error ?? "Session billing validation failed.");
+            return Invalid(billingValidation.Error ?? "Session billing validation failed.", billingValidation.Code);
         }
 
         // Гостевая сессия проходит мимо биллинга (режим оплаты пуст), но версию тарифа на себе
@@ -294,8 +294,8 @@ public sealed class EfSessionStartWorkflow(
             cancellationToken);
     }
 
-    private static SessionStartStage Invalid(string error) =>
-        new(SessionCommandServiceResult.Invalid(error), null, null);
+    private static SessionStartStage Invalid(string error, string? code = null) =>
+        new(SessionCommandServiceResult.Invalid(error, code), null, null);
 
     private static SessionStartStage Conflict(string error, string code) =>
         new(SessionCommandServiceResult.RequestConflict(error, code), null, null);

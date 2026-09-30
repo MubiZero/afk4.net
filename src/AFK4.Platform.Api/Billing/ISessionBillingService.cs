@@ -7,7 +7,10 @@ public sealed record SessionBillingValidationResult(
     Guid? TariffVersionId,
     int BillableSeconds,
     long AmountMinorUnits,
-    string CurrencyCode);
+    string CurrencyCode,
+    // Машинное имя отказа, когда причину нужно назвать человеку на его языке; у фразы в Error
+    // языка нет. Пусто у отказов, которым имя ещё не дали.
+    string? Code = null);
 
 public interface ISessionBillingService
 {

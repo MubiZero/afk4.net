@@ -211,8 +211,10 @@ public sealed class BillingEndpointTests
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-noshift-001"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        // Код, по которому Панель говорит «сначала откройте смену» на языке кассира.
-        Assert.Contains("open_shift_required", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        // Код, по которому Панель говорит «сначала откройте смену» на языке кассира. Приёмка
+        // 30.09.2026: он лежал только в error, а code был null — клиент, читавший code, не находил причины.
+        using var body = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("open_shift_required", body.RootElement.GetProperty("code").GetString());
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();

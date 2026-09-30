@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Billing;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Platform.Api.Sessions;
@@ -20,7 +21,8 @@ public sealed record SessionCheckoutResult(
 
     public static SessionCheckoutResult Missing(string error) => new(false, false, true, error, null);
 
-    public static SessionCheckoutResult Invalid(string error, string? code = null) => new(false, false, false, error, null, code);
+    public static SessionCheckoutResult Invalid(string error, string? code = null) =>
+        new(false, false, false, error, null, MachineErrorCode.Resolve(error, code));
 }
 
 public sealed record SessionCheckoutQuoteResult(
@@ -34,5 +36,6 @@ public sealed record SessionCheckoutQuoteResult(
 
     public static SessionCheckoutQuoteResult Missing(string error) => new(false, true, error, null);
 
-    public static SessionCheckoutQuoteResult Invalid(string error, string? code = null) => new(false, false, error, null, code);
+    public static SessionCheckoutQuoteResult Invalid(string error, string? code = null) =>
+        new(false, false, error, null, MachineErrorCode.Resolve(error, code));
 }

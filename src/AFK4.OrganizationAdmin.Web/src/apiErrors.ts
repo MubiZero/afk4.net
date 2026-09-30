@@ -108,6 +108,9 @@ const codeMessageKeys = {
   session_not_resumable: 'op.error.code.sessionNotResumable',
   session_not_endable: 'op.error.code.sessionNotEndable',
   session_not_checkoutable: 'op.error.code.sessionNotCheckoutable',
+  // Продление и старт по условиям сессии: отказ называет причину, а не просит «проверить ввод».
+  insufficient_package_time: 'op.error.code.insufficientPackageTime',
+  tariff_outside_its_hours: 'op.error.code.tariffOutsideItsHours',
   checkout_split_mismatch: 'op.error.code.checkoutSplitMismatch',
   // Касса: чек могли оплатить или аннулировать в другом окне, категорию скрыли, пока чек
   // собирали. Каталог склада: имя категории, артикул или штрихкод уже заняты.
