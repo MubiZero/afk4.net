@@ -34,7 +34,8 @@ public sealed record SessionCommandServiceResult(
 
     public static SessionCommandServiceResult Missing(string error) => new(false, false, true, error, null);
 
-    public static SessionCommandServiceResult Invalid(string error, string? code = null) => new(false, false, false, error, null, code);
+    public static SessionCommandServiceResult Invalid(string error, string? code = null) =>
+        new(false, false, false, error, null, MachineErrorCode.Resolve(error, code));
 
     public static SessionCommandServiceResult PlanLimitReached(PlanLimitExceededDto planLimit) =>
         new(false, true, false, "Plan concurrent-session limit has been reached.", null,

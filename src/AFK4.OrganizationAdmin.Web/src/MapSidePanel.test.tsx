@@ -456,6 +456,21 @@ describe('MapSidePanel: одна главная кнопка по положен
     expect(secondary).toEqual(['15 мин', '30 мин', 'Перенести…']);
   });
 
+  // Приёмка 30.09.2026: быстрое «+15 мин» у платной сессии клиента отвечало 400 «нужен тариф»,
+  // потому что уходило с заглушками из формы старта. Продление не называет условий оплаты —
+  // тариф, способ и клиента берёт сервер из сессии.
+  it('«+15 мин» не несёт условий оплаты: тариф и клиента берёт сервер из сессии', async () => {
+    const onSeatAction = mock(async (_request: SeatActionRequest) => ({}));
+    renderWith(seat({ remainingSeconds: 1800 }), { onSeatAction });
+    fireEvent.click(screen.getByRole('button', { name: '15 мин' }));
+    await waitFor(() => expect(onSeatAction).toHaveBeenCalledTimes(1));
+    expect(onSeatAction.mock.calls[0][0]).toMatchObject({
+      type: 'extend',
+      minutes: 15,
+      billing: { mode: 'guest', playerAccountId: null, tariffVersionId: null, playerPackageId: null }
+    });
+  });
+
   it('открытый счёт — «Завершить и принять» с суммой, которая уже набежала', () => {
     renderWith(seat({ remaining: '≈ 54 с.', remainingSeconds: null, accruedCostMinorUnits: 5400 }));
     expect(primaryButton()?.textContent).toBe('Завершить и принять 54 с.');

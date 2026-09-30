@@ -357,6 +357,118 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.Equal("refresh-session-lease", call.Command.Type);
     }
 
+    /// <summary>
+    /// Приёмка 30.09.2026: быстрое «+15 мин» в карточке ПК шлёт пустой режим оплаты, tariffVersionId
+    /// null и заглушку «manual-v1» — у платной сессии клиента сервер отвечал 400 «Tariff version id
+    /// is required». Тариф — свойство сессии, а не запроса: берётся из неё, как и способ оплаты.
+    /// </summary>
+    [Fact]
+    public async Task ExtendSessionAsync_PanelQuickButton_InheritsTheSessionTariffAndChargesTheWallet()
+    {
+        await using var db = CreateDbContext();
+        var (service, sessionId) = await StartPrepaidHourAsync(db);
+
+        var result = await service.ExtendSessionAsync(
+            sessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(15, "manual-v1", "extend-panel-quick-1"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.Error);
+        var charges = await db.LedgerEntries
+            .Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge && entry.SessionId == sessionId)
+            .ToListAsync();
+        Assert.Equal(2, charges.Count);
+        Assert.All(charges, charge => Assert.True(charge.AmountMinorUnits < 0));
+        Assert.Equal(BillingModeNames.PrepaidWallet, (await db.Sessions.SingleAsync()).BillingMode);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_PanelQuickButton_InheritsThePackageOfAPackageSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedPlayerPackageAsync(db, includedSeconds: 7200, bonusSeconds: 0);
+        await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 7200);
+        await SeedOpenShiftAsync(db);
+        var service = CreateService(db, new RecordingCommandDispatchService(db));
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId, SeatId, "manual-v1", "start-package-quick-001",
+                SessionDurationModes.Fixed, 60, PlayerAccountId, BillingModeNames.Package,
+                PlayerPackageId: PlayerPackageId),
+            SessionOriginNames.Operator,
+            CancellationToken.None);
+        Assert.True(start.Succeeded, start.Error);
+
+        var result = await service.ExtendSessionAsync(
+            start.Response!.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(15, "manual-v1", "extend-package-quick-1"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Contains(db.LedgerEntries, entry =>
+            entry.EntryType == LedgerEntryTypeNames.PackageConsumption &&
+            entry.QuantitySeconds == -900 &&
+            entry.PlayerPackageId == PlayerPackageId);
+    }
+
+    /// <summary>
+    /// Приёмка 30.09.2026: отказ шёл как {"error":"open_shift_required","code":null}, и Панель
+    /// говорила «проверьте, что ввели», хотя вводить было нечего. Машинное имя причины — в code.
+    /// </summary>
+    [Fact]
+    public async Task ExtendSessionAsync_WhenTheShiftIsClosed_NamesTheReasonInCode()
+    {
+        await using var db = CreateDbContext();
+        var (service, sessionId) = await StartPrepaidHourAsync(db);
+        var shift = await db.Shifts.SingleAsync();
+        shift.State = ShiftStateNames.Closed;
+        await db.SaveChangesAsync();
+
+        var result = await service.ExtendSessionAsync(
+            sessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(15, "manual-v1", "extend-closed-shift-1"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("open_shift_required", result.Code);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_WhenTheWalletIsTooLow_NamesTheReasonInCode()
+    {
+        await using var db = CreateDbContext();
+        var (service, sessionId) = await StartPrepaidHourAsync(db);
+        // Хватало на час; остаток выводим в ноль, чтобы продление не прошло.
+        var balance = await db.LedgerEntries
+            .Where(entry => entry.AccountType == LedgerAccountTypeNames.Wallet)
+            .SumAsync(entry => entry.AmountMinorUnits);
+        db.LedgerEntries.Add(CreateLedgerEntry(
+            LedgerEntryTypeNames.ManualCorrection,
+            LedgerAccountTypeNames.Wallet,
+            -balance,
+            quantitySeconds: 0,
+            sessionId: null,
+            playerPackageId: null,
+            "TJS"));
+        await db.SaveChangesAsync();
+
+        var result = await service.ExtendSessionAsync(
+            sessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(15, "manual-v1", "extend-low-wallet-1"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("insufficient_funds", result.Code);
+    }
+
     [Fact]
     public async Task StartGuestSessionAsync_WithPostpaidDebt_AppendsPostpaidDebtAndAllowsSession()
     {

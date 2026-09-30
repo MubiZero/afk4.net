@@ -74,7 +74,7 @@ internal static class MoneyActionEndpoints
                 staffContext.OrganizationId, branchId, cancellationToken);
             if (!openShift.Succeeded || openShift.Response == Guid.Empty)
             {
-                return Results.Conflict(new { Error = openShift.Error ?? EfShiftService.OpenShiftRequiredCode });
+                return Results.Conflict(new { Error = openShift.Error ?? EfShiftService.OpenShiftRequiredCode, Code = EfShiftService.OpenShiftRequiredCode });
             }
 
             var roleNames = await GetActorRoleNamesAsync(
