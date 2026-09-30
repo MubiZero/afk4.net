@@ -381,7 +381,8 @@ public sealed class PlayerShellStateBuilderTests
         string? clubName = null,
         AFK4.Agent.Service.Protection.IProtectionEnforcer? protection = null,
         AFK4.Agent.Service.Games.ILauncherCatalog? catalog = null,
-        AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null)
+        AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null,
+        AFK4.Agent.Service.Games.LaunchedApps? launchedApps = null)
     {
         public AgentOptions Options { get; } = new()
         {
@@ -437,7 +438,8 @@ public sealed class PlayerShellStateBuilderTests
             new FixedTimeProvider(Now),
             protection,
             catalog,
-            showcase: showcase).Build();
+            showcase: showcase,
+            launchedApps: launchedApps).Build();
     }
 
     // Библиотека клуба: обложка из кэша ПК и возраст — на плитке; лаунчера на ПК нет — плитка видна
@@ -459,6 +461,40 @@ public sealed class PlayerShellStateBuilderTests
         Assert.Equal(12, apps[0].MinAge);
         Assert.True(apps[0].IsAvailable);
         Assert.False(apps[1].IsAvailable);
+    }
+
+    // «Мои приложения»: в состоянии — только запущенное игроком из библиотеки и только в сессии.
+    [Fact]
+    public void LaunchedApps_ReachTheShell_OnlyDuringASession()
+    {
+        var host = new Games.FakePlayerSessionHost();
+        var launched = new AFK4.Agent.Service.Games.LaunchedApps(host);
+        launched.Register("cs2", "Counter-Strike 2", rootProcessId: 100);
+        host.Running.Add(new AFK4.Agent.Service.Cleanup.SessionProcess(
+            100, "cs2.exe", @"C:\Games\cs2.exe", DateTimeOffset.UtcNow, null));
+        host.Running.Add(new AFK4.Agent.Service.Cleanup.SessionProcess(
+            7, "lghub.exe", @"C:\Games\lghub.exe", DateTimeOffset.UtcNow.AddHours(-3), null));
+        var fixture = new Fixture(launchedApps: launched);
+        fixture.Contact(Now, intervalSeconds: 10);
+
+        Assert.Empty(fixture.Build().LaunchedApps!);
+
+        fixture.StartSession(Now.AddHours(1));
+        var app = Assert.Single(fixture.Build().LaunchedApps!);
+        Assert.Equal("Counter-Strike 2", app.DisplayName);
+        Assert.Equal([100], app.ProcessIds);
+    }
+
+    // Пустой жанр в русском интерфейсе не должен превращаться в английское «Games»: плитка без
+    // жанра просто не пишет его.
+    [Fact]
+    public void AGameWithoutAGenre_CarriesNoEnglishFallback()
+    {
+        var present = typeof(PlayerShellStateBuilderTests).Assembly.Location;
+        var catalog = new FixedCatalog(
+            [new AFK4.Agent.Service.Games.LauncherEntry("g1", "Dota 2", "", present, "", false, null, null)]);
+
+        Assert.Equal("", Assert.Single(new Fixture(catalog: catalog).Build().LauncherApps).Category);
     }
 
     // Витрина едет экрану тем же состоянием: без сети он крутит то, что агент уже положил на диск.

@@ -20,6 +20,33 @@ public sealed class WorkstationLockControllerTests
         Assert.Equal(1, policies.Values["DisableTaskMgr"]);
     }
 
+    // Диспетчер задач Windows игроку не нужен и в сессии: закрыть «лишнее» он мог бы и оболочку, и
+    // чужие процессы. Свой список — «Мои приложения» в оболочке.
+    [Fact]
+    public async Task OpenForSessionAsync_KeepsTaskManagerDisabled()
+    {
+        var policies = new RecordingPolicyStore();
+        var controller = CreateController(policies);
+
+        await controller.LockAsync(CancellationToken.None);
+        var outcome = await controller.OpenForSessionAsync(CancellationToken.None);
+
+        Assert.True(outcome.IsEnforced);
+        Assert.Equal(1, policies.Values["DisableTaskMgr"]);
+    }
+
+    [Fact]
+    public async Task OpenForSessionAsync_PutsThePolicyBackIfSomethingRemovedIt()
+    {
+        var policies = new RecordingPolicyStore();
+        var controller = CreateController(policies);
+
+        await controller.OpenForSessionAsync(CancellationToken.None);
+
+        Assert.Equal(1, policies.Values["DisableTaskMgr"]);
+    }
+
+    // Технику в обслуживании диспетчер нужен: это путь «Вернуть в зал», а не игрока.
     [Fact]
     public async Task UnlockAsync_RemovesWhatTheLockPutThere()
     {

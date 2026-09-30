@@ -76,6 +76,12 @@ public static class ShellPipeRequestTypeNames
     /// Агент считает только рекламу и только на свободном ПК.
     /// </summary>
     public const string ShowcaseImpression = "showcase.impression";
+
+    /// <summary>
+    /// Закрыть запущенную игроком игру вместе с дочерними процессами. В теле — <c>launchId</c> из
+    /// <see cref="LaunchedAppDto"/>. Закрываются только запуски из библиотеки в этой сессии.
+    /// </summary>
+    public const string CloseApp = "app.close";
 }
 
 public static class ShellPipeErrorCodeNames
@@ -101,6 +107,9 @@ public static class ShellPipeErrorCodeNames
     public const string AppMissing = "app_missing";
 
     public const string LaunchFailed = "launch_failed";
+
+    /// <summary>Такой запуск уже не числится: игру закрыли сами или сессия кончилась.</summary>
+    public const string AppNotRunning = "app_not_running";
 
     /// <summary>До платформы не достучались — стойка о вызове не узнала.</summary>
     public const string PlatformUnreachable = "platform_unreachable";

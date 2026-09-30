@@ -376,6 +376,9 @@ public sealed class MachineCommandHandlerTests
             Unlocks++;
             return Task.FromResult(new WorkstationLockOutcome(["task manager restored"]));
         }
+
+        public Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new WorkstationLockOutcome(["task manager stays disabled"]));
     }
 
     internal sealed class RecordingDesktop : IMaintenanceDesktop

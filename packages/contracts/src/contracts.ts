@@ -1405,6 +1405,8 @@ export const ShellBridgeErrorCodeNames = {
   NotSupported: 'not_supported',
   /** Windows не дала поменять звук, микрофон или раскладку — например, нет устройства. */
   SystemUnavailable: 'system_unavailable',
+  /** У запущенной игры нет окна, которое можно вывести вперёд: оно ещё не открылось или уже закрыто. */
+  AppWindowNotFound: 'app_window_not_found',
 } as const;
 export type ShellBridgeErrorCodeName = (typeof ShellBridgeErrorCodeNames)[keyof typeof ShellBridgeErrorCodeNames];
 
@@ -1420,6 +1422,8 @@ export const ShellBridgeEventTypeNames = {
   InputIdle: 'input.idle',
   /** Громкость, микрофон, раскладка — ShellSystemStateDto. */
   SystemChanged: 'system.changed',
+  /** Игрок нажал сочетание клавиш «Мои приложения»: страница открывает панель. */
+  AppsPanelRequested: 'apps.panelRequested',
 } as const;
 export type ShellBridgeEventTypeName = (typeof ShellBridgeEventTypeNames)[keyof typeof ShellBridgeEventTypeNames];
 
@@ -1442,6 +1446,10 @@ export const ShellBridgeRequestTypeNames = {
   AuthSignOut: 'auth.signOut',
   /** Запустить игру из библиотеки клуба. */
   AppLaunch: 'app.launch',
+  /** «Вернуться» в запущенную игру: хост выводит её окно вперёд. В теле — `launchId`. */
+  AppFocus: 'app.focus',
+  /** «Закрыть» запущенную игру: агент закрывает её с дочерними процессами. В теле — `launchId`. */
+  AppClose: 'app.close',
   /** Позвать администратора к этому ПК. */
   AssistCall: 'assist.call',
   SystemSetVolume: 'system.setVolume',
@@ -1483,6 +1491,8 @@ export const ShellPipeErrorCodeNames = {
   /** Игра в списке клуба, но её файла на этом ПК нет. */
   AppMissing: 'app_missing',
   LaunchFailed: 'launch_failed',
+  /** Такой запуск уже не числится: игру закрыли сами или сессия кончилась. */
+  AppNotRunning: 'app_not_running',
   /** До платформы не достучались — стойка о вызове не узнала. */
   PlatformUnreachable: 'platform_unreachable',
   /** Хосту некуда отправить запрос: агента нет на другом конце канала. */
@@ -1542,6 +1552,11 @@ export const ShellPipeRequestTypeNames = {
    * Агент считает только рекламу и только на свободном ПК.
    */
   ShowcaseImpression: 'showcase.impression',
+  /**
+   * Закрыть запущенную игроком игру вместе с дочерними процессами. В теле — `launchId` из
+   * LaunchedAppDto. Закрываются только запуски из библиотеки в этой сессии.
+   */
+  CloseApp: 'app.close',
 } as const;
 export type ShellPipeRequestTypeName = (typeof ShellPipeRequestTypeNames)[keyof typeof ShellPipeRequestTypeNames];
 
@@ -4312,6 +4327,20 @@ export interface JobHealthDto {
   consecutiveFailures: number;
 }
 
+/**
+ * Запущенная из библиотеки игра, которая ещё работает на этом ПК.
+ *
+ * Контракт: Shell/LauncherAppDto.cs
+ */
+export interface LaunchedAppDto {
+  /** Номер запуска: по нему «Закрыть» и «Вернуться» находят именно эту копию игры. */
+  launchId: Guid;
+  appId: string;
+  displayName: string;
+  /** Процессы игры и её дочерние. Окна ищет по ним оболочка: служба в сессии 0 окон игрока не видит. */
+  processIds: number[];
+}
+
 /** Контракт: Shell/LauncherAppDto.cs */
 export interface LauncherAppDto {
   appId: string;
@@ -6230,6 +6259,11 @@ export interface PlayerShellStateDto {
    */
   sessionStartedAtUtc?: IsoDateTime | null;
   sessionEndsAtUtc?: IsoDateTime | null;
+  /**
+   * Что игрок запустил из библиотеки в этой сессии и что ещё работает: панель «Мои приложения».
+   * Только запущенное им самим — системные процессы, оболочка и агент сюда не попадают.
+   */
+  launchedApps?: LaunchedAppDto[] | null;
 }
 
 /**

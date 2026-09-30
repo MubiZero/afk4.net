@@ -31,7 +31,8 @@ public sealed class PlayerShellStateBuilder(
     IProtectionEnforcer? protection = null,
     ILauncherCatalog? catalog = null,
     AFK4.Agent.Service.Power.IdleShutdownMonitor? idleShutdown = null,
-    AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null) : IPlayerShellStateBuilder
+    AFK4.Agent.Service.Showcase.IShowcaseSource? showcase = null,
+    LaunchedApps? launchedApps = null) : IPlayerShellStateBuilder
 {
     /// <summary>Последняя минута сессии — отдельное состояние: экран готовит игрока к концу.</summary>
     public const int EndingThresholdSeconds = 60;
@@ -104,8 +105,19 @@ public sealed class PlayerShellStateBuilder(
             // В обслуживании технику нужны и командная строка, и реестр — окна не закрываются.
             BlockedWindows: inMaintenance || protection is null ? [] : protection.BlockedWindows,
             SessionStartedAtUtc: lease is null ? null : liveSession?.StartedAtUtc,
-            SessionEndsAtUtc: lease is null ? null : liveSession?.EndsAtUtc);
+            SessionEndsAtUtc: lease is null ? null : liveSession?.EndsAtUtc,
+            LaunchedApps: LaunchedFor(state));
     }
+
+    /// <summary>Запущенное игроком — только пока идёт сессия: следующему игроку чужие запуски не показываются.</summary>
+    private IReadOnlyList<LaunchedAppDto>? LaunchedFor(string state) =>
+        launchedApps is null
+            ? null
+            : state is PlayerShellStateNames.Active or PlayerShellStateNames.Grace or PlayerShellStateNames.Ending
+                ? launchedApps.Running()
+                    .Select(app => new LaunchedAppDto(app.LaunchId, app.AppId, app.DisplayName, app.ProcessIds))
+                    .ToList()
+                : [];
 
     /// <summary>
     /// Сколько осталось: до конца сессии, а не до конца аренды — аренда подписана на 15 минут и
@@ -209,7 +221,7 @@ public sealed class PlayerShellStateBuilder(
             .Select(app => new LauncherAppDto(
                 AppId: app.AppId,
                 DisplayName: string.IsNullOrWhiteSpace(app.DisplayName) ? app.AppId : app.DisplayName,
-                Category: string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
+                Category: app.Category?.Trim() ?? string.Empty,
                 IconUri: null,
                 IsAvailable: File.Exists(app.ExecutablePath)))
             .ToList();

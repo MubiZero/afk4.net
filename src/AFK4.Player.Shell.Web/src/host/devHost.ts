@@ -115,7 +115,8 @@ export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): Pla
     seatingCode: null,
     seatingCodeExpiresAtUtc: null,
     sessionOwnerKind: 'player',
-    sessionOwnerPlayerAccountId: '00000000-0000-4000-8000-000000000020'
+    sessionOwnerPlayerAccountId: '00000000-0000-4000-8000-000000000020',
+    launchedApps: [{ launchId: '00000000-0000-4000-8000-000000000030', appId: 'cs2', displayName: 'Counter-Strike 2', processIds: [4242] }]
   });
 
   switch (scenario) {

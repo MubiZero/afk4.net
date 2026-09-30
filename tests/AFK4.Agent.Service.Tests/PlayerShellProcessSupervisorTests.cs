@@ -261,7 +261,7 @@ public sealed class PlayerShellProcessSupervisorTests
 
         public PlayerShellLaunchTarget? LastLaunchTarget { get; private set; }
 
-        public void Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
+        public int? Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
         {
             StartCount++;
             LastExecutablePath = executablePath;
@@ -272,6 +272,8 @@ public sealed class PlayerShellProcessSupervisorTests
             {
                 throw Exception;
             }
+
+            return null;
         }
     }
 

@@ -956,6 +956,67 @@ button {
   margin-top: 0.8rem;
 }
 
+/* «Мои приложения» — выше денежных действий; число запущенных — справа на кнопке. */
+.time-money__apps {
+  position: relative;
+}
+
+.time-money__apps-count {
+  margin-inline-start: auto;
+  min-width: 1.6rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--shell-accent);
+  color: var(--text-on-accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Лист «Мои приложения»: строка на игру — обложка, название и два действия. */
+.my-apps {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-apps__row {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto auto;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.my-apps__cover {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.my-apps__cover--name {
+  display: grid;
+  place-items: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  font-weight: 700;
+}
+
+.my-apps__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-apps__hint {
+  margin: 0.8rem 0 0;
+  color: var(--text-secondary);
+}
+
 /* Баланс — строкой под временем: подпись слева, сумма справа. */
 .time-money__balance {
   display: flex;

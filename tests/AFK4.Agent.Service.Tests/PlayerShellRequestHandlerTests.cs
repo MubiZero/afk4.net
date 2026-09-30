@@ -28,6 +28,76 @@ public sealed class PlayerShellRequestHandlerTests
     }
 
     [Fact]
+    public async Task Launch_IsRemembered_SoThePlayerCanComeBackToItOrCloseIt()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var host = new Games.FakePlayerSessionHost();
+        var launched = new AFK4.Agent.Service.Games.LaunchedApps(host);
+        var launcher = new RecordingProcessLauncher { ProcessId = 4242 };
+        var handler = CreateHandler(executable.Path, launcher, SessionRunning(), launched: launched);
+        host.Running.Add(new AFK4.Agent.Service.Cleanup.SessionProcess(
+            4242, "game.exe", executable.Path, DateTimeOffset.UtcNow, ParentProcessId: null));
+
+        await handler.HandleAsync(LaunchRequest("counter-strike-2"), CancellationToken.None);
+
+        var app = Assert.Single(launched.Running());
+        Assert.Equal("counter-strike-2", app.AppId);
+        Assert.Equal("Counter-Strike 2", app.DisplayName);
+        Assert.Equal([4242], app.ProcessIds);
+    }
+
+    [Fact]
+    public async Task CloseApp_ClosesTheLaunchedApp()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var host = new Games.FakePlayerSessionHost();
+        var launched = new AFK4.Agent.Service.Games.LaunchedApps(host);
+        var handler = CreateHandler(executable.Path, new RecordingProcessLauncher { ProcessId = 4242 }, SessionRunning(), launched: launched);
+        host.Running.Add(new AFK4.Agent.Service.Cleanup.SessionProcess(
+            4242, "game.exe", executable.Path, DateTimeOffset.UtcNow, ParentProcessId: null));
+        await handler.HandleAsync(LaunchRequest("counter-strike-2"), CancellationToken.None);
+        var launchId = launched.Running().Single().LaunchId;
+
+        var reply = await handler.HandleAsync(CloseRequest(launchId.ToString()), CancellationToken.None);
+
+        Assert.True(reply.Ok);
+        Assert.Equal([4242], host.Terminated);
+        Assert.Empty(launched.Running());
+    }
+
+    [Fact]
+    public async Task CloseApp_OfALaunchThatIsGone_IsRefusedByName()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var handler = CreateHandler(
+            executable.Path,
+            new RecordingProcessLauncher(),
+            SessionRunning(),
+            launched: new AFK4.Agent.Service.Games.LaunchedApps(new Games.FakePlayerSessionHost()));
+
+        var reply = await handler.HandleAsync(CloseRequest(Guid.NewGuid().ToString()), CancellationToken.None);
+
+        Assert.False(reply.Ok);
+        Assert.Equal(ShellPipeErrorCodeNames.AppNotRunning, reply.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CloseApp_WithoutALaunchId_IsAnInvalidRequest()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var handler = CreateHandler(
+            executable.Path,
+            new RecordingProcessLauncher(),
+            SessionRunning(),
+            launched: new AFK4.Agent.Service.Games.LaunchedApps(new Games.FakePlayerSessionHost()));
+
+        var reply = await handler.HandleAsync(CloseRequest("not-a-guid"), CancellationToken.None);
+
+        Assert.False(reply.Ok);
+        Assert.Equal(ShellPipeErrorCodeNames.InvalidPayload, reply.ErrorCode);
+    }
+
+    [Fact]
     public async Task Launch_OnALockedPc_IsRefused()
     {
         // Игра на запертом ПК — бесплатное время. Раньше это проверял только экран оболочки.
@@ -214,7 +284,8 @@ public sealed class PlayerShellRequestHandlerTests
         IAgentRuntimeStateStore runtimeState,
         bool allowWithoutSession = false,
         IAssistanceRequestReporter? assistance = null,
-        AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null)
+        AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null,
+        AFK4.Agent.Service.Games.LaunchedApps? launched = null)
     {
         var enforcer = new ProcessPolicyEnforcer(
             Options.Create(new AgentOptions
@@ -242,7 +313,8 @@ public sealed class PlayerShellRequestHandlerTests
             assistance ?? new RecordingAssistanceReporter(),
             TimeProvider.System,
             NullLogger<PlayerShellRequestHandler>.Instance,
-            impressions: impressions);
+            impressions: impressions,
+            launchedApps: launched);
     }
 
     private static IAgentRuntimeStateStore Locked() =>
@@ -271,6 +343,12 @@ public sealed class PlayerShellRequestHandlerTests
             ShellPipeRequestTypeNames.Launch,
             new Dictionary<string, string> { [PlayerShellRequestHandler.AppIdPayloadKey] = appId });
 
+    private static ShellPipeRequestDto CloseRequest(string launchId) =>
+        new(
+            LaunchRequestId,
+            ShellPipeRequestTypeNames.CloseApp,
+            new Dictionary<string, string> { [PlayerShellRequestHandler.LaunchIdPayloadKey] = launchId });
+
     private static ShellPipeRequestDto Request(string type) =>
         new(Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc"), type, new Dictionary<string, string>());
 
@@ -282,18 +360,20 @@ public sealed class PlayerShellRequestHandlerTests
 
         public string? LastArguments { get; private set; }
 
-        public Task LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken)
+        public int? ProcessId { get; init; }
+
+        public Task<int?> LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken)
         {
             LaunchCount++;
             LastExecutablePath = executablePath;
             LastArguments = arguments;
-            return Task.CompletedTask;
+            return Task.FromResult(ProcessId);
         }
     }
 
     private sealed class FailingProcessLauncher : IProcessLauncher
     {
-        public Task LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken) =>
+        public Task<int?> LaunchAsync(string executablePath, string arguments, CancellationToken cancellationToken) =>
             throw new System.ComponentModel.Win32Exception(5, "Access is denied.");
     }
 

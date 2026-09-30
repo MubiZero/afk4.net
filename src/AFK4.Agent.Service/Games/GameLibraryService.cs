@@ -99,7 +99,7 @@ public sealed class GameLibraryService(
                 return new LauncherEntry(
                     game.AppId,
                     game.DisplayName,
-                    string.IsNullOrWhiteSpace(game.Genre) ? "Games" : game.Genre,
+                    game.Genre?.Trim() ?? string.Empty,
                     launch?.ExecutablePath,
                     launch?.Arguments ?? string.Empty,
                     game.AvailableWithoutSession,
@@ -114,7 +114,7 @@ public sealed class GameLibraryService(
             .Select(app => new LauncherEntry(
                 app.AppId,
                 string.IsNullOrWhiteSpace(app.DisplayName) ? app.AppId : app.DisplayName,
-                string.IsNullOrWhiteSpace(app.Category) ? "Games" : app.Category,
+                app.Category?.Trim() ?? string.Empty,
                 app.ExecutablePath,
                 app.Arguments,
                 app.AllowWithoutSession,

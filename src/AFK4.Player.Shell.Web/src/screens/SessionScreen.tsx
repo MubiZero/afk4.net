@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { onHostMessage } from '@afk4/host-bridge';
 import {
   PlatformFeatureNames,
+  ShellBridgeEventTypeNames,
   ShellBridgeRequestTypeNames,
   type LauncherAppDto,
   type PlayerSelfEndSessionResponse,
@@ -20,6 +22,7 @@ import { SystemControls } from '../ui/SystemControls';
 import { BarTab } from './session/BarTab';
 import { EndEarlySheet } from './session/EndEarlySheet';
 import { ExtendSheet } from './session/ExtendSheet';
+import { MyAppsSheet } from './session/MyAppsSheet';
 import { TimeMoneyColumn } from './session/TimeMoneyColumn';
 import { TopUpPanel } from './session/TopUpPanel';
 import { useBarOrders } from './session/useBarOrders';
@@ -60,7 +63,7 @@ export function SessionScreen({
   onEnded = () => {}
 }: SessionScreenProps) {
   const { t, locale } = useI18n();
-  const [sheet, setSheet] = useState<'extend' | 'end' | null>(null);
+  const [sheet, setSheet] = useState<'extend' | 'end' | 'apps' | null>(null);
   const [extendedUntil, setExtendedUntil] = useState<string | null>(null);
   const baseUrl = apiBaseUrl(state);
   const role = sessionRole(state, auth);
@@ -82,6 +85,9 @@ export function SessionScreen({
     void reloadBalance();
   };
   const activeOrder = barAvailable ? bar.orders.find(isOrderActive) ?? null : null;
+
+  // Сочетание клавиш «Мои приложения» нажато в игре: хост вывел оболочку вперёд и зовёт открыть лист.
+  useEffect(() => onHostMessage(ShellBridgeEventTypeNames.AppsPanelRequested, () => setSheet('apps')), []);
 
   // «Продлено до …» — подтверждение, а не вывеска: через полминуты уходит, остаток и так в колонке.
   useEffect(() => {
@@ -215,9 +221,14 @@ export function SessionScreen({
         onEndEarly={() => setSheet('end')}
         onSignIn={onSignIn}
         onSignOut={() => void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {})}
+        onOpenApps={() => setSheet('apps')}
+        runningApps={state.launchedApps?.length ?? 0}
       />
       </div>
 
+      {sheet === 'apps' ? (
+        <MyAppsSheet apps={state.launchedApps ?? []} library={state.launcherApps} onClose={() => setSheet(null)} />
+      ) : null}
       {sheet === 'extend' && baseUrl && state.sessionId ? (
         <ExtendSheet
           baseUrl={baseUrl}
@@ -289,7 +300,7 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
       <div className={app.ageLocked ? 'library-tile library-tile--locked' : 'library-tile library-tile--unavailable'}>
         {cover}
         {title}
-        <span className="library-tile__category">{app.category}</span>
+        {app.category ? <span className="library-tile__category">{app.category}</span> : null}
         <span className="library-tile__missing">
           {app.ageLocked
             // Возраст из дня рождения в профиле: агент такую игру и не запустит.
@@ -321,7 +332,7 @@ function LibraryTile({ app }: { app: LauncherAppDto }) {
           </span>
         </span>
         {title}
-        <span className="library-tile__category">{app.category}</span>
+        {app.category ? <span className="library-tile__category">{app.category}</span> : null}
       </button>
       {launch === 'failed' ? <p className="banner banner--danger library-tile__error" role="alert">{t('playerShell.session.launchFailed')}</p> : null}
     </>

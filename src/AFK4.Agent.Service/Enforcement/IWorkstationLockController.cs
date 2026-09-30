@@ -14,5 +14,12 @@ public interface IWorkstationLockController
 {
     Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken);
 
+    /// <summary>Снять запреты целиком — для техника в обслуживании: ему нужны и диспетчер задач, и остальное.</summary>
     Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// ПК открыт игроку на сессию. Диспетчер задач Windows остаётся выключенным: у игрока свой
+    /// список запущенного в оболочке («Мои приложения»), а чужие процессы и оболочку он не закроет.
+    /// </summary>
+    Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken);
 }

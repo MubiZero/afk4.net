@@ -22,6 +22,12 @@ public static class ShellBridgeRequestTypeNames
     /// <summary>Запустить игру из библиотеки клуба.</summary>
     public const string AppLaunch = "app.launch";
 
+    /// <summary>«Вернуться» в запущенную игру: хост выводит её окно вперёд. В теле — <c>launchId</c>.</summary>
+    public const string AppFocus = "app.focus";
+
+    /// <summary>«Закрыть» запущенную игру: агент закрывает её с дочерними процессами. В теле — <c>launchId</c>.</summary>
+    public const string AppClose = "app.close";
+
     /// <summary>Позвать администратора к этому ПК.</summary>
     public const string AssistCall = "assist.call";
 
@@ -60,6 +66,9 @@ public static class ShellBridgeEventTypeNames
 
     /// <summary>Громкость, микрофон, раскладка — ShellSystemStateDto.</summary>
     public const string SystemChanged = "system.changed";
+
+    /// <summary>Игрок нажал сочетание клавиш «Мои приложения»: страница открывает панель.</summary>
+    public const string AppsPanelRequested = "apps.panelRequested";
 }
 
 public static class ShellBridgeErrorCodeNames
@@ -84,6 +93,9 @@ public static class ShellBridgeErrorCodeNames
 
     /// <summary>Windows не дала поменять звук, микрофон или раскладку — например, нет устройства.</summary>
     public const string SystemUnavailable = "system_unavailable";
+
+    /// <summary>У запущенной игры нет окна, которое можно вывести вперёд: оно ещё не открылось или уже закрыто.</summary>
+    public const string AppWindowNotFound = "app_window_not_found";
 }
 
 /// <summary>Кто вошёл на этом ПК. Токены страница не видит: их держит хост.</summary>

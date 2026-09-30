@@ -212,7 +212,7 @@ public sealed class SessionCommandHandlerLeaseTests
     {
         public int LockCount { get; private set; }
 
-        public int UnlockCount { get; private set; }
+        public int OpenCount { get; private set; }
 
         public Task<WorkstationLockOutcome> LockAsync(CancellationToken cancellationToken)
         {
@@ -220,10 +220,13 @@ public sealed class SessionCommandHandlerLeaseTests
             return Task.FromResult(new WorkstationLockOutcome(["task manager disabled"]));
         }
 
-        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken)
+        public Task<WorkstationLockOutcome> UnlockAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("A player's session must not release the machine lock: that is for maintenance.");
+
+        public Task<WorkstationLockOutcome> OpenForSessionAsync(CancellationToken cancellationToken)
         {
-            UnlockCount++;
-            return Task.FromResult(new WorkstationLockOutcome(["task manager restored"]));
+            OpenCount++;
+            return Task.FromResult(new WorkstationLockOutcome(["task manager stays disabled"]));
         }
     }
 }

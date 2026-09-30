@@ -19,14 +19,18 @@ public sealed class PlayerShellRequestHandler(
     PlayerSignIn? playerSignIn = null,
     MaintenanceReturn? maintenanceReturn = null,
     AFK4.Agent.Service.Power.PlayerPresence? presence = null,
-    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null) : IPlayerShellRequestHandler
+    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null,
+    AFK4.Agent.Service.Games.LaunchedApps? launchedApps = null) : IPlayerShellRequestHandler
 {
     public const string AppIdPayloadKey = "appId";
+
+    public const string LaunchIdPayloadKey = "launchId";
 
     public Task<ShellPipeReplyDto> HandleAsync(ShellPipeRequestDto request, CancellationToken cancellationToken) =>
         request.Type switch
         {
             ShellPipeRequestTypeNames.Launch => LaunchAsync(request, cancellationToken),
+            ShellPipeRequestTypeNames.CloseApp => Task.FromResult(CloseApp(request)),
             ShellPipeRequestTypeNames.Assist => AssistAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.SignInPin when playerSignIn is not null => playerSignIn.SignInWithPinAsync(request, cancellationToken),
             ShellPipeRequestTypeNames.MaintenanceReturn when maintenanceReturn is not null => maintenanceReturn.ReturnAsync(request, cancellationToken),
@@ -82,9 +86,10 @@ public sealed class PlayerShellRequestHandler(
             return Rejected(request, ShellPipeErrorCodeNames.NoSession, "Apps start only during a session.");
         }
 
+        int? processId;
         try
         {
-            await processLauncher.LaunchAsync(app.ExecutablePath, app.Arguments, cancellationToken);
+            processId = await processLauncher.LaunchAsync(app.ExecutablePath, app.Arguments, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -92,7 +97,27 @@ public sealed class PlayerShellRequestHandler(
             return Rejected(request, ShellPipeErrorCodeNames.LaunchFailed, "The app could not be started.");
         }
 
+        // Запуск записывается: по нему игрок вернётся к игре, закроет её, а в конце сессии агент
+        // закроет всё, что осталось.
+        launchedApps?.Register(app.AppId, string.IsNullOrWhiteSpace(app.DisplayName) ? app.AppId : app.DisplayName, processId);
         logger.LogInformation("Launched {AppId} at the player's request.", app.AppId);
+        return new ShellPipeReplyDto(request.RequestId, Ok: true);
+    }
+
+    /// <summary>«Закрыть» в «Моих приложениях»: только то, что игрок запустил из библиотеки в этой сессии.</summary>
+    private ShellPipeReplyDto CloseApp(ShellPipeRequestDto request)
+    {
+        if (!request.Payload.TryGetValue(LaunchIdPayloadKey, out var value) || !Guid.TryParse(value, out var launchId))
+        {
+            return Rejected(request, ShellPipeErrorCodeNames.InvalidPayload, "Close request must name a launchId.");
+        }
+
+        if (launchedApps is null || !launchedApps.Close(launchId))
+        {
+            return Rejected(request, ShellPipeErrorCodeNames.AppNotRunning, "This app is no longer running.");
+        }
+
+        logger.LogInformation("Closed launch {LaunchId} at the player's request.", launchId);
         return new ShellPipeReplyDto(request.RequestId, Ok: true);
     }
 

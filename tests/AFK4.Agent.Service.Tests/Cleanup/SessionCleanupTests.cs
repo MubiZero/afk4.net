@@ -52,6 +52,41 @@ public sealed class SessionCleanupTests : IDisposable
         Assert.Contains((@"Software\Valve\Steam", "AutoLoginUser"), host.DeletedValues);
     }
 
+    // «closed 0 app(s)»: игра из библиотеки оставалась следующему игроку. Время старта процесса
+    // читается с часов ПК, начало сессии — с часов платформы, и при разнице часов правило по
+    // времени не узнаёт ничью игру. Запуски из библиотеки агент помнит сам.
+    [Fact]
+    public async Task ClosesWhatThePlayerLaunchedFromTheLibrary_WhateverTheClocksSay()
+    {
+        var host = new FakeHost(this);
+        var game = new SessionProcess(1, "cs2.exe", Path.Combine(Games, "cs2.exe"), SessionStart.AddHours(-3), null);
+        var child = new SessionProcess(2, "cs2helper.exe", Path.Combine(Games, "cs2helper.exe"), SessionStart.AddHours(-3), 1);
+        var bystander = new SessionProcess(3, "lghub.exe", Path.Combine(Games, "lghub.exe"), SessionStart.AddHours(-3), null);
+        host.Running.AddRange([game, child, bystander]);
+        var launched = new AFK4.Agent.Service.Games.LaunchedApps(host, () => SessionStart.AddHours(-3));
+        launched.Register("cs2", "Counter-Strike 2", rootProcessId: 1);
+
+        var outcome = await Cleanup(host, launched: launched).RunAsync(SessionStart, CancellationToken.None);
+
+        Assert.Equal([1, 2], host.Terminated.Order());
+        Assert.Equal(2, outcome.ClosedApps);
+        Assert.Empty(launched.Running());
+    }
+
+    [Fact]
+    public async Task TheNextPlayer_DoesNotInheritTheLaunchList_EvenIfNobodyWasSignedInToWindows()
+    {
+        var host = new FakeHost(this) { SignedIn = false };
+        host.Running.Add(new SessionProcess(1, "cs2.exe", Path.Combine(Games, "cs2.exe"), SessionStart, null));
+        var launched = new AFK4.Agent.Service.Games.LaunchedApps(host, () => SessionStart);
+        launched.Register("cs2", "Counter-Strike 2", rootProcessId: 1);
+
+        await Cleanup(host, launched: launched).RunAsync(SessionStart, CancellationToken.None);
+
+        host.SignedIn = true;
+        Assert.Empty(launched.Running());
+    }
+
     [Fact]
     public async Task WaitsForTheClosedAppsToExit_BeforeClearing()
     {
@@ -94,12 +129,16 @@ public sealed class SessionCleanupTests : IDisposable
             (await Cleanup(new FakeHost(this) { SignedIn = false }).RunAsync(SessionStart, CancellationToken.None)).Describe());
     }
 
-    private SessionCleanup Cleanup(FakeHost host, List<TimeSpan>? delays = null, IReadOnlyList<string>? clear = null) =>
+    private SessionCleanup Cleanup(
+        FakeHost host,
+        List<TimeSpan>? delays = null,
+        IReadOnlyList<string>? clear = null,
+        AFK4.Agent.Service.Games.LaunchedApps? launched = null) =>
         new(host, new FixedProtection(clear ?? SessionTraceNames.All), NullLogger<SessionCleanup>.Instance, (delay, _) =>
         {
             delays?.Add(delay);
             return Task.CompletedTask;
-        });
+        }, launched);
 
     private static string Write(string path, string content)
     {
@@ -114,7 +153,7 @@ public sealed class SessionCleanupTests : IDisposable
 
         public bool Supported { get; init; } = true;
 
-        public bool SignedIn { get; init; } = true;
+        public bool SignedIn { get; set; } = true;
 
         /// В кусте игрока записан автовход Steam.
         public bool HasSteamAutoLogin { get; init; }
