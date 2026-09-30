@@ -883,6 +883,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         // bundle and located via vswhere/MSBuild so it works wherever the C++ toolset is installed.
         Assert.Contains("AFK4.BAFunctions.vcxproj", script, StringComparison.Ordinal);
         Assert.Contains("vswhere.exe", script, StringComparison.Ordinal);
+        // Без -products * vswhere не видит Build Tools: на машине сборки без IDE (ВМ приёмки 30.09.2026)
+        // бандл падал с «MSBuild not found», хотя MSBuild и C++ стояли.
+        Assert.Contains("-latest -products * -requires Microsoft.Component.MSBuild", script, StringComparison.Ordinal);
         Assert.Contains("-restore -p:Configuration=Release -p:Platform=x64", script, StringComparison.Ordinal);
 
         // Bundle.wxs references $(var.BAFunctionsPath)/$(var.BrandIconPath)/$(var.BrandLogoPath),
