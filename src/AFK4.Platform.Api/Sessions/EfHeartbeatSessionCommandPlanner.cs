@@ -263,6 +263,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         session.EndedAtUtc = endedAtUtc;
         session.CurrentLeaseId = null;
         session.UpdatedAtUtc = endedAtUtc;
+        await DeviceAssistance.ClearOnSessionEndAsync(dbContext, session.DeviceId, cancellationToken);
 
         var hasSessionEndedEvent = await dbContext.SessionEvents.AnyAsync(
             sessionEvent =>
