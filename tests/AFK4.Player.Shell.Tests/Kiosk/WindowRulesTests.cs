@@ -31,6 +31,19 @@ public sealed class WindowRulesTests
         Assert.False(WindowRules.ShouldClose(Rules, title, className, ownProcess: false));
     }
 
+    /// <summary>
+    /// Приёмка на Windows 11 25H2: cmd.exe из-под игрока открылся в Windows Terminal, и окно с классом
+    /// CASCADIA_HOSTING_WINDOW_CLASS пережило правило «ConsoleWindowClass». Клуб, закрывший консоль,
+    /// закрыл консоль — в каком бы окне Windows её ни показала.
+    /// </summary>
+    [Fact]
+    public void AConsoleRule_AlsoClosesTheConsoleShownInWindowsTerminal()
+    {
+        IReadOnlyList<BlockedWindowRuleDto> console = [new(null, "ConsoleWindowClass")];
+
+        Assert.True(WindowRules.ShouldClose(console, "Командная строка", "CASCADIA_HOSTING_WINDOW_CLASS", ownProcess: false));
+    }
+
     [Fact]
     public void TheShellsOwnWindows_AreNeverClosed()
     {

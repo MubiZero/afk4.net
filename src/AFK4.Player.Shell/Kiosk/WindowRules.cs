@@ -9,6 +9,14 @@ namespace AFK4.Player.Shell.Kiosk;
 /// </summary>
 public static class WindowRules
 {
+    private const string ConsoleWindowClass = "ConsoleWindowClass";
+
+    /// <summary>
+    /// На Windows 11 консоль по умолчанию открывается в Windows Terminal, у его окна другой класс.
+    /// Правило «закрывать консоль» касается обоих окон, иначе запрет обходится одной настройкой Windows.
+    /// </summary>
+    private const string WindowsTerminalClass = "CASCADIA_HOSTING_WINDOW_CLASS";
+
     public static bool ShouldClose(IReadOnlyList<BlockedWindowRuleDto> rules, string title, string className, bool ownProcess)
     {
         if (ownProcess || rules.Count == 0)
@@ -26,7 +34,7 @@ public static class WindowRules
             }
 
             var titleMatches = !hasTitle || title.Contains(rule.TitleContains!.Trim(), StringComparison.OrdinalIgnoreCase);
-            var classMatches = !hasClass || string.Equals(className, rule.ClassName!.Trim(), StringComparison.OrdinalIgnoreCase);
+            var classMatches = !hasClass || ClassMatches(className, rule.ClassName!.Trim());
             if (titleMatches && classMatches)
             {
                 return true;
@@ -35,4 +43,9 @@ public static class WindowRules
 
         return false;
     }
+
+    private static bool ClassMatches(string className, string ruleClass) =>
+        string.Equals(className, ruleClass, StringComparison.OrdinalIgnoreCase) ||
+        (string.Equals(ruleClass, ConsoleWindowClass, StringComparison.OrdinalIgnoreCase) &&
+         string.Equals(className, WindowsTerminalClass, StringComparison.OrdinalIgnoreCase));
 }
