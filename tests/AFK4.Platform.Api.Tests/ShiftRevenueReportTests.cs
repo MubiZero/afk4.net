@@ -166,6 +166,48 @@ public sealed class ShiftRevenueReportTests
         Assert.Equal(3100, result.Earned.Total.MinorUnits);
     }
 
+    [Fact]
+    public async Task GetCurrentShiftRevenue_SubtractsRefundsForPlayedTime_ButNotARefundOfATopUp()
+    {
+        // Приёмка 30.09.2026: «Заработано» смены считало только списания, возврат за неигранное не
+        // вычитало: 663 против 164 в Сводке. Возврат по пополнению (без сессии) заработка не касается.
+        await using var db = CreateDbContext();
+        var shiftId = Guid.Parse("55555555-5555-4555-8555-555555555555");
+        var sessionId = Guid.NewGuid();
+        SeedOpenShift(db, shiftId, startingCash: 0);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.GameplayCharge, -6000, sessionId);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.Refund, 5900, sessionId);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.Refund, -700);
+        await db.SaveChangesAsync();
+        var service = new EfReportService(db);
+
+        var result = await service.GetCurrentShiftRevenueAsync(OrgId, BranchId, CancellationToken.None);
+
+        Assert.Equal(100, result!.Earned.Time.MinorUnits);
+    }
+
+    [Fact]
+    public async Task GetCashOperationReport_DoesNotCountAWalletRefundForPlayedTimeAsCash()
+    {
+        // Возврат за неигранное уходит на баланс игрока, касса при этом не двигается. Запись возврата
+        // теперь лежит в смене, и без этого правила «Приход наличными» вырос бы на каждый уход.
+        await using var db = CreateDbContext();
+        var shiftId = Guid.Parse("66666666-6666-4666-8666-666666666666");
+        SeedOpenShift(db, shiftId, startingCash: 0);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.TopUp, 2000);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.Refund, 5900, Guid.NewGuid());
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.Refund, -700);
+        await db.SaveChangesAsync();
+        var service = new EfReportService(db);
+
+        var result = await service.GetCashOperationReportAsync(
+            OrgId, BranchId, new ReportSearchQuery(null, null, 50), CancellationToken.None);
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.Equal(2000, result.CashInTotal.MinorUnits);
+        Assert.Equal(-700, result.CashOutTotal.MinorUnits);
+    }
+
     private static void SeedOpenShift(PlatformDbContext db, Guid shiftId, long startingCash) =>
         db.Shifts.Add(new ShiftEntity
         {
@@ -184,11 +226,11 @@ public sealed class ShiftRevenueReportTests
             OpenedAtUtc = Opened, ClosedAtUtc = Opened.AddHours(8)
         });
 
-    private static void SeedLedger(PlatformDbContext db, Guid shiftId, string entryType, long amount) =>
+    private static void SeedLedger(PlatformDbContext db, Guid shiftId, string entryType, long amount, Guid? sessionId = null) =>
         db.LedgerEntries.Add(new LedgerEntryEntity
         {
             LedgerEntryId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId,
-            ShiftId = shiftId, PlayerAccountId = Guid.NewGuid(), EntryType = entryType,
+            ShiftId = shiftId, PlayerAccountId = Guid.NewGuid(), SessionId = sessionId, EntryType = entryType,
             AccountType = "wallet", AmountMinorUnits = amount, CurrencyCode = Tjs,
             CreatedByStaffUserId = StaffId, CreatedAtUtc = Opened.AddHours(1)
         });

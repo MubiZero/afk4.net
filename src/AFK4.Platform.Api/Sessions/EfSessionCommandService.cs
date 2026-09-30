@@ -698,7 +698,8 @@ public sealed class EfSessionCommandService(
             if (session.PlayerAccountId is { } playerAccountId)
             {
                 earlyEnd = await PlayerEarlyEnd.QuoteAsync(dbContext, session, playerAccountId, now, cancellationToken);
-                PlayerEarlyEnd.AppendEntries(dbContext, session, playerAccountId, earlyEnd, actorStaffUserId, now);
+                await PlayerEarlyEnd.AppendEntriesAsync(
+                    dbContext, session, playerAccountId, earlyEnd, actorStaffUserId, now, cancellationToken);
             }
 
             session.State = SessionStateNames.Ending;
