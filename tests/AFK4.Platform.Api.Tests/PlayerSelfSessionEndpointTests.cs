@@ -630,6 +630,139 @@ public class PlayerSelfSessionEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    /// <summary>
+    /// Приёмка 30.09.2026: возвраты досрочного ухода писались без смены, а списания — со сменой, и
+    /// отчёт смены («Заработано») показывал 663 против 164 в Сводке за тот же день: смена считала
+    /// выручку, из которой возврат не вычитался вовсе. Возврат ложится в открытую смену — ту, где
+    /// его отдали, — и отчёт смены вычитает возвраты за игру так же, как Сводка.
+    /// </summary>
+    [Fact]
+    public async Task SelfEnd_PutsTheRefundInTheOpenShift_AndTheShiftReportAgreesWithTheSummary()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        await SeedBranchAsync(factory, ctx);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+
+        (await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")))).EnsureSuccessStatusCode();
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var openShift = await db.Shifts.SingleAsync(shift => shift.State == ShiftStateNames.Open);
+        var earlyEnd = await db.LedgerEntries.Where(entry => entry.SessionId == sessionId
+            && (entry.EntryType == AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Refund
+                || entry.EntryType == AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Reversal)).ToListAsync();
+        Assert.NotEmpty(earlyEnd);
+        Assert.All(earlyEnd, entry => Assert.Equal(openShift.ShiftId, entry.ShiftId));
+
+        // Час за 60 000, вернулось 59 000: сыграна одна минута — 1 000.
+        var reports = new AFK4.Platform.Api.Reports.EfReportService(db);
+        var shiftRevenue = await reports.GetCurrentShiftRevenueAsync(ctx.OrgId, ctx.BranchId, CancellationToken.None);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var summary = await new AFK4.Platform.Api.Reports.OrganizationAdminReportService(db, reports)
+            .GetSummaryAsync(ctx.OrgId, ctx.BranchId, today.AddDays(-1), today.AddDays(1), CancellationToken.None);
+        Assert.Equal(1_000, shiftRevenue!.Earned.Time.MinorUnits);
+        Assert.Equal(shiftRevenue.Earned.Time.MinorUnits, summary.Figures.GameplayRevenue.MinorUnits);
+    }
+
+    [Fact]
+    public async Task SelfEnd_AfterTheChargeShiftWasClosed_PutsTheRefundInTheNewOpenShift()
+    {
+        // Закрытая смена — подписанный документ: возврат не дописывается в неё задним числом.
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        var newShiftId = await ReplaceOpenShiftAsync(factory, reopen: true);
+
+        (await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")))).EnsureSuccessStatusCode();
+
+        Assert.Equal(newShiftId, await RefundShiftIdAsync(factory, sessionId));
+    }
+
+    [Fact]
+    public async Task SelfEnd_WithNoOpenShift_StillRefundsAndKeepsTheRefundInTheShiftOfTheCharge()
+    {
+        // Игрок встаёт ночью, смена закрыта: возврат денег не ждёт кассира, а в отчёте остаётся рядом
+        // со своим списанием, а не пропадает из смен вовсе.
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+        var chargeShiftId = await ReplaceOpenShiftAsync(factory, reopen: false);
+        var afterStart = await WalletBalanceAsync(factory, ctx.PlayerId);
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/end",
+            new PlayerSelfEndSessionRequest(Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(afterStart + 59_000, await WalletBalanceAsync(factory, ctx.PlayerId));
+        Assert.Equal(chargeShiftId, await RefundShiftIdAsync(factory, sessionId));
+    }
+
+    private static async Task SeedBranchAsync(PlatformApiFactory factory, SelfStartContext ctx)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = ctx.BranchId,
+            OrganizationId = ctx.OrgId,
+            Name = "Central",
+            PreferredTimeZone = "Asia/Dushanbe",
+            CreatedAtUtc = Now.AddYears(-1)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Закрывает смену, в которой списано за старт; при reopen — открывает следующую. Возвращает нужную смену.</summary>
+    private static async Task<Guid> ReplaceOpenShiftAsync(PlatformApiFactory factory, bool reopen)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var closed = await db.Shifts.SingleAsync(shift => shift.State == ShiftStateNames.Open);
+        closed.State = ShiftStateNames.Closed;
+        closed.ClosedAtUtc = DateTimeOffset.UtcNow;
+        if (!reopen)
+        {
+            await db.SaveChangesAsync();
+            return closed.ShiftId;
+        }
+
+        var next = new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = closed.OrganizationId,
+            BranchId = closed.BranchId,
+            OpenedByStaffUserId = closed.OpenedByStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            OpeningNote = "next shift",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = DateTimeOffset.UtcNow
+        };
+        db.Shifts.Add(next);
+        await db.SaveChangesAsync();
+        return next.ShiftId;
+    }
+
+    private static async Task<Guid?> RefundShiftIdAsync(PlatformApiFactory factory, Guid sessionId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.LedgerEntries
+            .Where(entry => entry.SessionId == sessionId
+                && entry.EntryType == AFK4.Shared.Contracts.Billing.LedgerEntryTypeNames.Refund)
+            .Select(entry => entry.ShiftId)
+            .SingleAsync();
+    }
+
     private static async Task ShiftSessionAsync(PlatformApiFactory factory, Guid sessionId, int startedMinutesAgo, int pausedMinutes)
     {
         await using var scope = factory.Services.CreateAsyncScope();

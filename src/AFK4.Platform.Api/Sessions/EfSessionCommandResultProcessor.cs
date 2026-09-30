@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Devices;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,7 @@ public sealed class EfSessionCommandResultProcessor(
         session.EndedAtUtc = endedAtUtc;
         session.CurrentLeaseId = null;
         session.UpdatedAtUtc = endedAtUtc;
+        await DeviceAssistance.ClearOnSessionEndAsync(dbContext, session.DeviceId, cancellationToken);
         dbContext.SessionEvents.Add(new SessionEventEntity
         {
             SessionEventId = Guid.NewGuid(),

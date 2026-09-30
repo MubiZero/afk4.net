@@ -456,5 +456,10 @@ public sealed class DeviceHeartbeatServicePersistenceTests
 
             return Task.FromResult<IReadOnlyList<HeartbeatSessionCommandPlan>>(plans);
         }
+
+        public Task<IReadOnlyDictionary<string, string>> WithSessionLeaseAsync(
+            Guid deviceId,
+            IReadOnlyDictionary<string, string> payload,
+            CancellationToken cancellationToken) => Task.FromResult(payload);
     }
 }
