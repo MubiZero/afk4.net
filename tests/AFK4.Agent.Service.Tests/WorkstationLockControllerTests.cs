@@ -1,4 +1,6 @@
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Protection;
+using AFK4.Agent.Service.Tests.Protection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AFK4.Agent.Service.Tests;
@@ -85,8 +87,30 @@ public sealed class WorkstationLockControllerTests
         Assert.False(outcome.IsEnforced);
     }
 
-    private static WorkstationLockController CreateController(IMachinePolicyStore policies) =>
-        new(policies, NullLogger<WorkstationLockController>.Instance);
+    /// <summary>
+    /// Приёмка на виртуалке: после «Снять киоск» агент остался и на каждом запирании снова
+    /// выключал Диспетчер задач — на всей машине, у её администратора. Без учётки игрока запирать
+    /// некого: запрет снимается, и в ответе честное «ничего».
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WithoutAPlayerAccount_TheTaskManagerIsGivenBack(bool openForSession)
+    {
+        var policies = new RecordingPolicyStore();
+        policies.Values["DisableTaskMgr"] = 1;
+        var controller = CreateController(policies, new ProtectionEnforcerTests.FakeRegistry { PlayerAccount = false });
+
+        var outcome = openForSession
+            ? await controller.OpenForSessionAsync(CancellationToken.None)
+            : await controller.LockAsync(CancellationToken.None);
+
+        Assert.False(outcome.IsEnforced);
+        Assert.DoesNotContain("DisableTaskMgr", policies.Values.Keys);
+    }
+
+    private static WorkstationLockController CreateController(IMachinePolicyStore policies, IMachineRegistry? registry = null) =>
+        new(policies, registry ?? new ProtectionEnforcerTests.FakeRegistry(), NullLogger<WorkstationLockController>.Instance);
 
     private sealed class RecordingPolicyStore : IMachinePolicyStore
     {
