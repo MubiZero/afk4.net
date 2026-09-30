@@ -333,13 +333,17 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             GuestPlayerId: StableGuid(7004));
 
         dbContext.PlayerAccounts.AddRange(
-            Player(players.PrimaryPlayerId, "Амир К.", "+992900000101"),
-            Player(players.VipPlayerId, "Мадина С.", "+992900000202"),
-            Player(players.DebtPlayerId, "Юсуф А.", "+992900000303"),
+            Player(players.PrimaryPlayerId, "Амир К.", UnissuedPhone(101)),
+            Player(players.VipPlayerId, "Мадина С.", UnissuedPhone(202)),
+            Player(players.DebtPlayerId, "Юсуф А.", UnissuedPhone(303)),
             Player(players.GuestPlayerId, "Гость зала", null));
 
         return players;
     }
+
+    // Код оператора 00 в Таджикистане не выдаётся: если сид когда-нибудь окажется на стенде с живой
+    // SMS-отправкой, код подтверждения не уйдёт настоящему человеку (мобильные там начинаются с 9).
+    private static string UnissuedPhone(int suffix) => $"+992000000{suffix:D3}";
 
     private PlayerAccountEntity Player(Guid playerAccountId, string displayName, string? phoneNumber) => new()
     {
@@ -709,7 +713,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             PlayerAccountId = playerAccountId,
             SeatId = seatId,
             CustomerName = customerName,
-            PhoneNumber = "+992900000404",
+            PhoneNumber = UnissuedPhone(404),
             StartsAtUtc = startsAt,
             EndsAtUtc = startsAt.AddMinutes(durationMinutes),
             State = state,
