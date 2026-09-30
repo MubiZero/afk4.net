@@ -52,6 +52,7 @@ public sealed class ShellBridgeHost(
             ShellBridgeRequestTypeNames.ShellReady => Ok(requestId, new ShellSnapshotDto(latestState(), session.Current, system?.Read())),
             ShellBridgeRequestTypeNames.AuthSignIn => await SignInAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AuthSignOut => await SignOutAsync(requestId, cancellationToken),
+            ShellBridgeRequestTypeNames.AuthRefresh => await RefreshAuthAsync(requestId, cancellationToken),
             ShellBridgeRequestTypeNames.AppLaunch => await LaunchAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AssistCall => await AskAgentAsync(
                 requestId, ShellPipeRequestTypeNames.Assist, new Dictionary<string, string>(), cancellationToken),
@@ -94,6 +95,21 @@ public sealed class ShellBridgeHost(
         var signedOut = session.Current;
         AuthChanged?.Invoke(signedOut);
         return Ok(requestId, signedOut);
+    }
+
+    /// <summary>
+    /// Страница получила 401. Доступ мог просто истечь за время обрыва связи — тогда хост
+    /// обновляет его и игрок остаётся за своей сессией; сервер отказал и обновлению — вход кончился.
+    /// </summary>
+    private async Task<string> RefreshAuthAsync(string requestId, CancellationToken cancellationToken)
+    {
+        if (await session.EnsureFreshAsync(cancellationToken, force: true))
+        {
+            Locale = null;
+            AuthChanged?.Invoke(session.Current);
+        }
+
+        return Ok(requestId, session.Current);
     }
 
     private Task<string> LaunchAsync(string requestId, JsonElement payload, CancellationToken cancellationToken)

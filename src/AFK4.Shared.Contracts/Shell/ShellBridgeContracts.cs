@@ -19,6 +19,14 @@ public static class ShellBridgeRequestTypeNames
 
     public const string AuthSignOut = "auth.signOut";
 
+    /// <summary>
+    /// Сервер ответил странице 401 — хост проверяет, кончился ли вход. Доступ игрока на ПК живёт
+    /// 15 минут и без связи успевает истечь, а обновление живёт 12 часов: хост идёт за новым
+    /// доступом, и игрок остаётся в своей сессии. Ответ — ShellAuthStateDto; если сервер отказал
+    /// и обновлению, вход забывается и страница узнаёт об этом событием auth.changed.
+    /// </summary>
+    public const string AuthRefresh = "auth.refresh";
+
     /// <summary>Запустить игру из библиотеки клуба.</summary>
     public const string AppLaunch = "app.launch";
 

@@ -375,7 +375,11 @@ Because the platform has no local server, offline mode is intentionally limited.
 
 Allowed during temporary internet loss:
 
-- Continue an already active session within its signed lease.
+- Continue an already active session within its signed lease. For a session with a fixed paid end the
+  backend signs the lease up to that end (owner decision of 2026-09-30): without connectivity the PC
+  stays open until the paid time runs out and then locks itself, exactly as the backend would lock it
+  online. A session without a fixed end (open tab) and a paused session keep a short lease — the
+  branch grace window — because there is no paid end to sign.
 - Show remaining time based on the lease.
 - Keep enforcing lock and unlock based on the last valid session state.
 - Record local device/session events for later upload.
@@ -391,6 +395,17 @@ Not allowed without cloud connectivity:
 - Perform POS sales.
 
 The lease is signed by the backend and verified by the Agent. The Agent cannot create or extend leases by itself.
+
+The Agent's offline grace window (measured from the last successful contact) only bridges an outage
+for leases shorter than the paid end. It is never applied once the backend has named the paid end of the
+session and that end has passed, so no minutes are given away past the paid time. Consequence to keep in
+mind: a session ended early at the counter while the PC is offline keeps the PC open until the PC
+reconnects (the `lock` command is delivered on the next heartbeat) or the paid end passes, whichever comes
+first.
+
+The player's sign-in on the PC is independent of the lease: after an outage an expired access token is
+renewed by the shell host with the refresh token (valid 12 hours), so the player stays signed in to
+their running session after reconnect.
 
 ## Data And Transactions
 

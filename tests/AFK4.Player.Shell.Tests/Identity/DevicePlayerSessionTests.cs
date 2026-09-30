@@ -61,6 +61,46 @@ public sealed class DevicePlayerSessionTests
         Assert.False(fixture.Session.Current.SignedIn);
     }
 
+    // Доступ истёк, пока связи не было, а страница успела постучаться раньше 30-секундного круга
+    // обновления и получила 401. Это не конец входа: рефреш-токен живёт 12 часов, и вошедшего
+    // надо обновить сейчас, а не выводить.
+    [Fact]
+    public async Task AForcedRefresh_RenewsAnAccessTokenThatLooksFresh()
+    {
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session(expiresIn: TimeSpan.FromMinutes(15)));
+        fixture.Handler.Respond = _ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(Session(expiresIn: TimeSpan.FromMinutes(15), access: "access-2"))
+        };
+
+        Assert.False(await fixture.Session.EnsureFreshAsync(CancellationToken.None, force: true));
+
+        Assert.Equal(["/api/public/player/refresh"], fixture.Handler.Paths);
+        Assert.Equal("access-2", fixture.Session.AccessToken);
+        Assert.True(fixture.Session.Current.SignedIn);
+    }
+
+    [Fact]
+    public async Task AForcedRefresh_TheServerRefuses_EndsTheSignIn()
+    {
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session(expiresIn: TimeSpan.FromMinutes(15)));
+        fixture.Handler.Respond = _ => new HttpResponseMessage(HttpStatusCode.Unauthorized);
+
+        Assert.True(await fixture.Session.EnsureFreshAsync(CancellationToken.None, force: true));
+        Assert.False(fixture.Session.Current.SignedIn);
+    }
+
+    [Fact]
+    public async Task AForcedRefresh_WithNobodySignedIn_DoesNotCallTheServer()
+    {
+        var fixture = new Fixture();
+
+        Assert.False(await fixture.Session.EnsureFreshAsync(CancellationToken.None, force: true));
+        Assert.Empty(fixture.Handler.Paths);
+    }
+
     [Fact]
     public async Task ANetworkBlip_KeepsThePlayerSignedIn()
     {

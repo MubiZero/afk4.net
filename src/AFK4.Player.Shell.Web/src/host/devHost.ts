@@ -190,6 +190,10 @@ export function installDevHost(): void {
             }
             break;
           }
+          case ShellBridgeRequestTypeNames.AuthRefresh:
+            // Учебный вход не истекает: обновлять нечего, игрок остаётся.
+            reply(auth);
+            break;
           case ShellBridgeRequestTypeNames.AuthSignOut:
             reply({});
             auth = { signedIn: false, displayName: null, playerAccountId: null };
