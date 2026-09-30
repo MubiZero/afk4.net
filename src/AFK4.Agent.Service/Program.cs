@@ -22,10 +22,21 @@ builder.Logging.AddProvider(new FileLoggerProvider(FileLoggerProvider.DefaultLog
 // added last so it overrides env vars): a service launched by the SCM inherits a stale
 // environment block, so machine env vars written by the wizard are not visible until the next
 // reboot — but the file is read fresh on every start. See FileBootstrapWriter.
-var agentConfigDirectory = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-    "AFK4",
-    "Agent");
+// Права на папку данных — до первого чтения из неё (см. AgentDataFolder). Сбой не должен ронять
+// службу киоска: причина уходит в журнал, агент работает дальше.
+if (OperatingSystem.IsWindows())
+{
+    try
+    {
+        AgentDataFolder.ApplyRights(AgentDataFolder.Root);
+    }
+    catch (Exception rightsException)
+    {
+        Console.Error.WriteLine($"Failed to apply rights to '{AgentDataFolder.Root}': {rightsException.Message}");
+    }
+}
+
+var agentConfigDirectory = Path.Combine(AgentDataFolder.Root, "Agent");
 
 // Load into memory via a stream rather than AddJsonFile so an unreadable file (ACL denial,
 // partial write) is swallowed here instead of throwing during host build — a kiosk Agent must
