@@ -467,7 +467,8 @@ internal static partial class EndpointHelpers
                 DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
                 Role: device.Role,
                 EnrollmentState: device.EnrollmentState,
-                SeatId: seatId);
+                SeatId: seatId,
+                IsKioskAbsent: device.KioskAbsentSinceUtc is not null);
 
             await hubContext.Clients
                 .Group(DeviceHubGroups.Branch(device.BranchId))

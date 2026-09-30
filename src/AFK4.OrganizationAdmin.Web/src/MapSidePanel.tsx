@@ -309,9 +309,10 @@ export function seatPanelState(seat: SeatSummary): SeatPanelState {
   if (seat.tone === 'ready') return 'free';
   if (seat.tone === 'failed') return 'failed';
   if (seat.tone === 'offline') return 'offline';
-  // Серый «сервис» — и обслуживание, и ПК сверх тарифа. У второго своя строка-причина; вернуть в
-  // зал можно только уведённый туда клубом (maintenanceSinceUtc), а не неодобренный ПК.
-  return seat.isOutsidePlan ? 'closed' : 'maintenance';
+  // Серый «сервис» — и обслуживание, и ПК сверх тарифа, и ПК без киоска. У двух последних своя
+  // строка-причина; вернуть в зал можно только уведённый туда клубом (maintenanceSinceUtc), а не
+  // неодобренный ПК.
+  return seat.isOutsidePlan || seat.isKioskAbsent ? 'closed' : 'maintenance';
 }
 
 const STATUS_TONE: Record<SeatTone, StatusTone> = {
@@ -690,7 +691,7 @@ export function MapSidePanel({
           {commandLabel(seat.command, t)}
         </p>
       ) : state === 'closed' ? (
-        <p className="ui-blocked-reason">{t('op.map.panel.outsidePlanHint')}</p>
+        <p className="ui-blocked-reason">{t(seat.isKioskAbsent ? 'op.map.panel.kioskAbsentHint' : 'op.map.panel.outsidePlanHint')}</p>
       ) : (primary !== null || secondaryButtons.length > 0) && (
         <Inspector.Actions primary={primary} hint={blocked.hint} secondary={secondaryButtons} />
       )}

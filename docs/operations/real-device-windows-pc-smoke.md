@@ -596,6 +596,15 @@ Winlogon and policy values recorded in `kiosk-state.json`, deletes the LSA
 secret, the account and its profile, removes `kiosk.json` and restarts the
 Agent.
 
+Removing the kiosk takes the PC off the floor: the restarted Agent sees no
+player account, so it does not start the Player Shell, releases every machine
+policy it held (including `DisableTaskMgr`) and reports `KioskInstalled=false`;
+the Panel marks the seat «Не игровое место: киоск снят» and refuses to seat a
+guest or book it. After the restart the administrator's desktop must be plain
+Windows, with nothing covering it. To bring the PC back, run the wizard again as
+a **Gaming PC**: the next heartbeat after the Agent sees the account clears the
+mark.
+
 ## Baseline Device Evidence
 
 On the release workstation, verify heartbeat, installed apps, diagnostics, and

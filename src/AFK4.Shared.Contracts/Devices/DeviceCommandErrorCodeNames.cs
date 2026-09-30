@@ -17,6 +17,12 @@ public static class DeviceCommandErrorCodeNames
     /// <summary>Разбудить некому: в подсети этого ПК нет ни одного включённого соседа.</summary>
     public const string NoWakeHelper = "no_wake_helper";
 
+    /// <summary>
+    /// Киоск на ПК снят — это не игровое место: сессию на нём не начать, бронь не принять, а команды,
+    /// которым нужен игрок (блокировка, сообщение, выход, обслуживание), адресовать некому.
+    /// </summary>
+    public const string KioskRemoved = "device_kiosk_removed";
+
     /// <summary>Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента.</summary>
     public const string IdempotencyConflict = "idempotency_conflict";
 }

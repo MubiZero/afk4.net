@@ -46,6 +46,18 @@ public static class DeviceCommandPolicy
         DeviceCommandTypeNames.MaintenanceOn
     };
 
+    // Команды, которые адресованы игроку или оболочке: без киоска ни того, ни другого нет. Питание,
+    // пробуждение, профиль защиты и возврат из обслуживания остаются — ими управляют ПК как машиной.
+    private static readonly HashSet<string> NeedsKiosk = new(StringComparer.Ordinal)
+    {
+        DeviceCommandTypeNames.Lock,
+        DeviceCommandTypeNames.Unlock,
+        DeviceCommandTypeNames.Warn,
+        DeviceCommandTypeNames.SignOut,
+        DeviceCommandTypeNames.Message,
+        DeviceCommandTypeNames.MaintenanceOn
+    };
+
     /// <summary>Сообщение игроку — не письмо: длиннее этого на экране поверх игры его не прочтут.</summary>
     public const int MaxMessageLength = 500;
 
@@ -63,6 +75,9 @@ public static class DeviceCommandPolicy
 
     /// <summary>Нельзя, пока на ПК идёт сессия: чужую игру не выключают и не уводят в обслуживание.</summary>
     public static bool RequiresFreeDevice(string type) => NeedsFreeDevice.Contains(type);
+
+    /// <summary>Нельзя, пока на ПК нет киоска: команда адресована игроку или оболочке, а их нет.</summary>
+    public static bool RequiresKiosk(string type) => NeedsKiosk.Contains(type);
 
     public static string RequiredPermission(string? type) =>
         type is DeviceCommandTypeNames.MaintenanceOn or DeviceCommandTypeNames.MaintenanceOff

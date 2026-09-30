@@ -88,13 +88,25 @@ internal static class BranchCapacity
                   assignment.BranchId == branchId &&
                   assignment.DetachedAtUtc == null &&
                   device.EnrollmentState == DeviceEnrollmentStateNames.Approved &&
-                  device.Role == DeviceRoleNames.GamingPc
+                  device.Role == DeviceRoleNames.GamingPc &&
+                  // ПК без киоска — не игровое место: бронировать на него нечего.
+                  device.KioskAbsentSinceUtc == null
             select assignment.SeatId)
             .Distinct()
             .ToListAsync(cancellationToken);
 
         return seatIds.ToHashSet();
     }
+
+    /// <summary>Места, за которыми стоит ПК без киоска: бронь на них не принимается, как и посадка.</summary>
+    public static IQueryable<Guid> SeatsWithoutKiosk(PlatformDbContext dbContext, Guid organizationId, Guid branchId) =>
+        from assignment in dbContext.DeviceSeatAssignments.AsNoTracking()
+        join device in dbContext.Devices.AsNoTracking() on assignment.DeviceId equals device.DeviceId
+        where assignment.OrganizationId == organizationId &&
+              assignment.BranchId == branchId &&
+              assignment.DetachedAtUtc == null &&
+              device.KioskAbsentSinceUtc != null
+        select assignment.SeatId;
 
     /// <summary>
     /// Сколько машин из <paramref name="bookableSeatIds"/> уже обещано на это окно.

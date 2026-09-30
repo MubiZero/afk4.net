@@ -70,7 +70,7 @@ function blockReason(seat: SeatSummary, command: PcCommandOrLock, access: PcComm
   if (!allowedAtAll(command, access)) return 'op.pc.bulk.skip.notAllowed';
 
   if (command === 'lock') {
-    return null;
+    return seat.isKioskAbsent ? 'op.pc.blocked.noKiosk' : null;
   }
 
   const option = pcCommandsFor(seat, access).find((candidate) => candidate.id === command);

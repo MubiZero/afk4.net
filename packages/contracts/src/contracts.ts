@@ -257,6 +257,11 @@ export const DeviceCommandErrorCodeNames = {
   WakeTargetUnknown: 'wake_target_unknown',
   /** Разбудить некому: в подсети этого ПК нет ни одного включённого соседа. */
   NoWakeHelper: 'no_wake_helper',
+  /**
+   * Киоск на ПК снят — это не игровое место: сессию на нём не начать, бронь не принять, а команды,
+   * которым нужен игрок (блокировка, сообщение, выход, обслуживание), адресовать некому.
+   */
+  KioskRemoved: 'device_kiosk_removed',
   /** Тот же ключ повтора пришёл с другой командой: это не повтор, а ошибка клиента. */
   IdempotencyConflict: 'idempotency_conflict',
 } as const;
@@ -3548,6 +3553,11 @@ export interface DeviceHeartbeatRequest {
   networkSubnet?: string | null;
   /** Широковещательный адрес подсети — куда сосед шлёт волшебный пакет. */
   networkBroadcastAddress?: string | null;
+  /**
+   * Есть ли на ПК учётка игрока (киоск). false — киоск снят или не ставился: сервер уводит ПК из
+   * зала. null — агент этого не сообщает (прежняя версия): признак не трогаем.
+   */
+  kioskInstalled?: boolean | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -3832,6 +3842,11 @@ export interface DeviceStatusChangedDto {
   role?: string;
   enrollmentState?: string;
   seatId?: Guid | null;
+  /**
+   * Киоск на ПК снят (см. SeatStatusDto.IsKioskAbsent): карте оператора надо перезагрузиться,
+   * когда признак сменился, — по онлайну и блокировке его не вывести.
+   */
+  isKioskAbsent?: boolean;
 }
 
 /** Контракт: Updates/DeviceUpdateCheckRequest.cs */
@@ -7387,6 +7402,11 @@ export interface SeatStatusDto {
    * Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
    */
   sessionBillingMode?: BillingModeName | null;
+  /**
+   * Киоск на ПК снят: это не игровое место, посадить и забронировать его нельзя, пока ПК не
+   * вернут в зал мастером. Отдельно от State — так же, как IsOutsidePlan.
+   */
+  isKioskAbsent?: boolean;
   /**
    * За местом сидит игрок со счётом клуба — даже если имя в его карточке пусто. Без этого признака
    * безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.

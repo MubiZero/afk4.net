@@ -45,8 +45,8 @@ export function SeatTile({
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
     selected ? 'selected' : '',
     picked ? 'picked' : ''].filter(Boolean).join(' ');
-  // ПК вне тарифа — не ремонт: свой знак, иначе стойка пойдёт чинить исправный ПК.
-  const ProblemIcon = lead.kind !== 'plain' ? undefined : seat.isOutsidePlan ? Ban : PROBLEM_ICON[seat.tone];
+  // ПК вне тарифа и ПК без киоска — не ремонт: свой знак, иначе стойка пойдёт чинить исправный ПК.
+  const ProblemIcon = lead.kind !== 'plain' ? undefined : seat.isOutsidePlan || seat.isKioskAbsent ? Ban : PROBLEM_ICON[seat.tone];
   // Сессия идёт, но ПК без связи: тон серый, время/сумма сессии остаются — значок обрыва говорит,
   // что деньги капают без контроля над ПК (сессия не теряется, см. модель SeatTone).
   const sessionOffline = seat.isDeviceOnline === false && (lead.kind === 'prepaid' || lead.kind === 'postpaid');

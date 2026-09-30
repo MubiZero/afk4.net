@@ -132,6 +132,11 @@ public sealed class EfSessionStartWorkflow(
             return Conflict("The PC at this seat is under maintenance.", "device_in_maintenance");
         }
 
+        if (await IsKioskAbsentAsync(assignment.DeviceId, cancellationToken))
+        {
+            return Conflict("The kiosk is removed from the PC at this seat: it is not a gaming place.", DeviceCommandErrorCodeNames.KioskRemoved);
+        }
+
         if (await planLimitGuard.CheckDeviceOnPlanAsync(request.OrganizationId, assignment.DeviceId, cancellationToken) is { } outsidePlan)
         {
             return new SessionStartStage(
@@ -346,6 +351,11 @@ public sealed class EfSessionStartWorkflow(
     private Task<bool> IsInMaintenanceAsync(Guid deviceId, CancellationToken cancellationToken) =>
         dbContext.Devices.AnyAsync(
             device => device.DeviceId == deviceId && device.MaintenanceSinceUtc != null,
+            cancellationToken);
+
+    private Task<bool> IsKioskAbsentAsync(Guid deviceId, CancellationToken cancellationToken) =>
+        dbContext.Devices.AnyAsync(
+            device => device.DeviceId == deviceId && device.KioskAbsentSinceUtc != null,
             cancellationToken);
 
     private Task<bool> HasBlockingSessionAsync(

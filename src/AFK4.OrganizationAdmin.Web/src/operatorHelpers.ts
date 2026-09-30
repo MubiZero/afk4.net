@@ -850,6 +850,11 @@ export function findSeatForDeviceStatus(nextSeats: SeatSummary[], status: Device
 }
 
 export function shouldReloadFloorMapAfterDeviceStatus(seat: SeatSummary, status: DeviceStatusChangedDto): boolean {
+  // Киоск сняли или вернули: по онлайну и блокировке этого не вывести — карту надо перечитать.
+  if ((status.isKioskAbsent === true) !== (seat.isKioskAbsent === true)) {
+    return true;
+  }
+
   return status.isLocked && (Boolean(seat.activeSessionId) || seat.hasActiveSession === true || isPendingSeatCommand(seat));
 }
 

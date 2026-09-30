@@ -39,6 +39,12 @@ public static class ProtectionPolicy
     public const string Chrome = @"SOFTWARE\Policies\Google\Chrome";
     public const string Edge = @"SOFTWARE\Policies\Microsoft\Edge";
 
+    /// <summary>
+    /// Диспетчер задач: его ставит не профиль, а блокировка ПК (WorkstationLockController), но
+    /// снимать его без киоска надо тем же местом, что и остальные машинные запреты.
+    /// </summary>
+    public static readonly RegistryWrite TaskManager = new(SystemPolicies, "DisableTaskMgr", Number: 1);
+
     // Всё, что Windows умеет по-пользовательски, ставится игроку; машинным остаётся только то, что
     // по-другому не работает: HideFastUserSwitching читается лишь из HKLM, а Chrome и Edge берут
     // обязательные политики из машинной ветки.

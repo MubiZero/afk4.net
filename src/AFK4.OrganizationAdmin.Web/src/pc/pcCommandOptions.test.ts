@@ -93,6 +93,29 @@ describe('команды ПК в карточке места', () => {
 
 // Блокировка/разблокировка (#1 аудита): раньше «Блокировать» была активна и на заблокированном
 // ПК, а «Разблокировать» смотрела на сессию, а не на реальный статус блокировки.
+describe('ПК без киоска', () => {
+  // Киоск снят — ПК вышел из зала: игрока и экрана игрока нет, команды для него не нужны, а
+  // машиной (питание) по-прежнему можно управлять.
+  it('сообщение, выход и обслуживание закрыты причиной «киоск снят», питание — можно', () => {
+    const options = pcCommandsFor(seat({ tone: 'service', isKioskAbsent: true }), everything);
+
+    expect(options.map((option) => [option.id, option.blockedReason])).toEqual([
+      ['reboot', null],
+      ['shutdown', null],
+      ['message', 'op.pc.blocked.noKiosk'],
+      ['sign-out', 'op.pc.blocked.noKiosk'],
+      ['maintenance-on', 'op.pc.blocked.noKiosk']
+    ]);
+  });
+
+  it('блокировать и разблокировать нечего', () => {
+    expect(pcLockCommandsFor(seat({ isKioskAbsent: true }))).toEqual([
+      { id: 'lock', disabled: true, hintKey: 'op.pc.blocked.noKiosk' },
+      { id: 'unlock', disabled: true, hintKey: 'op.pc.blocked.noKiosk' }
+    ]);
+  });
+});
+
 describe('блокировка ПК места', () => {
   it('ПК заблокирован: доступна только «Разблокировать»', () => {
     expect(pcLockCommandsFor(seat({ isDeviceLocked: true }))).toEqual([

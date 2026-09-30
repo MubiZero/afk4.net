@@ -208,6 +208,52 @@ public sealed class ProtectionEnforcerTests
         Assert.Equal(ProtectionItemStatusNames.Unsupported, Status(report, ProtectionItemNames.RemovableStorage));
     }
 
+    /// <summary>
+    /// «Нет киоска — ничего не держим»: машинные значения профиля (браузер, смена пользователя) и
+    /// Диспетчер задач от прежнего киоска снимаются, а не пишутся. Иначе на админском столе оставался
+    /// бы запрет, поставленный «для игроков».
+    /// </summary>
+    [Fact]
+    public async Task WithoutAPlayerAccount_NoMachinePolicyIsHeld_EvenTheTaskManagerOfAFormerKiosk()
+    {
+        var fixture = new Fixture(stored: Profile(2) with { BlockBrowserDownloads = true, BlockBrowserIncognito = true });
+        fixture.Registry.PlayerAccount = false;
+
+        await fixture.Enforcer.ApplyAsync(CancellationToken.None);
+
+        Assert.Empty(fixture.Registry.Values);
+        foreach (var name in new[] { "DisableTaskMgr", "HideFastUserSwitching", "DownloadRestrictions", "IncognitoModeAvailability", "InPrivateModeAvailability" })
+        {
+            Assert.Contains(name, fixture.Registry.RemovedMachineWide);
+        }
+    }
+
+    /// <summary>Не только при смене профиля: версия та же и всё «применено», а сняться должно на каждом сердцебиении.</summary>
+    [Fact]
+    public async Task WithoutAPlayerAccount_EveryHeartbeatReleasesAgain()
+    {
+        var fixture = new Fixture(stored: Profile(2));
+        fixture.Registry.PlayerAccount = false;
+        await fixture.Enforcer.SyncAsync(2, CancellationToken.None);
+        fixture.Registry.RemovedMachineWide.Clear();
+
+        await fixture.Enforcer.SyncAsync(2, CancellationToken.None);
+
+        Assert.Contains("DisableTaskMgr", fixture.Registry.RemovedMachineWide);
+        Assert.Empty(fixture.Registry.Values);
+    }
+
+    /// <summary>С киоском Диспетчер задач — забота блокировки ПК, профиль его не трогает.</summary>
+    [Fact]
+    public async Task WithAPlayerAccount_TheTaskManagerIsLeftToTheLock()
+    {
+        var fixture = new Fixture(stored: Profile(2));
+
+        await fixture.Enforcer.SyncAsync(2, CancellationToken.None);
+
+        Assert.DoesNotContain("DisableTaskMgr", fixture.Registry.Removed);
+    }
+
     /// <summary>Прежний агент писал эти запреты в HKLM — на всех; после обновления они не должны остаться на администраторе.</summary>
     [Fact]
     public async Task MachineWideCopiesLeftByAnOlderAgent_AreRemoved()

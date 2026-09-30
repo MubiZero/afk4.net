@@ -89,7 +89,8 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
         Guid? activeSessionId = null,
         InstallEnrollResponse? device = null,
         string? macAddress = null,
-        string? subnet = null)
+        string? subnet = null,
+        bool? kioskInstalled = null)
     {
         device ??= Device;
         using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{device.DeviceId}/heartbeat")
@@ -108,7 +109,8 @@ internal sealed class DevicePlayerFixture : IAsyncDisposable
                 ActiveSessionLeaseSequence: null,
                 NetworkMacAddress: macAddress,
                 NetworkSubnet: subnet,
-                NetworkBroadcastAddress: subnet is null ? null : "192.168.1.255"))
+                NetworkBroadcastAddress: subnet is null ? null : "192.168.1.255",
+                KioskInstalled: kioskInstalled))
         };
         message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, device.CredentialSecret);
         var response = await Client.SendAsync(message);

@@ -117,6 +117,9 @@ public sealed class ProtectionEnforcer(
         await gate.WaitAsync(cancellationToken);
         try
         {
+            // На каждом сердцебиении, а не только при смене профиля: без киоска ничего не держим.
+            ReleaseWithoutKiosk(ProtectionPolicy.Plan(Current));
+
             if (unsentReport is not null)
             {
                 await TryReportAsync(unsentReport, cancellationToken);
@@ -204,6 +207,7 @@ public sealed class ProtectionEnforcer(
         if (registry.IsSupported)
         {
             RemoveLegacyMachineWrites(plan);
+            ReleaseWithoutKiosk(plan);
         }
 
         foreach (var item in plan)
@@ -214,11 +218,10 @@ public sealed class ProtectionEnforcer(
             {
                 report = item.Enabled ? new ProtectionItemReportDto(item.Name, ProtectionItemStatusNames.Unsupported, "Machine policies need Windows.") : null;
             }
-            else if (playerBound && !registry.HasPlayerAccount)
+            else if (!registry.HasPlayerAccount)
             {
-                // Киоска нет (не ставили или сняли): запрещать некому, а машинное от прежнего применения
-                // не должно остаться на учётке администратора.
-                Remove(item with { Writes = MachineWrites(item) }, release: false);
+                // Киоска нет (не ставили или сняли): ПК не игровое место, запрещать некому — и ничего
+                // из профиля, ни игроцкого, ни машинного, на нём не держится (см. ReleaseWithoutKiosk).
                 report = item.Enabled
                     ? new ProtectionItemReportDto(item.Name, ProtectionItemStatusNames.Unsupported, "This PC has no player account: the kiosk is not installed.")
                     : null;
@@ -273,6 +276,33 @@ public sealed class ProtectionEnforcer(
             catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException or PlatformNotSupportedException)
             {
                 logger.LogWarning(exception, "The machine-wide copy of {Policy} could not be removed.", write.Name);
+            }
+        }
+    }
+
+    /// <summary>
+    /// «Нет киоска — ничего не держим»: все машинные значения профиля (HKLM действует и на
+    /// администратора) и Диспетчер задач, оставшийся от прежнего киоска, снимаются. Без учётки игрока
+    /// ПК — обычная Windows клуба, и запреты на ней никому, кроме хозяина ПК, не мешают.
+    /// Повторяется на каждом сердцебиении: это одно чтение ключа на значение.
+    /// </summary>
+    private void ReleaseWithoutKiosk(IReadOnlyList<ProtectionItem> plan)
+    {
+        if (!registry.IsSupported || registry.HasPlayerAccount)
+        {
+            return;
+        }
+
+        var held = plan.SelectMany(MachineWrites).Append(ProtectionPolicy.TaskManager);
+        foreach (var write in held)
+        {
+            try
+            {
+                registry.Remove(write);
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException or PlatformNotSupportedException)
+            {
+                logger.LogWarning(exception, "The machine policy {Policy} could not be released on a PC without a kiosk.", write.Name);
             }
         }
     }

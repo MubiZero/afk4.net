@@ -15,7 +15,8 @@ public static class HeartbeatPayloadFactory
         bool isLocked,
         DateTimeOffset observedAtUtc,
         ISessionLeaseStore? leaseStore,
-        NetworkIdentity? network = null)
+        NetworkIdentity? network = null,
+        bool? kioskInstalled = null)
     {
         var lease = leaseStore?.Current;
 
@@ -33,6 +34,7 @@ public static class HeartbeatPayloadFactory
             ActiveSessionLeaseSequence: lease?.Sequence,
             NetworkMacAddress: network?.MacAddress,
             NetworkSubnet: network?.Subnet,
-            NetworkBroadcastAddress: network?.BroadcastAddress);
+            NetworkBroadcastAddress: network?.BroadcastAddress,
+            KioskInstalled: kioskInstalled);
     }
 }

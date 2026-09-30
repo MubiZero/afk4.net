@@ -40,9 +40,16 @@ public sealed class Worker(
     AFK4.Agent.Service.Power.IdleShutdownMonitor? idleShutdown = null,
     AFK4.Agent.Service.Hardware.HardwareReporter? hardware = null,
     AFK4.Agent.Service.Showcase.ShowcaseService? showcase = null,
-    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null) : BackgroundService
+    AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null,
+    IMachineRegistry? machineRegistry = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
+
+    /// <summary>
+    /// Есть ли на ПК учётка игрока. Где киоска как понятия нет (реестр не подключён, разработка на
+    /// другой ОС), считаем, что есть: агент там ничего не отключает.
+    /// </summary>
+    private bool KioskPresent => machineRegistry is not { IsSupported: true } || machineRegistry.HasPlayerAccount;
 
     /// <summary>Когда инвентарь установленного софта отправляли в прошлый раз.</summary>
     private DateTimeOffset lastInstalledAppReportUtc = DateTimeOffset.MinValue;
@@ -131,7 +138,9 @@ public sealed class Worker(
                 runtimeState.IsLocked,
                 timeProvider.GetUtcNow(),
                 leaseStore,
-                networkIdentity?.Current);
+                networkIdentity?.Current,
+                // Где Windows-политик нет (разработка на другой ОС), агент о киоске не судит.
+                machineRegistry is { IsSupported: true } ? machineRegistry.HasPlayerAccount : null);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -177,8 +186,14 @@ public sealed class Worker(
                 // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
                 await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
                 await TryStepAsync("Game library", () => games?.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
-                // Простой — по профилю, который только что сверили.
-                idleShutdown?.Check();
+                // Простой — по профилю, который только что сверили. Без киоска ПК не игровое место:
+                // оболочки нет, о вводе никто не сообщает, и выключение «по простою» выключало бы
+                // машину под работающим за ней администратором.
+                if (KioskPresent)
+                {
+                    idleShutdown?.Check();
+                }
+
                 // Железо — раз в несколько часов; своё расписание у отправителя.
                 await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
                 // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
@@ -430,7 +445,8 @@ public sealed class Worker(
     /// </summary>
     private async Task TryEnforceProcessPolicyAsync(CancellationToken cancellationToken)
     {
-        if (processPolicyEnforcer is null)
+        // Запреты клуба живут там, где есть киоск (см. PlayerShellProcessSupervisor).
+        if (processPolicyEnforcer is null || !KioskPresent)
         {
             return;
         }

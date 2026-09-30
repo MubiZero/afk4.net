@@ -18,4 +18,7 @@ public sealed record DeviceHeartbeatRequest(
     // Подсеть этого адаптера («192.168.1.0/24»): будить можно только из той же подсети.
     string? NetworkSubnet = null,
     // Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.
-    string? NetworkBroadcastAddress = null);
+    string? NetworkBroadcastAddress = null,
+    // Есть ли на ПК учётка игрока (киоск). false — киоск снят или не ставился: сервер уводит ПК из
+    // зала. null — агент этого не сообщает (прежняя версия): признак не трогаем.
+    bool? KioskInstalled = null);

@@ -112,6 +112,104 @@ public sealed class WorkerTests
         Assert.Equal(42, graceState.EffectiveGraceMinutes);
     }
 
+    // ПК докладывает, есть ли на нём киоск: без учётки игрока сервер уводит его из зала. Где
+    // Windows-политик нет, агент о киоске не судит и молчит — прежнее поведение.
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, false, null)]
+    public async Task ExecuteAsync_HeartbeatTellsWhetherThePcHasAKiosk(bool supported, bool playerAccount, bool? expected)
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(handler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new ShellHeartbeatSnapshot(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellStateSignal(),
+            TimeProvider.System,
+            machineRegistry: new Protection.ProtectionEnforcerTests.FakeRegistry { Supported = supported, PlayerAccount = playerAccount });
+
+        await worker.StartAsync(stopping.Token);
+        await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal(expected, handler.Request!.KioskInstalled);
+    }
+
+    // Запрет клуба на программы держится там, где есть киоск: на админском ПК без киоска он закрывал
+    // бы то, что хозяину ПК нужно.
+    [Fact]
+    public async Task ExecuteAsync_WithoutAKiosk_DoesNotCloseTheProcessesTheClubForbade()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var heartbeatSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret",
+            DeniedProcessNames = ["cheat-engine"]
+        });
+        using var heartbeatHandler = new CapturingHeartbeatHandler(heartbeatSeen, stopping);
+        var terminator = new RecordingProcessTerminator(new TaskCompletionSource());
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(heartbeatHandler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new ShellHeartbeatSnapshot(),
+            new RecordingDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellStateSignal(),
+            TimeProvider.System,
+            new ProcessPolicyEnforcer(options, terminator, NullLogger<ProcessPolicyEnforcer>.Instance),
+            machineRegistry: new Protection.ProtectionEnforcerTests.FakeRegistry { PlayerAccount = false });
+
+        await worker.StartAsync(stopping.Token);
+        await heartbeatSeen.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Empty(terminator.Terminated);
+    }
+
     [Fact]
     public async Task ExecuteAsync_HeartbeatUsesRuntimeLockState()
     {

@@ -194,6 +194,16 @@ describe('projectOperatorError', () => {
     );
   });
 
+  it('объясняет, что ПК без киоска не игровое место и как его вернуть', () => {
+    const t = createTranslator('ru');
+    const error = new PlatformApiError('conflict', 409, 'Conflict', JSON.stringify({ error: 'The kiosk is removed.', code: 'device_kiosk_removed' }));
+
+    const projection = projectOperatorError(error, t);
+
+    expect(projection.detail).toContain('снят киоск');
+    expect(projection.detail).toContain('мастером установки');
+  });
+
   it('превращает отказ по лимиту тарифа во фразу с числами', () => {
     const t = createTranslator('ru');
     const error = new PlatformApiError('conflict', 409, 'Conflict', JSON.stringify({

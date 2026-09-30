@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,15 @@ public sealed class DeviceHeartbeatService(
             device.LastHeartbeatAtUtc = request.ObservedAtUtc;
             device.IsOnline = true;
             device.IsLocked = request.IsLocked;
+            // Киоск — только у игрового ПК: у рабочего места менеджера учётки игрока нет никогда, и
+            // это не повод уводить его из зала. Прежний агент признак не шлёт — его не трогаем.
+            if (request.KioskInstalled is { } kioskInstalled && device.Role == DeviceRoleNames.GamingPc)
+            {
+                device.KioskAbsentSinceUtc = kioskInstalled
+                    ? null
+                    : device.KioskAbsentSinceUtc ?? timeProvider.GetUtcNow();
+            }
+
             // Сетевой адрес помнится, пока агент не сообщит другой: по нему этот ПК будет будить
             // сосед, когда сам он выключен и сказать ничего не может.
             if (!string.IsNullOrWhiteSpace(request.NetworkMacAddress))
@@ -98,7 +108,8 @@ public sealed class DeviceHeartbeatService(
             DisplayName: device is null || string.IsNullOrWhiteSpace(device.DisplayName) ? request.MachineName : device.DisplayName,
             Role: device?.Role ?? string.Empty,
             EnrollmentState: device?.EnrollmentState ?? string.Empty,
-            SeatId: seatId);
+            SeatId: seatId,
+            IsKioskAbsent: device?.KioskAbsentSinceUtc is not null);
 
         if (allowOperationalCommands)
         {
@@ -227,7 +238,8 @@ public sealed class DeviceHeartbeatService(
         // На обслуживании ПК закрыт для игроков: код посадки звал бы к нему человека.
         var inMaintenance = device?.MaintenanceSinceUtc is not null;
 
-        var seatingCode = busy || inMaintenance || !allowOperationalCommands
+        // Без киоска оболочки нет, и код звал бы человека к ПК, за который не сесть.
+        var seatingCode = busy || inMaintenance || device?.KioskAbsentSinceUtc is not null || !allowOperationalCommands
             ? null
             : await seatingCodes.IssueAsync(request.OrganizationId, request.DeviceId, cancellationToken);
 

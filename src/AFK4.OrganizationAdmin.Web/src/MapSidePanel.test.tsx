@@ -522,6 +522,15 @@ describe('MapSidePanel: одна главная кнопка по положен
     expect(screen.getByText(/ПК сверх тарифа/)).toBeInTheDocument();
   });
 
+  // Киоск снят — ПК вышел из зала: кнопки посадки нет, одна строка почему и что делать.
+  it('ПК без киоска — кнопки нет, строка «Не игровое место: киоск снят» и как вернуть', () => {
+    renderWith(free({ tone: 'service', isKioskAbsent: true, stateLabel: 'Не игровое место' }));
+    expect(primaryButton()).toBeUndefined();
+    expect(screen.getByText(/Не игровое место: киоск снят/)).toBeInTheDocument();
+    expect(screen.getByText(/мастер установки заново/)).toBeInTheDocument();
+    expect(screen.queryByText(/ПК сверх тарифа/)).toBeNull();
+  });
+
   // Серый «сервис» без решения клуба (ПК не одобрен) — это не «сверх тарифа» и не «вернуть в зал».
   it('неодобренный ПК — ни «Вернуть в зал», ни строки про тариф', () => {
     renderWith(free({ tone: 'service', stateLabel: 'Обслуживание' }));
