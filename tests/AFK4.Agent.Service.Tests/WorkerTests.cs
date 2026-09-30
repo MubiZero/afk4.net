@@ -4,6 +4,7 @@ using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -1200,6 +1201,61 @@ public sealed class WorkerTests
 
         Assert.Equal("old-secret", credentialStore.Current);
         Assert.Empty(credentialStore.Updates);
+    }
+
+    // Мастер установки ждёт эту отметку, чтобы не говорить «ПК подключён» про агента, который
+    // простаивает с негодной настройкой.
+    [Fact]
+    public async Task ConfiguredAgent_LeavesTheReadyMarkerForTheSetupWizard()
+    {
+        using var directory = TemporaryDirectory.Create();
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var beat = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new RotationHandler(beat, stopping, rotateCredential: false);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "old-secret",
+            StateDirectory = directory.Path
+        });
+        var worker = CreateWorker(options, handler, new InMemoryDeviceCredentialStore("old-secret"));
+
+        await worker.StartAsync(stopping.Token);
+        await beat.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.True(File.Exists(AgentReadyMarker.PathIn(directory.Path)));
+    }
+
+    // Адрес без https — настройка негодна: агент простаивает, и отметки быть не должно.
+    [Fact]
+    public async Task UnconfiguredAgent_LeavesNoReadyMarker()
+    {
+        using var directory = TemporaryDirectory.Create();
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var beat = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new RotationHandler(beat, stopping, rotateCredential: false);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("http://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            StateDirectory = directory.Path
+        });
+        var worker = CreateWorker(options, handler, new InMemoryDeviceCredentialStore(string.Empty));
+
+        await worker.StartAsync(stopping.Token);
+        await worker.ExecuteTask!.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.False(File.Exists(AgentReadyMarker.PathIn(directory.Path)));
+        Assert.False(beat.Task.IsCompleted);
     }
 
     // Пока клуб не просил, лишних смен быть не должно: ключ меняется по делу, а не по расписанию.

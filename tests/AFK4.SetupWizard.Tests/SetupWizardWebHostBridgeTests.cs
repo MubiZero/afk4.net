@@ -627,6 +627,25 @@ public sealed class SetupWizardWebHostBridgeTests
         Assert.NotNull(bridge.Deps.Bootstrap.Written);
     }
 
+    // Служба запущена, а агент настройку не принял (адрес без https, нет ключа): sc start при этом
+    // отвечает успехом, и прежний мастер говорил «ПК подключён» про машину, которая молчит.
+    [Fact]
+    public async Task Enroll_WhenTheAgentDoesNotAcceptItsSettings_ReportsThatInsteadOfAConnectedPc()
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Completion.Failure = new AgentDidNotAcceptSettingsException("the agent idles");
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        var shell = response.GetProperty("payload").GetProperty("shell");
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal("agent_not_ready", shell.GetProperty("status").GetString());
+        Assert.NotNull(bridge.Deps.Bootstrap.Written);
+    }
+
     // Приложение клуба не открываем, пока служба не поднялась: кассир увидел бы рабочее окно на
     // машине, которая с платформой не разговаривает.
     [Fact]

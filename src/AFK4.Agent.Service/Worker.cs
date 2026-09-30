@@ -6,6 +6,7 @@ using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service;
@@ -59,6 +60,8 @@ public sealed class Worker(
             return;
         }
 
+        SignalConfigurationAccepted(agentOptions);
+
         try
         {
             await realtimeClient.StartAsync(stoppingToken);
@@ -96,6 +99,23 @@ public sealed class Worker(
                 timeProvider.GetUtcNow(),
                 Random.Shared.NextDouble());
             await Task.Delay(delay, stoppingToken);
+        }
+    }
+
+    /// <summary>
+    /// Мастер установки ждёт эту отметку, чтобы сказать «ПК подключён» только про агента, который
+    /// принял настройку. Не записалась — агент всё равно работает, мастер лишь не сможет в этом
+    /// убедиться, и в журнале будет сказано почему.
+    /// </summary>
+    private void SignalConfigurationAccepted(AgentOptions agentOptions)
+    {
+        try
+        {
+            AgentReadyMarker.Write(agentOptions.StateDirectory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not write the agent-ready marker; the setup wizard will report the agent as not confirmed.");
         }
     }
 

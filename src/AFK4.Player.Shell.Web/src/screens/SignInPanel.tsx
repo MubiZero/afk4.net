@@ -40,8 +40,13 @@ export function SignInPanel({ state, onClose }: SignInPanelProps) {
   const phoneId = useId();
   const pinId = useId();
 
+  // Фокус — один раз, при открытии. Над идущей сессией родитель каждую секунду отдаёт новый
+  // `onClose`, и эффект с фокусом внутри него возвращал курсор в телефон, стоило уйти из него по Tab.
   useEffect(() => {
     phoneField.current?.focus();
+  }, []);
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };

@@ -146,7 +146,7 @@ public sealed class AgentLauncherAppOptions
 
     public string DisplayName { get; init; } = string.Empty;
 
-    public string Category { get; init; } = "Games";
+    public string Category { get; init; } = string.Empty;
 
     public string ExecutablePath { get; init; } = string.Empty;
 

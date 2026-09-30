@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { PlayerShellStateDto } from '@afk4/contracts';
-import { sessionUntilUtc } from './sessionTime';
+import { sessionUntilUtc, withConfirmedEnd } from './sessionTime';
 
 const base = {
   isOnline: true,
@@ -22,5 +22,23 @@ describe('sessionUntilUtc', () => {
   it('an open tab has no end: the screen shows how long it runs', () => {
     expect(sessionUntilUtc({ ...base, sessionEndsAtUtc: null })).toBeNull();
     expect(sessionUntilUtc({ ...base, sessionEndsAtUtc: null, isOnline: false, isGraceMode: true })).toBe('2026-09-27T10:15:00Z');
+  });
+});
+
+describe('withConfirmedEnd', () => {
+  const session = { ...base, sessionId: 's1' } as PlayerShellStateDto;
+  const later = { sessionId: 's1', endsAtUtc: '2026-09-27T13:00:00Z' };
+
+  it('подтверждённое продление сразу сдвигает конец, не дожидаясь агента', () => {
+    expect(withConfirmedEnd(session, later).sessionEndsAtUtc).toBe('2026-09-27T13:00:00Z');
+  });
+
+  it('когда агент догнал, его конец не затирается более ранним', () => {
+    expect(withConfirmedEnd({ ...session, sessionEndsAtUtc: '2026-09-27T14:00:00Z' }, later).sessionEndsAtUtc)
+      .toBe('2026-09-27T14:00:00Z');
+  });
+
+  it('чужая сессия подтверждение не получает', () => {
+    expect(withConfirmedEnd({ ...session, sessionId: 's2' }, later).sessionEndsAtUtc).toBe('2026-09-27T12:00:00Z');
   });
 });

@@ -82,7 +82,7 @@ public sealed class SilentInstaller(
         }
 
         var outcome = await deviceSetup.FinalizeForRoleAsync(DeviceRoleNames.GamingPc, cancellationToken);
-        if (outcome.Status is "failed" or SetupWizardDeviceSetup.AgentStartFailedStatus)
+        if (outcome.Status == "failed" || SetupWizardDeviceSetup.AgentIsDown(outcome.Status))
         {
             SetupWizardStartupLog.Write($"Silent install stopped: {outcome.Status} (exitCode={outcome.ExitCode}) {outcome.Message}");
             return SilentInstallExitCodes.SetupFailed;

@@ -45,6 +45,12 @@ export function FinishedScreen({
   // Киоск живёт здесь, а не в своей строке: от него зависит, какая кнопка на экране главная.
   const [kiosk, setKiosk] = useState(result.shell.kiosk);
   const [rebootFailed, setRebootFailed] = useState(false);
+  // Исход установки живёт здесь же: удачный повтор должен сменить и заголовок экрана, а не
+  // только убрать строку с ошибкой.
+  const [shell, setShell] = useState(result.shell);
+  // «ПК подключён» — только когда агент принял настройку. Приложение не встало или служба молчит —
+  // машина записана в клубе, но команд от сервера не получает.
+  const agentDown = shell.status === 'failed' || shell.status === 'agent_start_failed' || shell.status === 'agent_not_ready';
   const isPending = result.enrollmentState.toLowerCase() === 'pending';
   const kioskReady = kiosk?.status === 'ready';
   const roleLabel = result.role === 'gaming_pc'
@@ -60,13 +66,17 @@ export function FinishedScreen({
   const nextSteps: string[] = [];
   if (isPending) nextSteps.push(t('setup.wizard.finished.next.confirm'));
   if (kioskReady) nextSteps.push(t('setup.wizard.finished.next.reboot'));
-  else if (isPending) nextSteps.push(t('setup.wizard.finished.next.restart'));
+  else if (isPending && !agentDown) nextSteps.push(t('setup.wizard.finished.next.restart'));
 
   return (
     <WizardStepLayout
       stepNumber={stepNumber}
-      title={isPending ? t('setup.wizard.finished.pending.title') : t('setup.wizard.finished.ok.title')}
-      subtitle={isPending ? t('setup.wizard.finished.pending.body') : t('setup.wizard.finished.ok.body')}
+      title={agentDown
+        ? t('setup.wizard.finished.offline.title')
+        : isPending ? t('setup.wizard.finished.pending.title') : t('setup.wizard.finished.ok.title')}
+      subtitle={agentDown
+        ? t('setup.wizard.finished.offline.body')
+        : isPending ? t('setup.wizard.finished.pending.body') : t('setup.wizard.finished.ok.body')}
       // Главная одна. Киоск без перезагрузки не заработает, поэтому главная — перезагрузка, а
       // закрыть мастер можно и без неё, тихой ссылкой.
       skip={kioskReady ? { label: t('setup.wizard.finished.closeWithoutReboot'), onClick: onClose } : null}
@@ -102,8 +112,8 @@ export function FinishedScreen({
         </div>
       </dl>
 
-      {result.shell.status !== 'skipped' && (
-        <ShellStatusRow initial={result.shell} role={result.role} provisionShell={provisionShell} />
+      {shell.status !== 'skipped' && (
+        <ShellStatusRow outcome={shell} onOutcome={setShell} role={result.role} provisionShell={provisionShell} />
       )}
 
       {kiosk?.status === 'failed' && (
@@ -124,13 +134,13 @@ export function FinishedScreen({
   );
 }
 
-function ShellStatusRow({ initial, role, provisionShell }: {
-  initial: WizardShellOutcome;
+function ShellStatusRow({ outcome, onOutcome, role, provisionShell }: {
+  outcome: WizardShellOutcome;
+  onOutcome: (outcome: WizardShellOutcome) => void;
   role: WizardRole;
   provisionShell: (role: WizardRole) => Promise<WizardShellOutcome>;
 }) {
   const { t } = useI18n();
-  const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
   // Сорвавшийся повтор. Без него кнопка молча возвращалась в исходное состояние, и человек у ПК
   // видел ровно то же, что до нажатия, — будто она не работает.
@@ -154,7 +164,9 @@ function ShellStatusRow({ initial, role, provisionShell }: {
   // встало. Одна фраза на два случая отправляла разбираться не туда.
   const failureText = outcome.status === 'agent_start_failed'
     ? t('setup.wizard.finished.agent.failed')
-    : t('setup.wizard.finished.shell.failed', { app: appName });
+    : outcome.status === 'agent_not_ready'
+      ? t('setup.wizard.finished.agent.notReady')
+      : t('setup.wizard.finished.shell.failed', { app: appName });
 
   return (
     <div className="wizard-shell-status is-error" role="alert">
@@ -173,7 +185,7 @@ function ShellStatusRow({ initial, role, provisionShell }: {
           setBusy(true);
           setRetryFailure(null);
           try {
-            setOutcome(await provisionShell(role));
+            onOutcome(await provisionShell(role));
           } catch (error) {
             setRetryFailure(wizardErrorMessage(error, t, 'setup.wizard.finished.shell.retryFailed'));
           } finally {

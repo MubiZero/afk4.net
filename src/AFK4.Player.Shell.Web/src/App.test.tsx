@@ -154,7 +154,19 @@ describe('действия идут через хост', () => {
     expect(await screen.findByText('Игра не запустилась. Позовите администратора.')).toBeInTheDocument();
   });
 
-  it('«Администратор идёт» — только когда стойка узнала', async () => {
+  // Принять вызов может только человек у стойки; кнопка честно говорит «позвали», а не «идёт».
+  it('вызов дошёл до стойки — «Администратора позвали»', async () => {
+    installFakeHost({ state: devScenarioState('error') });
+    renderShell();
+    const call = await screen.findByRole('button', { name: 'Позвать администратора' });
+
+    await act(async () => call.click());
+
+    expect(await screen.findByText('Администратора позвали')).toBeInTheDocument();
+    expect(screen.queryByText('Администратор идёт')).not.toBeInTheDocument();
+  });
+
+  it('«Администратора позвали» — только когда стойка узнала', async () => {
     installFakeHost({
       state: devScenarioState('error'),
       reply: (type) =>
@@ -168,7 +180,7 @@ describe('действия идут через хост', () => {
     await act(async () => call.click());
 
     expect(await screen.findByText('Не дозвались до стойки. Подойдите сами.')).toBeInTheDocument();
-    expect(screen.queryByText('Администратор идёт')).not.toBeInTheDocument();
+    expect(screen.queryByText('Администратора позвали')).not.toBeInTheDocument();
   });
 
   it('язык филиала, пришедший позже, не перебивает выбор человека', async () => {

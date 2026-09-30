@@ -2,10 +2,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using AFK4.SetupWizard.Core;
+using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard;
 
-public sealed class AgentServiceCompletionAction(string serviceName = "AFK4.Agent.Service") : ISetupWizardCompletionAction
+public sealed class AgentServiceCompletionAction(
+    string serviceName = "AFK4.Agent.Service",
+    string? readyMarkerPath = null,
+    TimeSpan? acceptTimeout = null) : ISetupWizardCompletionAction
 {
     private const int ServiceDoesNotExist = 1060;
     private const int ServiceAlreadyRunning = 1056;
@@ -14,6 +18,11 @@ public sealed class AgentServiceCompletionAction(string serviceName = "AFK4.Agen
     private const int StartAttempts = 60;
 
     private static readonly TimeSpan StartRetryDelay = TimeSpan.FromMilliseconds(500);
+
+    private readonly string markerPath = readyMarkerPath ?? AgentReadyMarker.DefaultPath;
+
+    /// <summary>Агенту на чтение настройки и первую отметку — секунды; полминуты с запасом на медленный ПК.</summary>
+    private readonly TimeSpan acceptTimeout = acceptTimeout ?? TimeSpan.FromSeconds(30);
 
     public void Complete()
     {
@@ -28,6 +37,8 @@ public sealed class AgentServiceCompletionAction(string serviceName = "AFK4.Agen
             return;
         }
 
+        // Отметка от прошлого запуска ничего не доказывает про этот: стираем до старта.
+        File.Delete(markerPath);
         RunScCommand(["config", serviceName, "start=", "auto"], throwOnFailure: true);
         var startResult = RunScCommand(["start", serviceName], throwOnFailure: false);
         if (startResult == ServiceAlreadyRunning)
@@ -39,6 +50,9 @@ public sealed class AgentServiceCompletionAction(string serviceName = "AFK4.Agen
         {
             throw new InvalidOperationException($"AFK4.NET Agent Service could not be started. sc.exe exited with code {startResult}.");
         }
+
+        // Запущенная служба — ещё не принятая настройка: агент с негодной настройкой простаивает.
+        AgentReadyWait.ForMarker(markerPath, acceptTimeout, TimeSpan.FromMilliseconds(250));
 
         SetupWizardFirstRunRegistration.Clear();
     }
