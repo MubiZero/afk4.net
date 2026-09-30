@@ -1,3 +1,5 @@
+using AFK4.Agent.Service.Protection;
+
 namespace AFK4.Agent.Service.Enforcement;
 
 /// <summary>
@@ -11,9 +13,15 @@ namespace AFK4.Agent.Service.Enforcement;
 /// удержание окна поверх остальных должны жить в интерактивном процессе — служба сидит в нулевой
 /// сессии и хуков на пользовательский рабочий стол ставить не может. Эта половина — за оболочкой
 /// игрока, вместе с её переписыванием.
+///
+/// Запрет машинный (HKLM): куст игрока загружен, лишь пока он вошёл, а ПК запирается и до входа.
+/// Поэтому держится он только там, где есть киоск: без учётки игрока (киоск сняли или не ставили)
+/// запирать некого, и Диспетчер задач администратора агент возвращает, а не выключает снова на
+/// каждом запирании.
 /// </summary>
 public sealed class WorkstationLockController(
     IMachinePolicyStore policyStore,
+    IMachineRegistry registry,
     ILogger<WorkstationLockController> logger) : IWorkstationLockController
 {
     /// <summary>Диспетчер задач: и Ctrl+Shift+Esc, и пункт на экране Ctrl+Alt+Del.</summary>
@@ -26,6 +34,11 @@ public sealed class WorkstationLockController(
             logger.LogWarning(
                 "Workstation lock requested, but machine policies are unavailable on this platform: nothing was enforced.");
             return Task.FromResult(WorkstationLockOutcome.Nothing);
+        }
+
+        if (WithoutKiosk() is { } nothingToLock)
+        {
+            return Task.FromResult(nothingToLock);
         }
 
         var enforced = new List<string>();
@@ -44,6 +57,11 @@ public sealed class WorkstationLockController(
         if (!policyStore.IsSupported)
         {
             return Task.FromResult(WorkstationLockOutcome.Nothing);
+        }
+
+        if (WithoutKiosk() is { } nothingToKeep)
+        {
+            return Task.FromResult(nothingToKeep);
         }
 
         // Ставится, а не просто «не снимается»: политику могли убрать руками или профилем защиты.
@@ -74,5 +92,17 @@ public sealed class WorkstationLockController(
         var outcome = new WorkstationLockOutcome(released);
         logger.LogInformation("Workstation unlocked by Agent enforcement coordinator: {Released}.", outcome.Describe());
         return Task.FromResult(outcome);
+    }
+
+    private WorkstationLockOutcome? WithoutKiosk()
+    {
+        if (registry.HasPlayerAccount)
+        {
+            return null;
+        }
+
+        policyStore.Remove(DisableTaskManagerPolicy);
+        logger.LogWarning("This PC has no player account (the kiosk is not installed): nothing to lock, the task manager stays available.");
+        return WorkstationLockOutcome.Nothing;
     }
 }
