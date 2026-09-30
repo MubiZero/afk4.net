@@ -122,6 +122,12 @@ abstract final class BillingModeNames {
   static const String prepaidWallet = 'prepaid_wallet';
   static const String postpaidDebt = 'postpaid_debt';
   static const String package = 'package';
+  /// Гость без аккаунта платит наличными у стойки: за фиксированное время — вперёд при старте и
+  /// при каждом продлении. Предоплата, как кошелёк, только деньги идут в кассу смены, а не со
+  /// счёта: расчёт на закрытии ничего не добавляет, а ранний уход ничего не возвращает сам.
+  /// Открытый счёт гостя отдельного режима не имеет — это пустой режим с тарифом, расчёт по
+  /// факту на «Завершить и рассчитать».
+  static const String prepaidCash = 'prepaid_cash';
 }
 
 /// Что оператор может найти одной строкой из палитры. Строки, а не enum: контракт переживает
@@ -471,6 +477,10 @@ abstract final class LedgerAccountTypeNames {
   static const String debt = 'debt';
   static const String packageTime = 'package_time';
   static const String bonusTime = 'bonus_time';
+  /// Наличные гостя без аккаунта: запись за игру, оплаченную деньгами у стойки. Ни кошелька, ни
+  /// долга у гостя нет, поэтому на балансы игроков эти записи не влияют; нужны они отчётам —
+  /// выручка за игру считается по журналу, а не по кассе.
+  static const String cash = 'cash';
 }
 
 /// Словарь: Billing/LedgerEntryTypeNames.cs
@@ -1124,6 +1134,10 @@ abstract final class SessionErrorCodeNames {
   static const String notCheckoutable = 'session_not_checkoutable';
   /// Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться.
   static const String checkoutSplitMismatch = 'checkout_split_mismatch';
+  /// Тариф успел измениться: сумма, которую оператор назвал гостю, уже не та.
+  static const String priceChanged = 'price_changed';
+  /// Наличными платит гость без аккаунта; клиенту клуба этот режим не подходит.
+  static const String cashBillingGuestOnly = 'cash_billing_guest_only';
 }
 
 /// С чего началась сессия. Раньше на этот вопрос отвечали догадкой по косвенным признакам —
@@ -7580,6 +7594,7 @@ class ExtendSessionRequest {
     this.tariffVersionId,
     this.playerPackageId,
     this.expectedVersion,
+    this.expectedChargeMinorUnits,
   });
 
   final int additionalMinutes;
@@ -7591,6 +7606,9 @@ class ExtendSessionRequest {
   final String? playerPackageId;
   final int? expectedVersion;
 
+  /// См. StartGuestSessionRequest.ExpectedChargeMinorUnits: та же защита, когда гость доплачивает.
+  final int? expectedChargeMinorUnits;
+
   factory ExtendSessionRequest.fromJson(Map<String, dynamic> json) => ExtendSessionRequest(
         additionalMinutes: (json['additionalMinutes'] as num).toInt(),
         tariffRuleVersionId: json['tariffRuleVersionId'] as String,
@@ -7600,6 +7618,7 @@ class ExtendSessionRequest {
         tariffVersionId: json['tariffVersionId'] == null ? null : json['tariffVersionId'] as String,
         playerPackageId: json['playerPackageId'] == null ? null : json['playerPackageId'] as String,
         expectedVersion: json['expectedVersion'] == null ? null : (json['expectedVersion'] as num).toInt(),
+        expectedChargeMinorUnits: json['expectedChargeMinorUnits'] == null ? null : (json['expectedChargeMinorUnits'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -7611,6 +7630,7 @@ class ExtendSessionRequest {
         'tariffVersionId': tariffVersionId,
         'playerPackageId': playerPackageId,
         'expectedVersion': expectedVersion,
+        'expectedChargeMinorUnits': expectedChargeMinorUnits,
       };
 }
 
@@ -17413,6 +17433,7 @@ class SeatStatusDto {
     this.isConsole,
     this.isOutsidePlan,
     this.lastFailedCommandType,
+    this.sessionBillingMode,
   });
 
   final String seatId;
@@ -17473,6 +17494,10 @@ class SeatStatusDto {
   /// «Повторить …»: без неё было видно, что что-то не прошло, но не что именно повторять.
   final String? lastFailedCommandType;
 
+  /// Как оплачена идущая сессия (BillingModeNames); пусто — гость без расчёта или места занято нет.
+  /// Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
+  final String? sessionBillingMode;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -17500,6 +17525,7 @@ class SeatStatusDto {
         isConsole: json['isConsole'] == null ? null : json['isConsole'] as bool,
         isOutsidePlan: json['isOutsidePlan'] == null ? null : json['isOutsidePlan'] as bool,
         lastFailedCommandType: json['lastFailedCommandType'] == null ? null : json['lastFailedCommandType'] as String,
+        sessionBillingMode: json['sessionBillingMode'] == null ? null : json['sessionBillingMode'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -17529,6 +17555,7 @@ class SeatStatusDto {
         'isConsole': isConsole,
         'isOutsidePlan': isOutsidePlan,
         'lastFailedCommandType': lastFailedCommandType,
+        'sessionBillingMode': sessionBillingMode,
       };
 }
 
@@ -17637,6 +17664,9 @@ class SessionCheckoutQuoteResponse {
     required this.billableSeconds,
     this.playerAccountId,
     this.walletBalance,
+    this.playedSeconds,
+    this.prepaidCharged,
+    this.prepaidRefund,
   });
 
   final String sessionId;
@@ -17647,6 +17677,18 @@ class SessionCheckoutQuoteResponse {
   final String? playerAccountId;
   final MoneyDto? walletBalance;
 
+  /// Сколько сыграно (от старта за вычетом пауз) — одно число для «Сыграно» в окне расчёта, в
+  /// отличие от BillableSeconds, которое у предоплаты ноль: время уже оплачено.
+  final int? playedSeconds;
+
+  /// Сколько за время этой сессии уплачено вперёд: списано с кошелька при старте и продлениях
+  /// или отдано наличными гостем. Null — вперёд ничего не платили.
+  final MoneyDto? prepaidCharged;
+
+  /// Что вернётся игроку, если закончить сейчас — на кошелёк, по правилам раннего ухода. Null —
+  /// возвращать нечего; у гостя, заплатившего наличными, автоматического возврата нет.
+  final MoneyDto? prepaidRefund;
+
   factory SessionCheckoutQuoteResponse.fromJson(Map<String, dynamic> json) => SessionCheckoutQuoteResponse(
         sessionId: json['sessionId'] as String,
         timeCharge: MoneyDto.fromJson(json['timeCharge'] as Map<String, dynamic>),
@@ -17655,6 +17697,9 @@ class SessionCheckoutQuoteResponse {
         billableSeconds: (json['billableSeconds'] as num).toInt(),
         playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
         walletBalance: json['walletBalance'] == null ? null : MoneyDto.fromJson(json['walletBalance'] as Map<String, dynamic>),
+        playedSeconds: json['playedSeconds'] == null ? null : (json['playedSeconds'] as num).toInt(),
+        prepaidCharged: json['prepaidCharged'] == null ? null : MoneyDto.fromJson(json['prepaidCharged'] as Map<String, dynamic>),
+        prepaidRefund: json['prepaidRefund'] == null ? null : MoneyDto.fromJson(json['prepaidRefund'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -17665,6 +17710,9 @@ class SessionCheckoutQuoteResponse {
         'billableSeconds': billableSeconds,
         'playerAccountId': playerAccountId,
         'walletBalance': walletBalance?.toJson(),
+        'playedSeconds': playedSeconds,
+        'prepaidCharged': prepaidCharged?.toJson(),
+        'prepaidRefund': prepaidRefund?.toJson(),
       };
 }
 
@@ -17848,6 +17896,35 @@ class SessionDto {
         'remainingSeconds': remainingSeconds,
         'currentLease': currentLease?.toJson(),
         'version': version,
+      };
+}
+
+/// Сколько стоит продлить идущую сессию на N минут — по её же тарифу, до нажатия. Гость платит за
+/// продление наличными на месте, и оператору нужна точная сумма, а не прикидка в браузере. Ничего
+/// не меняет.
+///
+/// Контракт: Sessions/SessionExtendQuoteResponse.cs
+class SessionExtendQuoteResponse {
+  const SessionExtendQuoteResponse({
+    required this.sessionId,
+    required this.additionalMinutes,
+    required this.charge,
+  });
+
+  final String sessionId;
+  final int additionalMinutes;
+  final MoneyDto charge;
+
+  factory SessionExtendQuoteResponse.fromJson(Map<String, dynamic> json) => SessionExtendQuoteResponse(
+        sessionId: json['sessionId'] as String,
+        additionalMinutes: (json['additionalMinutes'] as num).toInt(),
+        charge: MoneyDto.fromJson(json['charge'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sessionId': sessionId,
+        'additionalMinutes': additionalMinutes,
+        'charge': charge.toJson(),
       };
 }
 
@@ -19955,6 +20032,7 @@ class StartGuestSessionRequest {
     this.playerPackageId,
     this.isComp,
     this.compReason,
+    this.expectedChargeMinorUnits,
   });
 
   final String organizationId;
@@ -19972,6 +20050,10 @@ class StartGuestSessionRequest {
   final bool? isComp;
   final String? compReason;
 
+  /// Сумма, которую оператор увидел и назвал гостю (режим prepaid_cash). Не совпала с расчётом
+  /// сервера (успел смениться тариф) — старт отказывает с price_changed, а не берёт другие деньги.
+  final int? expectedChargeMinorUnits;
+
   factory StartGuestSessionRequest.fromJson(Map<String, dynamic> json) => StartGuestSessionRequest(
         organizationId: json['organizationId'] as String,
         seatId: json['seatId'] as String,
@@ -19985,6 +20067,7 @@ class StartGuestSessionRequest {
         playerPackageId: json['playerPackageId'] == null ? null : json['playerPackageId'] as String,
         isComp: json['isComp'] == null ? null : json['isComp'] as bool,
         compReason: json['compReason'] == null ? null : json['compReason'] as String,
+        expectedChargeMinorUnits: json['expectedChargeMinorUnits'] == null ? null : (json['expectedChargeMinorUnits'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -20000,6 +20083,7 @@ class StartGuestSessionRequest {
         'playerPackageId': playerPackageId,
         'isComp': isComp,
         'compReason': compReason,
+        'expectedChargeMinorUnits': expectedChargeMinorUnits,
       };
 }
 
@@ -20017,6 +20101,7 @@ class StartReservationSessionRequest {
     this.playerPackageId,
     this.isComp,
     this.compReason,
+    this.expectedChargeMinorUnits,
   });
 
   final String organizationId;
@@ -20030,6 +20115,7 @@ class StartReservationSessionRequest {
   final String? playerPackageId;
   final bool? isComp;
   final String? compReason;
+  final int? expectedChargeMinorUnits;
 
   factory StartReservationSessionRequest.fromJson(Map<String, dynamic> json) => StartReservationSessionRequest(
         organizationId: json['organizationId'] as String,
@@ -20043,6 +20129,7 @@ class StartReservationSessionRequest {
         playerPackageId: json['playerPackageId'] == null ? null : json['playerPackageId'] as String,
         isComp: json['isComp'] == null ? null : json['isComp'] as bool,
         compReason: json['compReason'] == null ? null : json['compReason'] as String,
+        expectedChargeMinorUnits: json['expectedChargeMinorUnits'] == null ? null : (json['expectedChargeMinorUnits'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -20057,6 +20144,7 @@ class StartReservationSessionRequest {
         'playerPackageId': playerPackageId,
         'isComp': isComp,
         'compReason': compReason,
+        'expectedChargeMinorUnits': expectedChargeMinorUnits,
       };
 }
 

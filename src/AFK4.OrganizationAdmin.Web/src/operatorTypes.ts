@@ -31,8 +31,8 @@ export type SeatActionResult = {
 };
 export type SessionStartDurationMode = 'fixed' | 'open';
 export type SeatActionRequest =
-  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode; durationMinutes?: number | null; isComp?: boolean; compReason?: string | null }
-  | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
+  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode; durationMinutes?: number | null; isComp?: boolean; compReason?: string | null; expectedChargeMinorUnits?: number | null }
+  | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection; expectedChargeMinorUnits?: number | null }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
   | { type: 'pause'; seat: SeatSummary }
   | { type: 'resume'; seat: SeatSummary }

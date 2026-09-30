@@ -6,7 +6,7 @@ import type { StartReservationSessionRequest } from './api/clients/reservations'
 import { PlatformApiError } from './platformApi';
 import { isOutcomeUnknown, retryKeys } from './unsettledKeys';
 import type { OperatorFloorMapState } from './floorMapState';
-import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
+import type { Feedback, LoadStatus, OperatorBackendContext, SessionBillingModeId } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   addDays,
@@ -21,6 +21,7 @@ import {
   readMoney,
   readString,
   requireBackend,
+  serverBillingMode,
   toDateInputValue,
   toDateTimeInputValue,
   type PlayerClientItem
@@ -69,7 +70,9 @@ export type ReservationStartAttempt = Omit<StartReservationSessionRequest, 'idem
 export function buildReservationStartRequest(
   organizationId: string,
   expectedVersion: number,
-  selection: SessionStartSelection
+  selection: SessionStartSelection,
+  // Сумма, которую оператор назвал гостю за наличные (см. SessionStartForm.onChargeChange).
+  expectedChargeMinorUnits: number | null = null
 ): ReservationStartAttempt {
   return {
     organizationId,
@@ -77,11 +80,12 @@ export function buildReservationStartRequest(
     tariffRuleVersionId: selection.tariffRuleVersionId,
     durationMode: selection.durationMode,
     durationMinutes: selection.durationMinutes,
-    billingMode: selection.billingMode === 'guest' ? '' : selection.billingMode,
+    billingMode: serverBillingMode(selection.billingMode as SessionBillingModeId, selection.durationMode, selection.isComp),
     tariffVersionId: selection.tariffVersionId,
     playerPackageId: selection.playerPackageId,
     isComp: selection.isComp,
-    compReason: selection.compReason
+    compReason: selection.compReason,
+    expectedChargeMinorUnits
   };
 }
 
@@ -134,6 +138,8 @@ export function BackendBookingWorkspace({
   const [startClientWallet, setStartClientWallet] = useState<{ balanceMinorUnits: number; debtMinorUnits: number } | null>(null);
   const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
   const [startFormValid, setStartFormValid] = useState(true);
+  // Сколько гость отдаст наличными за выбранное время; уходит с запросом старта.
+  const [startCharge, setStartCharge] = useState<number | null>(null);
   const [startVersion, setStartVersion] = useState(0);
   // Попытка, исход которой неизвестен, заморожена: повтор уходит той же просьбой и тем же ключом.
   const [startAttempt, setStartAttempt] = useState<ReservationStartAttempt | null>(null);
@@ -688,7 +694,8 @@ export function BackendBookingWorkspace({
       const request = startAttempt ?? buildReservationStartRequest(
         nextBackend.session.organizationId,
         item.version,
-        startSelection
+        startSelection,
+        startCharge
       );
       if (startAttempt === null) setStartAttempt(request);
       const reservations = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations;
@@ -903,6 +910,7 @@ export function BackendBookingWorkspace({
               loadTariffs={loadStartTariffs}
               loadPackages={loadStartPackages}
               onValidityChange={(valid) => setStartFormValid(valid)}
+              onChargeChange={setStartCharge}
             />
             {feedback.state === 'failed' && feedback.detail && <p className="checkout-error" role="alert">{feedback.detail}</p>}
             <div className="critical-confirmation-actions">

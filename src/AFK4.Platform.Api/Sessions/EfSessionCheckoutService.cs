@@ -251,6 +251,28 @@ public sealed class EfSessionCheckoutService(
                 }
             }
 
+            // Открытый счёт гостя без аккаунта: долга нет, записывается только выручка за игру. Без
+            // этой записи Сводка и Z-отчёт не увидели бы игру гостя вовсе — они считают её по журналу.
+            if (timeCharge.AmountMinorUnits > 0 && trackedSession.PlayerAccountId is null)
+            {
+                await sessionBillingService.AppendCheckoutLedgerEntriesAsync(
+                    sessionId,
+                    actorStaffUserId,
+                    timeCharge,
+                    playerAccountId: null,
+                    now,
+                    cancellationToken);
+            }
+
+            // Расчёт — тоже конец сессии, и неиграное предоплаченное время возвращается так же, как при
+            // «Закончить»: иначе игрок, у которого в чеке был стакан сока, терял деньги за часы,
+            // которых не отыграл, а тот, у кого чек был пуст, получал их обратно.
+            if (trackedSession.PlayerAccountId is Guid earlyEndPlayerId)
+            {
+                var earlyEnd = await PlayerEarlyEnd.QuoteAsync(dbContext, trackedSession, earlyEndPlayerId, now, cancellationToken);
+                await PlayerEarlyEnd.AppendEntriesAsync(dbContext, trackedSession, earlyEndPlayerId, earlyEnd, actorStaffUserId, now, cancellationToken);
+            }
+
             // Wallet store credit consumed to fund the bill.
             if (walletTotal > 0 && trackedSession.PlayerAccountId is Guid walletPlayerId)
             {
@@ -509,6 +531,23 @@ public sealed class EfSessionCheckoutService(
             walletBalance = new MoneyDto(bill.Currency, summary?.WalletBalance.MinorUnits ?? 0);
         }
 
+        // Честный расчёт говорит не только «сколько к оплате», но и что уже было: сколько сыграно,
+        // сколько заплачено вперёд и что из этого вернётся. «Время · 0 с.» у предоплаченной сессии
+        // выглядело так, будто время не считалось вовсе.
+        var startedAtUtc = session.StartedAtUtc ?? session.RequestedAtUtc;
+        var playedSeconds = (int)Math.Clamp(
+            SessionPause.BillableElapsed(session, startedAtUtc, now).TotalSeconds, 0, int.MaxValue);
+        var prepaidCharged = -await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.SessionId == sessionId && entry.EntryType == LedgerEntryTypeNames.GameplayCharge)
+            .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+        long refund = 0;
+        if (session.PlayerAccountId is Guid quotePlayerId)
+        {
+            var earlyEnd = await PlayerEarlyEnd.QuoteAsync(dbContext, session, quotePlayerId, now, cancellationToken);
+            refund = earlyEnd.Money.RefundMinorUnits;
+        }
+
         var response = new SessionCheckoutQuoteResponse(
             SessionId: sessionId,
             TimeCharge: new MoneyDto(bill.Currency, bill.TimeCharge.AmountMinorUnits),
@@ -516,8 +555,62 @@ public sealed class EfSessionCheckoutService(
             GrandTotal: new MoneyDto(bill.Currency, bill.GrandTotal),
             BillableSeconds: bill.TimeCharge.BillableSeconds,
             PlayerAccountId: session.PlayerAccountId,
-            WalletBalance: walletBalance);
+            WalletBalance: walletBalance,
+            PlayedSeconds: playedSeconds,
+            PrepaidCharged: prepaidCharged > 0 ? new MoneyDto(bill.Currency, prepaidCharged) : null,
+            PrepaidRefund: refund > 0 ? new MoneyDto(bill.Currency, refund) : null);
         return SessionCheckoutQuoteResult.Ok(response);
+    }
+
+    /// <summary>
+    /// Сколько стоит продлить сессию на N минут — по её тарифу, до нажатия. Ничего не меняет и не
+    /// требует открытой смены: смена нужна, чтобы взять деньги, а узнать цену можно и без неё.
+    /// </summary>
+    public async Task<SessionExtendQuoteResult> QuoteExtendAsync(
+        Guid sessionId,
+        Guid organizationId,
+        int additionalMinutes,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+        if (session is null)
+        {
+            return SessionExtendQuoteResult.Missing("Session was not found.");
+        }
+
+        if (organizationId != session.OrganizationId)
+        {
+            return SessionExtendQuoteResult.Invalid("Organization id does not match the session.");
+        }
+
+        if (additionalMinutes <= 0)
+        {
+            return SessionExtendQuoteResult.Invalid("Additional minutes must be positive.");
+        }
+
+        if (session.State is not SessionStateNames.Active and not SessionStateNames.Paused)
+        {
+            return SessionExtendQuoteResult.Invalid("Only active or paused sessions can be extended.", SessionErrorCodeNames.NotExtendable);
+        }
+
+        // Цену и условия считает та же проверка, что выполнит само продление: так «сколько стоит» и
+        // «можно ли сейчас» не разойдутся с тем, что случится по нажатию.
+        var (tariffVersionId, playerPackageId) = EfSessionCommandService.ReadSessionBillingReferences(session, session.BillingMode);
+        var validation = await sessionBillingService.ValidateExtendAsync(
+            session.OrganizationId,
+            session.BranchId,
+            session.PlayerAccountId,
+            session.BillingMode,
+            tariffVersionId,
+            playerPackageId,
+            additionalMinutes,
+            cancellationToken);
+        return validation.Succeeded
+            ? SessionExtendQuoteResult.Ok(new SessionExtendQuoteResponse(
+                sessionId, additionalMinutes, new MoneyDto(validation.CurrencyCode, validation.AmountMinorUnits)))
+            : SessionExtendQuoteResult.Invalid(validation.Error ?? "Extension could not be priced.", validation.Code);
     }
 
     private sealed record Bill(

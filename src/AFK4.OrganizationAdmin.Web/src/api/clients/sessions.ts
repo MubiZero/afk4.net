@@ -10,6 +10,7 @@ import type {
   SessionCheckoutRequest,
   SessionCheckoutResponse,
   SessionCommandResponse,
+  SessionExtendQuoteResponse,
   SessionTimelineResult,
   StartGuestSessionRequest,
   TransferSessionRequest,
@@ -25,6 +26,7 @@ export type {
   SessionCheckoutResponse,
   SessionCommandResponse,
   SessionDto,
+  SessionExtendQuoteResponse,
   SessionLeaseDto,
   SessionTimelineItemDto,
   SessionTimelineResult,
@@ -67,6 +69,10 @@ export function createSessionClient(api: PlatformApiClient) {
     },
     getCheckoutQuote(sessionId: Guid): Promise<SessionCheckoutQuoteResponse> {
       return api.get<SessionCheckoutQuoteResponse>(`sessions/${sessionId}/checkout/quote`);
+    },
+    // Цена продления до нажатия: гость платит за него наличными, и кассиру нужна точная сумма.
+    getExtendQuote(sessionId: Guid, additionalMinutes: number): Promise<SessionExtendQuoteResponse> {
+      return api.get<SessionExtendQuoteResponse>(`sessions/${sessionId}/extend/quote`, { additionalMinutes });
     }
   };
 }

@@ -276,6 +276,82 @@ public sealed class EfSessionCheckoutServiceTests
         Assert.DoesNotContain(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.WalletPayment);
     }
 
+    // Окно расчёта обязано сказать правду про предоплаченную сессию (приёмка 30.09.2026: «Время · 0м,
+    // 0 с.» у всех): сколько сыграно, сколько списано вперёд и что вернётся.
+    [Fact]
+    public async Task QuoteAsync_PrepaidWalletSession_SaysWhatWasPlayedPaidUpFrontAndWhatComesBack()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedPrepaidWalletSessionAsync(db, chargedMinorUnits: 6_000);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.QuoteAsync(SessionId, TestIds.OrganizationId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(40 * 60, result.Response!.PlayedSeconds);
+        Assert.Equal(6_000, result.Response.PrepaidCharged!.MinorUnits);
+        // Сыграно 40 минут по тарифу (минимум 30, шаг 15 → 45 минут) = 2250; остальное вернётся.
+        Assert.Equal(6_000 - ExpectedTimeCharge, result.Response.PrepaidRefund!.MinorUnits);
+        Assert.Equal(0, result.Response.GrandTotal.MinorUnits);
+    }
+
+    [Fact]
+    public async Task QuoteAsync_OpenTabPostpaid_ReportsPlayedTimeAndNothingPaidUpFront()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.QuoteAsync(SessionId, TestIds.OrganizationId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(40 * 60, result.Response!.PlayedSeconds);
+        Assert.Null(result.Response.PrepaidCharged);
+        Assert.Null(result.Response.PrepaidRefund);
+    }
+
+    // Расчёт — тоже конец сессии. Раньше игрок, у которого на чеке был стакан сока, терял деньги за
+    // неотыгранные часы, а тот, у кого чек был пуст (и окно вызывало «Закончить»), получал их назад.
+    [Fact]
+    public async Task CheckoutAsync_PrepaidWalletSession_ReturnsTheUnplayedTimeLikeEndingItDoes()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedPrepaidWalletSessionAsync(db, chargedMinorUnits: 6_000);
+        await SeedAttachedPosSaleAsync(db, totalMinorUnits: 400, quantity: 1);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 400))],
+                "checkout-prepaid-refund"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var refund = Assert.Single(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.Refund);
+        Assert.Equal(6_000 - ExpectedTimeCharge, refund.AmountMinorUnits);
+        Assert.Equal(LedgerAccountTypeNames.Wallet, refund.AccountType);
+        Assert.Equal(PlayerAccountId, refund.PlayerAccountId);
+        Assert.Equal(-6_000 + (6_000 - ExpectedTimeCharge), await WalletBalanceAsync(db));
+
+        // Повтор расчёта с тем же ключом возврат второй раз не пишет.
+        var replay = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 400))],
+                "checkout-prepaid-refund"),
+            CancellationToken.None);
+        Assert.True(replay.Succeeded);
+        Assert.Single(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.Refund);
+    }
+
     [Fact]
     public async Task CheckoutAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflictAndDoesNotSettle()
     {
@@ -509,6 +585,34 @@ public sealed class EfSessionCheckoutServiceTests
         Assert.Equal(2, db.Payments.Count());
     }
 
+    // Приёмка 30.09.2026: касса считала наличные за расчёт игрока дважды — оплатой и погашением долга.
+    [Fact]
+    public async Task CheckoutAsync_CashForAPlayersTimeCharge_LandsInTheDrawerOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-drawer-once"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var shift = await db.Shifts.SingleAsync();
+        var drawer = ShiftExpectedCash.Compute(
+            shift,
+            await db.CashMovements.ToListAsync(),
+            await db.Payments.ToListAsync(),
+            await db.LedgerEntries.ToListAsync());
+        Assert.Equal(shift.StartingCashMinorUnits + ExpectedTimeCharge, drawer.Expected);
+    }
+
     [Fact]
     public async Task CheckoutAsync_WalletExceedsBalance_IsRejected()
     {
@@ -698,6 +802,31 @@ public sealed class EfSessionCheckoutServiceTests
             reversesLedgerEntryId: null,
             ActorStaffUserId,
             Now.AddMinutes(-startedMinutesAgo)));
+        await db.SaveChangesAsync();
+    }
+
+    // Сессия, оплаченная с кошелька на шесть тысяч вперёд; играют уже сорок минут.
+    private static async Task SeedPrepaidWalletSessionAsync(PlatformDbContext db, long chargedMinorUnits)
+    {
+        await SeedOpenPostpaidSessionAsync(db);
+        var session = await db.Sessions.SingleAsync();
+        session.BillingMode = BillingModeNames.PrepaidWallet;
+        db.LedgerEntries.Add(BillingEntryFactory.Create(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            PlayerAccountId,
+            SessionId,
+            playerPackageId: null,
+            LedgerEntryTypeNames.GameplayCharge,
+            LedgerAccountTypeNames.Wallet,
+            -chargedMinorUnits,
+            quantitySeconds: 0,
+            "TJS",
+            LedgerEntryTypeNames.GameplayCharge,
+            "prepaid wallet gameplay charge",
+            reversesLedgerEntryId: null,
+            ActorStaffUserId,
+            Now.AddMinutes(-40)));
         await db.SaveChangesAsync();
     }
 

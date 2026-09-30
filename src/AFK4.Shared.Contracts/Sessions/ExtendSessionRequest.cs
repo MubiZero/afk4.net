@@ -8,4 +8,6 @@ public sealed record ExtendSessionRequest(
     string BillingMode = "",
     Guid? TariffVersionId = null,
     Guid? PlayerPackageId = null,
-    int? ExpectedVersion = null);
+    int? ExpectedVersion = null,
+    // См. StartGuestSessionRequest.ExpectedChargeMinorUnits: та же защита, когда гость доплачивает.
+    long? ExpectedChargeMinorUnits = null);

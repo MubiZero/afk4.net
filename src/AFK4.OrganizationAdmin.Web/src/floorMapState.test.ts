@@ -207,7 +207,7 @@ describe('floor-map state', () => {
     });
   });
 
-  it('falls back to the generic player placeholder for a guest session with no account name', () => {
+  it('calls a session with no account name a guest, not an "active client" (acceptance 30.09.2026)', () => {
     const state = mapFloorMapDtoToState({
       branchId,
       branchName: 'Demo Branch',
@@ -223,9 +223,19 @@ describe('floor-map state', () => {
       ]
     }, t);
 
-    expect(state.seats[0].player).toBe(t('op.floor.player.active'));
+    expect(state.seats[0].player).toBe(t('op.floor.player.guest'));
     expect(state.seats[0].playerDisplayName ?? null).toBeNull();
     expect(state.seats[0].tariffName ?? null).toBeNull();
+  });
+
+  // Панели нужно знать, как оплачена сессия: у гостя, заплатившего наличными, «+15 мин» — новая оплата.
+  it('carries how the session was paid from the floor map', () => {
+    const state = mapFloorMapDtoToState({
+      branchId, branchName: 'Demo Branch', zones: [],
+      seats: [createSeat({ state: 'Active', activeSessionId: '33333333-3333-3333-3333-333333333333', remainingSeconds: 600, sessionBillingMode: 'prepaid_cash' })]
+    }, t);
+
+    expect(state.seats[0].sessionBillingMode).toBe('prepaid_cash');
   });
 
   it('applies SignalR device status by device id and updates free seats', () => {

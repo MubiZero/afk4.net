@@ -898,10 +898,11 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Карта зала' })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    // «+» свободной плитки открывает запуск; гость по умолчанию идёт открытым счётом.
+    // «+» свободной плитки открывает запуск; гость платит наличными вперёд: час по тарифу, и кнопка
+    // называет сумму (решение владельца 30.09.2026 — раньше гость садился бесплатно, без тарифа).
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
-    const startButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
+    const startButton = await within(startDialog).findByRole('button', { name: /Принять 30 с\. и начать/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -914,10 +915,12 @@ describe('App', () => {
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-      durationMode: 'open',
-      durationMinutes: null,
-      tariffRuleVersionId: 'manual-v1',
-      billingMode: ''
+      durationMode: 'fixed',
+      durationMinutes: 60,
+      tariffRuleVersionId: 'standard-v1',
+      tariffVersionId: '17171717-1717-1717-1717-171717171717',
+      billingMode: 'prepaid_cash',
+      expectedChargeMinorUnits: 3000
     });
     expect(body.idempotencyKey).toMatch(/^session-start-/);
   });

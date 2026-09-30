@@ -86,7 +86,9 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
       run: { kind: 'start-guest' },
       disabled: !caps.actionsEnabled
     });
-  } else if (hasSession && caps.canExtend) {
+  } else if (hasSession && caps.canExtend && seat.sessionBillingMode !== 'prepaid_cash') {
+    // У гостя, заплатившего наличными, продление — новая оплата: сумма называется в карточке места,
+    // а в меню её молча не взять.
     session.push({
       id: 'extend-15',
       labelKey: 'op.map.panel.extend15Action',

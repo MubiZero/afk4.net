@@ -341,6 +341,58 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
+        // Цена продления до нажатия: гость платит за него наличными, и кассиру нужна точная сумма.
+        app.MapGet("sessions/{sessionId:guid}/extend/quote", async (
+            Guid sessionId,
+            int additionalMinutes,
+            PlatformDbContext dbContext,
+            StaffAuthorizationService authorizationService,
+            EfSessionCheckoutService sessionCheckoutService,
+            CancellationToken cancellationToken) =>
+        {
+            var session = await dbContext.Sessions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+            if (session is null)
+            {
+                return Results.NotFound();
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                session.BranchId,
+                OrganizationPermissionNames.ExtendSession,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await sessionCheckoutService.QuoteExtendAsync(
+                sessionId,
+                authorization.StaffContext!.OrganizationId,
+                additionalMinutes,
+                cancellationToken);
+
+            if (result.NotFound)
+            {
+                return Results.NotFound(new { Error = result.Error });
+            }
+
+            if (!result.Succeeded)
+            {
+                return Results.BadRequest(new { Error = result.Error, result.Code });
+            }
+
+            return Results.Ok(result.Response);
+        });
+
     }
 
     /// <summary>Отказ команды сессии одним ответом: конфликт версий, «нет такой», «так нельзя».</summary>

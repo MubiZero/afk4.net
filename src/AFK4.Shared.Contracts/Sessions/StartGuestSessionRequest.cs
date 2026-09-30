@@ -13,4 +13,7 @@ public sealed record StartGuestSessionRequest(
     Guid? PlayerPackageId = null,
     // Anti-fraud §5.4: an explicit comp (free session). Requires a reason; routes to a session.comp audit.
     bool IsComp = false,
-    string? CompReason = null);
+    string? CompReason = null,
+    // Сумма, которую оператор увидел и назвал гостю (режим prepaid_cash). Не совпала с расчётом
+    // сервера (успел смениться тариф) — старт отказывает с price_changed, а не берёт другие деньги.
+    long? ExpectedChargeMinorUnits = null);

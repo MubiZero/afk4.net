@@ -240,6 +240,49 @@ describe('devMockFetch session preview', () => {
     });
   });
 
+  // Учебный бэкенд обязан вести себя как сервер там, где считаются деньги гостя (приёмка 30.09.2026:
+  // расхождение учебного бэкенда с сервером спрятало P9): сумма по тарифу с минимумом и округлением,
+  // отказ, если названная сумма не совпала, продление по тарифу своей сессии.
+  it('charges a cash guest by the tariff rules, refuses a stale quoted price and quotes the extension', async () => {
+    const base = 'https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
+    const startBody = (extra: Record<string, unknown>) => JSON.stringify({
+      seatId: 'b3', durationMode: 'fixed', durationMinutes: 60, billingMode: 'prepaid_cash',
+      tariffVersionId: 'tv-night', idempotencyKey: 'preview-cash-b3', ...extra
+    });
+
+    // «Ночной»: 50 в минуту, минимум 60, шаг 15 — час стоит 3000.
+    const stale = await devMockFetch(`${base}/branches/branch/sessions/start`, { method: 'POST', body: startBody({ expectedChargeMinorUnits: 2500 }) });
+    expect(stale.status).toBe(409);
+    expect((await stale.json()).code).toBe('price_changed');
+
+    const noTariff = await devMockFetch(`${base}/branches/branch/sessions/start`, { method: 'POST', body: startBody({ tariffVersionId: null }) });
+    expect(noTariff.status).toBe(400);
+
+    const started = await devMockFetch(`${base}/branches/branch/sessions/start`, { method: 'POST', body: startBody({ expectedChargeMinorUnits: 3000 }) });
+    expect(started.status).toBe(200);
+    const sessionId = (await started.json()).session.sessionId as string;
+    const floor = await (await devMockFetch(`${base}/branches/branch/floor-map`)).json();
+    expect(floor.seats.find((seat: { seatId: string }) => seat.seatId === 'b3')).toMatchObject({
+      tariffName: 'Ночной', sessionBillingMode: 'prepaid_cash'
+    });
+
+    // Продление не несёт минимума тарифа: 15 минут по 50 = 750.
+    const quote = await (await devMockFetch(`${base}/sessions/${sessionId}/extend/quote?additionalMinutes=15`)).json();
+    expect(quote.charge.minorUnits).toBe(750);
+    const badExtend = await devMockFetch(`${base}/sessions/${sessionId}/extend`, {
+      method: 'POST', body: JSON.stringify({ additionalMinutes: 15, expectedChargeMinorUnits: 700, idempotencyKey: 'x1' })
+    });
+    expect(badExtend.status).toBe(409);
+    const goodExtend = await devMockFetch(`${base}/sessions/${sessionId}/extend`, {
+      method: 'POST', body: JSON.stringify({ additionalMinutes: 15, expectedChargeMinorUnits: 750, idempotencyKey: 'x2' })
+    });
+    expect(goodExtend.status).toBe(200);
+
+    await devMockFetch(`${base}/sessions/${sessionId}/end`, { method: 'POST', body: JSON.stringify({ idempotencyKey: 'x3' }) });
+    const after = await (await devMockFetch(`${base}/branches/branch/floor-map`)).json();
+    expect(after.seats.find((seat: { seatId: string }) => seat.seatId === 'b3').sessionBillingMode ?? null).toBeNull();
+  });
+
   it('uses the same preview fixtures for layout and staff readiness', async () => {
     const [map, zones, staff] = await Promise.all([
       devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/floor-map').then((response) => response.json()),

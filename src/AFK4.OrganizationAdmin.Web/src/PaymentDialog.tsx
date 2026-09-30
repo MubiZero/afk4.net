@@ -44,6 +44,7 @@ export interface PaymentBillLine {
 export function PaymentDialog({
   intro,
   contextLine,
+  notes,
   lines,
   dueLabel,
   grandTotalMinorUnits,
@@ -62,6 +63,8 @@ export function PaymentDialog({
 }: {
   intro?: string;
   contextLine?: string;
+  /// Факты о сессии без суммы к оплате: сколько сыграно, что уплачено вперёд, что вернётся.
+  notes?: string[];
   lines: PaymentBillLine[];
   dueLabel: string;
   grandTotalMinorUnits: number;
@@ -141,6 +144,7 @@ export function PaymentDialog({
       {/* Чек: позиции сверху, «К оплате» крупным итогом снизу — как настоящий чек кассы. */}
       <div className="checkout-receipt">
         {contextLine && <p className="checkout-context">{contextLine}</p>}
+        {notes?.map((note) => <p className="checkout-context" key={note}>{note}</p>)}
         {lines.map((line, index) => (
           <div className="checkout-receipt-line" key={`${line.label}-${index}`}>
             <span>{line.label}</span>

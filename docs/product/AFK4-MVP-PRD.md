@@ -303,16 +303,32 @@ Success criteria:
 ### Journey 5: Start A Guest Session
 
 1. Operator selects a free seat from the floor map.
-2. Operator chooses guest session and tariff/package/payment mode.
-3. Backend validates branch, seat, device, tariff, shift, and payment state.
-4. Backend creates the session and any required ledger entries.
-5. Backend sends the device unlock command.
-6. Agent unlocks the PC and reports command status.
-7. Floor map updates session and device state.
+2. Operator chooses guest session, a tariff, and either a fixed time or an open
+   tab. A guest has no account: a guest pays cash at the desk (owner decision
+   2026-09-30).
+3. For a fixed time the Panel names the exact price by the tariff rules and the
+   operator takes that cash at start. For an open tab nothing is taken at start.
+4. Backend validates branch, seat, device, tariff, shift, and the quoted price.
+   Taking cash requires an open shift; without one the start is refused with
+   `open_shift_required`.
+5. Backend creates the session and records the money: one cash payment in the
+   shift drawer and one game-revenue ledger entry without a player (account
+   type `cash`), so the shift's Z-report and the revenue summary count the same
+   game revenue.
+6. Backend sends the device unlock command.
+7. Agent unlocks the PC and reports command status.
+8. Floor map updates session and device state.
+9. Extending a fixed-time guest (+15/+30) is another cash payment by the tariff
+   of the session: the price is quoted first and sent back as the amount the
+   operator named, so a changed tariff refuses instead of charging another sum.
+10. An open-tab guest pays by the fact at "End and settle", in cash, by the
+    tariff of the session. A fixed-time guest who leaves early gets no automatic
+    refund (the cash was taken up front); the settlement window says so.
 
 Success criteria:
 
 - no session starts without backend approval;
+- a guest never sits for free except through an explicit, audited comp;
 - money and session state are consistent;
 - device state becomes visible to the operator;
 - duplicate requests do not create duplicate sessions or charges.

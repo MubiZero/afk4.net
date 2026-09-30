@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { displayPhone } from '@afk4/formatting';
 import { majorToMinor, minorToMajor } from '@afk4/money';
 import { Trophy } from 'lucide-react';
 import { MgmtTable } from './management/kit/MgmtTable';
@@ -414,7 +415,7 @@ export function EventsWorkspace({
                   <p key={participant.tournamentRegistrationId}>
                     {participant.displayName}
                     {participant.phoneNumber && (
-                      <span className="mgmt-drawer-hint"> · {participant.phoneNumber}</span>
+                      <span className="mgmt-drawer-hint"> · {displayPhone(participant.phoneNumber)}</span>
                     )}
                   </p>
                 ))

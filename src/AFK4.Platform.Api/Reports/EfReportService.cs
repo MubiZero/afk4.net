@@ -68,7 +68,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 entry.ShiftId.HasValue &&
                 shiftIds.Contains(entry.ShiftId.Value) &&
                 (entry.EntryType == LedgerEntryTypeNames.TopUp ||
-                 entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                 (entry.EntryType == LedgerEntryTypeNames.DebtPayment && entry.SessionId == null) ||
                  entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
             .ToListAsync(cancellationToken);
 
@@ -357,7 +357,8 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 entry.BranchId == branchId &&
                 entry.ShiftId.HasValue &&
                 (entry.EntryType == LedgerEntryTypeNames.TopUp ||
-                 entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                 // Погашение на расчёте сессии — её же оплата наличными уже в списке выше.
+                 (entry.EntryType == LedgerEntryTypeNames.DebtPayment && entry.SessionId == null) ||
                  entry.EntryType == LedgerEntryTypeNames.ManualCorrection ||
                  // Возврат за игру уходит на баланс игрока, касса не двигается; в кассовых
                  // операциях остаётся возврат пополнения — оно и было деньгами в ящике.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Minus, Plus, Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { displayPhone } from '@afk4/formatting';
 import { knownErrorMessage, projectOperatorError } from './apiErrors';
 import type {
   PaymentPartDto,
@@ -708,7 +709,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <UserRoundPlus size={17} />
               <div>
                 <strong>{selectedPosPlayer.name}</strong>
-                <em>{selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · <span>{t('op.pos.cart.balanceLabel')}</span> <Money minorUnits={selectedPosPlayer.balanceMinorUnits} currencyCode={currencyCode} /></em>
+                <em>{selectedPosPlayer.phoneNumber ? displayPhone(selectedPosPlayer.phoneNumber) : t('op.pos.cart.clientNoPhone')} · <span>{t('op.pos.cart.balanceLabel')}</span> <Money minorUnits={selectedPosPlayer.balanceMinorUnits} currencyCode={currencyCode} /></em>
               </div>
               <button
                 type="button"

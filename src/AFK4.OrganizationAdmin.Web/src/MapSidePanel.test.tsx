@@ -204,11 +204,12 @@ describe('MapSidePanel new session client picker', () => {
       const dialog = openClientStartDialog(onSeatAction);
       fireEvent.click(within(dialog).getByRole('tab', { name: 'Гость' }));
       fireEvent.click(within(dialog).getByRole('button', { name: /2 ч/ }));
-      fireEvent.click(within(dialog).getByRole('button', { name: /Старт/ }));
+      // Гость платит наличными вперёд: кнопка называет сумму, а запрос несёт тариф и эту сумму.
+      fireEvent.click(await within(dialog).findByRole('button', { name: /Принять .* и начать/ }));
       await waitFor(() => expect(onSeatAction).toHaveBeenCalledTimes(1));
       expect(onSeatAction.mock.calls[0][0]).toMatchObject({
-        type: 'start', durationMode: 'fixed', durationMinutes: 120,
-        billing: { mode: 'guest', playerAccountId: null, tariffVersionId: null, playerPackageId: null }
+        type: 'start', durationMode: 'fixed', durationMinutes: 120, expectedChargeMinorUnits: 6000,
+        billing: { mode: 'guest', playerAccountId: null, tariffVersionId: expect.any(String), playerPackageId: null }
       });
     } finally {
       globalThis.fetch = originalFetch;

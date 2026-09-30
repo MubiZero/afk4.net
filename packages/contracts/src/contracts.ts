@@ -153,6 +153,14 @@ export const BillingModeNames = {
   PrepaidWallet: 'prepaid_wallet',
   PostpaidDebt: 'postpaid_debt',
   Package: 'package',
+  /**
+   * Гость без аккаунта платит наличными у стойки: за фиксированное время — вперёд при старте и
+   * при каждом продлении. Предоплата, как кошелёк, только деньги идут в кассу смены, а не со
+   * счёта: расчёт на закрытии ничего не добавляет, а ранний уход ничего не возвращает сам.
+   * Открытый счёт гостя отдельного режима не имеет — это пустой режим с тарифом, расчёт по
+   * факту на «Завершить и рассчитать».
+   */
+  PrepaidCash: 'prepaid_cash',
 } as const;
 export type BillingModeName = (typeof BillingModeNames)[keyof typeof BillingModeNames];
 
@@ -567,6 +575,12 @@ export const LedgerAccountTypeNames = {
   Debt: 'debt',
   PackageTime: 'package_time',
   BonusTime: 'bonus_time',
+  /**
+   * Наличные гостя без аккаунта: запись за игру, оплаченную деньгами у стойки. Ни кошелька, ни
+   * долга у гостя нет, поэтому на балансы игроков эти записи не влияют; нужны они отчётам —
+   * выручка за игру считается по журналу, а не по кассе.
+   */
+  Cash: 'cash',
 } as const;
 export type LedgerAccountTypeName = (typeof LedgerAccountTypeNames)[keyof typeof LedgerAccountTypeNames];
 
@@ -1348,6 +1362,10 @@ export const SessionErrorCodeNames = {
   NotCheckoutable: 'session_not_checkoutable',
   /** Сумма разбивки по способам оплаты не сходится со счётом — счёт успел измениться. */
   CheckoutSplitMismatch: 'checkout_split_mismatch',
+  /** Тариф успел измениться: сумма, которую оператор назвал гостю, уже не та. */
+  PriceChanged: 'price_changed',
+  /** Наличными платит гость без аккаунта; клиенту клуба этот режим не подходит. */
+  CashBillingGuestOnly: 'cash_billing_guest_only',
 } as const;
 export type SessionErrorCodeName = (typeof SessionErrorCodeNames)[keyof typeof SessionErrorCodeNames];
 
@@ -3906,6 +3924,8 @@ export interface ExtendSessionRequest {
   tariffVersionId?: Guid | null;
   playerPackageId?: Guid | null;
   expectedVersion?: number | null;
+  /** См. StartGuestSessionRequest.ExpectedChargeMinorUnits: та же защита, когда гость доплачивает. */
+  expectedChargeMinorUnits?: number | null;
 }
 
 /** Контракт: Diagnostics/BranchDiagnosticsDto.cs */
@@ -7336,6 +7356,11 @@ export interface SeatStatusDto {
    * «Повторить …»: без неё было видно, что что-то не прошло, но не что именно повторять.
    */
   lastFailedCommandType?: DeviceCommandTypeName | null;
+  /**
+   * Как оплачена идущая сессия (BillingModeNames); пусто — гость без расчёта или места занято нет.
+   * Панели нужно знать, что у гостя, заплатившего наличными, «+15 мин» — это новая оплата у стойки.
+   */
+  sessionBillingMode?: BillingModeName | null;
 }
 
 /**
@@ -7393,6 +7418,21 @@ export interface SessionCheckoutQuoteResponse {
   billableSeconds: number;
   playerAccountId: Guid | null;
   walletBalance: MoneyDto | null;
+  /**
+   * Сколько сыграно (от старта за вычетом пауз) — одно число для «Сыграно» в окне расчёта, в
+   * отличие от BillableSeconds, которое у предоплаты ноль: время уже оплачено.
+   */
+  playedSeconds?: number;
+  /**
+   * Сколько за время этой сессии уплачено вперёд: списано с кошелька при старте и продлениях
+   * или отдано наличными гостем. Null — вперёд ничего не платили.
+   */
+  prepaidCharged?: MoneyDto | null;
+  /**
+   * Что вернётся игроку, если закончить сейчас — на кошелёк, по правилам раннего ухода. Null —
+   * возвращать нечего; у гостя, заплатившего наличными, автоматического возврата нет.
+   */
+  prepaidRefund?: MoneyDto | null;
 }
 
 /**
@@ -7452,6 +7492,19 @@ export interface SessionDto {
   currentLease: SessionLeaseDto | null;
   /** Optimistic-concurrency version the client echoes back as ExpectedVersion on the next mutation. */
   version?: number;
+}
+
+/**
+ * Сколько стоит продлить идущую сессию на N минут — по её же тарифу, до нажатия. Гость платит за
+ * продление наличными на месте, и оператору нужна точная сумма, а не прикидка в браузере. Ничего
+ * не меняет.
+ *
+ * Контракт: Sessions/SessionExtendQuoteResponse.cs
+ */
+export interface SessionExtendQuoteResponse {
+  sessionId: Guid;
+  additionalMinutes: number;
+  charge: MoneyDto;
 }
 
 /** Контракт: Sessions/SessionLeaseDto.cs */
@@ -8181,6 +8234,11 @@ export interface StartGuestSessionRequest {
   /** Anti-fraud §5.4: an explicit comp (free session). Requires a reason; routes to a session.comp audit. */
   isComp?: boolean;
   compReason?: string | null;
+  /**
+   * Сумма, которую оператор увидел и назвал гостю (режим prepaid_cash). Не совпала с расчётом
+   * сервера (успел смениться тариф) — старт отказывает с price_changed, а не берёт другие деньги.
+   */
+  expectedChargeMinorUnits?: number | null;
 }
 
 /** Контракт: Reservations/StartReservationSessionRequest.cs */
@@ -8196,6 +8254,7 @@ export interface StartReservationSessionRequest {
   playerPackageId?: Guid | null;
   isComp?: boolean;
   compReason?: string | null;
+  expectedChargeMinorUnits?: number | null;
 }
 
 /** Контракт: Reservations/StartReservationSessionResponse.cs */
