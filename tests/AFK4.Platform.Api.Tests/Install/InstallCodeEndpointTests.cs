@@ -130,6 +130,37 @@ public sealed class InstallCodeEndpointTests
         Assert.Equal(1, await db.Devices.CountAsync(row => row.BranchId == TestIds.BranchId));
     }
 
+    // Переустановили Windows на ПК при исчерпанном коде: ключ новый, имя прежнее, старая запись
+    // молчит. Машину пускают на её же место и код не тратят — иначе скрипт, которым её ставили, её
+    // же и не вернёт, а в зале осталась бы мёртвая запись с занятым местом.
+    [Fact]
+    public async Task ReinstalledWindows_TakesTheOldSeat_AndSpendsNothing()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+        var issued = await IssueAsync(client, maxDevices: 1);
+        var first = await EnrollAsync(factory.CreateClient(), issued.Code!, seatName: "PC-101");
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var device = await db.Devices.SingleAsync(row => row.DeviceId == first.Body!.DeviceId);
+            device.EnrolledAtUtc = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow().AddHours(-3);
+            await db.SaveChangesAsync();
+        }
+
+        var again = await EnrollAsync(factory.CreateClient(), issued.Code!, seatName: "PC-101", publicKey: "ключ-после-переустановки");
+
+        Assert.Equal(HttpStatusCode.OK, again.Response.StatusCode);
+        Assert.NotEqual(first.Body!.DeviceId, again.Body!.DeviceId);
+        Assert.Equal("PC-101", again.Body.AssignedSeatName);
+        await using var check = factory.Services.CreateAsyncScope();
+        var checkDb = check.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, (await checkDb.InstallCodes.SingleAsync()).UsedDevices);
+        Assert.Equal(1, await checkDb.Devices.CountAsync(row => row.EnrollmentState != DeviceEnrollmentStateNames.Removed));
+    }
+
     [Fact]
     public async Task UsedUpCode_RefusesANewMachine()
     {

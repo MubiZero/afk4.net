@@ -219,3 +219,46 @@ describe('выбор уже заведённого места', () => {
     expect(screen.getByRole('button', { name: /подключить пк/i })).toBeDisabled();
   });
 });
+
+// Windows переустановили: ключ новый, имя машины то же, а прежняя запись давно молчит и держит
+// своё место — свободным оно не числится. Раньше мастер его не предлагал, и ПК вставал на чужое
+// место или заводил лишнее, а в зале оставалась мёртвая запись.
+describe('место прежней записи этого ПК', () => {
+  const OLD_SEAT: WizardSeat = {
+    seatId: 's-5', pcName: 'ПК-5', zoneId: 'z-1', zoneName: 'Main Hall', sortOrder: 5,
+    status: 'Offline', deviceId: 'd-old', deviceName: 'AFK4-VM', isOnline: false,
+  };
+  const FREE: WizardSeat = {
+    ...OLD_SEAT, seatId: 's-2', pcName: 'ПК-2', sortOrder: 2, status: 'Free',
+    deviceId: null, deviceName: null, isOnline: null,
+  };
+  const BRANCH_AFTER_REINSTALL: WizardBranch = { ...BRANCH, seats: [FREE, OLD_SEAT], freeSeatIds: ['s-2'] };
+
+  beforeEach(() => {
+    createSeat.mockClear();
+    enrollDevice.mockClear();
+  });
+
+  it('предлагает его по умолчанию и говорит, что прежняя запись заменится', async () => {
+    renderScreen({ branch: BRANCH_AFTER_REINSTALL, defaultDisplayName: 'afk4-vm' });
+
+    expect((screen.getByLabelText(/какое это место/i) as HTMLSelectElement).value).toBe('s-5');
+    expect(screen.getByText(/здесь уже стоял этот пк/i)).toBeInTheDocument();
+    expect(screen.getByText(/заменит новая/i)).toBeInTheDocument();
+
+    submit();
+
+    await waitFor(() => expect(enrollDevice).toHaveBeenCalled());
+    expect(createSeat).not.toHaveBeenCalled();
+    expect(enrollDevice).toHaveBeenCalledWith(expect.objectContaining({ seatId: 's-5' }));
+  });
+
+  // То же имя у живой машины — это не переустановка: чужое место не предлагаем.
+  it('не предлагает место машины, которая сейчас на связи', () => {
+    const alive = { ...BRANCH_AFTER_REINSTALL, seats: [FREE, { ...OLD_SEAT, isOnline: true }] };
+    renderScreen({ branch: alive, defaultDisplayName: 'afk4-vm' });
+
+    expect((screen.getByLabelText(/какое это место/i) as HTMLSelectElement).value).toBe('s-2');
+    expect(screen.queryByText(/здесь уже стоял этот пк/i)).toBeNull();
+  });
+});

@@ -4934,6 +4934,8 @@ export const en = {
   "setup.wizard.device.seat.label": "Which seat in the hall this is",
   "setup.wizard.device.seat.new": "Create a new seat",
   "setup.wizard.device.seat.noZone": "This branch has no hall yet, and a seat lives in a hall. Create a hall in the AFK4.NET Panel and come back here.",
+  "setup.wizard.device.seat.previous": "{name} — this PC stood here before",
+  "setup.wizard.device.seat.previousHint": "An earlier record of this PC held this seat. After a Windows reinstall the new one replaces it — the hall will not get a second PC.",
   "setup.wizard.device.seat.willCreate": "No free seats in the hall — a new one will be created: “{name}”.",
   "setup.wizard.error.bridgeMissing": "The wizard screen lost its connection to the program. Restart the setup wizard.",
   "setup.wizard.error.invalidPhone": "Check the number: the invite is sent by SMS, and this one cannot receive it.",
