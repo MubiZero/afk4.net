@@ -19,10 +19,17 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
     /// <summary>Обновлять заранее: запрос страницы не должен упереться в истёкший доступ.</summary>
     public static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// Сколько после обновления 401 считается следом запроса, ушедшего ещё со старым токеном, а не
+    /// отказом сервера.
+    /// </summary>
+    public static readonly TimeSpan StaleRequestWindow = TimeSpan.FromSeconds(10);
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly Lock gate = new();
     private readonly SemaphoreSlim refreshing = new(1, 1);
     private PlatformPersonSessionResponse? session;
+    private DateTimeOffset refreshedAtUtc = DateTimeOffset.MinValue;
 
     public ShellAuthStateDto Current
     {
@@ -156,6 +163,7 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
                     if (refreshed is not null && ReferenceEquals(session, current))
                     {
                         session = refreshed;
+                        refreshedAtUtc = timeProvider.GetUtcNow();
                     }
                 }
 
@@ -165,6 +173,34 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
         finally
         {
             refreshing.Release();
+        }
+    }
+
+    /// <summary>
+    /// Сервер ответил странице 401. После обрыва связи длиннее срока доступа (15 минут) это почти
+    /// всегда просроченный токен, а не погашенный вход: обновление живо ещё 12 часов. Раньше
+    /// страница на любой 401 выходила из аккаунта, и игрок, вернувшийся из обрыва посреди оплаченной
+    /// сессии, оказывался «не вошедшим» на своём ПК. Теперь просроченный токен обновляется, а выход —
+    /// только если сервер и правда отказал. true — вход кончился, странице надо сказать об этом.
+    /// </summary>
+    public async Task<bool> HandleRejectedAsync(CancellationToken cancellationToken)
+    {
+        if (NeedsRefresh(out _))
+        {
+            return await EnsureFreshAsync(cancellationToken);
+        }
+
+        lock (gate)
+        {
+            // По часам токен жив: либо сервер его погасил, либо запрос ушёл со старым токеном до
+            // обновления, которое только что прошло, — тогда выходить не из-за чего.
+            if (session is null || timeProvider.GetUtcNow() - refreshedAtUtc < StaleRequestWindow)
+            {
+                return false;
+            }
+
+            session = null;
+            return true;
         }
     }
 

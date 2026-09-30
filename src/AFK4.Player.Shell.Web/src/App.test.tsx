@@ -4,6 +4,7 @@ import { ShellI18nProvider } from './i18n/ShellI18nProvider';
 import { PlayerShellStateNames, ShellBridgeEventTypeNames, ShellBridgeRequestTypeNames } from '@afk4/contracts';
 import { App, CONNECTING_STUCK_MS } from './App';
 import { devScenarioState } from './host/devHost';
+import { PLAYER_UNAUTHORIZED_EVENT } from './api/playerApi';
 import { installFakeHost } from './test/fakeHost';
 
 function renderShell() {
@@ -246,5 +247,23 @@ describe('вход без сессии', () => {
 
     await waitFor(() =>
       expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthSignOut)).toBe(true));
+  });
+
+  // После обрыва связи длиннее срока доступа первый запрос страницы уходит с просроченным токеном и
+  // получает 401. Выйти из аккаунта тут нельзя: вход жив, игрок в оплаченной сессии. Страница лишь
+  // сообщает хосту об отказе — обновит он токен или забудет вход, решает он.
+  it('401 от сервера не выводит игрока сама, а спрашивает хост', async () => {
+    const host = installFakeHost({
+      state: devScenarioState('idle'),
+      auth: { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
+    });
+    renderShell();
+    await waitFor(() => expect(document.querySelector('[data-screen="chooseTime"]')).not.toBeNull());
+
+    act(() => { window.dispatchEvent(new Event(PLAYER_UNAUTHORIZED_EVENT)); });
+
+    await waitFor(() =>
+      expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthRejected)).toBe(true));
+    expect(host.requests.some((request) => request.type === ShellBridgeRequestTypeNames.AuthSignOut)).toBe(false);
   });
 });

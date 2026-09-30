@@ -1440,6 +1440,11 @@ export const ShellBridgeRequestTypeNames = {
   /** Войти номером и ПИН-кодом — через агента, токены привязаны к этому ПК. */
   AuthSignIn: 'auth.signIn',
   AuthSignOut: 'auth.signOut',
+  /**
+   * Сервер ответил странице 401. Хост решает сам: просроченный токен обновляет, погашенный —
+   * забывает. Ответ — ShellAuthStateDto; выходить страница не должна, пока хост не сказал.
+   */
+  AuthRejected: 'auth.rejected',
   /** Запустить игру из библиотеки клуба. */
   AppLaunch: 'app.launch',
   /** Позвать администратора к этому ПК. */

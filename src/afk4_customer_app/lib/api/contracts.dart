@@ -1203,6 +1203,9 @@ abstract final class ShellBridgeRequestTypeNames {
   /// Войти номером и ПИН-кодом — через агента, токены привязаны к этому ПК.
   static const String authSignIn = 'auth.signIn';
   static const String authSignOut = 'auth.signOut';
+  /// Сервер ответил странице 401. Хост решает сам: просроченный токен обновляет, погашенный —
+  /// забывает. Ответ — ShellAuthStateDto; выходить страница не должна, пока хост не сказал.
+  static const String authRejected = 'auth.rejected';
   /// Запустить игру из библиотеки клуба.
   static const String appLaunch = 'app.launch';
   /// Позвать администратора к этому ПК.

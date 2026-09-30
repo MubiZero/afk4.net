@@ -73,6 +73,21 @@ public sealed class ShellBridgeHostTests
     }
 
     [Fact]
+    public async Task Rejected_WhileTheTokenIsStillValidByTheClock_ForgetsThePlayerAndTellsThePage()
+    {
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session());
+        ShellAuthStateDto? announced = null;
+        fixture.Bridge.AuthChanged += auth => announced = auth;
+
+        var response = await fixture.SendAsync(ShellBridgeRequestTypeNames.AuthRejected);
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.False(response.GetProperty("payload").GetProperty("signedIn").GetBoolean());
+        Assert.False(announced?.SignedIn ?? true);
+    }
+
+    [Fact]
     public async Task SignOut_ForgetsThePlayer_AndTellsThePage()
     {
         var fixture = new Fixture();

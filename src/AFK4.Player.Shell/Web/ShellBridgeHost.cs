@@ -52,6 +52,7 @@ public sealed class ShellBridgeHost(
             ShellBridgeRequestTypeNames.ShellReady => Ok(requestId, new ShellSnapshotDto(latestState(), session.Current, system?.Read())),
             ShellBridgeRequestTypeNames.AuthSignIn => await SignInAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AuthSignOut => await SignOutAsync(requestId, cancellationToken),
+            ShellBridgeRequestTypeNames.AuthRejected => await RejectedAsync(requestId, cancellationToken),
             ShellBridgeRequestTypeNames.AppLaunch => await LaunchAsync(requestId, payload, cancellationToken),
             ShellBridgeRequestTypeNames.AssistCall => await AskAgentAsync(
                 requestId, ShellPipeRequestTypeNames.Assist, new Dictionary<string, string>(), cancellationToken),
@@ -94,6 +95,17 @@ public sealed class ShellBridgeHost(
         var signedOut = session.Current;
         AuthChanged?.Invoke(signedOut);
         return Ok(requestId, signedOut);
+    }
+
+    private async Task<string> RejectedAsync(string requestId, CancellationToken cancellationToken)
+    {
+        if (await session.HandleRejectedAsync(cancellationToken))
+        {
+            Locale = null;
+            AuthChanged?.Invoke(session.Current);
+        }
+
+        return Ok(requestId, session.Current);
     }
 
     private Task<string> LaunchAsync(string requestId, JsonElement payload, CancellationToken cancellationToken)

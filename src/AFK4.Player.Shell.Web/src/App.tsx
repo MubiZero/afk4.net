@@ -93,12 +93,12 @@ export function App() {
     if (screenNow.current === 'chooseTime') void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
   }, [host.idle]);
 
-  // Сервер отказал входу (401): токены погашены — по сроку или новым входом. Экран с чужим именем и
-  // балансом держать незачем: выходим, как при тишине.
+  // Сервер ответил 401. Выходить самим нельзя: после обрыва связи длиннее срока доступа (15 минут)
+  // это просто просроченный токен, а вход жив ещё часы — и игрок терял свою учётку посреди оплаченной
+  // сессии. Решает хост: обновит токен или, если сервер правда погасил вход, сам разошлёт auth.changed.
   useEffect(() => {
     const onUnauthorized = () => {
-      setEnded(null);
-      void requestHost(ShellBridgeRequestTypeNames.AuthSignOut).catch(() => {});
+      void requestHost(ShellBridgeRequestTypeNames.AuthRejected).catch(() => {});
     };
     window.addEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(PLAYER_UNAUTHORIZED_EVENT, onUnauthorized);

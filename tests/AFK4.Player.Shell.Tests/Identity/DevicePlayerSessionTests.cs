@@ -72,6 +72,67 @@ public sealed class DevicePlayerSessionTests
         Assert.True(fixture.Session.Current.SignedIn);
     }
 
+    // Обрыв связи на час: доступ (15 минут) истёк, а вход жив — обновление действует 12 часов. Первый
+    // запрос страницы после возвращения связи получает 401, и выходить из аккаунта из-за этого нельзя.
+    [Fact]
+    public async Task ARejectionAfterALongOutage_RefreshesTheExpiredToken_AndKeepsThePlayerSignedIn()
+    {
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session(expiresIn: TimeSpan.FromMinutes(-45)));
+        fixture.Handler.Respond = _ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(Session(expiresIn: TimeSpan.FromMinutes(15), access: "access-2"))
+        };
+
+        Assert.False(await fixture.Session.HandleRejectedAsync(CancellationToken.None));
+
+        Assert.True(fixture.Session.Current.SignedIn);
+        Assert.Equal("access-2", fixture.Session.AccessToken);
+    }
+
+    [Fact]
+    public async Task ARejectionWhileTheServerIsStillUnreachable_KeepsThePlayerSignedIn()
+    {
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session(expiresIn: TimeSpan.FromMinutes(-45)));
+        fixture.Handler.Respond = _ => throw new HttpRequestException("offline");
+
+        Assert.False(await fixture.Session.HandleRejectedAsync(CancellationToken.None));
+
+        Assert.True(fixture.Session.Current.SignedIn);
+    }
+
+    [Fact]
+    public async Task ARejectionOfAValidToken_MeansTheServerRevokedTheSignIn()
+    {
+        // Токен по часам жив, а сервер его не принял: клуб вывел игрока или вошёл другой.
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session(expiresIn: TimeSpan.FromMinutes(10)));
+
+        Assert.True(await fixture.Session.HandleRejectedAsync(CancellationToken.None));
+
+        Assert.False(fixture.Session.Current.SignedIn);
+        Assert.Empty(fixture.Handler.Paths);
+    }
+
+    [Fact]
+    public async Task ALateRejection_FromARequestSentBeforeTheRefresh_DoesNotSignThePlayerOut()
+    {
+        var fixture = new Fixture();
+        fixture.Session.Accept(Session(expiresIn: TimeSpan.FromMinutes(-45)));
+        fixture.Handler.Respond = _ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(Session(expiresIn: TimeSpan.FromMinutes(15), access: "access-2"))
+        };
+        await fixture.Session.HandleRejectedAsync(CancellationToken.None);
+
+        // Вторая страница из той же пачки запросов ушла со старым токеном и только что вернулась с 401.
+        Assert.False(await fixture.Session.HandleRejectedAsync(CancellationToken.None));
+
+        Assert.True(fixture.Session.Current.SignedIn);
+        Assert.Equal(["/api/public/player/refresh"], fixture.Handler.Paths);
+    }
+
     [Fact]
     public async Task SigningOut_RevokesOnTheServer_WithBothTokens()
     {

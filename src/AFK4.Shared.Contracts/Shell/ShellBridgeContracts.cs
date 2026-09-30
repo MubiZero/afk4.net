@@ -19,6 +19,12 @@ public static class ShellBridgeRequestTypeNames
 
     public const string AuthSignOut = "auth.signOut";
 
+    /// <summary>
+    /// Сервер ответил странице 401. Хост решает сам: просроченный токен обновляет, погашенный —
+    /// забывает. Ответ — ShellAuthStateDto; выходить страница не должна, пока хост не сказал.
+    /// </summary>
+    public const string AuthRejected = "auth.rejected";
+
     /// <summary>Запустить игру из библиотеки клуба.</summary>
     public const string AppLaunch = "app.launch";
 
