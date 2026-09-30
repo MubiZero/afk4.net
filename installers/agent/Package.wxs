@@ -4,7 +4,11 @@
       Manufacturer="AFK4.NET"
       Version="$(var.PackageVersion)"
       UpgradeCode="{9E6EE315-17A1-4201-A163-064102362EAA}"
+      Codepage="1251"
       Scope="perMachine">
+    <!-- Ярлык мастера назван по-русски — кириллице нужна кодовая страница 1251, по умолчанию WiX
+         берёт 1252 и падает с WIX0311 (как у пакета Панели). -->
+    <SummaryInformation Codepage="1251" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Agent is already installed." />
     <MediaTemplate EmbedCab="yes" />
 

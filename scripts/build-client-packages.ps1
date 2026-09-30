@@ -13,7 +13,11 @@ param(
 
     [string] $BunPath = 'bun',
 
-    [switch] $SkipOrganizationAdminWebRestore
+    [switch] $SkipOrganizationAdminWebRestore,
+
+    # Адрес API для первого шага мастера вместо адреса канала — для приёмки против локального API
+    # (виртуалка ходит к Mac по http://10.0.2.2:5074). Пусто — адрес канала.
+    [string] $PlatformBaseUrl = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,7 +30,7 @@ $platformBaseUrlByChannel = @{
     'beta' = 'https://api.afk4.net'
     'stable' = 'https://app.afk4.net'
 }
-$platformBaseUrl = $platformBaseUrlByChannel[$Channel]
+$platformBaseUrl = if ($PlatformBaseUrl) { $PlatformBaseUrl } else { $platformBaseUrlByChannel[$Channel] }
 if ([string]::IsNullOrWhiteSpace($platformBaseUrl)) {
     throw "No platform base URL is configured for channel '$Channel'."
 }

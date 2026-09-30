@@ -356,6 +356,32 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotContain("UPDATE_COORDINATION_SECRET", package, StringComparison.Ordinal);
     }
 
+    // WiX по умолчанию собирает базу MSI в кодовой странице 1252, и кириллица в ней не представима:
+    // пакет с русским ярлыком падает на сборке с WIX0311. CI гоняет тесты, но MSI не собирает, —
+    // так ярлык «Мастер установки AFK4.NET» дошёл до main сломанным. Проверка по тексту ловит это
+    // на любой ОС, до сборки.
+    [Fact]
+    public void EveryWixPackageWithCyrillicDeclaresCodepage1251()
+    {
+        var installers = Path.Combine(GetRepositoryRoot(), "installers");
+        // Комментарии WiX в базу не пишет — кириллица в них сборке не мешает.
+        static string WithoutComments(string path) =>
+            System.Text.RegularExpressions.Regex.Replace(File.ReadAllText(path), "<!--.*?-->", string.Empty,
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+        var offenders = Directory.EnumerateFiles(installers, "*.wxs", SearchOption.AllDirectories)
+            .Where(path => WithoutComments(path).Any(character => character is >= '\u0400' and <= '\u04FF'))
+            .Where(path =>
+            {
+                var text = WithoutComments(path);
+                return !text.Contains("Codepage=\"1251\"", StringComparison.Ordinal)
+                    || !text.Contains("<SummaryInformation Codepage=\"1251\"", StringComparison.Ordinal);
+            })
+            .Select(path => Path.GetRelativePath(installers, path))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
     private static string GetRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
