@@ -41,7 +41,7 @@ public class PlayerSelfSessionEndpointTests
     }
 
     private static async Task<SelfStartContext> SeedSelfStartContextAsync(
-        PlatformApiFactory factory, long walletMinorUnits)
+        PlatformApiFactory factory, long walletMinorUnits, int minimumBillableMinutes = 1)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -139,7 +139,7 @@ public class PlayerSelfSessionEndpointTests
             VersionNumber = 1,
             CurrencyCode = "TJS",
             PricePerMinuteMinorUnits = 1000,
-            MinimumBillableMinutes = 1,
+            MinimumBillableMinutes = minimumBillableMinutes,
             RoundingIncrementMinutes = 1,
             EffectiveFromUtc = Now.AddYears(-1),
             CreatedAtUtc = Now.AddYears(-1)
@@ -391,6 +391,28 @@ public class PlayerSelfSessionEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        Assert.Equal(0, await WalletBalanceAsync(factory, ctx.PlayerId));
+    }
+
+    /// <summary>
+    /// Минимум тарифа — это минимум сессии: его платят на старте. Продление докупает минуты к уже
+    /// оплаченной сессии, и «+30 мин» на тарифе с минимумом в час стоят полчаса, а не час.
+    /// </summary>
+    [Fact]
+    public async Task SelfExtend_OnATariffWithAMinimum_ChargesOnlyTheAddedMinutes()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 90_000, minimumBillableMinutes: 60);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+        var sessionId = await StartHourSessionAsync(factory, client, ctx);
+
+        var offers = await client.GetFromJsonAsync<PlayerExtendOffersDto>($"/api/me/sessions/{sessionId}/extend-offers");
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/extend",
+            new PlayerSelfExtendRequest(30, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(30_000, offers!.Options.Single(option => option.Minutes == 30).Amount.MinorUnits);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(0, await WalletBalanceAsync(factory, ctx.PlayerId));
     }
 

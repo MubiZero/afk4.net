@@ -59,7 +59,7 @@ public static class PlayerOffers
             pricePerHour,
             AppliesNow: true,
             StartsAtUtc: null,
-            Durations(StartDurations, pricing, balanceMinorUnits, nowUtc));
+            Durations(StartDurations, TariffBilling.ComputeForMinutes, pricing, balanceMinorUnits, nowUtc));
     }
 
     /// <summary>Варианты продления: конец сдвигается от нынешнего конца сессии, а не от «сейчас».</summary>
@@ -67,10 +67,11 @@ public static class PlayerOffers
         TariffPricing pricing,
         long balanceMinorUnits,
         DateTimeOffset currentEndUtc) =>
-        Durations(ExtendDurations, pricing, balanceMinorUnits, currentEndUtc);
+        Durations(ExtendDurations, TariffBilling.ComputeForExtension, pricing, balanceMinorUnits, currentEndUtc);
 
     private static IReadOnlyList<PlayerDurationOfferDto> Durations(
         IReadOnlyList<int> minutes,
+        Func<int, TariffPricing, TariffComputation?> price,
         TariffPricing pricing,
         long balanceMinorUnits,
         DateTimeOffset fromUtc)
@@ -78,7 +79,7 @@ public static class PlayerOffers
         var offers = new List<PlayerDurationOfferDto>(minutes.Count);
         foreach (var duration in minutes)
         {
-            var charge = TariffBilling.ComputeForMinutes(duration, pricing);
+            var charge = price(duration, pricing);
             if (charge is null)
             {
                 continue;
