@@ -33,6 +33,7 @@ export function ClientDrawer({
   packagesErrorDetail,
   topUpAmount,
   canTopUp,
+  topUpBlockedReason = null,
   onChangeTopUpAmount,
   onTopUp,
   onOpenDcTopUp,
@@ -67,6 +68,8 @@ export function ClientDrawer({
   packagesErrorDetail?: string;
   topUpAmount: string;
   canTopUp: boolean;
+  // Пополнение принимают в открытой смене; пока её нет — причина словами рядом с кнопкой.
+  topUpBlockedReason?: string | null;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
   onOpenDcTopUp: () => void;
@@ -163,7 +166,7 @@ export function ClientDrawer({
       {/* Неактивному деньги не проводят: ни пополнения, ни долга — только «Активировать» в «⋯». */}
       {!isInactive && (canTopUp || hasSecondary) && (
         <Inspector.Actions
-          primary={canTopUp ? <WalletZone topUpAmount={topUpAmount} onChangeTopUpAmount={onChangeTopUpAmount} onTopUp={onTopUp} /> : undefined}
+          primary={canTopUp ? <WalletZone topUpAmount={topUpAmount} onChangeTopUpAmount={onChangeTopUpAmount} onTopUp={onTopUp} blockedReason={topUpBlockedReason} /> : undefined}
           secondary={hasSecondary ? [payDebt, dcTopUp, seat] : []}
         />
       )}

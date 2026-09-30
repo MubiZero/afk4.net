@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Players;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
@@ -227,6 +228,8 @@ internal static class PlayerManagementEndpoints
             string? query,
             int? limit,
             bool? includeInactive,
+            string? segment,
+            int? offset,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             EfOperatorReferenceDataService referenceDataService,
@@ -259,15 +262,53 @@ internal static class PlayerManagementEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            if (segment is not (null or "" or PlayerDirectorySegments.Debt or PlayerDirectorySegments.Inactive))
+            {
+                return Results.BadRequest(new { Error = "Unknown segment.", Code = "unknown_segment" });
+            }
+
             var players = await referenceDataService.SearchPlayersAsync(
                 authorization.StaffContext!.OrganizationId,
                 branchId,
                 query,
                 limit ?? 20,
                 includeInactive ?? false,
-                cancellationToken);
+                cancellationToken,
+                segment,
+                offset ?? 0);
 
             return Results.Ok(players);
+        });
+
+        // Итоги для шапки и счётчиков справочника. Право то же, что на сам список: это те же клиенты,
+        // только свёрнутые в числа.
+        app.MapGet("branches/{branchId:guid}/players/summary", async (
+            Guid branchId,
+            string? query,
+            StaffAuthorizationService authorizationService,
+            EfOperatorReferenceDataService referenceDataService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ViewPlayers,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return Results.Ok(await referenceDataService.GetPlayersSummaryAsync(
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                query,
+                cancellationToken));
         });
 
         // Репутация по сети. Два маршрута, и оба намеренно НЕ помечены

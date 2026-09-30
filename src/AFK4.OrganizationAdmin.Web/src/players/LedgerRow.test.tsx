@@ -55,4 +55,12 @@ describe('LedgerRow', () => {
     renderRow({ view: { ...view, isReversal: true }, canRefund: true, onRefund: () => {} });
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  // приёмка 30.09.2026: «Возврат · отменено · +42 с.» читалось как «возврат отменили» — а это запись,
+  // что сама отменяет прошлую.
+  it('называет запись-сторно по смыслу, а не словом «отменено»', () => {
+    renderRow({ view: { ...view, typeLabel: 'Возврат', isReversal: true } });
+    expect(screen.getByText('отменяет прошлую запись')).toBeInTheDocument();
+    expect(screen.queryByText('отменено')).toBeNull();
+  });
 });

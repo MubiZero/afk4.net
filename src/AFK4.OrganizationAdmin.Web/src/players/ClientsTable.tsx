@@ -29,6 +29,9 @@ export function ClientsTable({
   canCreatePlayer,
   liveContextByClient,
   nowMs,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
   canImport = false,
   onImport,
   onSearchChange,
@@ -48,6 +51,11 @@ export function ClientsTable({
   canCreatePlayer: boolean;
   liveContextByClient: Map<string, ClientLiveContext>;
   nowMs: number;
+  // Справочник идёт страницами: список — не вся база, и без кнопки клиенты дальше первой страницы
+  // были бы недостижимы (кроме как поиском).
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   // Перенос гостей из прежней программы — у владельца.
   canImport?: boolean;
   onImport?: () => void;
@@ -167,6 +175,11 @@ export function ClientsTable({
             }}
           />
         )}
+        {hasMore && onLoadMore ? (
+          <div className="ctable-more">
+            <Button onClick={onLoadMore} disabled={loadingMore}>{t('op.players.list.loadMore')}</Button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

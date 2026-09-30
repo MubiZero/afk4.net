@@ -11,6 +11,7 @@ import type {
   PlayerReputationDto,
   PlayerReputationLookupRequest,
   PlayerSearchResultDto,
+  PlayersSummaryDto,
   PurchasePackageRequest,
   RefundLedgerEntryRequest,
   SetPlayerActiveStateRequest,
@@ -28,6 +29,7 @@ export type {
   PlayerReputationDto,
   PlayerReputationLookupRequest,
   PlayerSearchResultDto,
+  PlayersSummaryDto,
   PurchasePackageRequest,
   RefundLedgerEntryRequest,
   SetPlayerActiveStateRequest,
@@ -45,10 +47,24 @@ export interface CursorPageDto<T> {
 
 export function createPlayerClient(api: PlatformApiClient) {
   return {
-    searchPlayers(branchId: Guid, query: string, limit: number, includeInactive = false): Promise<PlayerSearchResultDto[]> {
+    // page — страница справочника клиентов: отбор (segment: 'debt' | 'inactive') и сдвиг. Пустой
+    // запрос — не «ничего», а «всех по имени»; окна поиска без запроса сюда не ходят.
+    searchPlayers(
+      branchId: Guid,
+      query: string,
+      limit: number,
+      includeInactive = false,
+      page: { segment?: 'debt' | 'inactive'; offset?: number } = {}
+    ): Promise<PlayerSearchResultDto[]> {
       const params: Record<string, string | number> = { query, limit };
       if (includeInactive) params.includeInactive = 'true';
+      if (page.segment) params.segment = page.segment;
+      if (page.offset) params.offset = page.offset;
       return api.get<PlayerSearchResultDto[]>(`branches/${branchId}/players`, params);
+    },
+    // Итоги по всем подходящим под запрос клиентам, а не по загруженной странице.
+    getPlayersSummary(branchId: Guid, query = ''): Promise<PlayersSummaryDto> {
+      return api.get<PlayersSummaryDto>(`branches/${branchId}/players/summary`, { query });
     },
     createPlayer(branchId: Guid, request: CreatePlayerAccountRequest): Promise<PlayerAccountDto> {
       return api.post<PlayerAccountDto, CreatePlayerAccountRequest>(`branches/${branchId}/players`, request);

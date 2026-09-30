@@ -74,6 +74,45 @@ describe('devMockFetch player data', () => {
     expect(body[0].bonusSeconds).toBeGreaterThan(0);
   });
 
+  // приёмка 30.09.2026: учебный бэкенд отдавал всех на пустом запросе, сервер — [] (короткий запрос
+  // не искал), и зелёное демо прятало пустой экран «Клиенты». Теперь превью отвечает как сервер.
+  const base = 'https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/players';
+  const names = async (query: string) =>
+    ((await (await devMockFetch(`${base}${query}`)).json()) as Array<{ displayName: string }>).map((p) => p.displayName);
+
+  it('lists clients by name without a query, and pages by offset', async () => {
+    const first = await names('?limit=3');
+    expect(first).toHaveLength(3);
+    expect([...first].sort((a, b) => a.localeCompare(b, 'ru'))).toEqual(first);
+    const rest = await names('?limit=3&offset=3');
+    expect(rest.some((name) => first.includes(name))).toBe(false);
+  });
+
+  it('keeps inactive clients out unless asked, and filters by segment on the server', async () => {
+    expect(await names('?limit=100')).not.toContain('Бахром Сафаров');
+    expect(await names('?limit=100&includeInactive=true')).toContain('Бахром Сафаров');
+    expect(await names('?segment=inactive')).toEqual(['Бахром Сафаров']);
+    expect(await names('?segment=debt')).toEqual(['Мадина Саидова']);
+  });
+
+  it('counts every client in the summary, not the page', async () => {
+    const summary = await (await devMockFetch(`${base}/summary`)).json();
+    expect(summary).toMatchObject({ totalCount: 6, debtorCount: 1, inactiveCount: 1, debtTotalMinorUnits: 3500 });
+    const searched = await (await devMockFetch(`${base}/summary?query=${encodeURIComponent('Мадина')}`)).json();
+    expect(searched).toMatchObject({ totalCount: 1, debtorCount: 1 });
+  });
+
+  it('puts a top-up into the ledger and into the client row', async () => {
+    const before = await (await devMockFetch(`${base}/summary`)).json();
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/wallet/top-ups`, {
+      method: 'POST', body: JSON.stringify({ amount: { currencyCode: 'TJS', minorUnits: 5000 } })
+    });
+    const wallet = await res.json();
+    const after = await (await devMockFetch(`${base}/summary`)).json();
+    expect(after.walletTotalMinorUnits - before.walletTotalMinorUnits).toBe(5000);
+    expect(wallet.walletBalance.minorUnits).toBeGreaterThanOrEqual(5000);
+  });
+
   it('echoes a wallet summary when topping up', async () => {
     const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/wallet/top-ups`, { method: 'POST' });
     const body = await res.json();
