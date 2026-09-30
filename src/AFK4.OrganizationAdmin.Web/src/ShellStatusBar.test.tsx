@@ -29,4 +29,24 @@ describe('ShellStatusBar', () => {
     expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeInTheDocument();
     expect(screen.queryByText(/Касса:/)).not.toBeInTheDocument();
   });
+
+  // Приёмка 30.09.2026: в браузере версии нет, и строка «Вер.: —» только занимала место.
+  it('не показывает поле версии, когда версии нет', () => {
+    render(
+      <I18nProvider initialLocale="ru">
+        <ShellStatusBar
+          operatorName="Иванов И.И."
+          roleNames={['operator']}
+          clubName="Арена"
+          realtimeState="connected"
+          realtimeError={null}
+          dataSource="backend"
+          appVersion=""
+          workspaceFeedback={null}
+        />
+      </I18nProvider>
+    );
+
+    expect(screen.queryByText(/^Вер\.:/)).not.toBeInTheDocument();
+  });
 });
