@@ -141,6 +141,35 @@ public sealed class PlayerShellProcessSupervisorTests
         Assert.Equal(7, processQuery.LastRequestedSessionId);
     }
 
+    /// <summary>
+    /// Пока установщик меняет файлы оболочки, поднятая оболочка встала бы на смеси старых и новых
+    /// сборок (приёмка 30.09.2026: хост терял новое поле состояния до своего перезапуска).
+    /// </summary>
+    [Fact]
+    public async Task EnsureRunningAsync_DoesNotStartTheShellWhileItsUpdateIsInstalled()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processStarter = new RecordingProcessStarter();
+        var gate = new PlayerShellUpdateGate(Options.Create(new AgentOptions()), NullLogger<PlayerShellUpdateGate>.Instance);
+        var supervisor = new PlayerShellProcessSupervisor(
+            Options.Create(new AgentOptions { PlayerShellExecutablePath = executable.Path }),
+            new RecordingProcessQuery(isRunning: false),
+            processStarter,
+            new FixedShellLaunchContext(new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false)),
+            new ProtectionEnforcerTests.FakeRegistry(),
+            NullLogger<PlayerShellProcessSupervisor>.Instance,
+            gate);
+
+        using (gate.Suspend())
+        {
+            await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+        }
+
+        Assert.Equal(0, processStarter.StartCount);
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+        Assert.Equal(1, processStarter.StartCount);
+    }
+
     [Fact]
     public async Task EnsureRunningAsync_AutoStartIsEnabledByDefault()
     {
