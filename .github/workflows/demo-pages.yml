@@ -1,12 +1,15 @@
 name: Demo Panel
 
-# Демо-Панель на примерах данных (docs/operations/demo-panel.md) — на GitHub Pages: статика без
-# сервера, мимо общей очереди деплоев Coolify. Пересобирается с каждой правкой Панели в main.
+# Демо-Панель и демо экрана игрока на примерах данных (docs/operations/demo-panel.md) — на GitHub
+# Pages: статика без сервера, мимо общей очереди деплоев Coolify. Панель лежит в корне сайта, экран
+# игрока — в /shell/, оба уходят одним артефактом. Пересобирается с каждой правкой любого из двух
+# приложений (или общих пакетов и строк) в main.
 on:
   push:
     branches: [main]
     paths:
       - src/AFK4.OrganizationAdmin.Web/**
+      - src/AFK4.Player.Shell.Web/**
       - packages/**
       - locales/**
       - .github/workflows/demo-pages.yml
@@ -36,18 +39,28 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
-      - name: Build the demo
+      - name: Build the Panel demo
         working-directory: src/AFK4.OrganizationAdmin.Web
         run: bun run build:demo
 
+      - name: Build the Player Shell demo
+        working-directory: src/AFK4.Player.Shell.Web
+        run: bun run build:demo
+
+      # Один сайт: Панель в корне, экран игрока в /shell/. Ссылки между ними относительные
+      # («./shell/» из Панели, «../» из экрана игрока), поэтому сайт не привязан к домену.
       # Своё имя сайта: без файла CNAME Pages после каждой выкладки сбрасывал бы его.
-      - name: Name the site
-        run: echo "demo.afk4.net" > src/AFK4.OrganizationAdmin.Web/dist-demo/CNAME
+      - name: Assemble the site
+        run: |
+          mkdir -p site/shell
+          cp -R src/AFK4.OrganizationAdmin.Web/dist-demo/. site/
+          cp -R src/AFK4.Player.Shell.Web/dist-demo/. site/shell/
+          echo "demo.afk4.net" > site/CNAME
 
       - name: Upload
         uses: actions/upload-pages-artifact@v3
         with:
-          path: src/AFK4.OrganizationAdmin.Web/dist-demo
+          path: site
 
   deploy:
     needs: build
