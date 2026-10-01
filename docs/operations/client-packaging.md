@@ -51,6 +51,20 @@ SHA-512 together in that script.
 > it is installed synchronously as a vital prerequisite before the Agent MSI
 > and its service run — eliminating that race on fresh VMs.
 
+Standalone, a component MSI (Agent, Organization Admin, Player Shell) checks the runtime
+itself and refuses to install without it, in Russian, pointing at
+`afk4-client-<version>-<channel>.exe`. The check is the Netfx extension's
+`DotNetCompatibilityCheck` (desktop, x64, `10.0.0`, `latestMinor`): it takes the x64
+install location from `HKLM\SOFTWARE\dotnet\Setup\InstalledVersions\x64` and asks
+hostfxr there, so it works on ARM64 PCs with the x64 runtime too. The component MSIs
+(Panel and Player Shell) refuse the same way when WebView2 is missing. The update helper
+(`install-afk4-update-msi.ps1`) is unchanged: a missing runtime shows up as msiexec exit
+code 1603 and a line in the update log.
+
+The bundle window speaks Russian (`installers/bundle/BundleUi.ru.wxl`, the default) and
+Tajik (`BundleUi.tg.wxl`, picked by WixStdBA from the Windows UI languages through the
+`1064\thm.wxl` subfolder; force it with `afk4-client.exe /lang 1064`).
+
 The component MSIs are build inputs (written to `artifacts/client-packages/intermediates/`);
 the single deliverable handed to operators is the bundle `.exe`. The component MSIs are
 also still produced as standalone artifacts for update-pipeline publishing and recovery.

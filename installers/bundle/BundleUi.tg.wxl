@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Тексты окна установщика (WixStdBA) на таджикском (кириллица, tg-Cyrl-TJ, LCID 1064). Бандл
+  кладёт файл в папку 1064\thm.wxl: WixStdBA ищет там язык, который Windows считает
+  предпочитаемым для пользователя, и берёт русский thm.wxl, если такой папки нет. Принудительно:
+  afk4-client.exe /lang 1064. Набор Id — тот же, что в BundleUi.ru.wxl (следит тест).
+  Ширина кнопок в теме фиксирована (75 пикселей), поэтому подписи короткие.
+-->
+<WixLocalization Culture="tg-Cyrl-TJ" Language="1064" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Caption" Value="Насби [WixBundleName]" />
+  <String Id="Title" Value="[WixBundleName]" />
+  <String Id="CheckingForUpdatesLabel" Value="Санҷиши навсозиҳо" />
+  <String Id="UpdateButton" Value="&amp;Навсозӣ ба версияи [WixStdBAUpdateAvailable]" />
+  <String Id="InstallHeader" Value="Хуш омадед" />
+  <String Id="InstallMessage" Value="Барнома [WixBundleName]-ро дар ин компютер насб мекунад. Барои идома додан «Насб кардан»-ро пахш кунед ё барои баромадан «Бекор»-ро." />
+  <String Id="InstallMessageOptions" Value="Барнома [WixBundleName]-ро дар ин компютер насб мекунад. Барои идома додан «Насб кардан»-ро, барои тағйири танзимоти насб «Танзимот»-ро ва барои баромадан «Бекор»-ро пахш кунед." />
+  <String Id="InstallVersion" Value="Версияи [WixBundleVersion]" />
+  <String Id="ConfirmCancelMessage" Value="Насбро қатъ мекунед?" />
+  <String Id="ExecuteUpgradeRelatedBundleMessage" Value="Версияи пешина" />
+  <String Id="HelpHeader" Value="Роҳнамои насб" />
+  <String Id="HelpText" Value="/install | /repair | /uninstall | /layout [ҷузвдон] - насб кардан, ислоҳ кардан, нест кардан ё&#xA;   дар ҷузвдон сохтани нусхаи пурраи маҳаллии насбкунак. Одатан насб иҷро мешавад.&#xA;&#xA;/passive | /quiet - камтарин равзанаҳоро бе саволҳо нишон додан ё ҳеҷ чиз нишон надодан.&#xA;   Одатан ҳамаи равзанаҳо ва саволҳо нишон дода мешаванд.&#xA;&#xA;/norestart   - компютерро аз нав оғоз накардан. Одатан пеш аз аз нав оғоз кардан савол дода мешавад.&#xA;/log log.txt - сабти рафтро ба файли додашуда навиштан. Одатан сабт дар %TEMP% мемонад.&#xA;/lang 1064 - равзанаро ба забони тоҷикӣ нишон додан (1049 - ба русӣ)." />
+  <String Id="HelpCloseButton" Value="&amp;Пӯшидан" />
+  <String Id="InstallLicenseLinkText" Value="[WixBundleName]: &lt;a href=&quot;#&quot;&gt;шартҳои иҷозатнома&lt;/a&gt;." />
+  <String Id="InstallAcceptCheckbox" Value="Ман бо шартҳои иҷозатнома &amp;розӣ ҳастам" />
+  <String Id="InstallOptionsButton" Value="&amp;Танзимот" />
+  <String Id="InstallInstallButton" Value="&amp;Насб кардан" />
+  <String Id="InstallCancelButton" Value="&amp;Бекор" />
+  <String Id="OptionsHeader" Value="Танзимоти насб" />
+  <String Id="OptionsLocationLabel" Value="Ҷойи насб:" />
+  <String Id="OptionsPerUserScopeText" Value="[WixBundleName]-ро танҳо барои &amp;худам насб кардан" />
+  <String Id="OptionsPerMachineScopeText" Value="[WixBundleName]-ро барои ҳамаи &amp;корбарон насб кардан" />
+  <String Id="OptionsBrowseButton" Value="&amp;Интихоб" />
+  <String Id="OptionsOkButton" Value="ОК" />
+  <String Id="OptionsCancelButton" Value="&amp;Бекор" />
+  <String Id="ProgressHeader" Value="Рафти насб" />
+  <String Id="ProgressLabel" Value="Ҳозир:" />
+  <String Id="OverallProgressPackageText" Value="Омодагӣ..." />
+  <String Id="ProgressCancelButton" Value="&amp;Бекор" />
+  <String Id="ModifyHeader" Value="Тағйири насб" />
+  <String Id="ModifyRepairButton" Value="&amp;Ислоҳ" />
+  <String Id="ModifyUninstallButton" Value="&amp;Нест кардан" />
+  <String Id="ModifyCancelButton" Value="&amp;Бекор" />
+  <String Id="SuccessHeader" Value="Тайёр" />
+  <String Id="SuccessCacheHeader" Value="Файлҳо омода шуданд" />
+  <String Id="SuccessInstallHeader" Value="Насб анҷом ёфт" />
+  <String Id="SuccessLayoutHeader" Value="Нусхаи маҳаллӣ сохта шуд" />
+  <String Id="SuccessModifyHeader" Value="Тағйирот анҷом ёфт" />
+  <String Id="SuccessRepairHeader" Value="Ислоҳ анҷом ёфт" />
+  <String Id="SuccessUninstallHeader" Value="Нест кардан анҷом ёфт" />
+  <String Id="SuccessUnsafeUninstallHeader" Value="Нест кардан анҷом ёфт" />
+  <String Id="SuccessLaunchButton" Value="&amp;Оғоз" />
+  <String Id="SuccessRestartText" Value="Барои оғози кор компютерро аз нав оғоз кунед." />
+  <String Id="SuccessUninstallRestartText" Value="Барои анҷоми нест кардан компютерро аз нав оғоз кунед." />
+  <String Id="SuccessRestartButton" Value="&amp;Бозоғозӣ" />
+  <String Id="SuccessCloseButton" Value="&amp;Пӯшидан" />
+  <String Id="FailureHeader" Value="Насб нашуд" />
+  <String Id="FailureCacheHeader" Value="Омода кардани файлҳо нашуд" />
+  <String Id="FailureInstallHeader" Value="Насб нашуд" />
+  <String Id="FailureLayoutHeader" Value="Сохтани нусха нашуд" />
+  <String Id="FailureModifyHeader" Value="Тағйири насб нашуд" />
+  <String Id="FailureRepairHeader" Value="Ислоҳи насб нашуд" />
+  <String Id="FailureUninstallHeader" Value="Нест кардан нашуд" />
+  <String Id="FailureUnsafeUninstallHeader" Value="Нест кардан нашуд" />
+  <String Id="FailureHyperlinkLogText" Value="Як ё якчанд мушкилот насбро қатъ карданд. Онҳоро бартараф карда, насбро аз нав оғоз кунед. Тафсилот дар &lt;a href=&quot;#&quot;&gt;файли сабт&lt;/a&gt; аст." />
+  <String Id="FailureRestartText" Value="Барои анҷоми баргардонидани тағйирот компютерро аз нав оғоз кунед." />
+  <String Id="FailureRestartButton" Value="&amp;Бозоғозӣ" />
+  <String Id="FailureCloseButton" Value="&amp;Пӯшидан" />
+  <String Id="FilesInUseTitle" Value="Файлҳо истифода мешаванд" />
+  <String Id="FilesInUseLabel" Value="Ин барномаҳо файлҳоеро истифода мебаранд, ки бояд навсозӣ шаванд:" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="Барномаҳоро &amp;пӯшидан." />
+  <String Id="FilesInUseCloseRadioButton" Value="Барномаҳоро &amp;пӯшидан ва кӯшиш кардан, ки онҳо аз нав кушода шаванд." />
+  <String Id="FilesInUseDontCloseRadioButton" Value="Барномаҳоро &amp;напӯшидан. Компютерро аз нав оғоз кардан лозим мешавад." />
+  <String Id="FilesInUseRetryButton" Value="&amp;Такрор" />
+  <String Id="FilesInUseIgnoreButton" Value="&amp;Нодида" />
+  <String Id="FilesInUseExitButton" Value="&amp;Баромад" />
+</WixLocalization>

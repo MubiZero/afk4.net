@@ -404,7 +404,8 @@ $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Chann
 
 # The Burn bundle needs the BootstrapperApplications (WixStandardBootstrapperApplication;
 # the v7 rename of the old Bal extension), Netfx (DotNetCoreSearch) and Util (RegistrySearch for
-# the WebView2 runtime) extensions.
+# the WebView2 runtime) extensions. The three MSIs use Netfx too: DotNetCompatibilityCheck refuses
+# an install on a PC without the .NET 10 Desktop Runtime.
 # `wix extension add` is idempotent.
 foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Netfx.wixext', 'WixToolset.Util.wixext')) {
     & $DotnetPath wix extension add -acceptEula wix7 -g $wixExtension
@@ -417,6 +418,7 @@ foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixTo
 # (so the wizard can install the Player Shell on gaming PCs), which means it must exist
 # before the setup-wizard support dir is harvested.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/player-shell/Package.wxs') `
+    -ext WixToolset.Netfx.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
@@ -430,6 +432,7 @@ if ($LASTEXITCODE -ne 0) {
 # wizard can install the Organization Admin on cashier/manager workstations (role manager_workstation),
 # the same way it installs the Player Shell on gaming PCs. So it must exist before the harvest too.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/organization-admin/Package.wxs') `
+    -ext WixToolset.Netfx.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "OrganizationAdminPublishDir=$(Join-Path $publishRoot "organization-admin-$Version-$Channel")" `
@@ -468,6 +471,7 @@ foreach ($helperScript in $updateHelperScripts) {
 # Util — для util:ServiceConfig: правила перезапуска службы агента после падения.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/agent/Package.wxs') `
     -arch x64 `
+    -ext WixToolset.Netfx.wixext `
     -ext WixToolset.Util.wixext `
     -d "PackageVersion=$msiVersion" `
     -d "AgentServicePublishDir=$agentServicePublishDir" `
