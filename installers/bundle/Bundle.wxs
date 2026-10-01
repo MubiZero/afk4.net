@@ -1,33 +1,26 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
-     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <!--
     AFK4.NET client master installer (Burn bundle), one per channel:
     afk4-client-<version>-<channel>.exe.
 
-    Chains the .NET 10 Desktop Runtime (x64) CARRIED INSIDE the bundle (Compressed="yes",
-    SourceFile, NO DownloadUrl) as a vital prerequisite, then the agent MSI. Carrying the
-    runtime — rather than downloading it — is the deliberate difference from the reverted
-    download bundle (commit 20a7a31): the runtime is extracted and installed synchronously
-    before the MSI runs, so a freshly-imaged machine never starts the framework-dependent
-    agent service against a missing/unregistered runtime (the old sc-1053 failure).
+    The installer carries everything a club PC needs: nothing is downloaded and nobody is told to
+    go and install something (decision of 2026-10-01).
 
-    The pinned runtime version/URL/SHA-512 live in scripts/build-client-packages.ps1, which
-    downloads + verifies the runtime at build time and passes its path via RuntimeInstallerPath.
+    .NET: every program (agent service, setup wizard, player shell, Organization Admin) is
+    published self-contained for win-x64, so the runtime lives in each program's own folder.
+    The bundle chains no .NET prerequisite at all.
 
-    Second prerequisite: the Microsoft Edge WebView2 Runtime. Every window a human sees on a club
-    machine is WebView2 — the setup wizard the agent MSI launches, Organization Admin, the player
-    shell. Without it the MSIs refused to install at all and told the cashier to go find the
-    runtime themselves, in English. Now the bundle installs it.
+    WebView2: every window a human sees on a club machine is WebView2 — the setup wizard the agent
+    MSI launches, Organization Admin, the player shell. The bundle carries Microsoft's offline
+    Evergreen Standalone Installer (x64, ~210 MB; Compressed, no DownloadUrl) and runs it silently
+    first, only when the runtime is not there yet. The file sits behind an evergreen link, so there
+    is nothing to pin a SHA to; scripts/build-client-packages.ps1 downloads it at build time and
+    checks the Microsoft Authenticode signature instead.
 
-    Unlike the .NET runtime, WebView2 is NOT carried whole: the offline installer is ~150 MB and
-    Microsoft publishes it only behind rotating links, while the official Evergreen bootstrapper
-    is ~2 MB and pulls the runtime itself. The bundle carries that bootstrapper (verified at build
-    time by its Microsoft Authenticode signature — a SHA pin is impossible on an evergreen link),
-    so a club with internet gets the runtime without touching anything. A machine with no internet
-    at all cannot get WebView2 this way — but it also cannot reach the AFK4 cloud, which the agent
-    needs from its first heartbeat.
+    VC++ Redistributable is deliberately not chained: WPF self-contained ships its own native
+    libraries and the BAFunctions DLL is linked with /MT.
   -->
   <Bundle
       Name="AFK4.NET"
@@ -94,39 +87,12 @@
     <Variable Name="AFK4_INSTALL_CODE" bal:Overridable="yes" Hidden="yes" Value="" />
     <Variable Name="AFK4_SEAT" bal:Overridable="yes" Value="" />
 
-    <netfx:DotNetCoreSearch
-        Id="DesktopRuntime10"
-        RuntimeType="desktop"
-        Platform="x64"
-        MajorVersion="10"
-        Variable="DesktopRuntime10Version" />
-
     <Chain>
       <!--
-        The runtime is embedded because the Bundle itself is Compressed="yes" (all payloads
-        default to compressed/embedded). Compressed must NOT also sit on the ExePackage when an
-        ExePackagePayload child is present (WIX0372), and ProductName/Description on the payload
-        require a Hash/cert (WIX0037) — both are dropped: the runtime's own installer identifies
-        itself, and it runs /quiet anyway.
-      -->
-      <ExePackage
-          DisplayName=".NET 10 Desktop Runtime"
-          DetectCondition="DesktopRuntime10Version AND DesktopRuntime10Version &gt;= v$(var.RuntimeVersion)"
-          Permanent="yes"
-          Vital="yes"
-          PerMachine="yes"
-          InstallArguments="/install /quiet /norestart"
-          RepairArguments="/repair /quiet /norestart"
-          UninstallArguments="/uninstall /quiet /norestart"
-          bal:PrereqPackage="yes">
-        <ExePackagePayload
-            Name="windowsdesktop-runtime-$(var.RuntimeVersion)-win-x64.exe"
-            SourceFile="$(var.RuntimeInstallerPath)" />
-      </ExePackage>
-
-      <!--
         WebView2 goes before the agent MSI: that MSI ends by launching the setup wizard, and the
-        wizard is a WebView2 window. Permanent because the runtime is shared with everything else
+        wizard is a WebView2 window. The offline installer is embedded because the bundle itself is
+        Compressed="yes" (Compressed must not also sit on the ExePackage when it has an
+        ExePackagePayload child, WIX0372). Permanent because the runtime is shared with everything else
         on the machine — uninstalling AFK4 must not take Edge WebView2 away from other software.
       -->
       <ExePackage
@@ -139,8 +105,8 @@
           RepairArguments="/silent /install"
           bal:PrereqPackage="yes">
         <ExePackagePayload
-            Name="MicrosoftEdgeWebview2Setup.exe"
-            SourceFile="$(var.WebView2BootstrapperPath)" />
+            Name="MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+            SourceFile="$(var.WebView2InstallerPath)" />
       </ExePackage>
 
       <!-- LAUNCHWIZARD=1 makes the agent MSI auto-launch the Setup Wizard even though Burn

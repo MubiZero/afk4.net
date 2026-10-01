@@ -79,7 +79,7 @@ if (Test-Path -LiteralPath $publishRoot) {
 & $DotnetPath publish $ProjectPath `
     -c $Configuration `
     -r $Runtime `
-    --self-contained false `
+    --self-contained true `
     -o $publishRoot `
     -p:NuGetAudit=false `
     -p:UseSharedCompilation=false

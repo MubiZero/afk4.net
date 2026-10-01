@@ -409,6 +409,10 @@ rule, one PR each, all on `main` or open with green checks:
   launcher list was hardcoded empty against a working config; the installed-app
   inventory ran once per service start; reconciliation reported a constant zero
   pending events.
+- **Installer carries everything** (#620, on top of #618): the four programs are
+  self-contained (.NET inside), the bundle embeds the offline WebView2 installer and
+  chains no .NET; the .NET check in the MSIs is gone. Package grows to ~450 MB
+  (estimate); not built or run on Windows yet.
 - **Workstation lock does something** (#275): it was two log lines and a
   `Task.CompletedTask` reported to the server as locked. It now disables Task
   Manager through machine policy and reports what it actually enforced.
