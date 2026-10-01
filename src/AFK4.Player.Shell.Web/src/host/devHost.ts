@@ -2,9 +2,11 @@ import {
   PlayerShellStateNames,
   ShellBridgeEventTypeNames,
   ShellBridgeRequestTypeNames,
+  ShopOrderStatusNames,
   type PlayerShellStateDto,
   type ShellAuthStateDto,
   type PlayerExtendOffersDto,
+  type LaunchedAppDto,
   type PlayerStartOffersDto,
   type ShopCatalogItemDto,
   type ShopOrderDto,
@@ -17,8 +19,11 @@ import type { HostBridgeMessageEvent } from '@afk4/host-bridge';
  * Учебный хост: без WPF и агента экран оболочки листается в браузере сценариями —
  * `?scenario=idle|approach|session|ending|grace|offline|maintenance|error|connecting`.
  *
- * Только для dev-сборки (main.tsx подключает его под `import.meta.env.DEV`, Vite вырезает ветку
- * из боевой сборки). Образец — devHostBridge Панели.
+ * Только для dev-сборки и публичного демо (main.tsx подключает его под `import.meta.env.DEV` или
+ * `VITE_AFK4_DEMO=1`, Vite вырезает ветку из боевой сборки; это проверяет
+ * demo/prodBundle.test.ts). Образец — devHostBridge Панели. Сервер клуба тоже учебный и живёт в
+ * памяти страницы: баланс, заказы бара и сессия меняются от действий посетителя, наружу не уходит
+ * ничего.
  */
 export type DevScenario =
   | 'idle'
@@ -31,7 +36,7 @@ export type DevScenario =
   | 'error'
   | 'connecting';
 
-const SCENARIOS: readonly DevScenario[] = ['idle', 'approach', 'session', 'ending', 'grace', 'offline', 'maintenance', 'error', 'connecting'];
+export const DEV_SCENARIOS: readonly DevScenario[] = ['idle', 'approach', 'session', 'ending', 'grace', 'offline', 'maintenance', 'error', 'connecting'];
 
 // Картинка-заглушка для учебного стенда: настоящие лежат в кэше ПК, которого у браузера нет.
 const DEV_PHOTO = `data:image/svg+xml,${encodeURIComponent(
@@ -64,7 +69,10 @@ const DEV_SHOWCASE = (minutes: (count: number) => string): PlayerShellStateDto['
   { cardId: 'bar_hit:dev', kind: 'bar_hit', title: 'Кола 0,5', price: { currencyCode: 'TJS', minorUnits: 1000 } }
 ];
 
-export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): PlayerShellStateDto | null {
+/** Сколько минут до конца у сценариев с идущей сессией, если сессию не начинали и не продлевали. */
+const DEFAULT_SESSION_MINUTES: Partial<Record<DevScenario, number>> = { session: 95, ending: 0.8, grace: 12 };
+
+export function devScenarioState(scenario: DevScenario, nowMs = Date.now(), remainingMinutes?: number): PlayerShellStateDto | null {
   if (scenario === 'connecting') return null;
 
   const observed = new Date(nowMs).toISOString();
@@ -121,12 +129,12 @@ export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): Pla
 
   switch (scenario) {
     case 'session':
-      return playing(95, PlayerShellStateNames.Active);
+      return playing(remainingMinutes ?? 95, PlayerShellStateNames.Active);
     case 'ending':
-      return { ...playing(0.8, PlayerShellStateNames.Ending), warningKind: 'low_time' };
+      return { ...playing(remainingMinutes ?? 0.8, PlayerShellStateNames.Ending), warningKind: 'low_time' };
     case 'grace':
       return {
-        ...playing(12, PlayerShellStateNames.Grace),
+        ...playing(remainingMinutes ?? 12, PlayerShellStateNames.Grace),
         isOnline: false,
         isGraceMode: true,
         warningKind: 'connectivity',
@@ -150,37 +158,89 @@ export function devScenarioState(scenario: DevScenario, nowMs = Date.now()): Pla
   }
 }
 
-export function installDevHost(): void {
+/** Что учебный хост даёт странице-обёртке: переключатель сценариев в полосе «Демо». */
+export interface DevHostControl {
+  getScenario(): DevScenario;
+  subscribe(listener: () => void): () => void;
+  /** Перейти к сценарию, как если бы ПК оказался в таком состоянии: вход игрока и конец сессии подстраиваются. */
+  setScenario(next: DevScenario): void;
+  /** Человек тронул мышь или клавиатуру за экраном: у настоящего ПК об этом сообщает агент. */
+  touch(): void;
+}
+
+/** Сколько тишины должно пройти, чтобы ввод считался «подошли снова», а не продолжением движения мыши. */
+const INPUT_QUIET_MS = 4_000;
+
+const ALISHER: ShellAuthStateDto = { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' };
+const SIGNED_OUT: ShellAuthStateDto = { signedIn: false, displayName: null, playerAccountId: null };
+
+export function installDevHost(): DevHostControl {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('scenario') as DevScenario | null;
-  const scenario: DevScenario = requested && SCENARIOS.includes(requested) ? requested : 'idle';
+  let scenario: DevScenario = requested && DEV_SCENARIOS.includes(requested) ? requested : 'idle';
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
+  const watchers = new Set<() => void>();
   const emit = (data: unknown) => queueMicrotask(() => {
     for (const listener of listeners) listener({ data });
   });
-  // ?signedIn=1 — сразу вошедший владелец сессии: экраны с деньгами видно без формы входа.
-  let auth: ShellAuthStateDto = params.get('signedIn') === '1'
-    ? { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' }
-    : { signedIn: false, displayName: null, playerAccountId: null };
+  // ?signedIn=1 — сразу вошедший владелец сессии: экраны с деньгами видно без формы входа. У сценариев
+  // с идущей сессией он вошёл всегда: сессия на его счёте, и без входа продлить и заказать нельзя.
+  let auth: ShellAuthStateDto = params.get('signedIn') === '1' || scenario in DEFAULT_SESSION_MINUTES ? ALISHER : SIGNED_OUT;
   let system: ShellSystemStateDto = { volume: 60, micMuted: false, layout: 'RU' };
+  const setAuth = (next: ShellAuthStateDto) => {
+    auth = next;
+    emit({ type: ShellBridgeEventTypeNames.AuthChanged, payload: auth });
+  };
+
+  // Идущая сессия в памяти: конец сдвигают продление и старт, запущенные игры — запуск и закрытие.
+  const inSession = () => scenario in DEFAULT_SESSION_MINUTES;
+  let sessionEndsAtMs = Date.now() + (DEFAULT_SESSION_MINUTES[scenario] ?? 0) * 60_000;
+  let launched: LaunchedAppDto[] = devScenarioState('session')?.launchedApps ?? [];
+  let expiry: number | undefined;
+
+  const publish = () => {
+    window.clearTimeout(expiry);
+    const now = Date.now();
+    const state = devScenarioState(scenario, now, inSession() ? Math.max(0, (sessionEndsAtMs - now) / 60_000) : undefined);
+    emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: state?.launchedApps ? { ...state, launchedApps: launched } : state });
+    // Время вышло — сервер запер бы ПК: игрок увидит итог, а не нулевой отсчёт.
+    if (inSession()) {
+      expiry = window.setTimeout(() => moveTo('idle'), Math.max(0, sessionEndsAtMs - now) + 1_500);
+    }
+    for (const watcher of watchers) watcher();
+  };
+  const moveTo = (next: DevScenario) => {
+    scenario = next;
+    publish();
+  };
+
+  const beginSession = (minutes: number) => {
+    sessionEndsAtMs = Date.now() + minutes * 60_000;
+    launched = [];
+    moveTo('session');
+  };
+  const extendSession = (minutes: number) => {
+    sessionEndsAtMs += minutes * 60_000;
+    // Продлили на исходе времени — «Время вышло» снимается, как у сервера.
+    moveTo(scenario === 'ending' ? 'session' : scenario);
+  };
 
   window.chrome = {
     webview: {
       postMessage(message: unknown) {
         const request = message as { type?: string; requestId?: string };
         if (!request?.requestId) return;
-        const reply = (payload: unknown) => emit({ type: 'host:response', requestId: request.requestId, ok: true, payload });
+        const payload = (message as { payload?: Record<string, unknown> }).payload ?? {};
+        const reply = (body: unknown) => emit({ type: 'host:response', requestId: request.requestId, ok: true, payload: body });
         switch (request.type) {
           case ShellBridgeRequestTypeNames.ShellReady:
-            reply({ state: devScenarioState(scenario), auth, system } satisfies ShellSnapshotDto);
+            reply({ state: devScenarioState(scenario, Date.now(), inSession() ? Math.max(0, (sessionEndsAtMs - Date.now()) / 60_000) : undefined), auth, system } satisfies ShellSnapshotDto);
             break;
           case ShellBridgeRequestTypeNames.AuthSignIn: {
             // Учебный вход: ПИН-код 123456 пускает, остальные — нет, как ответил бы сервер.
-            const { pin } = (message as { payload?: { pin?: string } }).payload ?? {};
-            if (pin === '123456') {
+            if (payload.pin === '123456') {
               reply({});
-              auth = { signedIn: true, displayName: 'Алишер', playerAccountId: '00000000-0000-4000-8000-000000000020' };
-              emit({ type: ShellBridgeEventTypeNames.AuthChanged, payload: auth });
+              setAuth(ALISHER);
             } else {
               emit({
                 type: 'host:response',
@@ -197,24 +257,38 @@ export function installDevHost(): void {
             break;
           case ShellBridgeRequestTypeNames.AuthSignOut:
             reply({});
-            auth = { signedIn: false, displayName: null, playerAccountId: null };
-            emit({ type: ShellBridgeEventTypeNames.AuthChanged, payload: auth });
+            setAuth(SIGNED_OUT);
             break;
           case ShellBridgeRequestTypeNames.SystemSetVolume:
           case ShellBridgeRequestTypeNames.SystemSetMicMuted:
           case ShellBridgeRequestTypeNames.SystemSetLayout:
             // Учебный хост помнит звук и раскладку, как запомнила бы Windows.
-            system = { ...system, ...((message as { payload?: Partial<ShellSystemStateDto> }).payload ?? {}) };
+            system = { ...system, ...(payload as Partial<ShellSystemStateDto>) };
             reply(system);
             emit({ type: ShellBridgeEventTypeNames.SystemChanged, payload: system });
             break;
           case ShellBridgeRequestTypeNames.MaintenanceReturn:
             // «Вернуть в зал»: агент закрыл бы рабочий стол, а сервер прислал бы «Свободен».
             reply({});
-            emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: devScenarioState('idle') });
+            moveTo('idle');
+            break;
+          case ShellBridgeRequestTypeNames.AppLaunch: {
+            // Игра запустилась: агент прислал бы состояние с ней в списке «Мои приложения».
+            const app = devScenarioState('session')?.launcherApps?.find((candidate) => candidate.appId === payload.appId);
+            reply({});
+            if (app && inSession()) {
+              launched = [...launched, { launchId: crypto.randomUUID(), appId: app.appId, displayName: app.displayName, processIds: [4300 + launched.length] }];
+              publish();
+            }
+            break;
+          }
+          case ShellBridgeRequestTypeNames.AppClose:
+            reply({});
+            launched = launched.filter((app) => app.launchId !== payload.launchId);
+            publish();
             break;
           default:
-            // Запуск игры, вызов администратора, язык — учебный хост со всем соглашается.
+            // Вернуться в игру, вызов администратора, язык — учебный хост со всем соглашается.
             reply({});
         }
       },
@@ -223,28 +297,74 @@ export function installDevHost(): void {
     }
   };
 
-  installDevApi((next) => emit({ type: ShellBridgeEventTypeNames.StateChanged, payload: devScenarioState(next) }));
+  installDevApi({ beginSession, extendSession, endSession: () => moveTo('idle'), sessionEndsAtMs: () => sessionEndsAtMs });
 
   // «Подошли к ПК» — через полсекунды после загрузки, как если бы тронули мышь.
   if (scenario === 'approach') {
     setTimeout(() => emit({ type: ShellBridgeEventTypeNames.InputActivity, payload: {} }), 500);
   }
+  if (inSession()) publish();
+
+  let lastInputMs = 0;
+  return {
+    getScenario: () => scenario,
+    touch() {
+      const now = Date.now();
+      const quiet = now - lastInputMs > INPUT_QUIET_MS;
+      lastInputMs = now;
+      if (quiet && (scenario === 'idle' || scenario === 'approach')) emit({ type: ShellBridgeEventTypeNames.InputActivity, payload: {} });
+    },
+    subscribe: (listener) => {
+      watchers.add(listener);
+      return () => watchers.delete(listener);
+    },
+    setScenario(next) {
+      // Сценарий — всегда «с чистого места»: сессия идёт с полным временем, а вход игрока — только у сессии.
+      sessionEndsAtMs = Date.now() + (DEFAULT_SESSION_MINUTES[next] ?? 0) * 60_000;
+      launched = devScenarioState('session')?.launchedApps ?? [];
+      const wantsSignIn = next in DEFAULT_SESSION_MINUTES;
+      if (auth.signedIn !== wantsSignIn) setAuth(wantsSignIn ? ALISHER : SIGNED_OUT);
+      moveTo(next);
+      // Подошёл или отошёл — сигнал хоста, по которому экран открывает окно входа или возвращает витрину.
+      emit({ type: next === 'approach' ? ShellBridgeEventTypeNames.InputActivity : ShellBridgeEventTypeNames.InputIdle, payload: {} });
+    }
+  };
+}
+
+interface DevSessionControl {
+  beginSession(minutes: number): void;
+  extendSession(minutes: number): void;
+  endSession(): void;
+  sessionEndsAtMs(): number;
 }
 
 /**
- * Учебный сервер клуба: цены для «Сколько играем» и старт. Настоящий адрес из учебного состояния
- * никуда не ведёт, поэтому запросы к нему отвечаются здесь; остальные уходят как есть.
+ * Учебный сервер клуба: цены, старт, продление, бар, пополнение и чаевые отвечают здесь же, в памяти
+ * страницы, и держат один баланс на всех. Настоящий адрес из учебного состояния никуда не ведёт, а
+ * наружу не уходит ничего: чужой адрес получает отказ, а не запрос в сеть.
  */
-function installDevApi(moveTo: (scenario: DevScenario) => void): void {
+function installDevApi(session: DevSessionControl): void {
   const realFetch = window.fetch.bind(window);
   const devFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, window.location.href);
     const post = init?.method === 'POST';
+    const body = () => JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
     if (url.pathname === '/api/me/this-pc/start-offers') {
-      return json(devStartOffers(Date.now()));
+      return json(devStartOffers(Date.now(), devBalance, devPackageMinutes));
     }
     if (url.pathname === '/api/me/sessions/start' && post) {
-      setTimeout(() => moveTo('session'), 600);
+      const { tariffRuleVersionId, durationMinutes, playerPackageId } = body() as { tariffRuleVersionId: string; durationMinutes: number; playerPackageId: string | null };
+      if (playerPackageId) {
+        if (durationMinutes > devPackageMinutes) return failure(409, 'insufficient_balance');
+        devPackageMinutes -= durationMinutes;
+      } else {
+        const tariff = devStartOffers(Date.now()).tariffs.find((candidate) => candidate.tariffRuleVersionId === tariffRuleVersionId);
+        if (!tariff || !tariff.appliesNow) return failure(409, 'tariff_outside_its_hours');
+        const amount = (durationMinutes / 60) * tariff.pricePerHour.minorUnits;
+        if (amount > devBalance) return failure(409, 'insufficient_balance');
+        devBalance -= amount;
+      }
+      setTimeout(() => session.beginSession(durationMinutes), 600);
       return json({});
     }
     if (url.pathname.startsWith('/api/me/visits/') && url.pathname.endsWith('/receipt')) {
@@ -256,6 +376,18 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
         timeChargeMinorUnits: 1_600, posLines: [], posTotalMinorUnits: 2_400, grandTotalMinorUnits: 4_000, currencyCode: 'TJS'
       });
     }
+    if (url.pathname.startsWith('/api/me/visits/') && url.pathname.endsWith('/tip')) {
+      if (!post) {
+        return json({
+          available: true, unavailableReason: null, presets: [TJS(500), TJS(1_000), TJS(2_000)], balance: TJS(devBalance),
+          recipientName: 'Шерзод', given: null
+        });
+      }
+      const amount = (body().amount as { minorUnits: number }).minorUnits;
+      if (amount > devBalance) return failure(409, 'insufficient_balance');
+      devBalance -= amount;
+      return json({ amount: TJS(amount), balanceAfter: TJS(devBalance), recipientName: 'Шерзод' });
+    }
     if (url.pathname === '/api/me/reviews' && post) {
       return json({ rating: 5, count: 1, reviews: [] });
     }
@@ -266,7 +398,7 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
       return json({ counter: true, online: true });
     }
     if (url.pathname === '/api/me/wallet/top-up-intent' && post) {
-      const { amountMinorUnits } = JSON.parse(String(init?.body ?? '{}')) as { amountMinorUnits: number };
+      const { amountMinorUnits } = body() as { amountMinorUnits: number };
       devTopUp = { amount: amountMinorUnits, asked: 0 };
       return json({
         paymentIntentId: crypto.randomUUID(), amountMinorUnits, currencyCode: 'TJS', state: 'pending', purpose: 'top_up',
@@ -287,12 +419,17 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
       return json(DEV_CATALOG);
     }
     if (url.pathname === '/api/me/shop/orders' && post) {
-      const lines = (JSON.parse(String(init?.body ?? '{}')) as { lines: { productId: string; quantity: number }[] }).lines;
-      const order = devOrder(lines);
+      const order = devOrder((body() as { lines: { productId: string; quantity: number }[] }).lines);
+      if (order.total.minorUnits > devBalance) return failure(409, 'insufficient_funds');
+      devBalance -= order.total.minorUnits;
       devOrders = [order, ...devOrders];
-      // Стойка приняла заказ через несколько секунд — как настоящая.
+      // Стойка приняла заказ через несколько секунд, а потом принесли — как настоящая.
+      const advance = (status: ShopOrderDto['status']) => {
+        devOrders = devOrders.map((existing) => (existing.id === order.id && existing.status !== ShopOrderStatusNames.Cancelled ? { ...existing, status } : existing));
+      };
       setTimeout(() => {
-        devOrders = devOrders.map((existing) => (existing.id === order.id ? { ...existing, status: 'accepted' } : existing));
+        advance(ShopOrderStatusNames.Accepted);
+        setTimeout(() => advance(ShopOrderStatusNames.Delivered), 12_000);
       }, 8_000);
       return json(order);
     }
@@ -301,26 +438,41 @@ function installDevApi(moveTo: (scenario: DevScenario) => void): void {
     }
     if (url.pathname.startsWith('/api/me/shop/orders/') && url.pathname.endsWith('/cancel') && post) {
       const id = url.pathname.split('/')[5];
-      devOrders = devOrders.map((existing) => (existing.id === id ? { ...existing, status: 'cancelled' } : existing));
+      const order = devOrders.find((existing) => existing.id === id);
+      // Заказ, который уже готовят, отменить нельзя — как ответит стойка.
+      if (!order || order.status !== ShopOrderStatusNames.Placed) return failure(409, 'order_not_cancellable');
+      devBalance += order.total.minorUnits;
+      devOrders = devOrders.map((existing) => (existing.id === id ? { ...existing, status: ShopOrderStatusNames.Cancelled } : existing));
       return json(devOrders.find((existing) => existing.id === id));
     }
     if (url.pathname.endsWith('/extend-offers')) {
-      return json(devExtendOffers(Date.now()));
+      return json(devExtendOffers(Date.now(), devBalance, session.sessionEndsAtMs()));
     }
     if (url.pathname.endsWith('/extend') && post) {
+      const minutes = body().additionalMinutes as number;
+      const amount = (minutes / 60) * 1_000;
+      if (amount > devBalance) return failure(409, 'insufficient_balance');
+      devBalance -= amount;
+      session.extendSession(minutes);
       return json({});
     }
     if (url.pathname.endsWith('/end-quote')) {
       return json({ billedMinutes: 35, refund: TJS(1_000), packageMinutesReturned: 0 });
     }
     if (url.pathname.endsWith('/end') && post) {
-      setTimeout(() => moveTo('idle'), 400);
+      devBalance += 1_000;
+      setTimeout(() => session.endSession(), 400);
       return json({ billedMinutes: 35, refunded: TJS(1_000), packageMinutesReturned: 0 });
     }
-    return realFetch(input, init);
+    // Только своя страница: чужой адрес — отказ, а не запрос в сеть.
+    return url.origin === window.location.origin ? realFetch(input, init) : failure(404, 'dev_host_has_no_route');
   };
   // Тип fetch у Bun шире браузерного (preconnect): учебному хосту в браузере нужен только вызов.
   window.fetch = devFetch as typeof fetch;
+}
+
+function failure(status: number, code: string): Response {
+  return new Response(JSON.stringify({ error: code }), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
 function json(body: unknown): Response {
@@ -329,8 +481,7 @@ function json(body: unknown): Response {
 
 const TJS = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 
-export function devStartOffers(nowMs: number): PlayerStartOffersDto {
-  const balance = 4_500;
+export function devStartOffers(nowMs: number, balance = 4_500, packageMinutes = 200): PlayerStartOffersDto {
   const perHour = 1_000;
   return {
     seatLabel: 'ПК 07',
@@ -367,15 +518,13 @@ export function devStartOffers(nowMs: number): PlayerStartOffersDto {
         options: []
       }
     ],
-    packages: [
-      { playerPackageId: '00000000-0000-4000-8000-000000000201', name: 'Пакет «5 часов»', remainingMinutes: 200, expiresAtUtc: null }
+    packages: packageMinutes <= 0 ? [] : [
+      { playerPackageId: '00000000-0000-4000-8000-000000000201', name: 'Пакет «5 часов»', remainingMinutes: packageMinutes, expiresAtUtc: null }
     ]
   };
 }
 
-export function devExtendOffers(nowMs: number): PlayerExtendOffersDto {
-  const balance = 4_500;
-  const endsAt = nowMs + 95 * 60_000;
+export function devExtendOffers(nowMs: number, balance = 4_500, endsAt = nowMs + 95 * 60_000): PlayerExtendOffersDto {
   return {
     sessionId: '00000000-0000-4000-8000-000000000010',
     balance: TJS(balance),
@@ -414,7 +563,7 @@ function devOrder(lines: { productId: string; quantity: number }[]): ShopOrderDt
     seatId: '00000000-0000-4000-8000-000000000004',
     playerAccountId: '00000000-0000-4000-8000-000000000020',
     playerDisplayName: 'Алишер',
-    status: 'placed',
+    status: ShopOrderStatusNames.Placed,
     total: TJS(orderLines.reduce((sum, line) => sum + line.lineTotal.minorUnits, 0)),
     lines: orderLines,
     placedAtUtc: new Date().toISOString(),
@@ -428,4 +577,5 @@ function devOrder(lines: { productId: string; quantity: number }[]): ShopOrderDt
 }
 
 let devBalance = 4_500;
+let devPackageMinutes = 200;
 let devTopUp: { amount: number; asked: number } | null = null;
