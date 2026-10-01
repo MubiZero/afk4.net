@@ -15,6 +15,7 @@ src/AFK4.OrganizationAdmin.Web/dist/
 src/AFK4.OrganizationAdmin.Web/dist-demo/
 src/AFK4.SetupWizard.Web/dist/
 src/AFK4.Player.Shell.Web/dist/
+src/AFK4.Player.Shell.Web/dist-demo/
 .superpowers/
 .worktrees/
 .env

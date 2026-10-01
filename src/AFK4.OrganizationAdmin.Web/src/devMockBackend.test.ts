@@ -406,3 +406,66 @@ describe('devMockFetch reservation session start', () => {
       .toEqual(started.reservation);
   });
 });
+
+describe('devMockFetch club life on the map', () => {
+  const org = 'https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
+  const seatsOf = async () => (await (await devMockFetch(`${org}/branches/branch/floor-map`)).json()).seats as Array<Record<string, unknown>>;
+  const seatNamed = async (name: string) => (await seatsOf()).find((seat) => seat.seatName === name)!;
+  const sendCommand = (deviceId: string, type: string) =>
+    devMockFetch(`${org}/devices/${deviceId}/commands`, { method: 'POST', body: JSON.stringify({ type, payload: {} }) });
+
+  // Пауза раньше отвечала «готово» без тела и ничего не меняла: место оставалось «в сессии».
+  it('pauses a session and resumes it', async () => {
+    const sessionId = (await seatNamed('PC-09')).activeSessionId as string;
+
+    const paused = await devMockFetch(`${org}/sessions/${sessionId}/pause`, { method: 'POST', body: JSON.stringify({ idempotencyKey: 'k1' }) });
+    expect(await paused.json()).toMatchObject({ session: { sessionId, state: 'Paused' } });
+    expect(await seatNamed('PC-09')).toMatchObject({ state: 'Paused', isDeviceLocked: true });
+
+    await devMockFetch(`${org}/sessions/${sessionId}/resume`, { method: 'POST', body: JSON.stringify({ idempotencyKey: 'k2' }) });
+    expect(await seatNamed('PC-09')).toMatchObject({ state: 'Active', isDeviceLocked: false });
+  });
+
+  // Команда ПК отвечает описанием команды, а её исход читается по статусу; место на карте меняется.
+  it('runs PC commands: wake brings an offline PC back, maintenance-off returns it to the hall', async () => {
+    const offline = await seatNamed('PC-08');
+    const woke = await (await sendCommand(offline.deviceId as string, 'wake')).json();
+    expect(woke).toMatchObject({ type: 'wake', commandId: expect.any(String) });
+    const status = await (await devMockFetch(`${org}/devices/${offline.deviceId}/commands/${woke.commandId}/status`)).json();
+    expect(status).toMatchObject({ status: 'completed', outcome: 'succeeded' });
+    expect(await seatNamed('PC-08')).toMatchObject({ state: 'Free', isDeviceOnline: true });
+
+    const service = await seatNamed('VIP-02');
+    await sendCommand(service.deviceId as string, 'maintenance-off');
+    expect(await seatNamed('VIP-02')).toMatchObject({ state: 'Free', isDeviceOnline: true });
+    await sendCommand(service.deviceId as string, 'maintenance-on');
+    expect(await seatNamed('VIP-02')).toMatchObject({ state: 'Maintenance' });
+  });
+
+  // Вкладка «Устройства» показывала клуб из одного ПК; ПК без киоска виден на карте как не игровое место.
+  it('lists every PC of the floor map as a device and shows one without a kiosk', async () => {
+    const devices = await (await devMockFetch(`${org}/branches/branch/devices`)).json();
+    const seats = await seatsOf();
+    expect(devices.length).toBeGreaterThanOrEqual(seats.filter((seat) => seat.deviceId).length);
+    expect(devices.length).toBeGreaterThan(10);
+    for (const device of devices as Array<{ deviceId: string }>) expect(device.deviceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(seats.filter((seat) => seat.isKioskAbsent === true).map((seat) => seat.seatName)).toEqual(['PC-06']);
+  });
+
+  it('knows the club: profile, settings and events are not empty lists', async () => {
+    const profile = await (await devMockFetch(`${org}/branches/branch/profile`)).json();
+    expect(profile).toMatchObject({ name: 'AFK4 Dushanbe', city: 'Душанбе' });
+    expect(profile.workingHours).toHaveLength(7);
+    const changed = await (await devMockFetch(`${org}/branches/branch/profile`, { method: 'PATCH', body: JSON.stringify({ phone: '+992 90 111 22 33' }) })).json();
+    expect(changed).toMatchObject({ name: 'AFK4 Dushanbe', phone: '+992 90 111 22 33' });
+
+    const settings = await (await devMockFetch(`${org}/branches/branch/settings`)).json();
+    expect(settings.shiftDiscrepancyToleranceMinorUnits).toBeGreaterThan(0);
+
+    const events = await (await devMockFetch(`${org}/branches/branch/tournaments`)).json();
+    expect(events.map((event: { state: string }) => event.state).sort()).toEqual(['draft', 'published']);
+    const draft = events.find((event: { state: string }) => event.state === 'draft');
+    const published = await (await devMockFetch(`${org}/tournaments/${draft.tournamentId}/publish`, { method: 'POST' })).json();
+    expect(published.state).toBe('published');
+  });
+});

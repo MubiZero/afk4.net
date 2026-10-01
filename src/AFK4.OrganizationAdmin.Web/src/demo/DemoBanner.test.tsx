@@ -21,5 +21,6 @@ describe('DemoBanner', () => {
     expect(localStorage.getItem('afk4-demo-leftover')).toBeNull();
     expect(sessionStorage.getItem('afk4-demo-leftover')).toBeNull();
     expect(reload).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('link', { name: 'Экран игрока' }).getAttribute('href')).toBe('./shell/');
   });
 });

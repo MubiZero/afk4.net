@@ -22,6 +22,8 @@ export function DemoBanner({ reload = () => window.location.reload() }: { reload
       <span className="billing-status-banner-badge">{t('op.demo.badge')}</span>
       <span className="billing-status-banner-message">{t('op.demo.text')}</span>
       <button type="button" className="demo-banner-restart" onClick={restart}>{t('op.demo.restart')}</button>
+      {/* Экран игрока — соседнее демо на том же сайте: Pages кладёт его в /shell/ (demo-pages.yml). */}
+      <a className="demo-banner-link" href="./shell/">{t('op.demo.shellLink')}</a>
     </div>
   );
 }

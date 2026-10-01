@@ -6,6 +6,7 @@
 // Fixtures mirror the shapes the test suite already exercises. Unmapped endpoints fall back to an
 // empty list, so secondary screens render their (themed) empty/error states rather than crashing.
 import { permissionNames } from './operatorPermissions';
+import { previewDeviceCommandResultEventName } from './operatorRealtime';
 import type { BranchGameDto, BranchReviewDto, CatalogGameDto, ReviewHideReasonName } from '@afk4/contracts';
 
 const ORG = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
@@ -165,26 +166,32 @@ function noContent(): Response {
 
 const money = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 
+// Идентификаторы ПК — GUID, как на сервере: вкладка «Устройства» сверяет их перед переименованием и
+// удалением, а «d1» принимала за мусор.
+function deviceGuid(number: number): string {
+  return `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
+}
+
 function floorMap() {
   return {
     branchId: BRANCH,
     branchName: 'AFK4 Dushanbe',
     seats: [
       // Зал A — рабочий зал: смесь живых сессий, свободных и одного «ПК офлайн» (сессия идёт, связь потеряна).
-      { seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 10, state: 'Active', deviceId: 'd1', deviceName: 'PC-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's1', remainingSeconds: 2580, playerDisplayName: 'Амир К.', tariffName: 'Стандарт', sessionStartedAtUtc: minutesAgoUtc(75) },
-      { seatId: 'a2', seatName: 'PC-02', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 20, state: 'Free', deviceId: 'd2', deviceName: 'PC-02', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 30, state: 'Active', deviceId: 'd3', deviceName: 'PC-03', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's3', remainingSeconds: null, accruedCostMinorUnits: 5400, currencyCode: 'TJS', playerDisplayName: 'Юсуф А.', tariffName: 'Почасовой', sessionStartedAtUtc: minutesAgoUtc(110) },
-      { seatId: 'a4', seatName: 'PC-04', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 40, state: 'Active', deviceId: 'd4', deviceName: 'PC-04', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T09:50:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's4', remainingSeconds: 1200 },
-      { seatId: 'a5', seatName: 'PC-05', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 50, state: 'Requested', deviceId: 'd7', deviceName: 'PC-05', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'a6', seatName: 'PC-06', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 60, state: 'Free', deviceId: 'd8', deviceName: 'PC-06', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 10, state: 'Active', deviceId: deviceGuid(1), deviceName: 'PC-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's1', remainingSeconds: 2580, playerDisplayName: 'Амир К.', tariffName: 'Стандарт', sessionStartedAtUtc: minutesAgoUtc(75) },
+      { seatId: 'a2', seatName: 'PC-02', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 20, state: 'Free', deviceId: deviceGuid(2), deviceName: 'PC-02', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 30, state: 'Active', deviceId: deviceGuid(3), deviceName: 'PC-03', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's3', remainingSeconds: null, accruedCostMinorUnits: 5400, currencyCode: 'TJS', playerDisplayName: 'Юсуф А.', tariffName: 'Почасовой', sessionStartedAtUtc: minutesAgoUtc(110) },
+      { seatId: 'a4', seatName: 'PC-04', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 40, state: 'Active', deviceId: deviceGuid(4), deviceName: 'PC-04', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T09:50:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's4', remainingSeconds: 1200 },
+      { seatId: 'a5', seatName: 'PC-05', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 50, state: 'Requested', deviceId: deviceGuid(7), deviceName: 'PC-05', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'a6', seatName: 'PC-06', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 60, state: 'Free', deviceId: deviceGuid(8), deviceName: 'PC-06', isKioskAbsent: true, isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
       // VIP — поменьше, с одним местом на обслуживании.
-      { seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 10, state: 'Active', deviceId: 'd5', deviceName: 'VIP-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's5', remainingSeconds: 5400, playerDisplayName: 'Мадина С.', tariffName: 'VIP час', sessionStartedAtUtc: minutesAgoUtc(50) },
-      { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Maintenance', deviceId: 'd6', deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, maintenanceSinceUtc: minutesAgoUtc(90) },
-      { seatId: 'b3', seatName: 'VIP-03', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 30, state: 'Free', deviceId: 'd9', deviceName: 'VIP-03', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 10, state: 'Active', deviceId: deviceGuid(5), deviceName: 'VIP-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's5', remainingSeconds: 5400, playerDisplayName: 'Мадина С.', tariffName: 'VIP час', sessionStartedAtUtc: minutesAgoUtc(50) },
+      { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Maintenance', deviceId: deviceGuid(6), deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, maintenanceSinceUtc: minutesAgoUtc(90) },
+      { seatId: 'b3', seatName: 'VIP-03', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 30, state: 'Free', deviceId: deviceGuid(9), deviceName: 'VIP-03', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
       // Зал B — две проблемы (ошибка команды + нет связи) и одна сессия.
-      { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Free', deviceId: 'd10', deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, lastFailedCommandType: 'reboot' },
-      { seatId: 'c2', seatName: 'PC-08', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 20, state: 'Offline', deviceId: 'd11', deviceName: 'PC-08', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T07:30:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: 'd12', deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900, assistanceRequestedAtUtc: minutesAgoUtc(3) }
+      { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Free', deviceId: deviceGuid(10), deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null, lastFailedCommandType: 'reboot' },
+      { seatId: 'c2', seatName: 'PC-08', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 20, state: 'Offline', deviceId: deviceGuid(11), deviceName: 'PC-08', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T07:30:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: deviceGuid(12), deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900, assistanceRequestedAtUtc: minutesAgoUtc(3) }
     ]
   };
 }
@@ -252,8 +259,8 @@ function dashboardSummary() {
     alertPressure: { pendingCommands: 1, failedCommands: 1, offlineDevices: 2, endingSessions: 1, totalAlerts: 5 },
     reservations: { activeReservations: 2, availableSlots: 3, source: 'floor-map-availability' },
     focusQueue: [
-      { tone: 'blocking', target: 'PC-04', title: 'lock Failed', detail: 'Agent did not confirm lock.', seatId: 'a4', deviceId: 'd4', createdAtUtc: '2026-05-21T10:00:00Z', sourceType: 'device-command' },
-      { tone: 'warning', target: 'PC-03', title: 'Сессия заканчивается', detail: 'Осталось 4 минуты.', seatId: 'a3', deviceId: 'd3', createdAtUtc: '2026-05-21T10:05:00Z', sourceType: 'session' }
+      { tone: 'blocking', target: 'PC-04', title: 'lock Failed', detail: 'Agent did not confirm lock.', seatId: 'a4', deviceId: deviceGuid(4), createdAtUtc: '2026-05-21T10:00:00Z', sourceType: 'device-command' },
+      { tone: 'warning', target: 'PC-03', title: 'Сессия заканчивается', detail: 'Осталось 4 минуты.', seatId: 'a3', deviceId: deviceGuid(3), createdAtUtc: '2026-05-21T10:05:00Z', sourceType: 'session' }
     ],
     recentPayments: [
       { paymentId: 'p1', posSaleId: 'ps1', shiftId: 'sh1', createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', paymentKind: 'payment', paymentMethod: 'cash', amount: money(1200), createdAtUtc: '2026-05-21T09:01:00Z' }
@@ -585,12 +592,20 @@ function deviceDetail() {
   };
 }
 
-let previewDevices = [{
-  deviceId: '11111111-1111-1111-1111-111111111111', machineName: 'PC-01', zoneName: 'Зал A',
-  seatName: 'PC-01', seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', isOnline: true, isLocked: false,
-  agentVersion: '0.4', installedAppCount: 2, pendingCommandCount: 0, failedCommandCount: 0,
-  lastHeartbeatAtUtc: '2026-05-21T10:00:00Z'
-}];
+// Список устройств — те же двенадцать ПК, что на карте: раньше здесь лежала одна строка, и вкладка
+// «Устройства» показывала клуб из одного ПК. Убрать ПК — значит оставить место без устройства.
+const OFFLINE_FOR_MINUTES: Record<string, number> = { 'PC-04': 12, 'PC-08': 150, 'VIP-02': 240 };
+function previewDevices() {
+  return currentPreviewFloorMap().seats
+    .filter((seat) => Boolean(seat.deviceId))
+    .map((seat) => ({
+      deviceId: seat.deviceId, machineName: seat.deviceName, zoneName: seat.zoneName,
+      seatName: seat.seatName, seatId: seat.seatId, isOnline: seat.isDeviceOnline, isLocked: seat.isDeviceLocked,
+      enrollmentState: 'approved', agentVersion: seat.agentVersion, installedAppCount: 2, pendingCommandCount: 0,
+      failedCommandCount: seat.lastFailedCommandType ? 1 : 0,
+      lastHeartbeatAtUtc: minutesAgoUtc(seat.isDeviceOnline ? 0 : (OFFLINE_FOR_MINUTES[seat.seatName] ?? 30))
+    }));
+}
 
 function diagnostics() {
   return {
@@ -728,7 +743,7 @@ function mockClubAds() {
 // Какие ПК работают на бесплатном тарифе: без выбора — первые десять по порядку карты.
 let mockKeptDevices: string[] = [];
 function mockPlanDevices() {
-  const seats = currentPreviewFloorMap().seats;
+  const seats = currentPreviewFloorMap().seats.filter((seat) => Boolean(seat.deviceId));
   const kept = new Set(mockKeptDevices);
   const ordered = [...seats.filter((seat) => kept.has(seat.deviceId)), ...seats.filter((seat) => !kept.has(seat.deviceId))];
   const works = new Set(ordered.slice(0, 10).map((seat) => seat.deviceId));
@@ -1160,6 +1175,204 @@ let previewInvites = [
   }
 ];
 
+// Команды ПК: сервер ставит их в очередь, агент исполняет, а результат приходит событием. В демо ПК
+// отвечают сразу — команда меняет место на карте и сообщает «выполнена».
+const previewCommandTypes = new Map<string, string>();
+function applyPreviewDeviceCommand(seat: ReturnType<typeof floorMap>['seats'][number], type: string): void {
+  const hasSession = Boolean(seat.activeSessionId);
+  switch (type) {
+    case 'lock':
+      Object.assign(seat, { isDeviceLocked: true });
+      break;
+    case 'unlock':
+      Object.assign(seat, { isDeviceLocked: false });
+      break;
+    case 'wake':
+      Object.assign(seat, { isDeviceOnline: true, lastHeartbeatAtUtc: new Date().toISOString(), ...(seat.state === 'Offline' ? { state: 'Free' } : {}) });
+      break;
+    case 'reboot':
+      Object.assign(seat, { lastFailedCommandType: undefined });
+      break;
+    case 'shutdown':
+      Object.assign(seat, { isDeviceOnline: false, ...(hasSession ? {} : { state: 'Offline' }) });
+      break;
+    case 'maintenance-on':
+      Object.assign(seat, { state: 'Maintenance', maintenanceSinceUtc: new Date().toISOString(), isDeviceLocked: false });
+      break;
+    case 'maintenance-off':
+      Object.assign(seat, { state: 'Free', maintenanceSinceUtc: undefined, isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: new Date().toISOString() });
+      break;
+    default:
+      break;
+  }
+}
+
+// Профиль клуба, бренд и настройки филиала: раньше GET отвечал пустым списком, и «Клуб» открывался
+// формой с пустыми полями, а касса и «Новые ПК» не знали своих порогов.
+let previewBranchProfile: Record<string, unknown> | null = null;
+function branchProfile(): Record<string, unknown> {
+  previewBranchProfile ??= {
+    organizationId: ORG, branchId: BRANCH, name: 'AFK4 Dushanbe', city: 'Душанбе',
+    description: 'Киберклуб в центре Душанбе: двенадцать игровых ПК в трёх залах, VIP-зал и бар у стойки.',
+    address: 'ул. Рудаки, 25', phone: '+992 90 000 00 00', telegram: '@afk4dushanbe', website: 'afk4.net', instagram: '@afk4.dushanbe',
+    logoUrl: null, logoMediaId: null, coverImageUrl: null, coverMediaId: null, photos: [],
+    latitude: 38.5598, longitude: 68.787, timeZone: 'Asia/Dushanbe', locale: 'ru',
+    workingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, isClosed: false, openTime: '10:00', closeTime: '22:00' })),
+    createdAtUtc: daysAgoUtc(120)
+  };
+  return previewBranchProfile;
+}
+let previewBranding: Record<string, unknown> = { organizationId: ORG, name: 'AFK4 Dushanbe', logoUrl: null, accentColor: '#2cc592' };
+let previewBranchSettings: Record<string, unknown> = { organizationId: ORG, branchId: BRANCH, requireManualDeviceApproval: false, preferredLocale: 'ru', shiftDiscrepancyToleranceMinorUnits: 500 };
+let previewUpdateWindow: Record<string, unknown> = { organizationId: ORG, branchId: BRANCH, maintenanceWindowStart: '04:00', maintenanceWindowEnd: '06:00', timeZone: 'Asia/Dushanbe' };
+let previewDcConfig: Record<string, unknown> = { cardSet: true, cardLast4: '4417', commentTemplate: 'AFK4 {code}', isActive: true };
+
+function inDaysUtc(days: number, hour: number): string {
+  const d = new Date(Date.now() + days * 24 * 3600 * 1000);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+// События клуба: одно опубликовано и с записавшимися, одно — черновик; создание, публикация и отмена
+// держатся до перезагрузки.
+let previewTournaments: Array<Record<string, unknown>> = [
+  { tournamentId: 'tr-1', branchId: BRANCH, title: 'Кубок зала', description: 'Пять на пять, сетка на выбывание. Призы от клуба и пицца в перерывах.', discipline: 'Dota 2', startsAtUtc: inDaysUtc(2, 18), entryFee: money(5000), capacity: 10, state: 'published', registeredCount: 6, createdAtUtc: daysAgoUtc(4), updatedAtUtc: daysAgoUtc(3), cancelledAtUtc: null, cancelReason: '' },
+  { tournamentId: 'tr-2', branchId: BRANCH, title: 'Ночь CS2', description: 'С 22:00 до утра: турнир на пять команд.', discipline: 'Counter-Strike 2', startsAtUtc: inDaysUtc(5, 22), entryFee: money(3000), capacity: 20, state: 'draft', registeredCount: 0, createdAtUtc: daysAgoUtc(1), updatedAtUtc: daysAgoUtc(1), cancelledAtUtc: null, cancelReason: '' }
+];
+// Письма с отчётами: один ежедневный уже настроен.
+let previewReportSchedules: Array<Record<string, unknown>> = [
+  { reportScheduleId: 'rs-1', organizationId: ORG, branchId: BRANCH, reportType: 'sales', frequency: 'daily', isActive: true, nextRunUtc: inDaysUtc(1, 6), lastRunUtc: inDaysUtc(0, 6), createdAtUtc: daysAgoUtc(30) }
+];
+
+function readJsonBody(init?: RequestInit): Record<string, unknown> {
+  try { return JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { return {}; }
+}
+
+// Ответы демо, у которых есть своя жизнь после первого запроса; null — не мой адрес.
+function previewExtras(url: URL, method: string, init?: RequestInit): Response | null {
+  const path = url.pathname;
+  const deviceCommand = path.match(/\/devices\/([^/]+)\/commands(?:\/([^/]+)\/status)?$/);
+  if (deviceCommand && method === 'POST' && deviceCommand[2] === undefined) {
+    const request = readJsonBody(init) as { type?: string; payload?: Record<string, string> };
+    const type = request.type ?? 'command';
+    const seat = currentPreviewFloorMap().seats.find((item) => item.deviceId === deviceCommand[1]);
+    if (!seat) return jsonError(404, 'device_not_found', 'Device was not found.');
+    applyPreviewDeviceCommand(seat, type);
+    const commandId = crypto.randomUUID();
+    previewCommandTypes.set(commandId, type);
+    // ПК отвечает через долю секунды: карта перечитается и покажет новое положение места.
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent(previewDeviceCommandResultEventName, {
+      detail: { organizationId: ORG, branchId: BRANCH, deviceId: deviceCommand[1], commandId, status: 'completed', message: '', observedAtUtc: new Date().toISOString(), outcome: 'succeeded' }
+    })), 500);
+    return json({ commandId, type, createdAtUtc: new Date().toISOString(), payload: request.payload ?? {} });
+  }
+  if (deviceCommand && deviceCommand[2] !== undefined && method === 'GET') {
+    const type = previewCommandTypes.get(deviceCommand[2]) ?? 'command';
+    const now = new Date().toISOString();
+    return json({
+      deviceId: deviceCommand[1], commandId: deviceCommand[2], type, status: 'completed',
+      message: type === 'lock' ? 'Agent accepted lock' : type === 'unlock' ? 'Agent accepted unlock' : null,
+      createdAtUtc: now, updatedAtUtc: now, outcome: 'succeeded'
+    });
+  }
+  if (path.endsWith('/profile') && /\/branches\/[^/]+\/profile$/.test(path)) {
+    if (method === 'GET') return json(branchProfile());
+    if (method === 'PATCH') {
+      const { organizationId: _organization, ...changes } = readJsonBody(init);
+      previewBranchProfile = { ...branchProfile(), ...changes };
+      return json(previewBranchProfile);
+    }
+  }
+  if (path.endsWith('/branding') && /\/organizations\/[^/]+\/branding$/.test(path)) {
+    if (method === 'GET') return json(previewBranding);
+    if (method === 'PATCH') {
+      previewBranding = { ...previewBranding, ...readJsonBody(init) };
+      return json(previewBranding);
+    }
+  }
+  if (/\/branches\/[^/]+\/settings$/.test(path)) {
+    if (method === 'GET') return json(previewBranchSettings);
+    if (method === 'PUT') {
+      const { organizationId: _organization, ...changes } = readJsonBody(init);
+      previewBranchSettings = { ...previewBranchSettings, ...changes };
+      return json(previewBranchSettings);
+    }
+  }
+  if (path.endsWith('/updates/preferences')) {
+    if (method === 'GET') return json(previewUpdateWindow);
+    if (method === 'PUT') {
+      previewUpdateWindow = { ...previewUpdateWindow, ...readJsonBody(init) };
+      return json(previewUpdateWindow);
+    }
+  }
+  if (path.endsWith('/payments/dc-config')) {
+    if (method === 'GET') return json(previewDcConfig);
+    if (method === 'POST') {
+      const request = readJsonBody(init) as { cardNumber?: string; commentTemplate?: string; isActive?: boolean };
+      const digits = String(request.cardNumber ?? '').replace(/\D/g, '');
+      previewDcConfig = {
+        cardSet: digits.length > 0 || previewDcConfig.cardSet === true,
+        cardLast4: digits.length >= 4 ? digits.slice(-4) : previewDcConfig.cardLast4,
+        commentTemplate: request.commentTemplate ?? previewDcConfig.commentTemplate,
+        isActive: request.isActive ?? previewDcConfig.isActive
+      };
+      return json(previewDcConfig);
+    }
+  }
+  if (/\/branches\/[^/]+\/tournaments$/.test(path) && method === 'GET') return json(previewTournaments);
+  if (/\/tournaments$/.test(path) && method === 'POST') {
+    const request = readJsonBody(init);
+    const created = {
+      tournamentId: `tr-${previewTournaments.length + 1}`, branchId: BRANCH, title: String(request.title ?? ''), description: String(request.description ?? ''),
+      discipline: String(request.discipline ?? ''), startsAtUtc: String(request.startsAtUtc ?? inDaysUtc(7, 18)),
+      entryFee: money(Number(request.entryFeeMinorUnits ?? 0)), capacity: Number(request.capacity ?? 0), state: 'draft', registeredCount: 0,
+      createdAtUtc: new Date().toISOString(), updatedAtUtc: new Date().toISOString(), cancelledAtUtc: null, cancelReason: ''
+    };
+    previewTournaments = [...previewTournaments, created];
+    return json(created);
+  }
+  const tournamentAction = path.match(/\/tournaments\/([^/]+)(?:\/(publish|cancel))?$/);
+  if (tournamentAction && (method === 'POST' || method === 'PATCH')) {
+    const current = previewTournaments.find((item) => item.tournamentId === tournamentAction[1]);
+    if (!current) return jsonError(404, 'tournament_not_found', 'Tournament was not found.');
+    const request = readJsonBody(init);
+    const updated: Record<string, unknown> = { ...current, updatedAtUtc: new Date().toISOString() };
+    if (tournamentAction[2] === 'publish') updated.state = 'published';
+    else if (tournamentAction[2] === 'cancel') Object.assign(updated, { state: 'cancelled', cancelledAtUtc: new Date().toISOString(), cancelReason: String(request.reason ?? '') });
+    else {
+      for (const key of ['title', 'description', 'discipline', 'startsAtUtc', 'capacity'] as const) {
+        if (request[key] !== undefined && request[key] !== null) updated[key] = request[key];
+      }
+      if (typeof request.entryFeeMinorUnits === 'number') updated.entryFee = money(request.entryFeeMinorUnits);
+    }
+    previewTournaments = previewTournaments.map((item) => (item.tournamentId === current.tournamentId ? updated : item));
+    return json(updated);
+  }
+  const schedules = path.match(/\/branches\/[^/]+\/report-schedules(?:\/([^/]+))?$/);
+  if (schedules) {
+    if (method === 'GET' && schedules[1] === undefined) return json(previewReportSchedules);
+    if (method === 'POST' && schedules[1] === undefined) {
+      const request = readJsonBody(init);
+      const created = {
+        reportScheduleId: `rs-${previewReportSchedules.length + 1}`, organizationId: ORG, branchId: BRANCH,
+        reportType: String(request.reportType ?? ''), frequency: String(request.frequency ?? 'daily'), isActive: true,
+        nextRunUtc: inDaysUtc(1, 6), lastRunUtc: null, createdAtUtc: new Date().toISOString()
+      };
+      previewReportSchedules = [...previewReportSchedules, created];
+      return json(created);
+    }
+    if (method === 'PATCH' && schedules[1] !== undefined) {
+      const changes = readJsonBody(init);
+      previewReportSchedules = previewReportSchedules.map((item) => (item.reportScheduleId === schedules[1] ? { ...item, ...changes } : item));
+      return json(previewReportSchedules.find((item) => item.reportScheduleId === schedules[1]) ?? {});
+    }
+    if (method === 'DELETE' && schedules[1] !== undefined) {
+      previewReportSchedules = previewReportSchedules.filter((item) => item.reportScheduleId !== schedules[1]);
+      return json({ message: 'deleted' });
+    }
+  }
+  return null;
+}
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
@@ -1312,7 +1525,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   // Остальная жизнь сессии на карте: без неё в демо «Завершить», «+15 мин» и «Перенос» молча
   // соглашались и ничего не меняли. Сервер закрыл бы сессию после ответа ПК — здесь сразу.
-  const sessionActionMatch = url.pathname.match(/\/sessions\/([^/]+)\/(end|extend|transfer|checkout)$/);
+  const sessionActionMatch = url.pathname.match(/\/sessions\/([^/]+)\/(end|extend|transfer|checkout|pause|resume)$/);
   if (sessionActionMatch && method === 'POST') {
     const [, sessionId, action] = sessionActionMatch;
     let request: Record<string, unknown> = {};
@@ -1330,6 +1543,12 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
       deviceCommands: []
     });
 
+    if (action === 'pause' || action === 'resume') {
+      // Пауза запирает ПК и останавливает счётчик; снятие — отпирает. Время на паузе не тикает.
+      const paused = action === 'pause';
+      Object.assign(seat, { state: paused ? 'Paused' : 'Active', isDeviceLocked: paused });
+      return acknowledged(paused ? 'Paused' : 'Active');
+    }
     if (action === 'extend') {
       // Гость, заплативший наличными, доплачивает по тарифу своей сессии; названная сумма должна
       // совпасть с расчётом (как на сервере — иначе price_changed).
@@ -1427,20 +1646,20 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   // Раньше общего списка ПК: «/plan/devices» тоже кончается на «/devices».
   if (url.pathname.endsWith('/plan/devices') && method === 'GET') return json(mockPlanDevices());
   if (url.pathname.endsWith('/devices') && method === 'GET') {
-    return json(previewDevices);
+    return json(previewDevices());
   }
   const renameDeviceMatch = url.pathname.match(/\/devices\/([^/]+)\/rename$/);
   if (renameDeviceMatch && method === 'POST') {
     const request = JSON.parse(String(init?.body ?? '{}')) as { displayName?: string };
-    previewDevices = previewDevices.map((device) => device.deviceId === renameDeviceMatch[1]
-      ? { ...device, machineName: request.displayName?.trim() || device.machineName }
-      : device);
-    return json(previewDevices.find((device) => device.deviceId === renameDeviceMatch[1]) ?? {});
+    const renamed = currentPreviewFloorMap().seats.find((seat) => seat.deviceId === renameDeviceMatch[1]);
+    if (renamed && request.displayName?.trim()) renamed.deviceName = request.displayName.trim();
+    return json(previewDevices().find((device) => device.deviceId === renameDeviceMatch[1]) ?? {});
   }
   const removeDeviceMatch = url.pathname.match(/\/devices\/([^/]+)\/remove$/);
   if (removeDeviceMatch && method === 'POST') {
-    const removed = previewDevices.find((device) => device.deviceId === removeDeviceMatch[1]) ?? {};
-    previewDevices = previewDevices.filter((device) => device.deviceId !== removeDeviceMatch[1]);
+    const removed = previewDevices().find((device) => device.deviceId === removeDeviceMatch[1]) ?? {};
+    const emptied = currentPreviewFloorMap().seats.find((seat) => seat.deviceId === removeDeviceMatch[1]);
+    if (emptied) Object.assign(emptied, { deviceId: null, deviceName: null, state: 'Offline', isDeviceOnline: false, isDeviceLocked: true, isKioskAbsent: false });
     return json(removed);
   }
   // Пополнение ложится в журнал, как на сервере, и строка клиента в списке получает тот же баланс,
@@ -1499,6 +1718,10 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/audit') && method === 'GET') {
     return json(previewAudit(url.searchParams));
+  }
+  const extra = previewExtras(url, method, init);
+  if (extra !== null) {
+    return extra;
   }
   const matched = route(url.pathname, method, url.search);
   if (matched !== undefined) {

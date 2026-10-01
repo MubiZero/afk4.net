@@ -67,9 +67,9 @@
   background: var(--accent);
 }
 
-.demo-banner-restart {
+.demo-banner-restart,
+.demo-banner-link {
   flex-shrink: 0;
-  margin-left: auto;
   height: 28px;
   padding: 0 var(--space-3);
   border: 1px solid var(--accent-ring);
@@ -81,6 +81,18 @@
   cursor: pointer;
 }
 
-.demo-banner-restart:hover {
+.demo-banner-restart {
+  margin-left: auto;
+}
+
+/* Ссылка на экран игрока (демо на /shell/): выглядит как соседняя кнопка, но это переход. */
+.demo-banner-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.demo-banner-restart:hover,
+.demo-banner-link:hover {
   background: var(--accent-ring);
 }

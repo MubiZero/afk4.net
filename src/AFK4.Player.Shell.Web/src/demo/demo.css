@@ -1,0 +1,97 @@
+/* Демо экрана игрока (DemoFrame.tsx). Полоса — строка над экраном, а не слой поверх него:
+   оболочка занимает всё, что ей оставили, и ни одна кнопка не оказывается под полосой.
+
+   Оболочка рассчитана на весь монитор: самый высокий экран (сессия без связи) занимает 51 rem,
+   то есть едва помещается в 1366x768. Вкладка браузера ниже монитора на полосу и адресную строку,
+   а в киоске прятать лишнее некому — тут оно просто обрезалось бы. Поэтому в демо размер шрифта
+   считается от высоты окна: оболочка уменьшается целиком, пока не поместится. Полоса и её
+   элементы заданы в px и от rem не зависят — иначе высота полосы зависела бы от того, что она
+   сама же и считает. */
+html:root {
+  --demo-band-h: 44px;
+  /* Это не ступень шкалы шрифтов, а расчёт «сколько влезает», поэтому живёт в своей переменной. */
+  --demo-root-size: clamp(11px, min(0.94vw, calc((100vh - var(--demo-band-h)) / 51)), 30px);
+  font-size: var(--demo-root-size);
+}
+
+.demo-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* transform делает сцену опорой для position: fixed — листы продления и выхода ложатся на
+   экран оболочки, а не закрывают полосу с переключателем. */
+.demo-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  transform: translateZ(0);
+}
+
+.demo-stage > .shell {
+  height: 100%;
+}
+
+.demo-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  min-height: var(--demo-band-h);
+  padding: var(--space-1) var(--space-4);
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-ring);
+  color: var(--accent-on-soft);
+  font-size: var(--text-sm);
+  line-height: 1.25;
+  user-select: text;
+}
+
+.demo-band__badge {
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}
+
+.demo-band__text {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+
+.demo-band__scenario {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.demo-band select,
+.demo-band__action {
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent-ring);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.demo-band__action {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.demo-band select:hover,
+.demo-band__action:hover {
+  background: var(--surface-hover);
+}
+
+.demo-band select:focus-visible,
+.demo-band__action:focus-visible {
+  outline: 3px solid var(--focus-outline);
+  outline-offset: 2px;
+}
