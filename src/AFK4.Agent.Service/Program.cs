@@ -102,6 +102,7 @@ builder.Services.AddSingleton<IProcessPolicyEnforcer, ProcessPolicyEnforcer>();
 builder.Services.AddSingleton<IPlayerShellProcessQuery, PlayerShellProcessQuery>();
 builder.Services.AddSingleton<IPlayerShellProcessStarter, PlayerShellProcessStarter>();
 builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContext>();
+builder.Services.AddSingleton<IPlayerShellUpdateGate, PlayerShellUpdateGate>();
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
 builder.Services.AddSingleton<ShellWarningStore>();
 builder.Services.AddSingleton<ShellHeartbeatSnapshot>();
