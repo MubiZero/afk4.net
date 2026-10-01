@@ -49,6 +49,8 @@ export const sessionLifecycleChangedEventName = 'sessionLifecycleChanged';
 export const reservationChangedEventName = 'reservationChanged';
 export const shopOrderCreatedEventName = 'shopOrderCreated';
 export const shopOrderUpdatedEventName = 'shopOrderUpdated';
+/** Событие окна: учебный бэкенд сообщает, что команда ПК выполнена (только превью и демо). */
+export const previewDeviceCommandResultEventName = 'afk4:preview-device-command-result';
 
 const ignoreRealtimeEvent = (): void => {};
 
@@ -92,12 +94,17 @@ export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): 
 // Vite preview uses fixture data rather than a platform hub. Keep its connection
 // indicator truthful without opening a failing WebSocket negotiation locally.
 export function createPreviewOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
+  // ПК в превью и в демо нет, но учебный бэкенд страницы исполняет команды сам и сообщает результат
+  // так же, как хаб: карта перечитывается, и «Разбудить» или «Вернуть в зал» видны на месте.
+  const onCommandResult = (event: Event) => options.onDeviceCommandResult?.((event as CustomEvent<DeviceCommandResultDto>).detail);
   return {
     async start() {
       options.onConnectionStateChanged?.('connecting');
+      window.addEventListener(previewDeviceCommandResultEventName, onCommandResult);
       options.onConnectionStateChanged?.('connected');
     },
     async stop() {
+      window.removeEventListener(previewDeviceCommandResultEventName, onCommandResult);
       options.onConnectionStateChanged?.('disconnected');
     }
   };
