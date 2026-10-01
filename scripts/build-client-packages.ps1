@@ -35,74 +35,67 @@ if ([string]::IsNullOrWhiteSpace($platformBaseUrl)) {
     throw "No platform base URL is configured for channel '$Channel'."
 }
 
-# Pinned .NET 10 Desktop Runtime (x64) carried inside the Burn bundle. Bump version+url+sha
-# together when moving to a newer servicing release; recompute the SHA via
-# (Get-FileHash -Algorithm SHA512 -LiteralPath <runtime.exe>).Hash
-$runtimeVersion = '10.0.9'
-$runtimeUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/$runtimeVersion/windowsdesktop-runtime-$runtimeVersion-win-x64.exe"
-$runtimeSha512 = '99BC2215D67F8AEA1ECB3DF642423CCABF76E5261B225F0F2D78123D84D58E64923F050A5DC58405C4D5CF074ACBAD32C4A1021A67E94629DCC57206AC4116DE'
+# Official Microsoft Edge WebView2 Evergreen Standalone Installer (x64, ~210 MB) carried inside the
+# Burn bundle: the club PC gets WebView2 without internet and without anyone installing it by hand.
+# Stable fwlink from the "Evergreen Standalone Installer" table of the WebView2 download page
+# (https://developer.microsoft.com/microsoft-edge/webview2/); it redirects to
+# MicrosoftEdgeWebView2RuntimeInstallerX64.exe. The link is evergreen — a different file every time
+# — so there is nothing to pin a SHA to; trust rests on the Microsoft Authenticode signature,
+# verified below. (The ~2 MB bootstrapper, fwlink LinkId=2124703, is only a link for people who
+# install a component MSI on its own: it downloads the runtime itself, so the bundle does not carry it.)
+$webView2InstallerUrl = 'https://go.microsoft.com/fwlink/?linkid=2124701'
 
-function Get-VerifiedRuntimeInstaller {
+function Assert-MicrosoftSignature {
     param(
-        [Parameter(Mandatory = $true)] [string] $CacheDir,
-        [Parameter(Mandatory = $true)] [string] $Version,
-        [Parameter(Mandatory = $true)] [string] $Url,
-        [Parameter(Mandatory = $true)] [string] $ExpectedSha512
+        [Parameter(Mandatory = $true)] [string] $Path
     )
 
-    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
-    $target = Join-Path $CacheDir "windowsdesktop-runtime-$Version-win-x64.exe"
-
-    if (Test-Path -LiteralPath $target) {
-        $existingHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $target).Hash
-        if ($existingHash -eq $ExpectedSha512) {
-            return $target
-        }
-        Remove-Item -LiteralPath $target -Force
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    if ($signature.Status -ne 'Valid') {
+        throw "WebView2 installer signature is not valid: $($signature.Status)."
     }
-
-    Write-Host "Downloading .NET Desktop Runtime $Version for the bundle payload..."
-    Invoke-WebRequest -Uri $Url -OutFile $target
-
-    $actualHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $target).Hash
-    if ($actualHash -ne $ExpectedSha512) {
-        Remove-Item -LiteralPath $target -Force
-        throw "Runtime installer SHA-512 mismatch: expected $ExpectedSha512 but downloaded $actualHash."
+    if ($signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+        throw "WebView2 installer is signed by '$($signature.SignerCertificate.Subject)', not Microsoft."
     }
-
-    return $target
 }
 
-# Official Microsoft Edge WebView2 Evergreen bootstrapper (~2 MB): it downloads and installs the
-# runtime itself. The link is evergreen — a different file every time — so there is nothing to pin
-# a SHA to; trust rests on the Microsoft Authenticode signature instead, verified below. The
-# offline runtime installer is ~150 MB behind rotating links: carrying it costs more than it buys.
-$webView2BootstrapperUrl = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703'
-
-function Get-VerifiedWebView2Bootstrapper {
+function Get-VerifiedWebView2Installer {
     param(
         [Parameter(Mandatory = $true)] [string] $CacheDir,
         [Parameter(Mandatory = $true)] [string] $Url
     )
 
     New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
-    $target = Join-Path $CacheDir 'MicrosoftEdgeWebview2Setup.exe'
+    $target = Join-Path $CacheDir 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe'
 
+    # The cache is reused only while the file still carries a valid Microsoft signature; the runtime
+    # updates itself after install, so an older installer is not a reason to download 210 MB again.
     if (Test-Path -LiteralPath $target) {
-        Remove-Item -LiteralPath $target -Force
+        try {
+            Assert-MicrosoftSignature -Path $target
+            return $target
+        }
+        catch {
+            Write-Host "Cached WebView2 installer rejected ($($_.Exception.Message)); downloading it again."
+            Remove-Item -LiteralPath $target -Force
+        }
     }
 
-    Write-Host 'Downloading the Microsoft Edge WebView2 Evergreen bootstrapper for the bundle payload...'
-    Invoke-WebRequest -Uri $Url -OutFile $target
-
-    $signature = Get-AuthenticodeSignature -LiteralPath $target
-    if ($signature.Status -ne 'Valid') {
-        Remove-Item -LiteralPath $target -Force
-        throw "WebView2 bootstrapper signature is not valid: $($signature.Status). Refusing to ship an unverified payload."
+    Write-Host 'Downloading the Microsoft Edge WebView2 Evergreen Standalone Installer for the bundle payload (~210 MB)...'
+    $partial = "$target.download"
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $partial
+        # Signature is checked on the final .exe name: Get-AuthenticodeSignature trusts the extension.
+        Move-Item -LiteralPath $partial -Destination $target -Force
+        Assert-MicrosoftSignature -Path $target
     }
-    if ($signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
-        Remove-Item -LiteralPath $target -Force
-        throw "WebView2 bootstrapper is signed by '$($signature.SignerCertificate.Subject)', not Microsoft. Refusing to ship it."
+    catch {
+        foreach ($leftover in @($partial, $target)) {
+            if (Test-Path -LiteralPath $leftover) {
+                Remove-Item -LiteralPath $leftover -Force
+            }
+        }
+        throw "Refusing to ship an unverified WebView2 installer: $($_.Exception.Message)"
     }
 
     return $target
@@ -330,11 +323,14 @@ if (-not (Test-Path -LiteralPath (Join-Path $setupWizardWebDist 'index.html'))) 
     throw "Setup Wizard frontend build did not produce an index.html under '$setupWizardWebDist'."
 }
 
+# Every program is published self-contained: the .NET runtime sits in its own folder, so no PC needs
+# a .NET install and the installer never asks for one. Each MSI harvests the whole publish directory
+# (Files Include="...\**"), so the several hundred runtime files travel without being listed by hand.
 $projects = @(
-    @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
-    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
+    @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj' },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj' },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj' },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj' }
 )
 
 foreach ($project in $projects) {
@@ -352,7 +348,7 @@ foreach ($project in $projects) {
     & $DotnetPath publish (Join-Path $repoRoot $project.Path) `
         -c $Configuration `
         -r $Runtime `
-        --self-contained $($project.SelfContained.ToString().ToLowerInvariant()) `
+        --self-contained true `
         -o $output `
         -p:NuGetAudit=false `
         -p:UseSharedCompilation=false `
@@ -390,9 +386,9 @@ New-Item -ItemType Directory -Force -Path $agentServiceSupportDir | Out-Null
 New-Item -ItemType Directory -Force -Path $setupWizardSupportDir | Out-Null
 New-Item -ItemType Directory -Force -Path $updateHelperDir | Out-Null
 
-Get-ChildItem -LiteralPath $agentServicePublishDir -File |
+Get-ChildItem -LiteralPath $agentServicePublishDir -Force |
     Where-Object { $_.Name -ne 'AFK4.Agent.Service.exe' } |
-    Copy-Item -Destination $agentServiceSupportDir -Force
+    Copy-Item -Destination $agentServiceSupportDir -Recurse -Force
 
 $organizationAdminMsiPath = Join-Path $artifactRoot "afk4-organization-admin-$Version-$Channel.msi"
 $agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
@@ -403,11 +399,10 @@ $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Chann
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
 # The Burn bundle needs the BootstrapperApplications (WixStandardBootstrapperApplication;
-# the v7 rename of the old Bal extension), Netfx (DotNetCoreSearch) and Util (RegistrySearch for
-# the WebView2 runtime) extensions. The three MSIs use Netfx too: DotNetCompatibilityCheck refuses
-# an install on a PC without the .NET 10 Desktop Runtime.
+# the v7 rename of the old Bal extension) and Util (RegistrySearch for the WebView2 runtime)
+# extensions.
 # `wix extension add` is idempotent.
-foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Netfx.wixext', 'WixToolset.Util.wixext')) {
+foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Util.wixext')) {
     & $DotnetPath wix extension add -acceptEula wix7 -g $wixExtension
     if ($LASTEXITCODE -ne 0) {
         throw "Adding WiX extension '$wixExtension' failed with exit code $LASTEXITCODE."
@@ -418,7 +413,6 @@ foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixTo
 # (so the wizard can install the Player Shell on gaming PCs), which means it must exist
 # before the setup-wizard support dir is harvested.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/player-shell/Package.wxs') `
-    -ext WixToolset.Netfx.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
@@ -432,7 +426,6 @@ if ($LASTEXITCODE -ne 0) {
 # wizard can install the Organization Admin on cashier/manager workstations (role manager_workstation),
 # the same way it installs the Player Shell on gaming PCs. So it must exist before the harvest too.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/organization-admin/Package.wxs') `
-    -ext WixToolset.Netfx.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "OrganizationAdminPublishDir=$(Join-Path $publishRoot "organization-admin-$Version-$Channel")" `
@@ -471,7 +464,6 @@ foreach ($helperScript in $updateHelperScripts) {
 # Util — для util:ServiceConfig: правила перезапуска службы агента после падения.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/agent/Package.wxs') `
     -arch x64 `
-    -ext WixToolset.Netfx.wixext `
     -ext WixToolset.Util.wixext `
     -d "PackageVersion=$msiVersion" `
     -d "AgentServicePublishDir=$agentServicePublishDir" `
@@ -493,17 +485,13 @@ if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.OrganizationAdmin.msi*' }
     throw "Agent MSI does not contain the bundled Organization Admin MSI (payload\AFK4.OrganizationAdmin.msi)."
 }
 
-# Components publish framework-dependent (one shared .NET runtime, carried by the Burn
-# bundle — see installers/bundle/Bundle.wxs). The agent MSI is a build input to that bundle;
-# it must be installed on a machine where the Desktop Runtime is already present (the bundle
-# guarantees that ordering). The agent MSI still auto-launches the Setup Wizard on interactive install.
+# The agent MSI auto-launches the Setup Wizard on interactive install. Every component is
+# self-contained, so the MSIs need no .NET on the target; the bundle carries WebView2 offline.
 
-# Carry the runtime and chain the agent MSI into a single master installer .exe.
+# Carry the offline WebView2 runtime and chain the agent MSI into a single master installer .exe.
 $runtimeCacheDir = Join-Path $artifactRoot 'runtime-cache'
-$runtimeInstallerPath = Get-VerifiedRuntimeInstaller `
-    -CacheDir $runtimeCacheDir -Version $runtimeVersion -Url $runtimeUrl -ExpectedSha512 $runtimeSha512
-$webView2BootstrapperPath = Get-VerifiedWebView2Bootstrapper `
-    -CacheDir $runtimeCacheDir -Url $webView2BootstrapperUrl
+$webView2InstallerPath = Get-VerifiedWebView2Installer `
+    -CacheDir $runtimeCacheDir -Url $webView2InstallerUrl
 
 $clientBundlePath = Join-Path $artifactRoot "afk4-client-$Version-$Channel.exe"
 if (Test-Path -LiteralPath $clientBundlePath) {
@@ -543,13 +531,10 @@ foreach ($brandAsset in @($brandIconPath, $brandLogoPath)) {
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bundle/Bundle.wxs') `
     -ext WixToolset.BootstrapperApplications.wixext `
-    -ext WixToolset.Netfx.wixext `
     -ext WixToolset.Util.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
-    -d "RuntimeVersion=$runtimeVersion" `
-    -d "RuntimeInstallerPath=$runtimeInstallerPath" `
-    -d "WebView2BootstrapperPath=$webView2BootstrapperPath" `
+    -d "WebView2InstallerPath=$webView2InstallerPath" `
     -d "AgentMsiPath=$agentMsiPath" `
     -d "BAFunctionsPath=$baFunctionsPath" `
     -d "BrandIconPath=$brandIconPath" `

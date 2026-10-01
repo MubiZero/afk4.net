@@ -1,7 +1,7 @@
 # Client Packaging Runbook
 
-Status: single client master installer (Burn bundle) carrying the shared runtime; wizard installs role apps
-Last updated: 2026-06-11
+Status: single client master installer (Burn bundle) carrying everything it needs (self-contained programs + offline WebView2); wizard installs role apps
+Last updated: 2026-10-01
 
 ## Purpose
 
@@ -22,44 +22,50 @@ Historical implementation plan:
 AFK4 ships **one master installer** — `afk4-client-<version>-<channel>.exe`, a
 WiX Burn bundle — that operators run to provision any Windows client machine.
 
-The bundle works as follows:
+The installer **carries everything a club PC needs**. Nothing is downloaded at
+install time and nobody is told to go and install something (owner decision of
+2026-10-01; growth of the package is accepted).
 
-1. **Carries** the **.NET 10 Desktop Runtime (x64)** as a compressed payload
-   embedded directly inside the bundle. A `DotNetCoreSearch` detect skips the
-   runtime install if an acceptable version is already present; otherwise it
-   installs from the embedded payload synchronously as a vital prerequisite —
-   **no internet access required at install time**.
-2. Then installs the **Agent MSI**.
+1. **.NET travels inside every program.** The Agent Service, Setup Wizard, Player
+   Shell and Organization Admin are all published **self-contained** for `win-x64`
+   (`scripts/build-client-packages.ps1`, one publish loop, no per-project switch),
+   so each program's own folder holds its runtime. No PC needs a .NET install, the
+   bundle chains no .NET prerequisite and the component MSIs do not check for one.
+   Each MSI harvests the whole publish directory (`Files Include="...\**"`), so the
+   few hundred runtime files per program travel without being listed by hand; the
+   agent service and the wizard folders are copied to the MSI inputs with their
+   subfolders. Nothing launches `dotnet`: the agent starts the Player Shell by
+   `PlayerShellExecutablePath`, the wizard starts Organization Admin by its
+   installed path, the service is registered with its own `AFK4.Agent.Service.exe`,
+   and the update helper scripts call only `msiexec`, `sc.exe` and PowerShell.
+2. **WebView2 travels inside the bundle.** Every window a human sees is WebView2,
+   so the bundle embeds Microsoft's **Evergreen Standalone Installer (x64)**
+   (`MicrosoftEdgeWebView2RuntimeInstallerX64.exe`, about 210 MB, `Compressed`, no
+   `DownloadUrl`) and runs it silently (`/silent /install`) first, only when none of
+   the three EdgeUpdate registry keys reports a runtime.
+3. Then the bundle installs the **Agent MSI**.
 
-Because the bundle supplies the shared runtime before any MSI runs, the
-per-component MSIs are **framework-dependent** (not self-contained). This is
-why each component MSI is small — a few MB — and why the target needs the
-.NET Desktop Runtime that the bundle provides.
+The build script downloads the WebView2 installer from Microsoft's stable link
+(`https://go.microsoft.com/fwlink/?linkid=2124701`, the "Evergreen Standalone
+Installer" row of the WebView2 download page) into
+`artifacts/client-packages/runtime-cache/` and reuses it while the file keeps a valid
+Microsoft Authenticode signature. The link is evergreen (a different file every
+time), so there is no SHA to pin: the signature (`O=Microsoft Corporation`) is the
+check, and a file that fails it is deleted and the build stops.
 
-The pinned runtime version, download URL (used at **build** time to fetch and
-embed the runtime), and SHA-512 are the single source of truth in
-`scripts/build-client-packages.ps1`. The build script downloads and
-SHA-512-verifies the runtime payload once, then embeds it into the bundle.
-To move to a newer .NET 10 servicing release, bump the version, URL, and
-SHA-512 together in that script.
+The Visual C++ Redistributable is deliberately not carried: WPF self-contained ships
+its own native libraries and the BAFunctions DLL is linked statically (`/MT`).
 
-> **Why carry instead of download?** An earlier design (reverted in commit
-> `20a7a31`) had the bundle download the .NET runtime from Microsoft at install
-> time if missing. On freshly-imaged machines the downloaded runtime was not
-> reliably registered before the framework-dependent Agent Service started,
-> producing an sc-1053 failure. Carrying the runtime inside the bundle ensures
-> it is installed synchronously as a vital prerequisite before the Agent MSI
-> and its service run — eliminating that race on fresh VMs.
+Rough size: the bundle goes from about 70 MB (shared runtime) to about 450 MB: four
+self-contained programs (compressed roughly 37 MB for the service and 65 MB for each
+WPF program, measured as zip of a `win-x64` publish) plus about 210 MB for WebView2.
+Measure the real `.exe` on the build machine; the numbers above are an estimate.
 
-Standalone, a component MSI (Agent, Organization Admin, Player Shell) checks the runtime
-itself and refuses to install without it, in Russian, pointing at
-`afk4-client-<version>-<channel>.exe`. The check is the Netfx extension's
-`DotNetCompatibilityCheck` (desktop, x64, `10.0.0`, `latestMinor`): it takes the x64
-install location from `HKLM\SOFTWARE\dotnet\Setup\InstalledVersions\x64` and asks
-hostfxr there, so it works on ARM64 PCs with the x64 runtime too. The component MSIs
-(Panel and Player Shell) refuse the same way when WebView2 is missing. The update helper
-(`install-afk4-update-msi.ps1`) is unchanged: a missing runtime shows up as msiexec exit
-code 1603 and a line in the update log.
+Standalone, the Panel and Player Shell MSIs still refuse to install when WebView2 is
+missing, in Russian, pointing at `afk4-client-<version>-<channel>.exe` and at the
+WebView2 download for people who insist on installing the MSI alone. The update helper
+(`install-afk4-update-msi.ps1`) installs WebView2 before the Panel MSI when the
+runtime is missing (it can only download, an update package cannot carry 210 MB).
 
 The bundle window speaks Russian (`installers/bundle/BundleUi.ru.wxl`, the default) and
 Tajik (`BundleUi.tg.wxl`, picked by WixStdBA from the Windows UI languages through the
@@ -169,8 +175,8 @@ Expected WiX version:
 
 WiX v7 requires explicit OSMF EULA acceptance for build and CI usage. The
 build script passes `-acceptEula wix7` to each `wix build` invocation after
-explicit project approval. Building the Burn bundle needs the WiX **Netfx** and **Bal** extensions;
-the build script adds them.
+explicit project approval. Building the Burn bundle needs the WiX **BootstrapperApplications** (the v7 name of
+Bal) and **Util** extensions; the build script adds them.
 
 Verify the local package build script parses:
 
@@ -206,8 +212,8 @@ Expected master installer (deliverable, in `artifacts/client-packages/`):
 afk4-client-<version>-<channel>.exe
 ```
 
-The bundle wraps the Agent MSI for fresh provisioning and carries the .NET 10
-Desktop Runtime embedded inside it. The component MSIs are still produced as
+The bundle wraps the Agent MSI for fresh provisioning and carries the offline
+WebView2 runtime embedded inside it (the programs themselves are self-contained). The component MSIs are still produced as
 standalone build inputs for recovery and as the source the update pipeline
 publishes from.
 

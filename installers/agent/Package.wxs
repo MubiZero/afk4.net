@@ -1,4 +1,4 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package
       Name="AFK4.NET Agent"
       Manufacturer="AFK4.NET"
@@ -11,21 +11,6 @@
     <SummaryInformation Codepage="1251" />
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="Уже установлена более новая версия службы AFK4.NET." />
     <MediaTemplate EmbedCab="yes" />
-
-    <!-- .NET 10 Desktop Runtime (x64): то же правило, что в MSI Панели и оболочки — см. комментарий
-         в installers/organization-admin/Package.wxs. Агент входит в канал обновлений отдельным MSI,
-         а мастер установки в его составе — WPF, так что нужна именно Desktop-среда. Бандл ставит её
-         раньше этого MSI, поэтому штатная установка проверку проходит. -->
-    <netfx:DotNetCompatibilityCheck
-        Id="DesktopRuntime10Check"
-        Property="DOTNET_DESKTOP_RUNTIME_CHECK"
-        RuntimeType="desktop"
-        Platform="x64"
-        Version="10.0.0"
-        RollForward="latestMinor" />
-    <Launch
-        Condition="Installed OR DOTNET_DESKTOP_RUNTIME_CHECK = 0"
-        Message="Для службы и мастера установки AFK4.NET нужна среда .NET 10 Desktop Runtime (x64), а на этом ПК её нет. Установите AFK4.NET через afk4-client-&lt;version&gt;-&lt;channel&gt;.exe: он поставит среду сам. Чтобы ставить этот MSI отдельно, сначала установите .NET 10 Desktop Runtime (x64): https://dotnet.microsoft.com/download/dotnet/10.0" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">

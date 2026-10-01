@@ -127,13 +127,6 @@ public sealed class UpdateHelperScriptTests
         var organizationAdminBuild = script[
             script.IndexOf("installers/organization-admin/Package.wxs", StringComparison.Ordinal)..];
 
-        Assert.Contains("@{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
-        // All four client components must publish framework-dependent so the bundle's shared
-        // runtime is the single .NET copy (see Workstream A). A stray "SelfContained = $true" in
-        // the $projects list would re-bloat the MSI back toward 160 MB.
-        Assert.Contains("@{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
-        Assert.Contains("@{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
-        Assert.Contains("@{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", organizationAdminBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"OrganizationAdminPublishDir=$(Join-Path $publishRoot \"organization-admin-$Version-$Channel\")\"", organizationAdminBuild, StringComparison.Ordinal);
     }
@@ -398,67 +391,94 @@ public sealed class UpdateHelperScriptTests
         Assert.Empty(offenders);
     }
 
-    // Приёмка 30.09.2026: MSI Панели проверял только WebView2, а на ПК без .NET 10 Desktop Runtime
-    // Панель после установки встречала английским окном Microsoft «You must install .NET Desktop
-    // Runtime». Штатный путь (бандл) рантайм даёт, но MSI компонентов публикуются отдельно, в канал
-    // обновлений. Теперь каждый из них до установки сверяется с рантаймом одной и той же проверкой
-    // netfx (она берёт путь x64-рантайма из реестра, так что работает и на ARM64) и отказывает
-    // русским текстом с указанием, что ставить надо afk4-client.exe.
+    // Решение владельца 01.10.2026: установщик несёт всё, что нужно, — никаких отказов «скачайте
+    // то-то». Каждая программа публикуется self-contained (.NET лежит в её же папке), поэтому MSI не
+    // сверяются с рантаймом, а бандл не цепляет .NET; WebView2 бандл везёт офлайн (см. Bundle.wxs).
     private static readonly System.Xml.Linq.XNamespace WixNamespace = "http://wixtoolset.org/schemas/v4/wxs";
-    private static readonly System.Xml.Linq.XNamespace NetfxNamespace = "http://wixtoolset.org/schemas/v4/wxs/netfx";
 
+    [Fact]
+    public void EveryClientProgramIsPublishedSelfContained()
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1"));
+
+        // Все четыре программы идут через один цикл публикации; флага «по проекту» нет, чтобы одну
+        // из них нельзя было тихо вернуть на общий рантайм (его в пакетах больше нет).
+        var projects = System.Text.RegularExpressions.Regex
+            .Matches(script, @"@\{ Name = '(?<name>[^']+)'; Path = '[^']+' \}")
+            .Select(match => match.Groups["name"].Value)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(["agent-service", "organization-admin", "player-shell", "setup-wizard"], projects);
+        Assert.Contains("--self-contained true `", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("--self-contained false", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("SelfContained", script, StringComparison.Ordinal);
+
+        // Тот же способ публикации у канала обновлений: рамочный zip поверх self-contained установки
+        // дал бы смесь двух моделей.
+        var updateScript = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "publish-client-update.ps1"));
+        Assert.Contains("--self-contained true `", updateScript, StringComparison.Ordinal);
+        Assert.DoesNotContain("--self-contained false", updateScript, StringComparison.Ordinal);
+    }
+
+    // Self-contained даёт сотни файлов рантайма. Их берёт штатный сбор папки целиком (Files ...\**),
+    // а не ручной список; для агента и мастера папку на пути к MSI копируют с подпапками.
+    [Theory]
+    [InlineData("organization-admin", "OrganizationAdminPublishDir")]
+    [InlineData("player-shell", "PlayerShellPublishDir")]
+    [InlineData("agent", "AgentServiceSupportDir")]
+    [InlineData("agent", "SetupWizardSupportDir")]
+    public void EveryClientMsiHarvestsTheWholePublishDirectory(string package, string variable)
+    {
+        var document = LoadPackage(package);
+        var harvests = document.Descendants(WixNamespace + "Files").Select(files => (string?)files.Attribute("Include")).ToList();
+
+        Assert.Contains($"$(var.{variable})\\**", harvests);
+    }
+
+    [Fact]
+    public void ClientPackageBuildScript_CopiesAgentAndWizardPublishOutputWithSubfolders()
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1"));
+
+        Assert.Contains("Copy-Item -Destination $agentServiceSupportDir -Recurse -Force", script, StringComparison.Ordinal);
+        Assert.Contains("Copy-Item -Destination $setupWizardSupportDir -Recurse -Force", script, StringComparison.Ordinal);
+    }
+
+    // Ни один MSI и ни одна сборка не требует .NET на машине: проверки рантайма убраны вместе с
+    // расширением netfx, а самого рантайма в бандле нет.
     [Theory]
     [InlineData("organization-admin")]
     [InlineData("player-shell")]
     [InlineData("agent")]
-    public void EveryClientMsiRefusesToInstallWithoutDesktopRuntimeInRussian(string package)
+    public void ClientMsiDoesNotCheckForDotNet(string package)
     {
-        var document = LoadPackage(package);
-        var check = document.Descendants(NetfxNamespace + "DotNetCompatibilityCheck").Single();
+        var text = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "installers", package, "Package.wxs"));
 
-        Assert.Equal("desktop", (string?)check.Attribute("RuntimeType"));
-        Assert.Equal("x64", (string?)check.Attribute("Platform"));
-        Assert.Equal("10.0.0", (string?)check.Attribute("Version"));
-        // Любая 10.x, но не 11: приложения не прыгают через мажор.
-        Assert.Equal("latestMinor", (string?)check.Attribute("RollForward"));
-
-        // Свойство проверки получает код возврата, 0 — рантайм найден; «Installed» оставляет
-        // рабочими удаление и ремонт на ПК, где рантайм уже убрали.
-        var property = (string?)check.Attribute("Property");
-        Assert.False(string.IsNullOrWhiteSpace(property));
-        var launch = document.Descendants(WixNamespace + "Launch")
-            .Single(element => ((string?)element.Attribute("Condition"))!.Contains(property!, StringComparison.Ordinal));
-        Assert.Equal($"Installed OR {property} = 0", (string?)launch.Attribute("Condition"));
-
-        var message = (string?)launch.Attribute("Message") ?? string.Empty;
-        AssertRussianRefusalPointsAtTheClientInstaller(message, package);
-        Assert.Contains(".NET 10 Desktop Runtime", message, StringComparison.Ordinal);
-
-        // Кириллица в базе MSI требует кодовой страницы 1251 (иначе WIX0311 на сборке).
-        var root = document.Root!.Element(WixNamespace + "Package")!;
-        Assert.Equal("1251", (string?)root.Attribute("Codepage"));
-        Assert.Equal("1251", (string?)root.Element(WixNamespace + "SummaryInformation")!.Attribute("Codepage"));
+        Assert.DoesNotContain("netfx", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DotNetCompatibilityCheck", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("DOTNET_DESKTOP_RUNTIME_CHECK", text, StringComparison.Ordinal);
+        Assert.DoesNotContain(".NET 10 Desktop Runtime", text, StringComparison.Ordinal);
     }
 
-    // Одно правило для всех: у трёх MSI проверка рантайма совпадает до атрибута. Разойдутся — один
-    // из компонентов будет проверять не то, что остальные (например, 8-ю версию или x86).
     [Fact]
-    public void EveryClientMsiChecksTheDesktopRuntimeWithTheSameRule()
+    public void ClientPackageBuildScript_UsesNoNetfxExtension()
     {
-        var rules = new[] { "organization-admin", "player-shell", "agent" }
-            .Select(package =>
-            {
-                var check = LoadPackage(package).Descendants(NetfxNamespace + "DotNetCompatibilityCheck").Single();
-                return string.Join(
-                    "|",
-                    check.Attributes()
-                        .OrderBy(attribute => attribute.Name.LocalName, StringComparer.Ordinal)
-                        .Select(attribute => $"{attribute.Name.LocalName}={attribute.Value}"));
-            })
-            .Distinct()
-            .ToList();
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1"));
 
-        Assert.Single(rules);
+        Assert.DoesNotContain("Netfx", script, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Помощники обновления запускают msiexec/sc.exe/powershell, а не `dotnet`: на ПК может не быть
+    // ни SDK, ни общего рантайма.
+    [Theory]
+    [InlineData("scripts/install-afk4-update-msi.ps1")]
+    [InlineData("scripts/rollback-afk4-update-msi.ps1")]
+    [InlineData("scripts/restart-afk4-agent-service.ps1")]
+    public void UpdateHelperScriptDoesNotCallDotnet(string scriptPath)
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), scriptPath));
+
+        Assert.DoesNotMatch(@"(?i)\bdotnet(\.exe)?\b", script);
     }
 
     [Theory]
@@ -476,33 +496,6 @@ public sealed class UpdateHelperScriptTests
         // Ссылка для тех, кто всё-таки ставит MSI в одиночку.
         Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", message, StringComparison.Ordinal);
         Assert.DoesNotContain("is required", message, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("organization-admin")]
-    [InlineData("player-shell")]
-    [InlineData("agent")]
-    public void ClientPackageBuildScript_BuildsEveryMsiWithTheNetfxExtension(string package)
-    {
-        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1"));
-        var start = script.IndexOf($"installers/{package}/Package.wxs", StringComparison.Ordinal);
-        Assert.True(start >= 0);
-        var build = script[start..];
-        build = build[..build.IndexOf("-o $", StringComparison.Ordinal)];
-
-        // Без расширения netfx элемент DotNetCompatibilityCheck не соберётся.
-        Assert.Contains("-ext WixToolset.Netfx.wixext", build, StringComparison.Ordinal);
-    }
-
-    // Помощник обновлений не должен сам решать за MSI: нет рантайма — msiexec отвечает 1603 и
-    // пишет причину в журнал, а код возврата дойдёт до платформы как есть.
-    [Fact]
-    public void InstallUpdateMsiScript_PassesTheMsiExitCodeThroughWhenTheRuntimeCheckRefuses()
-    {
-        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1"));
-
-        Assert.Contains("exit $process.ExitCode", script, StringComparison.Ordinal);
-        Assert.Contains("'/qn'", script, StringComparison.Ordinal);
     }
 
     private static System.Xml.Linq.XDocument LoadPackage(string package) =>

@@ -1,4 +1,4 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
       Name="AFK4.NET Player Shell"
       Manufacturer="AFK4.NET"
@@ -44,19 +44,6 @@
     <Launch
         Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKLM64_PV AND WEBVIEW2_RUNTIME_HKLM64_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
         Message="Для оболочки игрока AFK4.NET нужен Microsoft Edge WebView2 Runtime, а на этом ПК его нет. Установите AFK4.NET через afk4-client-&lt;version&gt;-&lt;channel&gt;.exe: он поставит компонент сам. Чтобы ставить этот MSI отдельно, сначала установите WebView2 Runtime: https://go.microsoft.com/fwlink/p/?LinkId=2124703" />
-
-    <!-- .NET 10 Desktop Runtime (x64): то же правило, что в MSI Панели и агента — см. комментарий
-         в installers/organization-admin/Package.wxs. -->
-    <netfx:DotNetCompatibilityCheck
-        Id="DesktopRuntime10Check"
-        Property="DOTNET_DESKTOP_RUNTIME_CHECK"
-        RuntimeType="desktop"
-        Platform="x64"
-        Version="10.0.0"
-        RollForward="latestMinor" />
-    <Launch
-        Condition="Installed OR DOTNET_DESKTOP_RUNTIME_CHECK = 0"
-        Message="Для оболочки игрока AFK4.NET нужна среда .NET 10 Desktop Runtime (x64), а на этом ПК её нет. Установите AFK4.NET через afk4-client-&lt;version&gt;-&lt;channel&gt;.exe: он поставит среду сам. Чтобы ставить этот MSI отдельно, сначала установите .NET 10 Desktop Runtime (x64): https://dotnet.microsoft.com/download/dotnet/10.0" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">
