@@ -398,6 +398,123 @@ public sealed class UpdateHelperScriptTests
         Assert.Empty(offenders);
     }
 
+    // Приёмка 30.09.2026: MSI Панели проверял только WebView2, а на ПК без .NET 10 Desktop Runtime
+    // Панель после установки встречала английским окном Microsoft «You must install .NET Desktop
+    // Runtime». Штатный путь (бандл) рантайм даёт, но MSI компонентов публикуются отдельно, в канал
+    // обновлений. Теперь каждый из них до установки сверяется с рантаймом одной и той же проверкой
+    // netfx (она берёт путь x64-рантайма из реестра, так что работает и на ARM64) и отказывает
+    // русским текстом с указанием, что ставить надо afk4-client.exe.
+    private static readonly System.Xml.Linq.XNamespace WixNamespace = "http://wixtoolset.org/schemas/v4/wxs";
+    private static readonly System.Xml.Linq.XNamespace NetfxNamespace = "http://wixtoolset.org/schemas/v4/wxs/netfx";
+
+    [Theory]
+    [InlineData("organization-admin")]
+    [InlineData("player-shell")]
+    [InlineData("agent")]
+    public void EveryClientMsiRefusesToInstallWithoutDesktopRuntimeInRussian(string package)
+    {
+        var document = LoadPackage(package);
+        var check = document.Descendants(NetfxNamespace + "DotNetCompatibilityCheck").Single();
+
+        Assert.Equal("desktop", (string?)check.Attribute("RuntimeType"));
+        Assert.Equal("x64", (string?)check.Attribute("Platform"));
+        Assert.Equal("10.0.0", (string?)check.Attribute("Version"));
+        // Любая 10.x, но не 11: приложения не прыгают через мажор.
+        Assert.Equal("latestMinor", (string?)check.Attribute("RollForward"));
+
+        // Свойство проверки получает код возврата, 0 — рантайм найден; «Installed» оставляет
+        // рабочими удаление и ремонт на ПК, где рантайм уже убрали.
+        var property = (string?)check.Attribute("Property");
+        Assert.False(string.IsNullOrWhiteSpace(property));
+        var launch = document.Descendants(WixNamespace + "Launch")
+            .Single(element => ((string?)element.Attribute("Condition"))!.Contains(property!, StringComparison.Ordinal));
+        Assert.Equal($"Installed OR {property} = 0", (string?)launch.Attribute("Condition"));
+
+        var message = (string?)launch.Attribute("Message") ?? string.Empty;
+        AssertRussianRefusalPointsAtTheClientInstaller(message, package);
+        Assert.Contains(".NET 10 Desktop Runtime", message, StringComparison.Ordinal);
+
+        // Кириллица в базе MSI требует кодовой страницы 1251 (иначе WIX0311 на сборке).
+        var root = document.Root!.Element(WixNamespace + "Package")!;
+        Assert.Equal("1251", (string?)root.Attribute("Codepage"));
+        Assert.Equal("1251", (string?)root.Element(WixNamespace + "SummaryInformation")!.Attribute("Codepage"));
+    }
+
+    // Одно правило для всех: у трёх MSI проверка рантайма совпадает до атрибута. Разойдутся — один
+    // из компонентов будет проверять не то, что остальные (например, 8-ю версию или x86).
+    [Fact]
+    public void EveryClientMsiChecksTheDesktopRuntimeWithTheSameRule()
+    {
+        var rules = new[] { "organization-admin", "player-shell", "agent" }
+            .Select(package =>
+            {
+                var check = LoadPackage(package).Descendants(NetfxNamespace + "DotNetCompatibilityCheck").Single();
+                return string.Join(
+                    "|",
+                    check.Attributes()
+                        .OrderBy(attribute => attribute.Name.LocalName, StringComparer.Ordinal)
+                        .Select(attribute => $"{attribute.Name.LocalName}={attribute.Value}"));
+            })
+            .Distinct()
+            .ToList();
+
+        Assert.Single(rules);
+    }
+
+    [Theory]
+    [InlineData("organization-admin")]
+    [InlineData("player-shell")]
+    public void ClientMsiWebView2RefusalIsInRussian(string package)
+    {
+        var document = LoadPackage(package);
+        var launch = document.Descendants(WixNamespace + "Launch")
+            .Single(element => ((string?)element.Attribute("Condition"))!.Contains("WEBVIEW2_RUNTIME_HKLM_PV", StringComparison.Ordinal));
+        var message = (string?)launch.Attribute("Message") ?? string.Empty;
+
+        AssertRussianRefusalPointsAtTheClientInstaller(message, package);
+        Assert.Contains("WebView2 Runtime", message, StringComparison.Ordinal);
+        // Ссылка для тех, кто всё-таки ставит MSI в одиночку.
+        Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("is required", message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("organization-admin")]
+    [InlineData("player-shell")]
+    [InlineData("agent")]
+    public void ClientPackageBuildScript_BuildsEveryMsiWithTheNetfxExtension(string package)
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1"));
+        var start = script.IndexOf($"installers/{package}/Package.wxs", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var build = script[start..];
+        build = build[..build.IndexOf("-o $", StringComparison.Ordinal)];
+
+        // Без расширения netfx элемент DotNetCompatibilityCheck не соберётся.
+        Assert.Contains("-ext WixToolset.Netfx.wixext", build, StringComparison.Ordinal);
+    }
+
+    // Помощник обновлений не должен сам решать за MSI: нет рантайма — msiexec отвечает 1603 и
+    // пишет причину в журнал, а код возврата дойдёт до платформы как есть.
+    [Fact]
+    public void InstallUpdateMsiScript_PassesTheMsiExitCodeThroughWhenTheRuntimeCheckRefuses()
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1"));
+
+        Assert.Contains("exit $process.ExitCode", script, StringComparison.Ordinal);
+        Assert.Contains("'/qn'", script, StringComparison.Ordinal);
+    }
+
+    private static System.Xml.Linq.XDocument LoadPackage(string package) =>
+        System.Xml.Linq.XDocument.Load(Path.Combine(GetRepositoryRoot(), "installers", package, "Package.wxs"));
+
+    private static void AssertRussianRefusalPointsAtTheClientInstaller(string message, string package)
+    {
+        Assert.Contains(message, character => character is >= 'Ѐ' and <= 'ӿ');
+        Assert.Contains("afk4-client-<version>-<channel>.exe", message, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(message), $"{package}: пустое сообщение отказа");
+    }
+
     private static string GetRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -915,6 +915,88 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("bal:BAFunctions=\"yes\"", bundle, StringComparison.Ordinal);
     }
 
+    // Приёмка 30.09.2026: окно бандла говорило «Setup Progress · Processing · Cancel», хотя язык
+    // продукта — русский. Русский thm.wxl — язык по умолчанию, таджикский лежит в 1064\thm.wxl, и
+    // WixStdBA сам берёт его по языку Windows (LocProbeForFile ищет папку с десятичным LCID).
+    private static readonly string[] StdBaStringIds =
+    [
+        "Caption", "Title", "CheckingForUpdatesLabel", "UpdateButton", "InstallHeader", "InstallMessage",
+        "InstallMessageOptions", "InstallVersion", "ConfirmCancelMessage", "ExecuteUpgradeRelatedBundleMessage",
+        "HelpHeader", "HelpText", "HelpCloseButton", "InstallLicenseLinkText", "InstallAcceptCheckbox",
+        "InstallOptionsButton", "InstallInstallButton", "InstallCancelButton", "OptionsHeader",
+        "OptionsLocationLabel", "OptionsPerUserScopeText", "OptionsPerMachineScopeText", "OptionsBrowseButton",
+        "OptionsOkButton", "OptionsCancelButton", "ProgressHeader", "ProgressLabel", "OverallProgressPackageText",
+        "ProgressCancelButton", "ModifyHeader", "ModifyRepairButton", "ModifyUninstallButton", "ModifyCancelButton",
+        "SuccessHeader", "SuccessCacheHeader", "SuccessInstallHeader", "SuccessLayoutHeader", "SuccessModifyHeader",
+        "SuccessRepairHeader", "SuccessUninstallHeader", "SuccessUnsafeUninstallHeader", "SuccessLaunchButton",
+        "SuccessRestartText", "SuccessUninstallRestartText", "SuccessRestartButton", "SuccessCloseButton",
+        "FailureHeader", "FailureCacheHeader", "FailureInstallHeader", "FailureLayoutHeader", "FailureModifyHeader",
+        "FailureRepairHeader", "FailureUninstallHeader", "FailureUnsafeUninstallHeader", "FailureHyperlinkLogText",
+        "FailureRestartText", "FailureRestartButton", "FailureCloseButton", "FilesInUseTitle", "FilesInUseLabel",
+        "FilesInUseNetfxCloseRadioButton", "FilesInUseCloseRadioButton", "FilesInUseDontCloseRadioButton",
+        "FilesInUseRetryButton", "FilesInUseIgnoreButton", "FilesInUseExitButton"
+    ];
+
+    [Fact]
+    public void BundleWxs_ShowsTheWindowInRussianByDefaultAndInTajikByWindowsLanguage()
+    {
+        var bundle = NormalizeLineEndings(File.ReadAllText(ScriptPath("installers/bundle/Bundle.wxs")));
+
+        // Русский — thm.wxl по умолчанию (его видят и на английской Windows), таджикский — в папке LCID 1064.
+        Assert.Contains("LocalizationFile=\"$(sys.SOURCEFILEDIR)BundleUi.ru.wxl\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("Name=\"1064\\thm.wxl\" SourceFile=\"$(sys.SOURCEFILEDIR)BundleUi.tg.wxl\"", bundle, StringComparison.Ordinal);
+
+        // Что видно в «Processing: …»: имя пакета из самого бандла, а не из ProductName MSI.
+        Assert.Contains("DisplayName=\".NET 10 Desktop Runtime\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("DisplayName=\"Microsoft Edge WebView2 Runtime\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("DisplayName=\"AFK4.NET\"", bundle, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("installers/bundle/BundleUi.ru.wxl", "ru-RU", "1049")]
+    [InlineData("installers/bundle/BundleUi.tg.wxl", "tg-Cyrl-TJ", "1064")]
+    public void BundleUiLocalization_DefinesEveryStringTheThemeReadsInItsOwnLanguage(string path, string culture, string language)
+    {
+        var document = System.Xml.Linq.XDocument.Load(ScriptPath(path));
+        var root = document.Root!;
+        var strings = root.Elements().ToDictionary(
+            element => (string)element.Attribute("Id")!,
+            element => (string)element.Attribute("Value")!);
+
+        Assert.Equal(culture, (string?)root.Attribute("Culture"));
+        Assert.Equal(language, (string?)root.Attribute("Language"));
+        // Пропавший Id окно покажет сырым «#(loc.…)»; лишний — мусор, который не вычитает никто.
+        Assert.Equal(StdBaStringIds.Order(StringComparer.Ordinal), strings.Keys.Order(StringComparer.Ordinal));
+
+        foreach (var (id, value) in strings)
+        {
+            Assert.Contains(value, character => character is >= 'Ѐ' and <= 'ӿ' || id == "Title");
+            if (id == "HelpText")
+            {
+                continue; // ключи командной строки остаются латиницей
+            }
+
+            // Ни одного английского слова поверх плейсхолдеров [WixBundleName] и тегов ссылок.
+            var visible = System.Text.RegularExpressions.Regex.Replace(value, @"\[[A-Za-z]+\]|<[^>]+>", string.Empty);
+            Assert.DoesNotMatch("[A-Za-z]{4,}", visible);
+        }
+    }
+
+    [Fact]
+    public void BundleUiLocalization_TajikIsATranslationNotACopyOfRussian()
+    {
+        static Dictionary<string, string> Load(string path) => System.Xml.Linq.XDocument.Load(ScriptPath(path)).Root!
+            .Elements().ToDictionary(element => (string)element.Attribute("Id")!, element => (string)element.Attribute("Value")!);
+        var russian = Load("installers/bundle/BundleUi.ru.wxl");
+        var tajik = Load("installers/bundle/BundleUi.tg.wxl");
+
+        // Совпадать могут только то, что не переводится: имя продукта и «ОК».
+        var same = tajik.Where(pair => russian[pair.Key] == pair.Value).Select(pair => pair.Key).Order().ToList();
+        Assert.Equal(new[] { "OptionsOkButton", "Title" }, same);
+        // Буквы, которых нет в русском алфавите, — признак настоящего таджикского текста.
+        Assert.Contains(tajik.Values, value => value.IndexOfAny(['ғ', 'ӣ', 'қ', 'ӯ', 'ҳ', 'ҷ']) >= 0);
+    }
+
     [Fact]
     public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
     {

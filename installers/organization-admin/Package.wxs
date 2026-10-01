@@ -1,4 +1,4 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx">
   <!-- Имя, которое видит человек, — «Панель AFK4.NET» (решение владельца 2026-09-23): так же
        программу называют мастер и панель. Кириллице нужна кодовая страница 1251 — по умолчанию
        WiX берёт 1252, и кириллица в ней не представима. Папка установки остаётся
@@ -45,7 +45,26 @@
     </Property>
     <Launch
         Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKLM64_PV AND WEBVIEW2_RUNTIME_HKLM64_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
-        Message="Microsoft Edge WebView2 Runtime is required and was not found. Install AFK4 with afk4-client-&lt;version&gt;-&lt;channel&gt;.exe — it installs the runtime for you. To install this MSI on its own, get the runtime from https://go.microsoft.com/fwlink/p/?LinkId=2124703 first." />
+        Message="Для Панели AFK4.NET нужен Microsoft Edge WebView2 Runtime, а на этом ПК его нет. Установите AFK4.NET через afk4-client-&lt;version&gt;-&lt;channel&gt;.exe: он поставит компонент сам. Чтобы ставить этот MSI отдельно, сначала установите WebView2 Runtime: https://go.microsoft.com/fwlink/p/?LinkId=2124703" />
+
+    <!-- .NET 10 Desktop Runtime (x64) нужен каждому клиентскому компоненту (они собраны
+         framework-dependent). Без него первый запуск встречает английское окно Microsoft «You must
+         install .NET Desktop Runtime»; здесь отказ случается до установки и по-русски. Проверка —
+         расширения netfx, того же семейства, что DotNetCoreSearch в бандле: берёт путь установки
+         x64 из HKLM\SOFTWARE\dotnet\Setup\InstalledVersions\x64 и спрашивает hostfxr по этому
+         пути — находит и Program Files\dotnet на x64, и Program Files\dotnet\x64 на ARM64.
+         latestMinor: любая 10.x, но не 11 (приложения не прыгают через мажор). Свойство получает код
+         возврата проверки, 0 — рантайм найден. «Installed» оставляет рабочими удаление и ремонт. -->
+    <netfx:DotNetCompatibilityCheck
+        Id="DesktopRuntime10Check"
+        Property="DOTNET_DESKTOP_RUNTIME_CHECK"
+        RuntimeType="desktop"
+        Platform="x64"
+        Version="10.0.0"
+        RollForward="latestMinor" />
+    <Launch
+        Condition="Installed OR DOTNET_DESKTOP_RUNTIME_CHECK = 0"
+        Message="Для Панели AFK4.NET нужна среда .NET 10 Desktop Runtime (x64), а на этом ПК её нет. Установите AFK4.NET через afk4-client-&lt;version&gt;-&lt;channel&gt;.exe: он поставит среду сам. Чтобы ставить этот MSI отдельно, сначала установите .NET 10 Desktop Runtime (x64): https://dotnet.microsoft.com/download/dotnet/10.0" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">

@@ -38,6 +38,13 @@
       UpgradeCode="{8E2C4A91-7B3D-4F6A-9C1E-2D5A8B0F3471}">
 
     <!--
+      Язык окна. Аудитория — клубы Таджикистана, и окно говорит по-русски у всех: BundleUi.ru.wxl
+      едет как thm.wxl — язык по умолчанию. WixStdBA сам подбирает языковую папку рядом с
+      thm.wxl по предпочитаемым языкам Windows (десятичный LCID), поэтому таджикский
+      BundleUi.tg.wxl лежит в 1064\thm.wxl; принудительно — `afk4-client.exe /lang 1064`. Это
+      не файл для -loc: Id этих .wxl читает само окно во время работы, а не компилятор.
+    -->
+    <!--
       LogoFile brands the bootstrapper window with the AFK4 mark. The AFK4.BAFunctions
       payload (bal:BAFunctions) plugs into WixStdBA to auto-start the install and
       auto-close on success, so the only prompt the user sees is Windows' UAC. It's a
@@ -45,8 +52,9 @@
       installers/bundle/bafunctions/.
     -->
     <BootstrapperApplication>
-      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" SuppressOptionsUI="yes" LogoFile="$(var.BrandLogoPath)" />
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" SuppressOptionsUI="yes" LogoFile="$(var.BrandLogoPath)" LocalizationFile="$(sys.SOURCEFILEDIR)BundleUi.ru.wxl" />
       <Payload Id="AfkBAFunctions" SourceFile="$(var.BAFunctionsPath)" bal:BAFunctions="yes" />
+      <Payload Id="AfkBundleUiTajik" Name="1064\thm.wxl" SourceFile="$(sys.SOURCEFILEDIR)BundleUi.tg.wxl" />
     </BootstrapperApplication>
 
     <!--
@@ -102,6 +110,7 @@
         itself, and it runs /quiet anyway.
       -->
       <ExePackage
+          DisplayName=".NET 10 Desktop Runtime"
           DetectCondition="DesktopRuntime10Version AND DesktopRuntime10Version &gt;= v$(var.RuntimeVersion)"
           Permanent="yes"
           Vital="yes"
@@ -121,6 +130,7 @@
         on the machine — uninstalling AFK4 must not take Edge WebView2 away from other software.
       -->
       <ExePackage
+          DisplayName="Microsoft Edge WebView2 Runtime"
           DetectCondition="(WebView2RuntimeHklmPv AND WebView2RuntimeHklmPv &lt;&gt; &quot;0.0.0.0&quot;) OR (WebView2RuntimeHklm64Pv AND WebView2RuntimeHklm64Pv &lt;&gt; &quot;0.0.0.0&quot;) OR (WebView2RuntimeHkcuPv AND WebView2RuntimeHkcuPv &lt;&gt; &quot;0.0.0.0&quot;)"
           Permanent="yes"
           Vital="yes"
@@ -135,7 +145,7 @@
 
       <!-- LAUNCHWIZARD=1 makes the agent MSI auto-launch the Setup Wizard even though Burn
            runs it at UILevel=none; see the LaunchSetupWizard condition in installers/agent/Package.wxs. -->
-      <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes">
+      <MsiPackage SourceFile="$(var.AgentMsiPath)" DisplayName="AFK4.NET" Vital="yes">
         <MsiProperty Name="LAUNCHWIZARD" Value="1" />
         <MsiProperty Name="AFK4_INSTALL_CODE" Value="[AFK4_INSTALL_CODE]" />
         <MsiProperty Name="AFK4_SEAT" Value="[AFK4_SEAT]" />
