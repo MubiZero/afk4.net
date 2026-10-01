@@ -19,7 +19,12 @@ public sealed class ShellPipeServerTests
     // приветствия, поэтому «консолью» в тестах служит настоящая сессия, а чужого хоста изображает
     // консоль в соседней.
     private static readonly int CurrentSession = CurrentProcessSession();
-    private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(10);
+
+    // Аварийный предел, а не ожидаемое время: кадр приходит за миллисекунды. На раннере GitHub набор
+    // агента идёт минуты, и пул потоков бывает так занят, что продолжение сервера ждёт поток
+    // секундами. 01.10.2026 тест упал ровно на 5 с приветствия плюс 10 с подключения, хотя 900
+    // переподключений подряд под полной нагрузкой процессора проходят за 65 мс худшее.
+    private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(30);
 
     [Fact]
     public async Task Hello_IsAnsweredWithTheCurrentStateRightAway()
@@ -178,7 +183,9 @@ public sealed class ShellPipeServerTests
             var harness = new Harness(
                 $"afk4-shell-{Guid.NewGuid():N}"[..23],
                 new ShellPipeTimings(
-                    HelloTimeout: TimeSpan.FromSeconds(5),
+                    // Приветствие тест шлёт сразу; срок — тот же аварийный, иначе голодный пул
+                    // успевает закрыть хост, не дочитав приветствие.
+                    HelloTimeout: FrameTimeout,
                     RebuildInterval: TimeSpan.FromMilliseconds(50),
                     KeepAliveInterval: keepAlive ?? TimeSpan.FromMinutes(1)),
                 consoleSession ?? CurrentSession);
