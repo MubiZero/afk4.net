@@ -31,7 +31,8 @@ public sealed class PlayerShellProcessSupervisor(
     IPlayerShellProcessStarter processStarter,
     IPlayerShellLaunchContext launchContext,
     IMachineRegistry machine,
-    ILogger<PlayerShellProcessSupervisor> logger) : IPlayerShellProcessSupervisor
+    ILogger<PlayerShellProcessSupervisor> logger,
+    IPlayerShellUpdateGate? updateGate = null) : IPlayerShellProcessSupervisor
 {
     private static readonly HashSet<string> StatesRequiringShell = new(StringComparer.Ordinal)
     {
@@ -58,6 +59,13 @@ public sealed class PlayerShellProcessSupervisor(
 
         if (!StatesRequiringShell.Contains(runtimeState.State))
         {
+            return Task.CompletedTask;
+        }
+
+        // Установщик меняет файлы оболочки: поднятая сейчас, она встала бы на смеси старых и новых сборок.
+        if (updateGate?.IsSuspended == true)
+        {
+            logger.LogDebug("Player Shell is not started: its update is being installed.");
             return Task.CompletedTask;
         }
 

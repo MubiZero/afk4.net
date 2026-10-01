@@ -12,7 +12,8 @@ public sealed class AgentUpdateCoordinator(
     TimeProvider timeProvider,
     IUpdateAttemptLedger attemptLedger,
     GuestSeatUpdateGuard guestSeatGuard,
-    IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null) : IAgentUpdateCoordinator
+    IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null,
+    AFK4.Agent.Service.Shell.IPlayerShellUpdateGate? shellUpdateGate = null) : IAgentUpdateCoordinator
 {
 
     public async Task<AgentUpdateExecutionResult> CheckAndApplyUpdatesAsync(CancellationToken cancellationToken)
@@ -112,7 +113,7 @@ public sealed class AgentUpdateCoordinator(
                     UpdateStatusNames.Installing,
                     "Starting update installer.",
                     cancellationToken);
-                var installResult = await installer.InstallAsync(instruction, artifact, cancellationToken);
+                var installResult = await InstallAsync(instruction, artifact, cancellationToken);
                 if (installResult.RestartPending)
                 {
                     pendingRestartCount++;
@@ -181,6 +182,32 @@ public sealed class AgentUpdateCoordinator(
     /// Счёт попыток переживает перезапуск службы: иначе сломанный пакет крутился бы по кругу —
     /// поставили, упало, перезапустились, обнулили память, поставили снова.
     /// </summary>
+    // Оболочка — не служба: установщик меняет её файлы, а работающий процесс остаётся прежним до
+    // перезагрузки ПК. Пока идёт установка, супервизор её не поднимает; после неё старый процесс
+    // закрывается, и супервизор запускает новую сборку. 3010 — файлы заменятся только при
+    // перезагрузке: старую оболочку тогда не трогаем.
+    private async Task<UpdateInstallResult> InstallAsync(
+        ComponentUpdateInstructionDto instruction,
+        DownloadedUpdateArtifact artifact,
+        CancellationToken cancellationToken)
+    {
+        if (instruction.Component != UpdateComponentNames.PlayerShell || shellUpdateGate is null)
+        {
+            return await installer.InstallAsync(instruction, artifact, cancellationToken);
+        }
+
+        using (shellUpdateGate.Suspend())
+        {
+            var result = await installer.InstallAsync(instruction, artifact, cancellationToken);
+            if (result.Succeeded && !result.RestartPending)
+            {
+                shellUpdateGate.StopRunningShells();
+            }
+
+            return result;
+        }
+    }
+
     private bool TryMarkAttempted(Guid rolloutId)
     {
         if (!attemptLedger.ShouldAttempt(rolloutId))

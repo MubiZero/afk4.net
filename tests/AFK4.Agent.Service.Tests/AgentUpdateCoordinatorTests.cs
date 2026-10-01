@@ -303,6 +303,111 @@ public sealed class AgentUpdateCoordinatorTests
         };
     }
 
+    /// <summary>
+    /// Приёмка 01.10.2026: MSI оболочки 0.9.6 поставился штатно (статус installed), а процесс оболочки
+    /// так и работал с 07:57:20 — старая сборка до перезагрузки ПК. Пока ставится оболочка, супервизор
+    /// её не поднимает; после успешной установки старый процесс закрывается.
+    /// </summary>
+    [Fact]
+    public async Task PlayerShellUpdate_HoldsTheSupervisorDuringInstall_AndStopsTheOldShellAfter()
+    {
+        var gate = new RecordingShellUpdateGate();
+        var installer = new GateObservingInstaller(gate, UpdateInstallResult.Success("installer completed"));
+        var coordinator = CreateCoordinator(
+            CreateInstruction() with { Component = UpdateComponentNames.PlayerShell }, installer, gate);
+
+        await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.True(installer.SawSuspended);
+        Assert.False(gate.IsSuspended);
+        Assert.Equal(1, gate.StopCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PlayerShellUpdate_LeavesTheShellRunning_WhenTheInstallFailedOrWaitsForAReboot(bool restartPending)
+    {
+        var gate = new RecordingShellUpdateGate();
+        var result = restartPending
+            ? new UpdateInstallResult(true, "reboot required", RestartPending: true)
+            : new UpdateInstallResult(false, "msiexec failed");
+        var coordinator = CreateCoordinator(
+            CreateInstruction() with { Component = UpdateComponentNames.PlayerShell }, new GateObservingInstaller(gate, result), gate);
+
+        await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.False(gate.IsSuspended);
+        Assert.Equal(0, gate.StopCount);
+    }
+
+    [Fact]
+    public async Task AgentUpdate_DoesNotTouchTheShell()
+    {
+        var gate = new RecordingShellUpdateGate();
+        var installer = new GateObservingInstaller(gate, UpdateInstallResult.Success("installer completed"));
+        var coordinator = CreateCoordinator(CreateInstruction(), installer, gate);
+
+        await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.False(installer.SawSuspended);
+        Assert.Equal(0, gate.StopCount);
+    }
+
+    private static AgentUpdateCoordinator CreateCoordinator(
+        ComponentUpdateInstructionDto instruction, IUpdateInstaller installer, AFK4.Agent.Service.Shell.IPlayerShellUpdateGate gate) =>
+        new(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            new RecordingAgentUpdateClient([instruction]),
+            new AgentComponentVersionProvider(Options.Create(CreateOptions())),
+            new RecordingUpdateArtifactDownloader(),
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("hash verified")),
+            installer,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard(),
+            shellUpdateGate: gate);
+
+    private sealed class RecordingShellUpdateGate : AFK4.Agent.Service.Shell.IPlayerShellUpdateGate
+    {
+        private int suspended;
+
+        public int StopCount { get; private set; }
+
+        public bool IsSuspended => suspended > 0;
+
+        public IDisposable Suspend()
+        {
+            suspended++;
+            return new Release(() => suspended--);
+        }
+
+        public int StopRunningShells()
+        {
+            StopCount++;
+            return 1;
+        }
+
+        private sealed class Release(Action release) : IDisposable
+        {
+            public void Dispose() => release();
+        }
+    }
+
+    private sealed class GateObservingInstaller(AFK4.Agent.Service.Shell.IPlayerShellUpdateGate gate, UpdateInstallResult result) : IUpdateInstaller
+    {
+        public bool SawSuspended { get; private set; }
+
+        public Task<UpdateInstallResult> InstallAsync(
+            ComponentUpdateInstructionDto instruction,
+            DownloadedUpdateArtifact artifact,
+            CancellationToken cancellationToken)
+        {
+            SawSuspended = gate.IsSuspended;
+            return Task.FromResult(result);
+        }
+    }
+
     private static ComponentUpdateInstructionDto CreateInstruction()
     {
         return new ComponentUpdateInstructionDto(
