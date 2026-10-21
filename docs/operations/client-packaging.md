@@ -9,14 +9,6 @@ This runbook records the approved packaging direction for AFK4 Windows
 clients and links the operational package flow to the existing update rollout
 system.
 
-Historical design note:
-
-- `docs/archive/superpowers/specs/2026-05-14-afk4-client-packaging-design.md`
-
-Historical implementation plan:
-
-- `docs/archive/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
-
 ## Packaging Decision
 
 AFK4 ships **one master installer** — `afk4-client-<version>-<channel>.exe`, a

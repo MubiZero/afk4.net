@@ -898,7 +898,3 @@ state flow. This needs a dedicated follow-up plan.
 
 - [Project README](../../README.md)
 - [Architecture spec](../superpowers/specs/2026-05-12-afk4-platform-architecture-design.md)
-- [Historical Platform Control and organization onboarding plan](../archive/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md)
-- [Historical Organization Admin WebView2 React migration plan](../archive/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md)
-- [Archived vertical slice implementation plan](../archive/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md)
-- [Agent instructions](../../AGENTS.md)

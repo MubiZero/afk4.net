@@ -5,10 +5,8 @@ Last updated: 2026-09-28
 ## Purpose
 
 Compact current-state snapshot for new sessions — short enough to read every
-time. Detailed historical notes and shipped implementation plans/specs live in:
-
-- `docs/archive/progress/`
-- `docs/archive/superpowers/plans/` and `docs/archive/superpowers/specs/`
+time. Detailed historical notes and shipped plans are not kept in the tree; git
+history has them.
 
 Use archives only when historical evidence or old implementation context is
 needed.
@@ -34,8 +32,6 @@ needed.
 
 ## Navigation
 
-- Live plan/spec indexes: `docs/superpowers/plans/README.md`,
-  `docs/superpowers/specs/README.md`.
 - Architecture source of truth:
   `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`.
 - Operational/production roadmap: `docs/roadmap/production-readiness.md`.
@@ -995,9 +991,8 @@ server still offered the PC to guests. Owner decision: no player account = not a
   bridge (moved into `SetupWizard.Core` so it is testable off Windows), and 16
   tests for the dashboard summary calculation.
 
-Older verification entries (2026-07-28 and earlier, including the superseded
-Platform Control rebuild Tasks 1-7 gates) are archived in
-`docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+Older verification entries (2026-07-28 and earlier) were removed from this file;
+git history has them.
 
 - Cleanup round (2026-08-17, after the review-fix round below): three leftovers
   closed. **Postpaid billed the same minutes twice.** A fixed-duration postpaid
@@ -1213,15 +1208,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   themes together with the broader clean `manager_workstation` smoke below.
 
 - **The gaming PC kiosk is built but not proven on a live PC.** Plan P5
-  (`docs/superpowers/plans/2026-09-25-shell-p5-kiosk.md`, stacked PRs #467,
+  (stacked PRs #467,
   #469–#473, #477, #478 and P5e) adds what a service in session 0 could not do: the
   host's low-level keyboard hook (Win, Alt+Tab, Ctrl+Esc by mode), maintenance
   mode with an expiry, the kiosk account with autologon and the shell instead of
   Explorer, the branch protection profile with a per-item report, window rules,
   Windows restarting a crashed agent, silent install by code for a whole hall, and
   wiping the player's sign-ins after a session. None of it is proven until the
-  P5 acceptance on a real club PC. Earlier steps of the same rewrite: plan P1 (2026-09-24,
-  `docs/archive/superpowers/plans/2026-09-24-shell-p1-agent-truth.md`) made the agent
+  P5 acceptance on a real club PC. Earlier steps of the same rewrite: plan P1 (2026-09-24) made the agent
   tell the shell the truth: one persistent pipe `afk4-shell-v2` with an ACL
   instead of two open per-message pipes, state pushed on change instead of
   polled, `offline` and `ending` actually produced, `IsOnline` from the last
