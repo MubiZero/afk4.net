@@ -142,7 +142,7 @@ builder.Services.AddScoped<EfDeviceCredentialLifecycleService>();
 builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
 builder.Services.AddSingleton<InMemoryDeviceConnectionRegistry>();
 builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
-builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
+builder.Services.AddScoped<DeviceHeartbeatService>();
 builder.Services.AddScoped<EfFloorMapReadService>();
 builder.Services.AddScoped<EfSessionTimelineReadService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
