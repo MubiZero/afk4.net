@@ -430,6 +430,73 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
             DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
     }
 
+    [Fact]
+    public async Task PublishAsync_WithS3ArtifactOverPartSize_UploadsInPartsAndCompletes()
+    {
+        var handler = new MultipartS3Handler();
+        var artifactBytes = new byte[65 * 1024 * 1024];
+
+        await PublishLargeS3ArtifactAsync(handler, artifactBytes);
+
+        Assert.Equal([64 * 1024 * 1024, 1024 * 1024], handler.PartSizes);
+        Assert.Equal(
+            ["?uploads=", "?partNumber=1&uploadId=up%2B1", "?partNumber=2&uploadId=up%2B1", "?uploadId=up%2B1"],
+            handler.Requests.Select(request => request.Query));
+        Assert.Equal(
+            "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"etag-1\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"etag-2\"</ETag></Part></CompleteMultipartUpload>",
+            handler.CompleteBody);
+        Assert.DoesNotContain(handler.Requests, request => request.Method == HttpMethod.Delete);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenPartFails_AbortsMultipartUpload()
+    {
+        var handler = new MultipartS3Handler(failPartNumber: 2);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            PublishLargeS3ArtifactAsync(handler, new byte[65 * 1024 * 1024]));
+
+        Assert.Contains(handler.Requests, request => request.Method == HttpMethod.Delete && request.Query == "?uploadId=up%2B1");
+        Assert.Null(handler.CompleteBody);
+    }
+
+    private async Task PublishLargeS3ArtifactAsync(MultipartS3Handler handler, byte[] artifactBytes)
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "agent.msi");
+        await File.WriteAllBytesAsync(artifactPath, artifactBytes);
+        var privateKeyPath = CreatePrivateKeyPem(out _);
+        var publisher = new FileSystemUpdatePackagePublisher(httpClient: new HttpClient(handler));
+        Environment.SetEnvironmentVariable("AFK4_TEST_S3_ACCESS_KEY", "test-access");
+        Environment.SetEnvironmentVariable("AFK4_TEST_S3_SECRET_KEY", "test-secret");
+
+        try
+        {
+            await publisher.PublishAsync(
+                new UpdatePackagePublishOptions(
+                    OrganizationId,
+                    UpdateComponentNames.AgentService,
+                    "1.2.6",
+                    UpdateChannelNames.Internal,
+                    artifactPath,
+                    HostingRoot: string.Empty,
+                    PublicBaseUri: new Uri("https://updates.example.test/afk4-updates/"),
+                    privateKeyPath,
+                    "Internal Agent update.",
+                    ArtifactStoreKind: UpdateArtifactStoreKindNames.S3,
+                    S3Endpoint: new Uri("https://minio.example.test"),
+                    S3Bucket: "afk4-updates",
+                    S3AccessKeyEnvironmentVariable: "AFK4_TEST_S3_ACCESS_KEY",
+                    S3SecretKeyEnvironmentVariable: "AFK4_TEST_S3_SECRET_KEY"),
+                CancellationToken.None);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("AFK4_TEST_S3_ACCESS_KEY", null);
+            Environment.SetEnvironmentVariable("AFK4_TEST_S3_SECRET_KEY", null);
+        }
+    }
+
     private sealed class RecordingHttpMessageHandler : HttpMessageHandler
     {
         public List<RecordedRequest> Requests { get; } = [];
@@ -468,5 +535,54 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
         }
 
         public sealed record RecordedRequest(Uri Uri, byte[] Body, string? CacheControl);
+    }
+
+    private sealed class MultipartS3Handler(int? failPartNumber = null) : HttpMessageHandler
+    {
+        public List<(HttpMethod Method, string Query)> Requests { get; } = [];
+
+        public List<int> PartSizes { get; } = [];
+
+        public string? CompleteBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var query = request.RequestUri!.Query;
+            Requests.Add((request.Method, query));
+            Assert.Equal("AWS4-HMAC-SHA256", request.Headers.Authorization?.Scheme);
+            var body = request.Content is null ? [] : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+
+            if (request.Method == HttpMethod.Post && query == "?uploads=")
+            {
+                return Xml("<InitiateMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><UploadId>up+1</UploadId></InitiateMultipartUploadResult>");
+            }
+
+            if (request.Method == HttpMethod.Put && query.StartsWith("?partNumber=", StringComparison.Ordinal))
+            {
+                var partNumber = int.Parse(query["?partNumber=".Length..query.IndexOf('&')]);
+                if (partNumber == failPartNumber)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
+                PartSizes.Add(body.Length);
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue($"\"etag-{partNumber}\"");
+                return response;
+            }
+
+            if (request.Method == HttpMethod.Post)
+            {
+                CompleteBody = System.Text.Encoding.UTF8.GetString(body);
+                return Xml("<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"/>");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }
+
+        private static HttpResponseMessage Xml(string xml) =>
+            new(HttpStatusCode.OK) { Content = new StringContent(xml, System.Text.Encoding.UTF8, "application/xml") };
     }
 }
