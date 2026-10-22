@@ -1,8 +1,7 @@
 # AFK4.NET brand assets
 
 Canonical logo assets for AFK4.NET. Master files are hand-authored SVGs; raster
-outputs are generated. See the brand foundation spec:
-`docs/superpowers/specs/2026-06-04-afk4-brand-positioning-design.md`.
+outputs are generated.
 
 ## Files
 

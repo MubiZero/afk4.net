@@ -26,7 +26,7 @@ public sealed class DeviceHeartbeatService(
     EfDeviceBoundPlayerTokens deviceTokens,
     CachedOrganizationFeatures featureSnapshot,
     PlayerSignInClaimService signInClaims,
-    TimeProvider timeProvider) : IDeviceHeartbeatService
+    TimeProvider timeProvider)
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,

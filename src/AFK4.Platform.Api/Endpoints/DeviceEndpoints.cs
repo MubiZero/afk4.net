@@ -182,7 +182,7 @@ internal static class DeviceEndpoints
             DeviceHeartbeatRequest request,
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
-            IDeviceHeartbeatService heartbeatService,
+            DeviceHeartbeatService heartbeatService,
             EfOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {

@@ -157,7 +157,7 @@ Minimum bar:
    timeouts, and keep artifact retention short. PR #11 merged the cost-aware CI
    gate, and PR #12 opted GitHub JavaScript actions into Node 24 execution.
    GitHub rulesets are not enforced on the current private repository plan, so
-   merges must manually follow `AGENTS.md`: the current PR head commit needs a
+   merges must manually follow this rule: the current PR head commit needs a
    green remote `PR Verification Result` before merge. A local 2026-05-26
    readiness pass found that the manual `Client Packages` workflow was rejected
    by GitHub before job creation because `workflow_dispatch` had 27 top-level
@@ -304,7 +304,7 @@ Minimum bar:
   guard.
 - Automated mandatory PR checks are not enforced by GitHub rulesets on the
   current private repository plan; manual green-check merge discipline is
-  recorded in `AGENTS.md`.
+  recorded here.
 - Migration rehearsal is documented but not automated.
 - No production incident/rollback checklist exists for backend deployment.
 
@@ -388,8 +388,7 @@ Minimum bar:
   target: dense floor-map-centered operator console, selected-seat action
   panel, operational signals, explicit pending/failed backend and device
   states, and no raw GUID/form surfaces in normal cashier/operator paths.
-  `docs/archive/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`
-  is the focused migration plan (now complete; archived). The first implementation increment now starts
+  The focused migration plan is complete and removed from the tree. The first implementation increment now starts
   a WebView2 host shell and a local React/TypeScript console with host config
   injection, local asset resolution, the floor map, and SmartShell-inspired
   fixture workspaces for dashboard, booking, POS/shop, clients, payments,
@@ -488,9 +487,8 @@ Minimum bar:
   `/api/branches/{branchId}/devices`, lets operators select a device without
   typing a GUID, and then opens the existing device detail/command/credential
   tools plus selected-device command history from
-  `/api/devices/{deviceId}/commands`. A focused pilot-hardening plan now exists
-  at `docs/archive/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. Its
-  first slice removes signed-in POS/Clients fixture leakage for authoritative
+  `/api/devices/{deviceId}/commands`. A focused pilot-hardening plan (since removed) removed
+  signed-in POS/Clients fixture leakage for authoritative
   empty backend responses and restricts WebView2 dev-server URLs to loopback.
   A 2026-07-14 native Windows staging smoke completed the full pilot day flow:
   shift open/close, linked client and prepaid session, confirmed reservation

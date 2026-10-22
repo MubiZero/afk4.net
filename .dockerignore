@@ -14,8 +14,6 @@ TestResults/
 artifacts/
 installers/artifacts/
 
-docs/archive/
-docs/superpowers/plans/
 tests/
 
 *.user

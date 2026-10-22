@@ -27,10 +27,6 @@ Read these files first in new sessions:
 - [Production Readiness Roadmap](docs/roadmap/production-readiness.md) - what
   separates the project from pilot and commercial production.
 
-Historical phase plans, superseded design notes, and old progress logs are
-archived under `docs/archive/` and are not required reading for every new
-session.
-
 ## Fixed MVP Decisions
 
 - Cloud-first SaaS; no local club server in the MVP.
@@ -208,8 +204,8 @@ artifacts must stay outside source control or under ignored `artifacts/`.
 Keep long historical logs out of required session context. Current status
 belongs in [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md).
 Production launch gaps belong in
-[Production Readiness Roadmap](docs/roadmap/production-readiness.md). Old
-evidence can be archived under `docs/archive/`.
+[Production Readiness Roadmap](docs/roadmap/production-readiness.md). Finished
+plans and old logs are deleted; git history keeps them.
 
 ## License
 
