@@ -606,7 +606,11 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet restore AFK4.sln", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
-        Assert.Contains("dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
+        // Набор API идёт только на Linux с PostgreSQL: на Windows он повторял бы тот же прогон
+        // и съедал больше половины времени задачи.
+        Assert.DoesNotContain("dotnet test AFK4.sln", workflow, StringComparison.Ordinal);
+        Assert.Contains("Where-Object { $_.BaseName -ne 'AFK4.Platform.Api.Tests' }", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet test $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
 
         // Postgres-backed tests skip themselves without a database, and GitHub service containers
         // are Linux-only — so this job is the only place they actually run.
@@ -614,7 +618,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("image: postgres:16", workflow, StringComparison.Ordinal);
         Assert.Contains("--health-cmd pg_isready", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_REQUIRE_POSTGRES_TESTS: '1'", workflow, StringComparison.Ordinal);
-        Assert.Contains("dotnet test tests/AFK4.Platform.Api.Tests -p:NuGetAudit=false -v minimal", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/test-shard.sh tests/AFK4.Platform.Api.Tests ${{ matrix.shard }} 3 -p:NuGetAudit=false -v minimal", workflow, StringComparison.Ordinal);
         foreach (var variable in new[]
                  {
                      "AFK4_POS_POSTGRES_TEST_CONNECTION_STRING",
