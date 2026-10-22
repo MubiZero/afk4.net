@@ -34,7 +34,8 @@ trap 'rm -f "$listing" "$output"' EXIT
 # shellcheck disable=SC2086
 dotnet test --project "$project" --no-build --filter-class $classes "$@" | tee "$output"
 
-actual=$(sed -n 's/^ *total: *\([0-9][0-9]*\)$/\1/p' "$output" | tail -1)
+# На раннере MTP красит итог (ESC[..m перед «total:»), локально — нет: цвет убираем перед разбором.
+actual=$(sed "s/$(printf '\033')\[[0-9;]*m//g" "$output" | sed -n 's/^ *total: *\([0-9][0-9]*\)$/\1/p' | tail -1)
 if [ "${actual:-0}" -lt "$expected" ]; then
   echo "Часть $index из $count прогнала ${actual:-0} тестов, а назначено не меньше $expected: фильтр не совпал со списком." >&2
   exit 1
