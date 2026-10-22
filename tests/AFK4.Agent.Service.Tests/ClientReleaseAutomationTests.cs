@@ -841,8 +841,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var chain = System.Xml.Linq.XDocument.Load(ScriptPath("installers/bundle/Bundle.wxs"))
             .Descendants(System.Xml.Linq.XName.Get("Chain", "http://wixtoolset.org/schemas/v4/wxs")).Single();
 
-        // Цепочка — ровно два пакета: WebView2 и MSI агента. Ни DotNetCoreSearch, ни пакета рантайма.
-        Assert.Equal(["ExePackage", "MsiPackage"], chain.Elements().Select(element => element.Name.LocalName).ToArray());
+        // Цепочка — ровно три пакета: WebView2, файлы установки ролей и MSI агента. Ни DotNetCoreSearch,
+        // ни пакета рантайма.
+        Assert.Equal(["ExePackage", "MsiPackage", "MsiPackage"], chain.Elements().Select(element => element.Name.LocalName).ToArray());
         Assert.DoesNotContain("netfx", bundle, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DotNetCoreSearch", bundle, StringComparison.Ordinal);
         Assert.DoesNotContain("windowsdesktop-runtime", bundle, StringComparison.Ordinal);

@@ -113,10 +113,10 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("afk4-player-shell-$Version-$Channel.msi", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", playerShellBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"PlayerShellPublishDir=$(Join-Path $publishRoot \"player-shell-$Version-$Channel\")\"", playerShellBuild, StringComparison.Ordinal);
-        // The player-shell MSI is a bundled input (carried inside the agent MSI payload), not a
+        // The player-shell MSI is a bundled input (carried inside the setup payload MSI), not a
         // standalone deliverable — the build moves it into the intermediates\ subfolder instead of
         // echoing it as an output (see "move bundled operator/player-shell MSIs into intermediates").
-        Assert.Contains("foreach ($bundledMsi in @($organizationAdminMsiPath, $playerShellMsiPath))", script, StringComparison.Ordinal);
+        Assert.Contains("foreach ($bundledMsi in @($organizationAdminMsiPath, $playerShellMsiPath, $setupPayloadMsiPath))", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -496,6 +496,67 @@ public sealed class UpdateHelperScriptTests
         // Ссылка для тех, кто всё-таки ставит MSI в одиночку.
         Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", message, StringComparison.Ordinal);
         Assert.DoesNotContain("is required", message, StringComparison.Ordinal);
+    }
+
+    // MSI Player Shell и Organization Admin нужны мастеру только при первой установке. Внутри MSI
+    // агента они возили бы ~110 МБ с каждым его обновлением (канал обновлений публикует именно этот
+    // MSI), а сами программы и так обновляются своими компонентами. Поэтому их несёт отдельный пакет,
+    // который бандл ставит перед MSI агента (тот в конце запускает мастер).
+    [Fact]
+    public void RoleInstallers_TravelInTheirOwnPackage_NotInsideTheAgentMsi()
+    {
+        var root = GetRepositoryRoot();
+        var script = File.ReadAllText(Path.Combine(root, "scripts", "build-client-packages.ps1"));
+
+        Assert.DoesNotContain("setupWizardPayloadDir", script, StringComparison.Ordinal);
+        Assert.Contains("Agent MSI still carries", script, StringComparison.Ordinal);
+        Assert.Contains("installers/payload/Package.wxs", script, StringComparison.Ordinal);
+        Assert.Contains("-d \"SetupPayloadMsiPath=$setupPayloadMsiPath\"", script, StringComparison.Ordinal);
+
+        var payload = LoadPackage("payload");
+        var files = payload.Descendants(WixNamespace + "File").ToDictionary(
+            file => (string)file.Attribute("Name")!,
+            file => (string)file.Parent!.Attribute("Directory")!);
+        Assert.Equal(["AFK4.OrganizationAdmin.msi", "AFK4.Player.Shell.msi"], files.Keys.Order(StringComparer.Ordinal));
+        Assert.All(files.Values, directory => Assert.Equal("SetupPayloadFolder", directory));
+
+        // Путь, где мастер ищет MSI: …\AFK4\Setup Wizard\payload. Если он разойдётся с SetupWizardFolder
+        // агента, мастер не найдёт файлы.
+        var payloadFolder = payload.Descendants(WixNamespace + "Directory").Single(d => (string?)d.Attribute("Id") == "SetupPayloadFolder");
+        Assert.Equal("payload", (string?)payloadFolder.Attribute("Name"));
+        Assert.Equal("Setup Wizard", (string?)payloadFolder.Parent!.Attribute("Name"));
+        Assert.Equal("AFK4", (string?)payloadFolder.Parent.Parent!.Attribute("Name"));
+        var wizardFolder = LoadPackage("agent").Descendants(WixNamespace + "Directory").Single(d => (string?)d.Attribute("Id") == "SetupWizardFolder");
+        Assert.Equal("Setup Wizard", (string?)wizardFolder.Attribute("Name"));
+
+        // Пакет ставится ДО агента: MSI агента запускает мастер в конце своей установки.
+        var chain = XDocumentLoadBundle(root).Descendants(WixNamespace + "MsiPackage")
+            .Select(package => (string)package.Attribute("SourceFile")!)
+            .ToList();
+        Assert.Equal(["$(var.SetupPayloadMsiPath)", "$(var.AgentMsiPath)"], chain);
+    }
+
+    private static System.Xml.Linq.XDocument XDocumentLoadBundle(string root) =>
+        System.Xml.Linq.XDocument.Load(Path.Combine(root, "installers", "bundle", "Bundle.wxs"));
+
+    // В строке PowerShell «$имя: текст» читается как переменная на диске/в области («$имя:») и
+    // роняет разбор ВСЕГО скрипта сразу, до первой команды: сборка пакетов падала за секунду без
+    // единой строки пользы в журнале. На macOS PowerShell нет, поэтому ловим по тексту.
+    [Fact]
+    public void PowerShellScripts_DoNotPutAColonRightAfterAVariableInsideAString()
+    {
+        var scripts = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "scripts"), "*.ps1");
+        var quoted = new System.Text.RegularExpressions.Regex("\"(?:[^\"`\\r\\n]|`.)*\"");
+        var colonAfterVariable = new System.Text.RegularExpressions.Regex(
+            @"\$(?!env:|script:|global:|local:|private:|using:)[A-Za-z_]\w*:(?!:)");
+
+        var offenders = scripts
+            .SelectMany(path => File.ReadAllLines(path).Select((line, index) => (path, line, number: index + 1)))
+            .Where(entry => quoted.Matches(entry.line).Any(match => colonAfterVariable.IsMatch(match.Value)))
+            .Select(entry => $"{Path.GetFileName(entry.path)}:{entry.number}")
+            .ToList();
+
+        Assert.Empty(offenders);
     }
 
     private static System.Xml.Linq.XDocument LoadPackage(string package) =>

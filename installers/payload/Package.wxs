@@ -1,0 +1,46 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!--
+    Файлы установки ролей для мастера: MSI Player Shell и Organization Admin, которые мастер ставит
+    по выбранной роли ПК. Раньше они лежали внутри MSI агента и ехали с каждым его обновлением
+    (~110 МБ из ~170 МБ), хотя нужны только при первой установке: сами программы обновляются
+    своими компонентами. Теперь они — отдельный пакет мастер-установщика (Bundle.wxs ставит его
+    перед MSI агента) и в канал обновлений не публикуются.
+
+    Кладутся туда же, где мастер их ищет (…\Setup Wizard\payload\, SetupWizardPayloadResolver),
+    поэтому код мастера не менялся. В «Программы и компоненты» пакет не виден.
+  -->
+  <Package
+      Name="AFK4.NET Setup Payload"
+      Manufacturer="AFK4.NET"
+      Version="$(var.PackageVersion)"
+      UpgradeCode="{5B7D2E48-C1A9-4F03-8E66-1F9A3D0C7B52}"
+      Codepage="1251"
+      Scope="perMachine">
+    <SummaryInformation Codepage="1251" />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="Уже установлены более новые файлы установки AFK4.NET." />
+    <!-- Внутри уже сжатые MSI: повторное сжатие тратит время сборки и ничего не даёт. -->
+    <MediaTemplate EmbedCab="yes" CompressionLevel="none" />
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="AFK4RootFolder" Name="AFK4">
+        <Directory Id="SetupWizardFolder" Name="Setup Wizard">
+          <Directory Id="SetupPayloadFolder" Name="payload" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="AFK4.NET Setup Payload" Level="1">
+      <ComponentRef Id="PlayerShellPayload" />
+      <ComponentRef Id="OrganizationAdminPayload" />
+    </Feature>
+
+    <Component Id="PlayerShellPayload" Directory="SetupPayloadFolder" Guid="{7C41B0D5-3E92-4A68-B1F7-5D08E6A2C913}">
+      <File Id="PlayerShellPayloadMsi" Name="AFK4.Player.Shell.msi" Source="$(var.PlayerShellMsiPath)" KeyPath="yes" />
+    </Component>
+
+    <Component Id="OrganizationAdminPayload" Directory="SetupPayloadFolder" Guid="{E2A96F17-80B4-4D5C-9A31-C7F4B8D01E65}">
+      <File Id="OrganizationAdminPayloadMsi" Name="AFK4.OrganizationAdmin.msi" Source="$(var.OrganizationAdminMsiPath)" KeyPath="yes" />
+    </Component>
+  </Package>
+</Wix>

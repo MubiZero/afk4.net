@@ -109,6 +109,13 @@
             SourceFile="$(var.WebView2InstallerPath)" />
       </ExePackage>
 
+      <!--
+        Файлы установки ролей (MSI Player Shell и Organization Admin) — до MSI агента: тот в конце
+        запускает мастер, а мастер ищет их в …\Setup Wizard\payload\. Они не внутри MSI агента, чтобы
+        обновления агента не возили лишние ~110 МБ: нужны они только при первой установке.
+      -->
+      <MsiPackage SourceFile="$(var.SetupPayloadMsiPath)" DisplayName="AFK4.NET Setup Payload" Vital="yes" />
+
       <!-- LAUNCHWIZARD=1 makes the agent MSI auto-launch the Setup Wizard even though Burn
            runs it at UILevel=none; see the LaunchSetupWizard condition in installers/agent/Package.wxs. -->
       <MsiPackage SourceFile="$(var.AgentMsiPath)" DisplayName="AFK4.NET" Vital="yes">
