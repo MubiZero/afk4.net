@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Platform.Entitlements;
@@ -114,7 +115,10 @@ public sealed class PostgresSessionFactAttribute : FactAttribute
 {
     public const string EnvironmentVariable = "AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING";
 
-    public PostgresSessionFactAttribute()
+    public PostgresSessionFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         var connectionString = Environment.GetEnvironmentVariable(EnvironmentVariable);
         if (string.IsNullOrWhiteSpace(connectionString) || !IsTestDatabase(connectionString))

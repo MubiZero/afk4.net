@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Npgsql;
 
 namespace AFK4.Platform.Api.Tests.Shop;
@@ -6,7 +7,10 @@ public sealed class PostgresCommerceFactAttribute : FactAttribute
 {
     public const string EnvironmentVariable = "AFK4_COMMERCE_TEST_POSTGRES";
 
-    public PostgresCommerceFactAttribute()
+    public PostgresCommerceFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         var connectionString = Environment.GetEnvironmentVariable(EnvironmentVariable);
         if (string.IsNullOrWhiteSpace(connectionString) || !IsTestDatabase(connectionString))

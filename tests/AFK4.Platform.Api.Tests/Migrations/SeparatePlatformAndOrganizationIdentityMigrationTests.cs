@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
@@ -183,7 +184,10 @@ public sealed class MigrationPostgresFactAttribute : FactAttribute
 {
     public const string EnvironmentVariable = "AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING";
 
-    public MigrationPostgresFactAttribute()
+    public MigrationPostgresFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         try
         {

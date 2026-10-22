@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace AFK4.Agent.Service.Tests;
@@ -12,7 +13,10 @@ namespace AFK4.Agent.Service.Tests;
 /// </summary>
 public sealed class WindowsOnlyFactAttribute : FactAttribute
 {
-    public WindowsOnlyFactAttribute()
+    public WindowsOnlyFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -24,7 +28,10 @@ public sealed class WindowsOnlyFactAttribute : FactAttribute
 /// <inheritdoc cref="WindowsOnlyFactAttribute"/>
 public sealed class WindowsOnlyTheoryAttribute : TheoryAttribute
 {
-    public WindowsOnlyTheoryAttribute()
+    public WindowsOnlyTheoryAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!OperatingSystem.IsWindows())
         {

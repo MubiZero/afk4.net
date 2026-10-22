@@ -15,7 +15,7 @@ shift 3
 
 listing=$(mktemp)
 trap 'rm -f "$listing"' EXIT
-dotnet test "$project" --no-build --list-tests "$@" | sed -n 's/^    //p' > "$listing"
+dotnet test --project "$project" --no-build --list-tests "$@" | sed -n 's/^  \([^ ].*\)$/\1/p' > "$listing"
 
 # Класс — всё до последней точки перед именем метода; аргументы теории (после «(») отбрасываются.
 # Строки «число класс» отсортированы по имени и раздаются по кругу.
@@ -24,15 +24,17 @@ assigned=$(sed -E 's/\(.*//; s/\.[^.]*$//' "$listing" | sort | uniq -c \
 
 [ -n "$assigned" ] || { echo "Часть $index из $count пуста: в проекте меньше классов, чем частей." >&2; exit 1; }
 
-filter=$(printf '%s\n' "$assigned" | cut -f1 | sed 's/.*/FullyQualifiedName~&./' | paste -sd '|' -)
+classes=$(printf '%s\n' "$assigned" | cut -f1 | paste -sd ' ' -)
 expected=$(printf '%s\n' "$assigned" | awk -F'\t' '{ n += $2 } END { print n }')
 echo "Часть $index из $count: $(printf '%s\n' "$assigned" | wc -l | tr -d ' ') классов, ждём $expected тестов"
 
 output=$(mktemp)
 trap 'rm -f "$listing" "$output"' EXIT
-dotnet test "$project" --no-build --filter "$filter" "$@" | tee "$output"
+# Имена классов без пробелов: каждое — отдельное значение --filter-class.
+# shellcheck disable=SC2086
+dotnet test --project "$project" --no-build --filter-class $classes "$@" | tee "$output"
 
-actual=$(sed -n 's/.*Total: *\([0-9][0-9]*\).*/\1/p' "$output" | tail -1)
+actual=$(sed -n 's/^ *total: *\([0-9][0-9]*\)$/\1/p' "$output" | tail -1)
 if [ "${actual:-0}" -lt "$expected" ]; then
   echo "Часть $index из $count прогнала ${actual:-0} тестов, а назначено не меньше $expected: фильтр не совпал со списком." >&2
   exit 1

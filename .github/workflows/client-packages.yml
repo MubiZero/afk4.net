@@ -299,7 +299,7 @@ jobs:
             ForEach-Object { Resolve-Path -Relative $_.FullName }
           foreach ($project in $projects) {
             Write-Host "::group::test $project"
-            dotnet test $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+            dotnet test --project $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Write-Host "::endgroup::"
           }

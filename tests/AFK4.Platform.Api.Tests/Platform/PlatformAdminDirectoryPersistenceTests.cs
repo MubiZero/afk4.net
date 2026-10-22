@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -125,7 +126,10 @@ public sealed class PlatformAdminPostgresFactAttribute : FactAttribute
 {
     public const string EnvironmentVariable = "AFK4_PLATFORM_ADMIN_POSTGRES_TEST_CONNECTION_STRING";
 
-    public PlatformAdminPostgresFactAttribute()
+    public PlatformAdminPostgresFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         var connectionString = Environment.GetEnvironmentVariable(EnvironmentVariable);
         if (string.IsNullOrWhiteSpace(connectionString) || !IsTestDatabase(connectionString))
