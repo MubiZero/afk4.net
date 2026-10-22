@@ -99,6 +99,10 @@ publicly readable by Agents through:
 https://updates.afk4.net/afk4-updates-staging/
 ```
 
+Artifacts larger than 64 MiB are uploaded as an S3 multipart upload (64 MiB parts), so the
+upload also works through a proxy that caps the request body (Cloudflare: 100 MB). A failed
+upload is aborted so no orphaned parts stay in the bucket.
+
 The publisher signs S3 `PUT` requests with AWS Signature Version 4 and writes
 the same public URL shape that Agents later download:
 

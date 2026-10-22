@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using AFK4.Shared.Contracts.Updates;
 
 namespace AFK4.Update.Publisher;
@@ -11,6 +12,11 @@ public sealed class FileSystemUpdatePackagePublisher
     {
         WriteIndented = true
     };
+
+    // Больше этого размера объект уходит в хранилище частями: перед хранилищем может стоять прокси
+    // с пределом тела запроса (Cloudflare — 100 МБ), и целый MSI агента его не проходит.
+    private const int S3PartSizeBytes = 64 * 1024 * 1024;
+    private const string EmptyPayloadSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
     private readonly EcdsaUpdatePackageSigner signer;
     private readonly HttpClient httpClient;
@@ -291,16 +297,107 @@ public sealed class FileSystemUpdatePackagePublisher
         CancellationToken cancellationToken)
     {
         var objectUri = CreateS3ObjectUri(options.S3Endpoint!, options.S3Bucket!, objectKey);
+
+        if (new FileInfo(artifactPath).Length > S3PartSizeBytes)
+        {
+            await PutS3ObjectInPartsAsync(options, artifactPath, objectUri, accessKey, secretKey, cacheControl, cancellationToken);
+            return;
+        }
+
+        await using var artifactStream = File.OpenRead(artifactPath);
+        using var response = await SendS3RequestAsync(
+            options, HttpMethod.Put, objectUri, new StreamContent(artifactStream), sha256, accessKey, secretKey, cacheControl, cancellationToken);
+    }
+
+    private async Task PutS3ObjectInPartsAsync(
+        UpdatePackagePublishOptions options,
+        string artifactPath,
+        Uri objectUri,
+        string accessKey,
+        string secretKey,
+        string? cacheControl,
+        CancellationToken cancellationToken)
+    {
+        string uploadId;
+        using (var initiate = await SendS3RequestAsync(
+            options, HttpMethod.Post, WithQuery(objectUri, "uploads="), null, EmptyPayloadSha256, accessKey, secretKey, cacheControl, cancellationToken))
+        {
+            var initiateXml = XDocument.Parse(await initiate.Content.ReadAsStringAsync(cancellationToken));
+            uploadId = initiateXml.Descendants().Single(element => element.Name.LocalName == "UploadId").Value;
+        }
+
+        var uploadUri = WithQuery(objectUri, $"uploadId={Uri.EscapeDataString(uploadId)}");
+        try
+        {
+            var parts = new XElement("CompleteMultipartUpload");
+            await using var artifactStream = File.OpenRead(artifactPath);
+            var buffer = new byte[S3PartSizeBytes];
+            for (var partNumber = 1; ; partNumber++)
+            {
+                var read = await artifactStream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                var partUri = WithQuery(objectUri, $"partNumber={partNumber}&uploadId={Uri.EscapeDataString(uploadId)}");
+                using var partResponse = await SendS3RequestAsync(
+                    options, HttpMethod.Put, partUri, new ByteArrayContent(buffer, 0, read), Sha256Hex(buffer.AsSpan(0, read)),
+                    accessKey, secretKey, cacheControl: null, cancellationToken);
+                var etag = partResponse.Headers.ETag?.Tag
+                    ?? throw new InvalidOperationException($"S3 did not return an ETag for part {partNumber}.");
+                parts.Add(new XElement("Part", new XElement("PartNumber", partNumber), new XElement("ETag", etag)));
+
+                if (read < buffer.Length)
+                {
+                    break;
+                }
+            }
+
+            var completeBody = Encoding.UTF8.GetBytes(parts.ToString(SaveOptions.DisableFormatting));
+            using var complete = await SendS3RequestAsync(
+                options, HttpMethod.Post, uploadUri, new ByteArrayContent(completeBody), Sha256Hex(completeBody),
+                accessKey, secretKey, cacheControl: null, cancellationToken);
+            // S3 может ответить 200 и всё равно вернуть <Error> в теле: склейка частей идёт уже после статуса.
+            var completeXml = XDocument.Parse(await complete.Content.ReadAsStringAsync(cancellationToken));
+            if (completeXml.Root?.Name.LocalName == "Error")
+            {
+                throw new InvalidOperationException($"S3 failed to complete the multipart upload: {completeXml.Root.Value}");
+            }
+        }
+        catch
+        {
+            // Недозагруженные части занимают место в бакете до явной отмены.
+            try
+            {
+                using var abort = await SendS3RequestAsync(
+                    options, HttpMethod.Delete, uploadUri, null, EmptyPayloadSha256, accessKey, secretKey, cacheControl: null, CancellationToken.None);
+            }
+            catch (HttpRequestException)
+            {
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendS3RequestAsync(
+        UpdatePackagePublishOptions options,
+        HttpMethod method,
+        Uri requestUri,
+        HttpContent? content,
+        string payloadHash,
+        string accessKey,
+        string secretKey,
+        string? cacheControl,
+        CancellationToken cancellationToken)
+    {
         var amzDate = DateTimeOffset.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'");
         var dateStamp = amzDate[..8];
 
-        await using var artifactStream = File.OpenRead(artifactPath);
-        using var request = new HttpRequestMessage(HttpMethod.Put, objectUri)
-        {
-            Content = new StreamContent(artifactStream)
-        };
-        request.Headers.Host = objectUri.Authority;
-        request.Headers.TryAddWithoutValidation("x-amz-content-sha256", sha256);
+        using var request = new HttpRequestMessage(method, requestUri) { Content = content };
+        request.Headers.Host = requestUri.Authority;
+        request.Headers.TryAddWithoutValidation("x-amz-content-sha256", payloadHash);
         request.Headers.TryAddWithoutValidation("x-amz-date", amzDate);
         if (cacheControl is not null)
         {
@@ -308,18 +405,34 @@ public sealed class FileSystemUpdatePackagePublisher
         }
 
         request.Headers.Authorization = CreateS3AuthorizationHeader(
-            objectUri,
+            method,
+            requestUri,
             accessKey,
             secretKey,
             options.S3Region,
             dateStamp,
             amzDate,
-            sha256,
+            payloadHash,
             cacheControl);
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        try
+        {
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
+
+    // Параметры приходят уже отсортированными по имени и экранированными: подпись берёт строку запроса как есть.
+    private static Uri WithQuery(Uri objectUri, string query) => new UriBuilder(objectUri) { Query = query }.Uri;
+
+    private static string Sha256Hex(ReadOnlySpan<byte> data) =>
+        Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
 
     private static async Task<string> LoadSigningPrivateKeyPemAsync(
         UpdatePackagePublishOptions options,
@@ -444,6 +557,7 @@ public sealed class FileSystemUpdatePackagePublisher
     }
 
     private static System.Net.Http.Headers.AuthenticationHeaderValue CreateS3AuthorizationHeader(
+        HttpMethod method,
         Uri requestUri,
         string accessKey,
         string secretKey,
@@ -465,9 +579,9 @@ public sealed class FileSystemUpdatePackagePublisher
             $"x-amz-date:{amzDate}\n";
         var canonicalRequest = string.Join(
             "\n",
-            "PUT",
+            method.Method,
             requestUri.AbsolutePath,
-            string.Empty,
+            requestUri.Query.TrimStart('?'),
             canonicalHeaders,
             signedHeaders,
             payloadHash);
