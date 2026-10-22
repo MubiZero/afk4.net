@@ -477,7 +477,7 @@ if ($LASTEXITCODE -ne 0) {
 $agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
 foreach ($roleMsiName in @('AFK4.Player.Shell.msi', 'AFK4.OrganizationAdmin.msi')) {
     if ($agentFiles | Where-Object { $_ -like "*$roleMsiName*" } | Select-Object -First 1) {
-        throw "Agent MSI still carries $roleMsiName: it belongs in the setup payload MSI, not in the update artifact."
+        throw "Agent MSI still carries $roleMsiName; it belongs in the setup payload MSI, not in the update artifact."
     }
 }
 

@@ -539,6 +539,26 @@ public sealed class UpdateHelperScriptTests
     private static System.Xml.Linq.XDocument XDocumentLoadBundle(string root) =>
         System.Xml.Linq.XDocument.Load(Path.Combine(root, "installers", "bundle", "Bundle.wxs"));
 
+    // В строке PowerShell «$имя: текст» читается как переменная на диске/в области («$имя:») и
+    // роняет разбор ВСЕГО скрипта сразу, до первой команды: сборка пакетов падала за секунду без
+    // единой строки пользы в журнале. На macOS PowerShell нет, поэтому ловим по тексту.
+    [Fact]
+    public void PowerShellScripts_DoNotPutAColonRightAfterAVariableInsideAString()
+    {
+        var scripts = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "scripts"), "*.ps1");
+        var quoted = new System.Text.RegularExpressions.Regex("\"(?:[^\"`\\r\\n]|`.)*\"");
+        var colonAfterVariable = new System.Text.RegularExpressions.Regex(
+            @"\$(?!env:|script:|global:|local:|private:|using:)[A-Za-z_]\w*:(?!:)");
+
+        var offenders = scripts
+            .SelectMany(path => File.ReadAllLines(path).Select((line, index) => (path, line, number: index + 1)))
+            .Where(entry => quoted.Matches(entry.line).Any(match => colonAfterVariable.IsMatch(match.Value)))
+            .Select(entry => $"{Path.GetFileName(entry.path)}:{entry.number}")
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
     private static System.Xml.Linq.XDocument LoadPackage(string package) =>
         System.Xml.Linq.XDocument.Load(Path.Combine(GetRepositoryRoot(), "installers", package, "Package.wxs"));
 
