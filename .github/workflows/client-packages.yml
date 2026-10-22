@@ -287,8 +287,22 @@ jobs:
       - name: Build
         run: dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false
 
+      # По одному проекту за раз: `dotnet test` принимает ровно один. Набор API сюда не входит:
+      # он идёт на Linux с настоящим PostgreSQL (задача «Test Against PostgreSQL»), где его же
+      # ничего не пропускает; здесь он съедал больше половины времени задачи и лишь повторял тот
+      # же прогон. Новые тестовые проекты подхватываются сами.
       - name: Test
-        run: dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+        shell: pwsh
+        run: |
+          $projects = Get-ChildItem tests -Recurse -Depth 1 -Filter *.csproj |
+            Where-Object { $_.BaseName -ne 'AFK4.Platform.Api.Tests' } |
+            ForEach-Object { Resolve-Path -Relative $_.FullName }
+          foreach ($project in $projects) {
+            Write-Host "::group::test $project"
+            dotnet test $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "::endgroup::"
+          }
 
       - name: Build client packages
         shell: pwsh

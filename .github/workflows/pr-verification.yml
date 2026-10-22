@@ -147,18 +147,38 @@ jobs:
       - name: Build
         run: dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 
+      # По одному проекту за раз: `dotnet test` принимает ровно один. Набор API сюда не входит:
+      # он идёт на Linux с настоящим PostgreSQL (задача «Test Against PostgreSQL»), где его же
+      # ничего не пропускает; здесь он съедал больше половины времени задачи и лишь повторял тот
+      # же прогон. Новые тестовые проекты подхватываются сами.
       - name: Test
-        run: dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+        shell: pwsh
+        run: |
+          $projects = Get-ChildItem tests -Recurse -Depth 1 -Filter *.csproj |
+            Where-Object { $_.BaseName -ne 'AFK4.Platform.Api.Tests' } |
+            ForEach-Object { Resolve-Path -Relative $_.FullName }
+          foreach ($project in $projects) {
+            Write-Host "::group::test $project"
+            dotnet test $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "::endgroup::"
+          }
 
   # The Windows job above cannot host this: GitHub service containers are Linux-only, so the
   # Postgres-backed tests would skip themselves there — which is exactly what used to happen.
   # Linux is also where the API actually runs in production.
   test-postgres:
-    name: Test Against PostgreSQL
+    name: Test Against PostgreSQL (${{ matrix.shard }}/3)
     needs: changes
     if: ${{ needs.changes.outputs.run_dotnet == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Набор API — три четверти всего времени тестов, а раннер на две ядра: три части идут втрое
+    # быстрее одной, и каждая со своей базой. Деление и сверка числа тестов — scripts/test-shard.sh.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     services:
       postgres:
         # Throwaway credentials for a container reachable only from this runner; the production
@@ -195,8 +215,11 @@ jobs:
           global-json-file: global.json
 
       # Only the API test project: the solution also carries WPF projects, which do not build off Windows.
+      - name: Build
+        run: dotnet build tests/AFK4.Platform.Api.Tests -p:NuGetAudit=false -v minimal
+
       - name: Test
-        run: dotnet test tests/AFK4.Platform.Api.Tests -p:NuGetAudit=false -v minimal
+        run: scripts/test-shard.sh tests/AFK4.Platform.Api.Tests ${{ matrix.shard }} 3 -p:NuGetAudit=false -v minimal
 
   build-test-web:
     name: Build And Test Web
