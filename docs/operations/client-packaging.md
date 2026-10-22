@@ -74,14 +74,22 @@ also still produced as standalone artifacts for update-pipeline publishing and r
   startup but is not started by the MSI before enrollment writes bootstrap
   configuration; the wizard starts it after successful enrollment. Agent MSI
   upgrades skip first-run wizard registration for already enrolled machines.
-  The Agent MSI **carries the Player Shell MSI in the wizard payload** at
-  `…\Setup Wizard\payload\AFK4.Player.Shell.msi`. It does not carry the
-  Organization Admin payload. It is the MSI the bundle installs.
+  The Agent MSI **does not carry the role MSIs**: the Player Shell and Organization
+  Admin MSIs (about 110 MB together) live in the separate **Setup Payload MSI**
+  (`installers/payload/Package.wxs`, `afk4-setup-payload-<version>-<channel>.msi`),
+  which the bundle installs before the Agent MSI into the folder the wizard reads,
+  `…\Setup Wizard\payload\`. They are needed only for the first install, and the
+  Agent MSI is the artifact the update pipeline publishes: carrying them there made
+  every Agent update about 170 MB instead of about 60 MB. The Setup Payload MSI is a
+  build input like the others and is never published as an update. Consequence: the
+  payload on a PC stays at the version of its first install (the programs themselves
+  are updated by their own components), and an Agent MSI installed on its own, without
+  the bundle, leaves the wizard without role MSIs.
 - **Organization Admin MSI.**
 - **Player Shell MSI** for `gaming_pc` devices. It installs the Shell and writes
   the Agent machine environment values needed to report `player-shell` version
-  and supervise the Shell executable. It is delivered inside the Agent MSI's
-  wizard payload (above) rather than handed out separately to operators.
+  and supervise the Shell executable. It is delivered through the Setup Payload MSI
+  (above) rather than handed out separately to operators.
 - Agent, Player Shell, and Organization Admin component installs schedule an Agent
   Service restart so machine environment values written by MSIs are reloaded.
 - MSIX is deferred as a future optional Organization Admin distribution channel.
@@ -210,8 +218,8 @@ standalone build inputs for recovery and as the source the update pipeline
 publishes from.
 
 `afk4-agent-<version>-<channel>.msi` is the Setup Wizard onboarding artifact
-(enrollment is via the wizard's phone/login sign-in and role selection, and it
-carries the Player Shell MSI in its wizard payload).
+(enrollment is via the wizard's phone/login sign-in and role selection; the role
+MSIs it installs come from the Setup Payload MSI, not from this one).
 `scripts/publish-client-msi-updates.ps1` publishes role-aware update metadata
 from the Organization Admin MSI, Agent MSI, and Player Shell MSI.
 

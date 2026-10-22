@@ -393,6 +393,7 @@ Get-ChildItem -LiteralPath $agentServicePublishDir -Force |
 $organizationAdminMsiPath = Join-Path $artifactRoot "afk4-organization-admin-$Version-$Channel.msi"
 $agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
 $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
+$setupPayloadMsiPath = Join-Path $artifactRoot "afk4-setup-payload-$Version-$Channel.msi"
 
 @($organizationAdminMsiPath, $agentMsiPath, $playerShellMsiPath) |
     Where-Object { Test-Path -LiteralPath $_ } |
@@ -409,9 +410,8 @@ foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixTo
     }
 }
 
-# Build the Player Shell MSI first: the agent MSI bundles it into the wizard payload
-# (so the wizard can install the Player Shell on gaming PCs), which means it must exist
-# before the setup-wizard support dir is harvested.
+# Build the Player Shell MSI first: the setup payload MSI carries it for the wizard (so the wizard
+# can install the Player Shell on gaming PCs), which means it must exist before that package is built.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/player-shell/Package.wxs') `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
@@ -422,9 +422,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
 }
 
-# Build the Organization Admin MSI next: the agent MSI also bundles it into the wizard payload so the
-# wizard can install the Organization Admin on cashier/manager workstations (role manager_workstation),
-# the same way it installs the Player Shell on gaming PCs. So it must exist before the harvest too.
+# Build the Organization Admin MSI next: the setup payload MSI carries it too, so the wizard can
+# install the Organization Admin on cashier/manager workstations (role manager_workstation), the same
+# way it installs the Player Shell on gaming PCs. So it must exist before that package is built.
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/organization-admin/Package.wxs') `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
@@ -436,12 +436,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Assert-OperatorMsiContainsFrontendAssets -MsiPath $organizationAdminMsiPath
-
-# Bundle BOTH role apps into the wizard payload before the support dir is harvested.
-$setupWizardPayloadDir = Join-Path $setupWizardPublishDir 'payload'
-New-Item -ItemType Directory -Force -Path $setupWizardPayloadDir | Out-Null
-Copy-Item -LiteralPath $playerShellMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Player.Shell.msi') -Force
-Copy-Item -LiteralPath $organizationAdminMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.OrganizationAdmin.msi') -Force
 
 # -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
 # the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
@@ -477,12 +471,32 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for single Agent MSI with exit code $LASTEXITCODE."
 }
 
+# MSI Player Shell и Organization Admin больше не лежат внутри MSI агента: он едет в канал
+# обновлений, а эти два нужны мастеру только при первой установке (~110 МБ из ~170 МБ). Их несёт
+# отдельный пакет, который бандл ставит перед MSI агента, — туда же, где мастер их ищет.
 $agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
-if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1)) {
-    throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
+foreach ($roleMsiName in @('AFK4.Player.Shell.msi', 'AFK4.OrganizationAdmin.msi')) {
+    if ($agentFiles | Where-Object { $_ -like "*$roleMsiName*" } | Select-Object -First 1) {
+        throw "Agent MSI still carries $roleMsiName: it belongs in the setup payload MSI, not in the update artifact."
+    }
 }
-if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.OrganizationAdmin.msi*' } | Select-Object -First 1)) {
-    throw "Agent MSI does not contain the bundled Organization Admin MSI (payload\AFK4.OrganizationAdmin.msi)."
+
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/payload/Package.wxs') `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "PlayerShellMsiPath=$playerShellMsiPath" `
+    -d "OrganizationAdminMsiPath=$organizationAdminMsiPath" `
+    -o $setupPayloadMsiPath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for the setup payload MSI with exit code $LASTEXITCODE."
+}
+
+$payloadFiles = Get-MsiFileNames -MsiPath $setupPayloadMsiPath
+foreach ($roleMsiName in @('AFK4.Player.Shell.msi', 'AFK4.OrganizationAdmin.msi')) {
+    if (-not ($payloadFiles | Where-Object { $_ -like "*$roleMsiName*" } | Select-Object -First 1)) {
+        throw "Setup payload MSI does not contain $roleMsiName."
+    }
 }
 
 # The agent MSI auto-launches the Setup Wizard on interactive install. Every component is
@@ -536,6 +550,7 @@ foreach ($brandAsset in @($brandIconPath, $brandLogoPath)) {
     -d "PackageVersion=$msiVersion" `
     -d "WebView2InstallerPath=$webView2InstallerPath" `
     -d "AgentMsiPath=$agentMsiPath" `
+    -d "SetupPayloadMsiPath=$setupPayloadMsiPath" `
     -d "BAFunctionsPath=$baFunctionsPath" `
     -d "BrandIconPath=$brandIconPath" `
     -d "BrandLogoPath=$brandLogoPath" `
@@ -545,12 +560,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for the client master installer (Burn bundle) with exit code $LASTEXITCODE."
 }
 
-# The operator + player-shell MSIs are only inputs now — they ship bundled inside the agent MSI
-# payload, not on their own. Move them (and their .wixpdb) into an intermediates\ subfolder so the
+# The operator + player-shell MSIs are only inputs now — they ship inside the setup payload MSI
+# the bundle chains, not on their own. Move them (and their .wixpdb) into an intermediates\ subfolder so the
 # deliverable folder presents a single file (the agent MSI) and nobody hands a client the wrong one.
 $intermediatesDir = Join-Path $artifactRoot 'intermediates'
 New-Item -ItemType Directory -Force -Path $intermediatesDir | Out-Null
-foreach ($bundledMsi in @($organizationAdminMsiPath, $playerShellMsiPath)) {
+foreach ($bundledMsi in @($organizationAdminMsiPath, $playerShellMsiPath, $setupPayloadMsiPath)) {
     foreach ($artifact in @($bundledMsi, [System.IO.Path]::ChangeExtension($bundledMsi, '.wixpdb'))) {
         if (Test-Path -LiteralPath $artifact) {
             Move-Item -LiteralPath $artifact -Destination $intermediatesDir -Force
