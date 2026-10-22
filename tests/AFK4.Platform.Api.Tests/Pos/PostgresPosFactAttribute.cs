@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Npgsql;
 
 namespace AFK4.Platform.Api.Tests.Pos;
@@ -6,7 +7,10 @@ public sealed class PostgresPosFactAttribute : FactAttribute
 {
     public const string EnvironmentVariable = "AFK4_POS_POSTGRES_TEST_CONNECTION_STRING";
 
-    public PostgresPosFactAttribute()
+    public PostgresPosFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         var connectionString = Environment.GetEnvironmentVariable(EnvironmentVariable);
         if (string.IsNullOrWhiteSpace(connectionString) || !IsTestDatabase(connectionString))

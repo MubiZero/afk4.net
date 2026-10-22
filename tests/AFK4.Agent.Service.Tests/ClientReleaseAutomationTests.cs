@@ -610,7 +610,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         // и съедал больше половины времени задачи.
         Assert.DoesNotContain("dotnet test AFK4.sln", workflow, StringComparison.Ordinal);
         Assert.Contains("Where-Object { $_.BaseName -ne 'AFK4.Platform.Api.Tests' }", workflow, StringComparison.Ordinal);
-        Assert.Contains("dotnet test $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet test --project $project --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
 
         // Postgres-backed tests skip themselves without a database, and GitHub service containers
         // are Linux-only — so this job is the only place they actually run.

@@ -27,8 +27,9 @@ public sealed class PostgresTestAvailabilityTests
             return;
         }
 
+        // Конструкторы атрибутов принимают сведения об исходнике (CallerFilePath/CallerLineNumber), которых требует xUnit v3.
         var skipped = ExternallyConfiguredFactAttributes()
-            .Select(type => (Type: type, Attribute: (FactAttribute)Activator.CreateInstance(type)!))
+            .Select(type => (Type: type, Attribute: (FactAttribute)Activator.CreateInstance(type, [null, -1])!))
             .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Attribute.Skip))
             .Select(candidate => $"  {candidate.Type.Name}: {candidate.Attribute.Skip}")
             .ToList();

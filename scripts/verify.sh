@@ -153,7 +153,7 @@ lane_dotnet() {
     tests/AFK4.Localization.Tests tests/AFK4.SetupWizard.Tests \
     tests/AFK4.Update.Publisher.Tests; do
     echo "── $project"
-    dotnet test "$project" --no-build --nologo -v q -p:NuGetAudit=false
+    dotnet test --project "$project" --no-build --nologo -v q -p:NuGetAudit=false
   done
 }
 
@@ -222,7 +222,7 @@ lane_windows() {
     tests/AFK4.OrganizationAdmin.App.Tests tests/AFK4.Player.Shell.Tests \
     tests/AFK4.Agent.Service.Tests tests/AFK4.SetupWizard.Tests; do
     echo "── $project"
-    ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet test $project --no-build -v minimal -p:NuGetAudit=false\""
+    ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet test --project $project --no-build -v minimal -p:NuGetAudit=false\""
   done
 }
 

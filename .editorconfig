@@ -12,3 +12,9 @@ indent_size = 4
 
 [*.md]
 trim_trailing_whitespace = false
+
+[tests/**.cs]
+# xUnit v3 просит передавать TestContext.Current.CancellationToken в каждый вызов с токеном.
+# Тесты держат такие вызовы по всему набору (~7,8 тыс. мест); отмена прогона их не касается,
+# поэтому правило здесь только подсказка, а не ошибка при TreatWarningsAsErrors.
+dotnet_diagnostic.xUnit1051.severity = suggestion
