@@ -591,3 +591,12 @@ Write-Host "Published client package inputs under $publishRoot"
 Write-Host "Deliverable master installer (install this one):"
 Write-Host $clientBundlePath
 Write-Host "Bundled inputs (agent/operator/player-shell MSIs) moved to: $intermediatesDir"
+
+# Размеры того, что уезжает клубам и в канал обновлений: рост пакетов должен быть виден в журнале
+# сборки, а не обнаруживаться по счёту за трафик. В канал обновлений идут agent / organization-admin /
+# player-shell; setup-payload и бандл — только первая установка.
+Write-Host "Package sizes (MB):"
+Get-ChildItem -LiteralPath $artifactRoot -Recurse -File -Include '*.exe', '*.msi' |
+    Sort-Object Length -Descending |
+    ForEach-Object { Write-Host ('{0,9:N1}  {1}' -f ($_.Length / 1MB), $_.FullName.Substring($artifactRoot.Length + 1)) }
+
