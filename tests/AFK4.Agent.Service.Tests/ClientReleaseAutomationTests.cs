@@ -834,6 +834,31 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
     // Решение владельца 01.10.2026: бандл не цепляет .NET (программы self-contained), а WebView2
     // везёт полным офлайн-установщиком внутри себя — ни скачивания, ни «установите то-то».
+    // Рантайм внутри пакетов — рантайм SDK, которым их собрали. global.json допускает latestFeature,
+    // и setup-dotnet ставил самый свежий SDK на момент прогона: между сборками 0.1.342 и 0.1.345
+    // сменился .NET, и обновление агента поменяло 613 файлов из 657. Поэтому оба workflow,
+    // собирающие пакеты, закрепляют один и тот же SDK точно, до Setup .NET.
+    [Fact]
+    public void PackageWorkflows_PinTheSameSdkBeforeSetupDotNet()
+    {
+        var pins = new List<string>();
+        foreach (var workflowPath in new[] { ".github/workflows/package-smoke.yml", ".github/workflows/client-packages.yml" })
+        {
+            var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(workflowPath)));
+            var match = System.Text.RegularExpressions.Regex.Match(workflow, @"AFK4_SHIPPED_DOTNET_SDK: '(?<version>\d+\.\d+\.\d+)'");
+            Assert.True(match.Success, $"{workflowPath} does not pin the SDK.");
+            pins.Add(match.Groups["version"].Value);
+
+            var pinStep = workflow.IndexOf("name: Pin the SDK that decides the shipped .NET runtime", StringComparison.Ordinal);
+            var setupStep = workflow.IndexOf("uses: actions/setup-dotnet@v4", StringComparison.Ordinal);
+            Assert.True(pinStep >= 0 && pinStep < setupStep, $"{workflowPath}: the pin must come before Setup .NET.");
+            Assert.Contains("$sdkPin.sdk.rollForward = 'disable'", workflow, StringComparison.Ordinal);
+            Assert.Contains("$sdkPin.sdk.version = $env:AFK4_SHIPPED_DOTNET_SDK", workflow, StringComparison.Ordinal);
+        }
+
+        Assert.Single(pins.Distinct());
+    }
+
     [Fact]
     public void BundleWxs_ChainsNoDotNetAndCarriesWebView2Offline()
     {

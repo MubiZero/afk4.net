@@ -124,6 +124,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AFK4_SHIPPED_DOTNET_SDK: '10.0.402'
 
 jobs:
   build-client-packages:
@@ -262,6 +263,19 @@ jobs:
               throw "platform_base_url is not in AFK4_ALLOWED_PLATFORM_BASE_URLS."
             }
           }
+
+      # Версия .NET внутри пакетов — рантайм того SDK, которым их собрали (self-contained).
+      # global.json разрешает latestFeature, и setup-dotnet ставит самый свежий SDK на момент
+      # прогона: между двумя сборками подряд рантайм менялся, и «обновление» везло ~300 МБ заново
+      # (измерено на 0.1.342 → 0.1.345: 613 файлов из 657). Здесь SDK закреплён точно; менять его
+      # — осознанно, правкой AFK4_SHIPPED_DOTNET_SDK в обоих workflow (сверяет тест).
+      - name: Pin the SDK that decides the shipped .NET runtime
+        shell: pwsh
+        run: |
+          $sdkPin = Get-Content global.json -Raw | ConvertFrom-Json
+          $sdkPin.sdk.version = $env:AFK4_SHIPPED_DOTNET_SDK
+          $sdkPin.sdk.rollForward = 'disable'
+          $sdkPin | ConvertTo-Json -Depth 5 | Set-Content global.json
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
