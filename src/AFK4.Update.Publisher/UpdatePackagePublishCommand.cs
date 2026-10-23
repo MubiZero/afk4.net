@@ -57,6 +57,7 @@ public static class UpdatePackagePublishCommand
         values.TryGetValue("--s3-secret-key-env-var", out var s3SecretKeyEnvironmentVariable);
         values.TryGetValue("--s3-region", out var s3Region);
         values.TryGetValue("--s3-stable-alias-object-key", out var s3StableAliasObjectKey);
+        values.TryGetValue("--manifest-roots", out var manifestRoots);
 
         return new UpdatePackagePublishOptions(
             organizationId,
@@ -80,7 +81,28 @@ public static class UpdatePackagePublishCommand
             string.IsNullOrWhiteSpace(s3AccessKeyEnvironmentVariable) ? null : s3AccessKeyEnvironmentVariable,
             string.IsNullOrWhiteSpace(s3SecretKeyEnvironmentVariable) ? null : s3SecretKeyEnvironmentVariable,
             string.IsNullOrWhiteSpace(s3Region) ? "us-east-1" : s3Region,
-            string.IsNullOrWhiteSpace(s3StableAliasObjectKey) ? null : s3StableAliasObjectKey);
+            string.IsNullOrWhiteSpace(s3StableAliasObjectKey) ? null : s3StableAliasObjectKey,
+            ParseManifestRoots(manifestRoots));
+    }
+
+    // «имя=каталог;имя=каталог»: пары ключ-значение парсера принимают каждый ключ один раз, поэтому корни
+    // манифеста идут одним значением. Точка с запятой в путях Windows не встречается.
+    private static IReadOnlyList<UpdateManifestRoot>? ParseManifestRoots(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(pair =>
+            {
+                var separator = pair.IndexOf('=');
+                return separator <= 0 || separator == pair.Length - 1
+                    ? throw new ArgumentException("--manifest-roots must be name=directory pairs separated by ';'.")
+                    : new UpdateManifestRoot(pair[..separator].Trim(), pair[(separator + 1)..].Trim());
+            })
+            .ToList();
     }
 
     private static Dictionary<string, string> ParsePairs(string[] args)
@@ -169,6 +191,7 @@ public static class UpdatePackagePublishCommand
           --s3-key-prefix <prefix>
           --s3-region <region>
           --s3-stable-alias-object-key <relative-object-key>
+          --manifest-roots <name=directory;name=directory>   (s3 only: publish a file manifest and file blobs for delta updates)
           --published-file-name <file-name>
           --output <create-update-package-request-json-path>
         """;

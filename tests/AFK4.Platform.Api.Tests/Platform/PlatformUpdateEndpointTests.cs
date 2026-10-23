@@ -117,6 +117,62 @@ public sealed class PlatformUpdateEndpointTests
         Assert.Equal(rollout.UpdateRolloutId, Assert.Single(rollouts!).UpdateRolloutId);
     }
 
+    [Fact]
+    public async Task PackageRegistration_WithManifest_ReturnsItInTheResponseAndTheList()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var manifest = new UpdateManifestDto(
+            "https://updates.afk4.net/organization-admin/stable/1.4.0/manifest.json",
+            new string('c', 64),
+            4_096,
+            "manifest-signature",
+            UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363);
+
+        var response = await client.PostAsJsonAsync("/api/platform/updates/packages", PackageRequest() with { Manifest = manifest });
+        var package = Assert.IsType<PlatformUpdatePackageDto>(await response.Content.ReadFromJsonAsync<PlatformUpdatePackageDto>());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(manifest, package.Manifest);
+        var listed = Assert.Single(await client.GetFromJsonAsync<IReadOnlyList<PlatformUpdatePackageDto>>("/api/platform/updates/packages") ?? []);
+        Assert.Equal(manifest, listed.Manifest);
+    }
+
+    [Fact]
+    public async Task PackageRegistration_WithoutManifest_HasNone()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var response = await client.PostAsJsonAsync("/api/platform/updates/packages", PackageRequest());
+        var package = Assert.IsType<PlatformUpdatePackageDto>(await response.Content.ReadFromJsonAsync<PlatformUpdatePackageDto>());
+
+        Assert.Null(package.Manifest);
+    }
+
+    [Theory]
+    [InlineData("http://updates.afk4.net/m.json", 64, "sig", UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363, 10)]
+    [InlineData("https://updates.afk4.net/m.json", 63, "sig", UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363, 10)]
+    [InlineData("https://updates.afk4.net/m.json", 64, " ", UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363, 10)]
+    [InlineData("https://updates.afk4.net/m.json", 64, "sig", "RSA", 10)]
+    [InlineData("https://updates.afk4.net/m.json", 64, "sig", UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363, 0)]
+    public async Task PackageRegistration_WithAMalformedManifest_IsRejectedAndNothingIsStored(
+        string uri, int shaLength, string signature, string algorithm, long size)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var manifest = new UpdateManifestDto(uri, new string('d', shaLength), size, signature, algorithm);
+
+        var response = await client.PostAsJsonAsync("/api/platform/updates/packages", PackageRequest() with { Manifest = manifest });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().UpdatePackages.ToListAsync());
+    }
+
     private static CreatePlatformUpdatePackageRequest PackageRequest() => new(
         UpdateComponentNames.OrganizationAdmin,
         "1.4.0",

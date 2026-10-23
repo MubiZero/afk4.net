@@ -5817,6 +5817,24 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid>("CreatedByPlatformAdminUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ManifestSha256")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ManifestSignature")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ManifestSignatureAlgorithm")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("ManifestSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ManifestUri")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
                     b.Property<string>("ReleaseNotes")
                         .IsRequired()
                         .HasMaxLength(2000)

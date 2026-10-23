@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Updates;
+
 namespace AFK4.Shared.Contracts.Platform.Updates;
 
 public static class PlatformUpdateTargetKindNames
@@ -18,7 +20,8 @@ public sealed record CreatePlatformUpdatePackageRequest(
     string Signature,
     string SignatureAlgorithm,
     long SizeBytes,
-    string ReleaseNotes);
+    string ReleaseNotes,
+    UpdateManifestDto? Manifest = null);
 
 public sealed record ChangePlatformUpdatePackageStateRequest(
     string State,
@@ -40,7 +43,8 @@ public sealed record PlatformUpdatePackageDto(
     DateTimeOffset CreatedAtUtc,
     Guid? ValidatedByPlatformAdminUserId,
     DateTimeOffset? ValidatedAtUtc,
-    DateTimeOffset? RetiredAtUtc);
+    DateTimeOffset? RetiredAtUtc,
+    UpdateManifestDto? Manifest = null);
 
 public sealed record CreatePlatformUpdateRolloutRequest(
     Guid UpdatePackageId,

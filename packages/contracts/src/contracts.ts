@@ -2819,6 +2819,7 @@ export interface ComponentUpdateInstructionDto {
   signatureAlgorithm: string;
   sizeBytes: number;
   releaseNotes: string;
+  manifest?: UpdateManifestDto | null;
 }
 
 /** Контракт: Reservations/ReservationRequests.cs */
@@ -3016,6 +3017,7 @@ export interface CreatePlatformUpdatePackageRequest {
   signatureAlgorithm: string;
   sizeBytes: number;
   releaseNotes: string;
+  manifest?: UpdateManifestDto | null;
 }
 
 /** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
@@ -3285,6 +3287,7 @@ export interface CreateUpdatePackageRequest {
   signatureAlgorithm: string;
   sizeBytes: number;
   releaseNotes: string;
+  manifest?: UpdateManifestDto | null;
 }
 
 /** Контракт: Updates/CreateUpdateRolloutRequest.cs */
@@ -5661,6 +5664,7 @@ export interface PlatformUpdatePackageDto {
   validatedByPlatformAdminUserId: Guid | null;
   validatedAtUtc: IsoDateTime | null;
   retiredAtUtc: IsoDateTime | null;
+  manifest?: UpdateManifestDto | null;
 }
 
 /** Контракт: Platform/Updates/PlatformUpdateContracts.cs */
@@ -8672,6 +8676,52 @@ export interface UpdateLoyaltySettingsRequest {
 }
 
 /**
+ * Содержимое файла манифеста: полный список файлов компонента этой версии. Файл лежит в хранилище
+ * пакетов, а не едет через API; подписан он через UpdateManifestDto.
+ *
+ * Контракт: Updates/UpdateManifestDocument.cs
+ */
+export interface UpdateManifestDocument {
+  schema: number;
+  component: string;
+  version: string;
+  channel: string;
+  blobBaseUri: string;
+  files: UpdateManifestFileEntry[];
+}
+
+/**
+ * Где лежит манифест файлов пакета и чем он подписан. Манифест — дельта-путь рядом с полным MSI:
+ * агент сверяет файлы на диске с манифестом и докачивает только отличающиеся. Подпись пакета
+ * (UpdatePackageSignaturePayload) этим не меняется: старые агенты поле не читают и
+ * ставят MSI, как раньше.
+ *
+ * Контракт: Updates/UpdateManifestDto.cs
+ */
+export interface UpdateManifestDto {
+  uri: string;
+  sha256: string;
+  sizeBytes: number;
+  signature: string;
+  signatureAlgorithm: string;
+}
+
+/**
+ * Один файл версии. `Root` — какая папка установки (agent-service, setup-wizard,
+ * player-shell, organization-admin), `Path` — путь внутри неё с «/». Тело файла лежит в
+ * хранилище по UpdateManifestLayout.BlobObjectKey в сжатом виде.
+ *
+ * Контракт: Updates/UpdateManifestDocument.cs
+ */
+export interface UpdateManifestFileEntry {
+  root: string;
+  path: string;
+  sha256: string;
+  sizeBytes: number;
+  compressedSizeBytes: number;
+}
+
+/**
  * Имя и язык человека — ровно те два поля, которые спрашиваются при регистрации. PIN сюда не
  * входит: его задают позже и в ту секунду, когда он впервые нужен.
  *
@@ -8770,6 +8820,7 @@ export interface UpdatePackageDto {
   state: string;
   releaseNotes: string;
   createdAtUtc: IsoDateTime;
+  manifest?: UpdateManifestDto | null;
 }
 
 /** Контракт: Updates/UpdatePackageStateChangeRequest.cs */

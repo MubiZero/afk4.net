@@ -130,6 +130,36 @@ public sealed class UpdateEndpointTests
         var update = Assert.Single(Assert.IsType<DeviceUpdateCheckResponse>(body).Updates);
         Assert.Equal(release.PackageId, update.UpdatePackageId);
         Assert.Equal("1.2.3", update.Version);
+        Assert.Null(update.Manifest);
+    }
+
+    [Fact]
+    public async Task PostDeviceUpdateCheck_CarriesTheManifestOfAPackageRegisteredWithOne()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        await SeedValidatedRolloutAsync(factory, withManifest: true);
+        var request = new DeviceUpdateCheckRequest(
+            enrollment.OrganizationId, enrollment.BranchId, enrollment.DeviceId, UpdateChannelNames.Beta,
+            DateTimeOffset.Parse("2026-07-29T14:05:00Z"),
+            [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]);
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/updates/check")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+
+        var response = await client.SendAsync(message);
+        var body = await response.Content.ReadFromJsonAsync<DeviceUpdateCheckResponse>();
+
+        var update = Assert.Single(Assert.IsType<DeviceUpdateCheckResponse>(body).Updates);
+        Assert.NotNull(update.Manifest);
+        Assert.Equal("https://updates.afk4.test/agent/1.2.3/manifest.json", update.Manifest.Uri);
+        Assert.Equal(new string('b', 64), update.Manifest.Sha256);
+        Assert.Equal(2_048, update.Manifest.SizeBytes);
+        Assert.Equal("manifest-signature", update.Manifest.Signature);
     }
 
     [Fact]
@@ -211,7 +241,7 @@ public sealed class UpdateEndpointTests
         return await client.SendAsync(message);
     }
 
-    private static async Task<(Guid PackageId, Guid RolloutId)> SeedValidatedRolloutAsync(PlatformApiFactory factory)
+    private static async Task<(Guid PackageId, Guid RolloutId)> SeedValidatedRolloutAsync(PlatformApiFactory factory, bool withManifest = false)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -235,7 +265,12 @@ public sealed class UpdateEndpointTests
             CreatedByPlatformAdminUserId = actorId,
             ValidatedByPlatformAdminUserId = actorId,
             ValidatedAtUtc = now,
-            CreatedAtUtc = now
+            CreatedAtUtc = now,
+            ManifestUri = withManifest ? "https://updates.afk4.test/agent/1.2.3/manifest.json" : null,
+            ManifestSha256 = withManifest ? new string('b', 64) : null,
+            ManifestSizeBytes = withManifest ? 2_048 : null,
+            ManifestSignature = withManifest ? "manifest-signature" : null,
+            ManifestSignatureAlgorithm = withManifest ? UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363 : null
         });
         db.UpdateRollouts.Add(new UpdateRolloutEntity
         {

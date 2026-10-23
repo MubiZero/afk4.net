@@ -1011,6 +1011,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(package => package.SignatureAlgorithm).HasMaxLength(64).IsRequired();
             entity.Property(package => package.State).HasMaxLength(32).IsRequired();
             entity.Property(package => package.ReleaseNotes).HasMaxLength(2000).IsRequired();
+            entity.Property(package => package.ManifestUri).HasMaxLength(1024);
+            entity.Property(package => package.ManifestSha256).HasMaxLength(128);
+            entity.Property(package => package.ManifestSignatureAlgorithm).HasMaxLength(64);
             entity.HasIndex(package => new
             {
                 package.Component,

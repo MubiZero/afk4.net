@@ -25,6 +25,54 @@ public sealed class UpdateContractSerializationTests
         Assert.Equal("rollback-required", UpdateStatusNames.RollbackRequired);
     }
     [Fact]
+    public void InstructionWithoutManifest_StaysReadableByAgentsThatDoNotKnowTheField()
+    {
+        // Старый агент не знает «manifest»: JSON с полем обязан читаться, а JSON без него — давать null.
+        var withManifest = new ComponentUpdateInstructionDto(
+            Guid.NewGuid(), Guid.NewGuid(), UpdateComponentNames.AgentService, "1.2.3", UpdateChannelNames.Stable,
+            "https://updates.afk4.test/agent.msi", new string('a', 64), "sig", UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363,
+            42_000_000, "notes",
+            new UpdateManifestDto("https://updates.afk4.test/manifest.json", new string('b', 64), 2_048, "manifest-sig",
+                UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363));
+
+        var copy = JsonSerializer.Deserialize<ComponentUpdateInstructionDto>(JsonSerializer.Serialize(withManifest));
+        Assert.Equal(withManifest.Manifest, copy!.Manifest);
+
+        var legacyJson = JsonSerializer.Serialize(withManifest with { Manifest = null });
+        Assert.Null(JsonSerializer.Deserialize<ComponentUpdateInstructionDto>(legacyJson)!.Manifest);
+
+        var withoutField = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(withManifest))!.AsObject();
+        withoutField.Remove("Manifest");
+        Assert.Null(JsonSerializer.Deserialize<ComponentUpdateInstructionDto>(withoutField.ToJsonString())!.Manifest);
+    }
+
+    [Fact]
+    public void ManifestSignaturePayload_IsStableAndBoundToEveryField()
+    {
+        var payload = UpdateManifestSignaturePayload.Create(
+            " agent-service ", "1.2.3", "stable", "https://u/m.json", new string('A', 64), 100);
+
+        Assert.Equal(
+            "AFK4-UPDATE-MANIFEST-V1\ncomponent=agent-service\nversion=1.2.3\nchannel=stable\nmanifest-uri=https://u/m.json\n"
+            + $"manifest-sha256={new string('a', 64)}\nmanifest-size-bytes=100\n",
+            System.Text.Encoding.UTF8.GetString(payload));
+        Assert.NotEqual(payload, UpdateManifestSignaturePayload.Create("agent-service", "1.2.4", "stable", "https://u/m.json", new string('a', 64), 100));
+        Assert.NotEqual(payload, UpdateManifestSignaturePayload.Create("agent-service", "1.2.3", "stable", "https://u/m.json", new string('a', 64), 101));
+        // Полезная нагрузка манифеста не совпадает с пакетной: подпись одного нельзя выдать за другое.
+        Assert.NotEqual(
+            payload,
+            UpdatePackageSignaturePayload.Create("agent-service", "1.2.3", "stable", "https://u/m.json", new string('a', 64), 100, string.Empty));
+    }
+
+    [Fact]
+    public void ManifestBlobObjectKey_IsContentAddressedAndLowercase()
+    {
+        Assert.Equal(
+            "blobs/ab/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789.br",
+            UpdateManifestLayout.BlobObjectKey("ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789"));
+    }
+
+    [Fact]
     public void UpdatePackage_RoundTripsSignedPackageMetadata()
     {
         var request = new CreateUpdatePackageRequest(

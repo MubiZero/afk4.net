@@ -22,4 +22,5 @@ public sealed record UpdatePackagePublishOptions(
     string? S3AccessKeyEnvironmentVariable = null,
     string? S3SecretKeyEnvironmentVariable = null,
     string S3Region = "us-east-1",
-    string? S3StableAliasObjectKey = null);
+    string? S3StableAliasObjectKey = null,
+    IReadOnlyList<UpdateManifestRoot>? ManifestRoots = null);
