@@ -14,4 +14,5 @@ public sealed record UpdatePackageDto(
     long SizeBytes,
     string State,
     string ReleaseNotes,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    UpdateManifestDto? Manifest = null);

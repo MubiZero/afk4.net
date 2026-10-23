@@ -10,4 +10,5 @@ public sealed record CreateUpdatePackageRequest(
     string Signature,
     string SignatureAlgorithm,
     long SizeBytes,
-    string ReleaseNotes);
+    string ReleaseNotes,
+    UpdateManifestDto? Manifest = null);

@@ -39,7 +39,12 @@ public sealed class EfPlatformUpdateReleaseService(
             State = UpdatePackageStateNames.Registered,
             ReleaseNotes = request.ReleaseNotes.Trim(),
             CreatedByPlatformAdminUserId = actorPlatformAdminUserId,
-            CreatedAtUtc = timeProvider.GetUtcNow()
+            CreatedAtUtc = timeProvider.GetUtcNow(),
+            ManifestUri = request.Manifest?.Uri.Trim(),
+            ManifestSha256 = request.Manifest?.Sha256.Trim(),
+            ManifestSizeBytes = request.Manifest?.SizeBytes,
+            ManifestSignature = request.Manifest?.Signature.Trim(),
+            ManifestSignatureAlgorithm = request.Manifest?.SignatureAlgorithm.Trim()
         };
         dbContext.UpdatePackages.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -224,7 +229,8 @@ public sealed class EfPlatformUpdateReleaseService(
         package.UpdatePackageId, package.Component, package.Version, package.Channel, package.ArtifactUri,
         package.Sha256, package.Signature, package.SignatureAlgorithm, package.SizeBytes, package.State,
         package.ReleaseNotes, package.CreatedByPlatformAdminUserId, package.CreatedAtUtc,
-        package.ValidatedByPlatformAdminUserId, package.ValidatedAtUtc, package.RetiredAtUtc);
+        package.ValidatedByPlatformAdminUserId, package.ValidatedAtUtc, package.RetiredAtUtc,
+        EfUpdateService.ToManifestDto(package));
 
     private static string? ValidatePackage(CreatePlatformUpdatePackageRequest request)
     {
@@ -238,6 +244,19 @@ public sealed class EfPlatformUpdateReleaseService(
         if (request.SignatureAlgorithm != UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363)
             return "Unsupported package signature algorithm.";
         if (request.SizeBytes <= 0) return "Package size must be positive.";
+        return ValidateManifest(request.Manifest);
+    }
+
+    private static string? ValidateManifest(UpdateManifestDto? manifest)
+    {
+        if (manifest is null) return null;
+        if (!Uri.TryCreate(manifest.Uri, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            return "Package manifest URI must be absolute HTTPS.";
+        if (manifest.Sha256.Length != 64 || !manifest.Sha256.All(Uri.IsHexDigit)) return "Package manifest SHA-256 hash is invalid.";
+        if (string.IsNullOrWhiteSpace(manifest.Signature)) return "Package manifest signature is required.";
+        if (manifest.SignatureAlgorithm != UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363)
+            return "Unsupported package manifest signature algorithm.";
+        if (manifest.SizeBytes <= 0) return "Package manifest size must be positive.";
         return null;
     }
 }

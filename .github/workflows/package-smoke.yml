@@ -150,6 +150,7 @@ jobs:
             -S3SecretKeyEnvVar AFK4_STAGING_MINIO_SECRET_KEY `
             -PublicBaseUri $env:AFK4_STAGING_UPDATE_PUBLIC_BASE_URI `
             -OrganizationAdminStableAliasObjectKey organization-admin/internal/latest/afk4-organization-admin-internal.msi `
+            -PublishManifests `
             -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
             -ReleaseNotes "Package smoke build $env:AFK4_PACKAGE_VERSION."
 

@@ -4214,6 +4214,7 @@ class ComponentUpdateInstructionDto {
     required this.signatureAlgorithm,
     required this.sizeBytes,
     required this.releaseNotes,
+    this.manifest,
   });
 
   final String updateRolloutId;
@@ -4227,6 +4228,7 @@ class ComponentUpdateInstructionDto {
   final String signatureAlgorithm;
   final int sizeBytes;
   final String releaseNotes;
+  final UpdateManifestDto? manifest;
 
   factory ComponentUpdateInstructionDto.fromJson(Map<String, dynamic> json) => ComponentUpdateInstructionDto(
         updateRolloutId: json['updateRolloutId'] as String,
@@ -4240,6 +4242,7 @@ class ComponentUpdateInstructionDto {
         signatureAlgorithm: json['signatureAlgorithm'] as String,
         sizeBytes: (json['sizeBytes'] as num).toInt(),
         releaseNotes: json['releaseNotes'] as String,
+        manifest: json['manifest'] == null ? null : UpdateManifestDto.fromJson(json['manifest'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4254,6 +4257,7 @@ class ComponentUpdateInstructionDto {
         'signatureAlgorithm': signatureAlgorithm,
         'sizeBytes': sizeBytes,
         'releaseNotes': releaseNotes,
+        'manifest': manifest?.toJson(),
       };
 }
 
@@ -4870,6 +4874,7 @@ class CreatePlatformUpdatePackageRequest {
     required this.signatureAlgorithm,
     required this.sizeBytes,
     required this.releaseNotes,
+    this.manifest,
   });
 
   final String component;
@@ -4881,6 +4886,7 @@ class CreatePlatformUpdatePackageRequest {
   final String signatureAlgorithm;
   final int sizeBytes;
   final String releaseNotes;
+  final UpdateManifestDto? manifest;
 
   factory CreatePlatformUpdatePackageRequest.fromJson(Map<String, dynamic> json) => CreatePlatformUpdatePackageRequest(
         component: json['component'] as String,
@@ -4892,6 +4898,7 @@ class CreatePlatformUpdatePackageRequest {
         signatureAlgorithm: json['signatureAlgorithm'] as String,
         sizeBytes: (json['sizeBytes'] as num).toInt(),
         releaseNotes: json['releaseNotes'] as String,
+        manifest: json['manifest'] == null ? null : UpdateManifestDto.fromJson(json['manifest'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -4904,6 +4911,7 @@ class CreatePlatformUpdatePackageRequest {
         'signatureAlgorithm': signatureAlgorithm,
         'sizeBytes': sizeBytes,
         'releaseNotes': releaseNotes,
+        'manifest': manifest?.toJson(),
       };
 }
 
@@ -5649,6 +5657,7 @@ class CreateUpdatePackageRequest {
     required this.signatureAlgorithm,
     required this.sizeBytes,
     required this.releaseNotes,
+    this.manifest,
   });
 
   final String organizationId;
@@ -5661,6 +5670,7 @@ class CreateUpdatePackageRequest {
   final String signatureAlgorithm;
   final int sizeBytes;
   final String releaseNotes;
+  final UpdateManifestDto? manifest;
 
   factory CreateUpdatePackageRequest.fromJson(Map<String, dynamic> json) => CreateUpdatePackageRequest(
         organizationId: json['organizationId'] as String,
@@ -5673,6 +5683,7 @@ class CreateUpdatePackageRequest {
         signatureAlgorithm: json['signatureAlgorithm'] as String,
         sizeBytes: (json['sizeBytes'] as num).toInt(),
         releaseNotes: json['releaseNotes'] as String,
+        manifest: json['manifest'] == null ? null : UpdateManifestDto.fromJson(json['manifest'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -5686,6 +5697,7 @@ class CreateUpdatePackageRequest {
         'signatureAlgorithm': signatureAlgorithm,
         'sizeBytes': sizeBytes,
         'releaseNotes': releaseNotes,
+        'manifest': manifest?.toJson(),
       };
 }
 
@@ -12899,6 +12911,7 @@ class PlatformUpdatePackageDto {
     this.validatedByPlatformAdminUserId,
     this.validatedAtUtc,
     this.retiredAtUtc,
+    this.manifest,
   });
 
   final String updatePackageId;
@@ -12917,6 +12930,7 @@ class PlatformUpdatePackageDto {
   final String? validatedByPlatformAdminUserId;
   final DateTime? validatedAtUtc;
   final DateTime? retiredAtUtc;
+  final UpdateManifestDto? manifest;
 
   factory PlatformUpdatePackageDto.fromJson(Map<String, dynamic> json) => PlatformUpdatePackageDto(
         updatePackageId: json['updatePackageId'] as String,
@@ -12935,6 +12949,7 @@ class PlatformUpdatePackageDto {
         validatedByPlatformAdminUserId: json['validatedByPlatformAdminUserId'] == null ? null : json['validatedByPlatformAdminUserId'] as String,
         validatedAtUtc: json['validatedAtUtc'] == null ? null : DateTime.parse(json['validatedAtUtc'] as String),
         retiredAtUtc: json['retiredAtUtc'] == null ? null : DateTime.parse(json['retiredAtUtc'] as String),
+        manifest: json['manifest'] == null ? null : UpdateManifestDto.fromJson(json['manifest'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -12954,6 +12969,7 @@ class PlatformUpdatePackageDto {
         'validatedByPlatformAdminUserId': validatedByPlatformAdminUserId,
         'validatedAtUtc': validatedAtUtc?.toIso8601String(),
         'retiredAtUtc': retiredAtUtc?.toIso8601String(),
+        'manifest': manifest?.toJson(),
       };
 }
 
@@ -21340,6 +21356,121 @@ class UpdateLoyaltySettingsRequest {
       };
 }
 
+/// Содержимое файла манифеста: полный список файлов компонента этой версии. Файл лежит в хранилище
+/// пакетов, а не едет через API; подписан он через UpdateManifestDto.
+///
+/// Контракт: Updates/UpdateManifestDocument.cs
+class UpdateManifestDocument {
+  const UpdateManifestDocument({
+    required this.schema,
+    required this.component,
+    required this.version,
+    required this.channel,
+    required this.blobBaseUri,
+    required this.files,
+  });
+
+  final int schema;
+  final String component;
+  final String version;
+  final String channel;
+  final String blobBaseUri;
+  final List<UpdateManifestFileEntry> files;
+
+  factory UpdateManifestDocument.fromJson(Map<String, dynamic> json) => UpdateManifestDocument(
+        schema: (json['schema'] as num).toInt(),
+        component: json['component'] as String,
+        version: json['version'] as String,
+        channel: json['channel'] as String,
+        blobBaseUri: json['blobBaseUri'] as String,
+        files: (json['files'] as List<dynamic>).map((item) => UpdateManifestFileEntry.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'schema': schema,
+        'component': component,
+        'version': version,
+        'channel': channel,
+        'blobBaseUri': blobBaseUri,
+        'files': files.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Где лежит манифест файлов пакета и чем он подписан. Манифест — дельта-путь рядом с полным MSI:
+/// агент сверяет файлы на диске с манифестом и докачивает только отличающиеся. Подпись пакета
+/// (UpdatePackageSignaturePayload) этим не меняется: старые агенты поле не читают и
+/// ставят MSI, как раньше.
+///
+/// Контракт: Updates/UpdateManifestDto.cs
+class UpdateManifestDto {
+  const UpdateManifestDto({
+    required this.uri,
+    required this.sha256,
+    required this.sizeBytes,
+    required this.signature,
+    required this.signatureAlgorithm,
+  });
+
+  final String uri;
+  final String sha256;
+  final int sizeBytes;
+  final String signature;
+  final String signatureAlgorithm;
+
+  factory UpdateManifestDto.fromJson(Map<String, dynamic> json) => UpdateManifestDto(
+        uri: json['uri'] as String,
+        sha256: json['sha256'] as String,
+        sizeBytes: (json['sizeBytes'] as num).toInt(),
+        signature: json['signature'] as String,
+        signatureAlgorithm: json['signatureAlgorithm'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'uri': uri,
+        'sha256': sha256,
+        'sizeBytes': sizeBytes,
+        'signature': signature,
+        'signatureAlgorithm': signatureAlgorithm,
+      };
+}
+
+/// Один файл версии. `Root` — какая папка установки (agent-service, setup-wizard,
+/// player-shell, organization-admin), `Path` — путь внутри неё с «/». Тело файла лежит в
+/// хранилище по UpdateManifestLayout.BlobObjectKey в сжатом виде.
+///
+/// Контракт: Updates/UpdateManifestDocument.cs
+class UpdateManifestFileEntry {
+  const UpdateManifestFileEntry({
+    required this.root,
+    required this.path,
+    required this.sha256,
+    required this.sizeBytes,
+    required this.compressedSizeBytes,
+  });
+
+  final String root;
+  final String path;
+  final String sha256;
+  final int sizeBytes;
+  final int compressedSizeBytes;
+
+  factory UpdateManifestFileEntry.fromJson(Map<String, dynamic> json) => UpdateManifestFileEntry(
+        root: json['root'] as String,
+        path: json['path'] as String,
+        sha256: json['sha256'] as String,
+        sizeBytes: (json['sizeBytes'] as num).toInt(),
+        compressedSizeBytes: (json['compressedSizeBytes'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'root': root,
+        'path': path,
+        'sha256': sha256,
+        'sizeBytes': sizeBytes,
+        'compressedSizeBytes': compressedSizeBytes,
+      };
+}
+
 /// Имя и язык человека — ровно те два поля, которые спрашиваются при регистрации. PIN сюда не
 /// входит: его задают позже и в ту секунду, когда он впервые нужен.
 ///
@@ -21622,6 +21753,7 @@ class UpdatePackageDto {
     required this.state,
     required this.releaseNotes,
     required this.createdAtUtc,
+    this.manifest,
   });
 
   final String updatePackageId;
@@ -21638,6 +21770,7 @@ class UpdatePackageDto {
   final String state;
   final String releaseNotes;
   final DateTime createdAtUtc;
+  final UpdateManifestDto? manifest;
 
   factory UpdatePackageDto.fromJson(Map<String, dynamic> json) => UpdatePackageDto(
         updatePackageId: json['updatePackageId'] as String,
@@ -21654,6 +21787,7 @@ class UpdatePackageDto {
         state: json['state'] as String,
         releaseNotes: json['releaseNotes'] as String,
         createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        manifest: json['manifest'] == null ? null : UpdateManifestDto.fromJson(json['manifest'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -21671,6 +21805,7 @@ class UpdatePackageDto {
         'state': state,
         'releaseNotes': releaseNotes,
         'createdAtUtc': createdAtUtc.toIso8601String(),
+        'manifest': manifest?.toJson(),
       };
 }
 
