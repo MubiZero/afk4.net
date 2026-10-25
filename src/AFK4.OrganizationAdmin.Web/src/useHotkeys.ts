@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 export interface HotkeyBinding {
-  /** Single key, compared case-insensitively (e.g. 'k', 'z'). */
+  /** Single key, compared case-insensitively (e.g. 'k', 'z'); a Latin letter also matches by physical key. */
   key: string;
   ctrl?: boolean;
   alt?: boolean;
@@ -10,6 +10,13 @@ export interface HotkeyBinding {
   onTrigger: (e: KeyboardEvent) => void;
   /** When false (default), the binding is skipped while focus is in an editable element. */
   allowInInputs?: boolean;
+}
+
+// Ctrl+K на русской или таджикской раскладке приходит с key «л»: буква зависит от раскладки, а
+// физическая клавиша (code) — нет. У кассы в клубе раскладка чаще русская, и хоткей молчал.
+function matchesKey(e: KeyboardEvent, key: string): boolean {
+  if (e.key.toLowerCase() === key.toLowerCase()) return true;
+  return /^[a-z]$/i.test(key) && e.code === `Key${key.toUpperCase()}`;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -32,7 +39,7 @@ export function useHotkeys(bindings: HotkeyBinding[]): void {
       if (e.repeat) return;
 
       for (const binding of bindings) {
-        if (e.key.toLowerCase() !== binding.key.toLowerCase()) continue;
+        if (!matchesKey(e, binding.key)) continue;
         if (Boolean(binding.ctrl) !== e.ctrlKey) continue;
         if (Boolean(binding.alt) !== e.altKey) continue;
         if (Boolean(binding.shift) !== e.shiftKey) continue;
