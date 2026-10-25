@@ -40,7 +40,11 @@ export interface OperatorRealtimeOptions {
   onShopOrderCreated?: (order: ShopOrderDto) => void;
   onShopOrderUpdated?: (order: ShopOrderDto) => void;
   onConnectionStateChanged?: (state: OperatorRealtimeConnectionState) => void;
+  /** Попытка подключиться не удалась; клиент сам повторит её позже. */
+  onConnectionError?: (error: unknown) => void;
   connectionFactory?: () => SignalRConnectionLike;
+  /** Таймер повторов; в тестах подменяется, чтобы не ждать настоящих секунд. */
+  scheduleRetry?: (retry: () => void, delayMs: number) => () => void;
 }
 
 export const deviceStatusChangedEventName = 'deviceStatusChanged';
@@ -53,6 +57,20 @@ export const shopOrderUpdatedEventName = 'shopOrderUpdated';
 export const previewDeviceCommandResultEventName = 'afk4:preview-device-command-result';
 
 const ignoreRealtimeEvent = (): void => {};
+
+/**
+ * Пауза перед следующей попыткой: 1, 2, 4, 8, 16, 30 секунд и дальше по 30, плюс до секунды
+ * случайно, чтобы десяток касс после сбоя сети не стучались в хаб одновременно. Попытки не
+ * кончаются: интернет в клубе может пропасть на полчаса, а Панель должна вернуться к живым данным сама.
+ */
+export function realtimeRetryDelayMs(attempt: number, random: () => number = Math.random): number {
+  return Math.min(30_000, 1_000 * 2 ** Math.min(Math.max(attempt, 0), 5)) + Math.floor(random() * 1_000);
+}
+
+const scheduleWithTimer = (retry: () => void, delayMs: number): (() => void) => {
+  const handle = setTimeout(retry, delayMs);
+  return () => clearTimeout(handle);
+};
 
 export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
   const connection = options.connectionFactory?.() ?? createSignalRConnection(options);
@@ -69,22 +87,62 @@ export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): 
   connection.on<ReservationChangedDto>(reservationChangedEventName, options.onReservationChanged ?? ignoreRealtimeEvent);
   connection.on<ShopOrderDto>(shopOrderCreatedEventName, options.onShopOrderCreated ?? ignoreRealtimeEvent);
   connection.on<ShopOrderDto>(shopOrderUpdatedEventName, options.onShopOrderUpdated ?? ignoreRealtimeEvent);
+  const scheduleRetry = options.scheduleRetry ?? scheduleWithTimer;
+  let stopped = false;
+  let cancelRetry: (() => void) | null = null;
+
+  // Встроенный автореконнект SignalR после сбоя на старте не работает вовсе, а закрытое соединение
+  // не поднимает: касса оставалась «без связи» до перезагрузки страницы. Здесь любая неудача
+  // (первый старт без сети, закрытие после долгого обрыва) ведёт к новой попытке по расписанию.
+  const connect = async (attempt: number): Promise<void> => {
+    cancelRetry = null;
+    if (stopped) {
+      return;
+    }
+
+    setState(attempt === 0 ? 'connecting' : 'reconnecting');
+    try {
+      await connection.start();
+      if (!stopped) {
+        setState('connected');
+      }
+    } catch (error) {
+      if (stopped) {
+        return;
+      }
+
+      options.onConnectionError?.(error);
+      setState('reconnecting');
+      cancelRetry = scheduleRetry(() => void connect(attempt + 1), realtimeRetryDelayMs(attempt));
+    }
+  };
+
   connection.onreconnecting(() => setState('reconnecting'));
   connection.onreconnected(() => setState('connected'));
-  connection.onclose(() => setState('disconnected'));
+  connection.onclose(() => {
+    if (stopped) {
+      setState('disconnected');
+      return;
+    }
+
+    setState('reconnecting');
+    cancelRetry = scheduleRetry(() => void connect(1), realtimeRetryDelayMs(0));
+  });
 
   return {
     async start() {
+      stopped = false;
       if (connection.state === HubConnectionState.Connected || connection.state === 'Connected') {
         setState('connected');
         return;
       }
 
-      setState('connecting');
-      await connection.start();
-      setState('connected');
+      await connect(0);
     },
     async stop() {
+      stopped = true;
+      cancelRetry?.();
+      cancelRetry = null;
       await connection.stop();
       setState('disconnected');
     }
@@ -119,7 +177,11 @@ function createSignalRConnection(options: OperatorRealtimeOptions): SignalRConne
     .withUrl(buildDeviceHubUrl(options.baseUrl), {
       accessTokenFactory: async () => await options.getAccessToken() ?? ''
     })
-    .withAutomaticReconnect()
+    // Повторы без предела (тот же график, что и после закрытия) и докачка пропущенных сообщений
+    // после короткого обрыва: сервер держит буфер для такого соединения (AllowStatefulReconnects).
+    .withAutomaticReconnect({ nextRetryDelayInMilliseconds: (context) => realtimeRetryDelayMs(context.previousRetryCount) })
+    .withStatefulReconnect()
+    .withServerTimeout(60_000)
     .configureLogging(LogLevel.Warning)
     .build();
 }

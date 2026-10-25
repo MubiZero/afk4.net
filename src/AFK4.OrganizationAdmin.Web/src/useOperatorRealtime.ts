@@ -138,11 +138,19 @@ export function useOperatorRealtime({
     const realtimeOptions: OperatorRealtimeOptions = {
       baseUrl: config.platformBaseUrl,
       getAccessToken: () => operatorAccessToken(authSession),
+      onConnectionError: (error) => {
+        if (!disposed) {
+          setRealtimeError(projectOperatorError(error, t).detail);
+        }
+      },
       onConnectionStateChanged: (state) => {
         if (disposed) {
           return;
         }
         setRealtimeState(state);
+        if (state === 'connected') {
+          setRealtimeError(null);
+        }
         if (state === 'reconnecting') {
           wasReconnecting = true;
         } else if (state === 'connected' && wasReconnecting) {

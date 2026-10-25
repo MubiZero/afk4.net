@@ -59,7 +59,9 @@ const string CombinedWebCorsPolicyName = "afk4-web";
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSignalR();
+// Каналы клубов теряют пакеты пачками: клиент считается пропавшим после 60 с тишины, а не 30.
+// Клиенты (агент и Панель) шлют пинг каждые 15 с, так что запас — четыре пропущенных пинга.
+builder.Services.AddSignalR(options => options.ClientTimeoutInterval = TimeSpan.FromSeconds(60));
 
 // Адреса разработчика подставляются везде, кроме прода; см. CorsOrigins.
 var allowDeveloperCorsOrigins = !builder.Environment.IsProduction();

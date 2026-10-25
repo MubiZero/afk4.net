@@ -10,7 +10,8 @@ import {
   type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
   type SessionLifecycleChangedDto,
-  type SignalRConnectionLike
+  type SignalRConnectionLike,
+  realtimeRetryDelayMs
 } from './operatorRealtime';
 
 // App.test.tsx registers a process-wide mock.module('./operatorRealtime', ...) that bun
@@ -163,6 +164,102 @@ describe('operator realtime shop events', () => {
   });
 });
 
+describe('operator realtime reconnection', () => {
+  const manualScheduler = () => {
+    const pending: { retry: () => void; delayMs: number; cancelled: boolean }[] = [];
+    return {
+      pending,
+      schedule: (retry: () => void, delayMs: number) => {
+        const entry = { retry, delayMs, cancelled: false };
+        pending.push(entry);
+        return () => { entry.cancelled = true; };
+      },
+      async runNext() {
+        const entry = pending.shift();
+        if (entry && !entry.cancelled) {
+          entry.retry();
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    };
+  };
+
+  it('keeps retrying a first start that fails while the club is offline, then connects', async () => {
+    const connection = new FakeSignalRConnection();
+    connection.failStarts = 2;
+    const scheduler = manualScheduler();
+    const states: string[] = [];
+    const errors: unknown[] = [];
+    const client = createOperatorRealtimeClient({
+      baseUrl: 'http://localhost:5074/',
+      getAccessToken: () => 'access-token',
+      connectionFactory: () => connection,
+      scheduleRetry: scheduler.schedule,
+      onConnectionStateChanged: (state) => states.push(state),
+      onConnectionError: (error) => errors.push(error),
+      onDeviceStatusChanged: () => {}
+    });
+
+    await client.start();
+    expect(states.at(-1)).toBe('reconnecting');
+    await scheduler.runNext();
+    await scheduler.runNext();
+
+    expect(connection.startCalls).toBe(3);
+    expect(errors).toHaveLength(2);
+    expect(states.at(-1)).toBe('connected');
+  });
+
+  it('reconnects on its own after the hub closes the connection', async () => {
+    const connection = new FakeSignalRConnection();
+    const scheduler = manualScheduler();
+    const states: string[] = [];
+    const client = createOperatorRealtimeClient({
+      baseUrl: 'http://localhost:5074/',
+      getAccessToken: () => 'access-token',
+      connectionFactory: () => connection,
+      scheduleRetry: scheduler.schedule,
+      onConnectionStateChanged: (state) => states.push(state),
+      onDeviceStatusChanged: () => {}
+    });
+    await client.start();
+
+    connection.serverClose();
+    expect(states.at(-1)).toBe('reconnecting');
+    await scheduler.runNext();
+
+    expect(connection.startCalls).toBe(2);
+    expect(states.at(-1)).toBe('connected');
+  });
+
+  it('stops for good when the desk closes it, even with a retry pending', async () => {
+    const connection = new FakeSignalRConnection();
+    connection.failStarts = 1;
+    const scheduler = manualScheduler();
+    const client = createOperatorRealtimeClient({
+      baseUrl: 'http://localhost:5074/',
+      getAccessToken: () => 'access-token',
+      connectionFactory: () => connection,
+      scheduleRetry: scheduler.schedule,
+      onDeviceStatusChanged: () => {}
+    });
+    await client.start();
+
+    await client.stop();
+    await scheduler.runNext();
+
+    expect(connection.startCalls).toBe(1);
+    expect(scheduler.pending).toHaveLength(0);
+  });
+
+  it('backs off up to thirty seconds with up to a second of jitter', () => {
+    expect(realtimeRetryDelayMs(0, () => 0)).toBe(1_000);
+    expect(realtimeRetryDelayMs(3, () => 0)).toBe(8_000);
+    expect(realtimeRetryDelayMs(50, () => 0)).toBe(30_000);
+    expect(realtimeRetryDelayMs(50, () => 0.999)).toBe(30_999);
+  });
+});
+
 class FakeSignalRConnection implements SignalRConnectionLike {
   state = 'Disconnected';
   private readonly handlers = new Map<string, (payload: unknown) => void>();
@@ -186,8 +283,22 @@ class FakeSignalRConnection implements SignalRConnectionLike {
     this.reconnectingHandler = callback;
   }
 
+  failStarts = 0;
+  startCalls = 0;
+
   async start(): Promise<void> {
+    this.startCalls += 1;
+    if (this.failStarts > 0) {
+      this.failStarts -= 1;
+      throw new Error('network down');
+    }
     this.state = 'Connected';
+  }
+
+  /** Хаб закрыл соединение сам (обрыв дольше, чем выдерживает встроенный автореконнект). */
+  serverClose(): void {
+    this.state = 'Disconnected';
+    this.closeHandler?.(new Error('connection lost'));
   }
 
   async stop(): Promise<void> {
