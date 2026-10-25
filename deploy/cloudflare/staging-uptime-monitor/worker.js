@@ -1,6 +1,6 @@
 // AFK4 staging uptime monitor.
 //
-// Cron-triggered Cloudflare Worker. Probes four staging endpoints, tracks
+// Cron-triggered Cloudflare Worker. Probes five staging endpoints, tracks
 // consecutive failures per monitor in a Workers KV namespace, and sends
 // Telegram alerts only on state change (first DOWN + RECOVERED). All other
 // runs are silent to keep alert noise low while incidents drag on.
@@ -17,6 +17,14 @@ const MONITORS = [
   {
     name: 'platform-api-health',
     url: 'https://api.afk4.net/api/health',
+    method: 'GET',
+    expectStatus: 200,
+    expectBody: '"status":"ok"',
+  },
+  {
+    // Готовность: отвечает ли база. /api/health выше — только живучесть процесса.
+    name: 'platform-api-ready',
+    url: 'https://api.afk4.net/api/health/ready',
     method: 'GET',
     expectStatus: 200,
     expectBody: '"status":"ok"',
