@@ -103,6 +103,29 @@ Artifacts larger than 64 MiB are uploaded as an S3 multipart upload (64 MiB part
 upload also works through a proxy that caps the request body (Cloudflare: 100 MB). A failed
 upload is aborted so no orphaned parts stay in the bucket.
 
+### File manifest (delta-update groundwork)
+
+With `--manifest-roots "name=directory;name=directory"` (s3 only; the wrapper script switch is
+`-PublishManifests`) the publisher also writes, next to the MSI:
+
+- a **manifest** `afk4-<component>-<version>-manifest.json`: every file of the component's install
+  folders (`root`, `path`, `sha256`, `sizeBytes`, `compressedSizeBytes`) and the blob base URI;
+- the **file bodies**, Brotli-compressed, content-addressed at
+  `[<prefix>/]blobs/<sha256[0..2]>/<sha256>.br`. A body that is already in the bucket (HEAD 200)
+  is not uploaded again, and identical files across programs share one body, so the next
+  publication carries only what changed.
+
+The request JSON gets a `manifest` object (`uri`, `sha256`, `sizeBytes`, `signature`,
+`signatureAlgorithm`). The manifest is signed with the same ECDSA key over its own canonical payload
+(`AFK4-UPDATE-MANIFEST-V1`, see `UpdateManifestSignaturePayload`); the **package signature is
+unchanged**, so an agent that does not know the field installs the MSI exactly as before. The
+platform stores the five manifest columns on the package and returns `manifest` in the device update
+instruction. Agents do not read it yet: this is the publishing half, and the agent half (diff files on
+disk against the manifest, download only missing bodies, swap, roll back) is the next phase.
+
+Roots per component: `organization-admin` → `organization-admin`; `player-shell` → `player-shell`;
+`agent-service` → `agent-service` and `setup-wizard` (the Agent MSI installs both folders).
+
 The publisher signs S3 `PUT` requests with AWS Signature Version 4 and writes
 the same public URL shape that Agents later download:
 

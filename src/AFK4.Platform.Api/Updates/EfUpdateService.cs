@@ -143,7 +143,8 @@ public sealed class EfUpdateService(
                 candidate.Package.Signature,
                 candidate.Package.SignatureAlgorithm,
                 candidate.Package.SizeBytes,
-                candidate.Package.ReleaseNotes))
+                candidate.Package.ReleaseNotes,
+                ToManifestDto(candidate.Package)))
             .ToList();
 
         var preference = await dbContext.Branches
@@ -313,6 +314,18 @@ public sealed class EfUpdateService(
 
     internal static bool IsSupportedComponent(string component) => component is
         UpdateComponentNames.OrganizationAdmin or UpdateComponentNames.AgentService or UpdateComponentNames.PlayerShell;
+
+    /// <summary>Манифест пакета, если он зарегистрирован целиком; иначе null (пакет ставится целым MSI).</summary>
+    internal static UpdateManifestDto? ToManifestDto(UpdatePackageEntity package) =>
+        package.ManifestUri is null || package.ManifestSha256 is null || package.ManifestSizeBytes is null
+        || package.ManifestSignature is null || package.ManifestSignatureAlgorithm is null
+            ? null
+            : new UpdateManifestDto(
+                package.ManifestUri,
+                package.ManifestSha256,
+                package.ManifestSizeBytes.Value,
+                package.ManifestSignature,
+                package.ManifestSignatureAlgorithm);
 
     internal static bool IsSupportedChannel(string channel) => channel is
         UpdateChannelNames.Stable or UpdateChannelNames.Beta or UpdateChannelNames.Internal;

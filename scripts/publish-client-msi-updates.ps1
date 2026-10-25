@@ -53,6 +53,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $ReleaseNotes,
 
+    # Рядом с каждым MSI публикует манифест файлов и их тела (дельта-путь, только s3). Агент пока
+    # читает один MSI; манифест лежит в запросе и в хранилище про запас, поэтому по умолчанию выключен.
+    [switch] $PublishManifests,
+
     [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe',
 
     [ValidateRange(1, 10)]
@@ -211,7 +215,8 @@ function Invoke-UpdatePublisher {
         [string] $RequestPath,
         [uri] $ArtifactUploadUri,
         [uri] $ArtifactPublicUri,
-        [string] $StableAliasObjectKey
+        [string] $StableAliasObjectKey,
+        [string] $ManifestRoots
     )
 
     $publisherArgs = @(
@@ -232,6 +237,10 @@ function Invoke-UpdatePublisher {
         }
 
         $publisherArgs += @('--s3-stable-alias-object-key', $StableAliasObjectKey)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ManifestRoots)) {
+        $publisherArgs += @('--manifest-roots', $ManifestRoots)
     }
 
     for ($attempt = 1; $attempt -le $PublishMaxAttempts; $attempt++) {
@@ -337,6 +346,32 @@ else {
 }
 
 $publisherProject = Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj'
+
+# Папки публикации, из которых собраны MSI: манифест описывает ровно то, что MSI кладёт на диск.
+# Агент ставит рядом с собой мастер установки, поэтому у него два корня.
+function Get-ManifestRoots {
+    param([string[]] $Roots)
+
+    if (-not $PublishManifests) {
+        return $null
+    }
+
+    if ($ArtifactStore -ne 's3') {
+        throw 'PublishManifests requires ArtifactStore s3.'
+    }
+
+    $pairs = foreach ($root in $Roots) {
+        $directory = Join-Path $resolvedPackageDirectory "publish/$root-$Version-$Channel"
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+            throw "Publish directory for manifest root '$root' was not found: $directory"
+        }
+
+        "$root=$directory"
+    }
+
+    return $pairs -join ';'
+}
+
 $requests = @(
     [pscustomobject]@{
         Component = 'organization-admin'
@@ -345,6 +380,7 @@ $requests = @(
         ArtifactUploadUri = $OrganizationAdminArtifactUploadUri
         ArtifactPublicUri = $OrganizationAdminArtifactPublicUri
         StableAliasObjectKey = $OrganizationAdminStableAliasObjectKey
+        ManifestRoots = Get-ManifestRoots @('organization-admin')
     },
     [pscustomobject]@{
         Component = 'agent-service'
@@ -353,6 +389,7 @@ $requests = @(
         ArtifactUploadUri = $AgentArtifactUploadUri
         ArtifactPublicUri = $AgentArtifactPublicUri
         StableAliasObjectKey = $null
+        ManifestRoots = Get-ManifestRoots @('agent-service', 'setup-wizard')
     },
     [pscustomobject]@{
         Component = 'player-shell'
@@ -361,6 +398,7 @@ $requests = @(
         ArtifactUploadUri = $PlayerShellArtifactUploadUri
         ArtifactPublicUri = $PlayerShellArtifactPublicUri
         StableAliasObjectKey = $null
+        ManifestRoots = Get-ManifestRoots @('player-shell')
     }
 )
 
@@ -371,7 +409,8 @@ foreach ($request in $requests) {
         -RequestPath $request.RequestPath `
         -ArtifactUploadUri $request.ArtifactUploadUri `
         -ArtifactPublicUri $request.ArtifactPublicUri `
-        -StableAliasObjectKey $request.StableAliasObjectKey
+        -StableAliasObjectKey $request.StableAliasObjectKey `
+        -ManifestRoots $request.ManifestRoots
 }
 
 foreach ($request in $requests) {

@@ -132,6 +132,22 @@ function New-PlatformPackageBody {
         $fields[$name] = $value
     }
 
+    # Манифест файлов (дельта-путь) необязателен: пакет без него ставится целым MSI.
+    $manifest = Get-JsonPropertyValue $Request 'manifest'
+    if ($null -ne $manifest) {
+        $manifestFields = [ordered]@{}
+        foreach ($name in @('uri', 'sha256', 'sizeBytes', 'signature', 'signatureAlgorithm')) {
+            $value = Get-JsonPropertyValue $manifest $name
+            if ($null -eq $value -or ([string]::IsNullOrWhiteSpace([string]$value) -and $name -ne 'sizeBytes')) {
+                throw "Update package request '$SourceFile' has a manifest without required field '$name'."
+            }
+
+            $manifestFields[$name] = $value
+        }
+
+        $fields['manifest'] = $manifestFields
+    }
+
     return $fields | ConvertTo-Json -Depth 5
 }
 

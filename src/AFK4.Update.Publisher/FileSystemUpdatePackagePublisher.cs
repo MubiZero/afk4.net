@@ -13,6 +13,9 @@ public sealed class FileSystemUpdatePackagePublisher
         WriteIndented = true
     };
 
+    // Манифест хранится и хешируется как есть: без отступов, чтобы байты не зависели от форматирования.
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new(JsonSerializerDefaults.Web);
+
     // Больше этого размера объект уходит в хранилище частями: перед хранилищем может стоять прокси
     // с пределом тела запроса (Cloudflare — 100 МБ), и целый MSI агента его не проходит.
     private const int S3PartSizeBytes = 64 * 1024 * 1024;
@@ -47,6 +50,9 @@ public sealed class FileSystemUpdatePackagePublisher
             options.ReleaseNotes);
         var privateKeyPem = await LoadSigningPrivateKeyPemAsync(options, cancellationToken);
         var signature = signer.SignPem(privateKeyPem, payload);
+        var manifest = options.ManifestRoots is { Count: > 0 }
+            ? await PublishManifestAsync(options, privateKeyPem, cancellationToken)
+            : null;
         var request = new CreateUpdatePackageRequest(
             options.OrganizationId,
             options.Component.Trim(),
@@ -57,7 +63,8 @@ public sealed class FileSystemUpdatePackagePublisher
             signature,
             UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363,
             publishedArtifact.SizeBytes,
-            options.ReleaseNotes.Trim());
+            options.ReleaseNotes.Trim(),
+            manifest);
         var requestJson = JsonSerializer.Serialize(request, JsonOptions);
 
         if (!string.IsNullOrWhiteSpace(options.RequestJsonOutputPath))
@@ -181,6 +188,24 @@ public sealed class FileSystemUpdatePackagePublisher
             throw new ArgumentException(
                 "S3 stable alias object key is supported only for s3 artifact publishing.",
                 nameof(options));
+        }
+
+        if (options.ManifestRoots is { Count: > 0 })
+        {
+            if (options.ArtifactStoreKind != UpdateArtifactStoreKindNames.S3)
+            {
+                throw new ArgumentException("Manifest roots are supported only for s3 artifact publishing.", nameof(options));
+            }
+
+            if (options.ManifestRoots.Any(root => string.IsNullOrWhiteSpace(root.Name) || string.IsNullOrWhiteSpace(root.Directory)))
+            {
+                throw new ArgumentException("Every manifest root needs a name and a directory.", nameof(options));
+            }
+
+            if (options.ManifestRoots.Select(root => root.Name).Distinct(StringComparer.Ordinal).Count() != options.ManifestRoots.Count)
+            {
+                throw new ArgumentException("Manifest root names must be unique.", nameof(options));
+            }
         }
 
         var hasKeyFile = !string.IsNullOrWhiteSpace(options.SigningPrivateKeyPemPath);
@@ -433,6 +458,114 @@ public sealed class FileSystemUpdatePackagePublisher
 
     private static string Sha256Hex(ReadOnlySpan<byte> data) =>
         Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+
+    /// <summary>
+    /// Дельта-путь рядом с MSI: тела файлов (по хешу, один раз на содержимое) и подписанный манифест.
+    /// Тело, которое уже лежит в хранилище, не грузится заново, поэтому следующая публикация везёт
+    /// только изменившееся.
+    /// </summary>
+    private async Task<UpdateManifestDto> PublishManifestAsync(
+        UpdatePackagePublishOptions options,
+        string privateKeyPem,
+        CancellationToken cancellationToken)
+    {
+        var accessKey = ReadEnvironmentVariable(options.S3AccessKeyEnvironmentVariable!, "S3 access key");
+        var secretKey = ReadEnvironmentVariable(options.S3SecretKeyEnvironmentVariable!, "S3 secret key");
+        var workDirectory = Path.Combine(Path.GetTempPath(), $"afk4-manifest-{Guid.NewGuid():N}");
+
+        try
+        {
+            var build = await UpdateManifestBuilder.BuildAsync(options.ManifestRoots!, workDirectory, cancellationToken);
+
+            await Parallel.ForEachAsync(
+                build.Blobs,
+                new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken },
+                async (blob, token) =>
+                {
+                    var objectKey = string.Join("/", GetBlobPathSegments(options, blob.Sha256));
+                    if (await S3ObjectExistsAsync(options, objectKey, accessKey, secretKey, token))
+                    {
+                        return;
+                    }
+
+                    await PutS3ObjectAsync(
+                        options, blob.CompressedPath, objectKey, blob.CompressedSha256, accessKey, secretKey, cacheControl: null, token);
+                });
+
+            // С префиксом адрес приходит без закрывающего «/», без префикса — с ним: приводим к одному виду.
+            var blobBaseUri = CreateArtifactUri(options.PublicBaseUri!, GetBlobBaseSegments(options)).TrimEnd('/') + "/";
+            var document = new UpdateManifestDocument(
+                UpdateManifestLayout.CurrentSchema,
+                options.Component.Trim(),
+                options.Version.Trim(),
+                options.Channel.Trim(),
+                blobBaseUri,
+                build.Files);
+            var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(document, ManifestJsonOptions);
+            var manifestSha256 = Convert.ToHexString(SHA256.HashData(manifestBytes)).ToLowerInvariant();
+
+            var fileName = $"afk4-{SanitizePathSegment(options.Component)}-{SanitizePathSegment(options.Version)}-manifest.json";
+            var manifestPath = Path.Combine(workDirectory, fileName);
+            await File.WriteAllBytesAsync(manifestPath, manifestBytes, cancellationToken);
+            await PutS3ObjectAsync(
+                options, manifestPath, CreateObjectKey(options, fileName), manifestSha256, accessKey, secretKey, cacheControl: null, cancellationToken);
+
+            var manifestUri = CreateArtifactUri(options.PublicBaseUri!, GetArtifactPathSegments(options, fileName));
+            var manifestPayload = UpdateManifestSignaturePayload.Create(
+                options.Component, options.Version, options.Channel, manifestUri, manifestSha256, manifestBytes.LongLength);
+            return new UpdateManifestDto(
+                manifestUri,
+                manifestSha256,
+                manifestBytes.LongLength,
+                signer.SignPem(privateKeyPem, manifestPayload),
+                UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363);
+        }
+        finally
+        {
+            if (Directory.Exists(workDirectory))
+            {
+                Directory.Delete(workDirectory, recursive: true);
+            }
+        }
+    }
+
+    private async Task<bool> S3ObjectExistsAsync(
+        UpdatePackagePublishOptions options,
+        string objectKey,
+        string accessKey,
+        string secretKey,
+        CancellationToken cancellationToken)
+    {
+        var objectUri = CreateS3ObjectUri(options.S3Endpoint!, options.S3Bucket!, objectKey);
+        try
+        {
+            using var response = await SendS3RequestAsync(
+                options, HttpMethod.Head, objectUri, null, EmptyPayloadSha256, accessKey, secretKey, cacheControl: null, cancellationToken);
+            return true;
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+    }
+
+    // Общая папка тел файлов: тот же префикс, что у пакетов, но без компонента и версии.
+    private static string[] GetBlobBaseSegments(UpdatePackagePublishOptions options)
+    {
+        var segments = new List<string>();
+        if (!string.IsNullOrWhiteSpace(options.S3KeyPrefix))
+        {
+            segments.AddRange(
+                options.S3KeyPrefix
+                    .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(SanitizePathSegment));
+        }
+
+        return segments.ToArray();
+    }
+
+    private static string[] GetBlobPathSegments(UpdatePackagePublishOptions options, string sha256) =>
+        [.. GetBlobBaseSegments(options), .. UpdateManifestLayout.BlobObjectKey(sha256).Split('/')];
 
     private static async Task<string> LoadSigningPrivateKeyPemAsync(
         UpdatePackagePublishOptions options,
