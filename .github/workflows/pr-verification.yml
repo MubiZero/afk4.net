@@ -183,7 +183,7 @@ jobs:
       postgres:
         # Throwaway credentials for a container reachable only from this runner; the production
         # database is configured elsewhere and shares nothing with it.
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: afk4_ci_test
@@ -307,7 +307,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.41.6
+          flutter-version: 3.47.8
           channel: stable
           cache: true
 

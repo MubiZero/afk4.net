@@ -168,7 +168,7 @@ Minimum bar:
    yet recorded. `pr-verification.yml` now runs on every pull request
    regardless of target branch, not only PRs into `main`, so work landing on a
    long-lived branch first is still checked. It also runs a dedicated
-   `test-postgres` job on `ubuntu-latest` against a `postgres:16` service
+   `test-postgres` job on `ubuntu-latest` against a `postgres:17` service
    container, since the Windows job cannot host Postgres-backed tests and GitHub
    service containers are Linux-only. That job sets
    `AFK4_REQUIRE_POSTGRES_TESTS=1`, which turns a silent skip of

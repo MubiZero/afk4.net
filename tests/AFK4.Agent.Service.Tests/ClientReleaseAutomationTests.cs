@@ -615,7 +615,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         // Postgres-backed tests skip themselves without a database, and GitHub service containers
         // are Linux-only — so this job is the only place they actually run.
         Assert.Contains("test-postgres:", workflow, StringComparison.Ordinal);
-        Assert.Contains("image: postgres:16", workflow, StringComparison.Ordinal);
+        Assert.Contains("image: postgres:17", workflow, StringComparison.Ordinal);
         Assert.Contains("--health-cmd pg_isready", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_REQUIRE_POSTGRES_TESTS: '1'", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/test-shard.sh tests/AFK4.Platform.Api.Tests ${{ matrix.shard }} 3 -p:NuGetAudit=false -v minimal", workflow, StringComparison.Ordinal);
