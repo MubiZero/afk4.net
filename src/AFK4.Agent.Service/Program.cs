@@ -195,6 +195,11 @@ builder.Services.AddSingleton<IUpdateRollbackExecutor, ExternalProcessUpdateRoll
 builder.Services.AddSingleton<IAgentRestartScheduler, ExternalProcessAgentRestartScheduler>();
 builder.Services.AddSingleton<IUpdateInstaller, SafeUpdateInstaller>();
 builder.Services.AddSingleton<IAgentUpdateCoordinator, AgentUpdateCoordinator>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Updates.Delta.UpdateManifestClient>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Updates.Delta.UpdateBlobFetcher>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Updates.Delta.IUpdateRootResolver, AFK4.Agent.Service.Updates.Delta.OptionsUpdateRootResolver>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Updates.Delta.IMachineEnvironment, AFK4.Agent.Service.Updates.Delta.WindowsMachineEnvironment>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller>();
 builder.Services.AddSingleton<IUpdateRecoveryService, UpdateRecoveryService>();
 builder.Services.AddSingleton<IOrganizationAdminUpdateCoordinatorClient, NamedPipeOrganizationAdminUpdateCoordinatorClient>();
 builder.Services.AddSingleton<IOrganizationAdminUpdateReadiness, OrganizationAdminUpdateReadiness>();

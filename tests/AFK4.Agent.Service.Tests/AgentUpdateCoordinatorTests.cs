@@ -258,6 +258,107 @@ public sealed class AgentUpdateCoordinatorTests
 
     private static readonly Guid BusySessionId = Guid.Parse("5f2f6f4c-6a52-4a1c-9b1f-2a4a1f0f7c31");
 
+    [Fact]
+    public async Task DeltaEnabled_AppliesChangedFilesInsteadOfDownloadingTheMsi()
+    {
+        using var kit = new DeltaTestKit();
+        var temp = Path.Combine(Path.GetTempPath(), $"afk4-coordinator-delta-{Guid.NewGuid():N}");
+        try
+        {
+            var service = Directory.CreateDirectory(Path.Combine(temp, "service")).FullName;
+            await File.WriteAllTextAsync(Path.Combine(service, "App.dll"), "app-v1");
+            var (instruction, bytes) = kit.SignedInstruction([DeltaTestKit.Entry("agent-service", "App.dll", "app-v2")]);
+            var updateClient = new RecordingAgentUpdateClient([instruction]);
+            var downloader = new RecordingUpdateArtifactDownloader();
+            var installer = new RecordingUpdateInstaller(UpdateInstallResult.Success("MSI installed."));
+            var coordinator = CreateDeltaCoordinator(
+                updateClient, downloader, installer,
+                CreateDeltaInstaller(kit, new DeltaTestKit.Store().WithManifest(bytes).WithBlobs("app-v2"), service, temp));
+
+            var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+            Assert.Equal(1, result.AppliedCount);
+            Assert.Empty(downloader.DownloadedInstructions);
+            Assert.Empty(installer.InstalledInstructions);
+            Assert.Equal("app-v2", await File.ReadAllTextAsync(Path.Combine(service, "App.dll")));
+            var last = updateClient.ReportedStatuses[^1];
+            Assert.Equal(UpdateStatusNames.Installed, last.Status);
+            Assert.StartsWith("Delta applied", last.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DeltaThatCannotBeDownloaded_FallsBackToTheFullMsi()
+    {
+        using var kit = new DeltaTestKit();
+        var temp = Path.Combine(Path.GetTempPath(), $"afk4-coordinator-delta-{Guid.NewGuid():N}");
+        try
+        {
+            var service = Directory.CreateDirectory(Path.Combine(temp, "service")).FullName;
+            var (instruction, bytes) = kit.SignedInstruction([DeltaTestKit.Entry("agent-service", "App.dll", "app-v2")]);
+            var updateClient = new RecordingAgentUpdateClient([instruction]);
+            var downloader = new RecordingUpdateArtifactDownloader();
+            var installer = new RecordingUpdateInstaller(UpdateInstallResult.Success("MSI installed."));
+            var coordinator = CreateDeltaCoordinator(
+                updateClient, downloader, installer,
+                CreateDeltaInstaller(kit, new DeltaTestKit.Store().WithManifest(bytes), service, temp));
+
+            var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+            Assert.Equal(1, result.AppliedCount);
+            Assert.Equal([instruction], downloader.DownloadedInstructions);
+            Assert.Equal([instruction], installer.InstalledInstructions);
+        }
+        finally
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+    }
+
+    private static AgentUpdateCoordinator CreateDeltaCoordinator(
+        RecordingAgentUpdateClient updateClient,
+        RecordingUpdateArtifactDownloader downloader,
+        RecordingUpdateInstaller installer,
+        AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller deltaInstaller) => new(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            updateClient,
+            new AgentComponentVersionProvider(Options.Create(CreateOptions())),
+            downloader,
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("ok")),
+            installer,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
+            FreeSeatGuard(),
+            deltaInstaller: deltaInstaller);
+
+    private static AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller CreateDeltaInstaller(
+        DeltaTestKit kit, DeltaTestKit.Store store, string serviceDirectory, string temp)
+    {
+        var options = Options.Create(new AgentOptions
+        {
+            UpdateDeltaEnabled = true,
+            UpdatePackageSigningPublicKeyPem = kit.PublicKeyPem,
+            UpdateDownloadStallTimeout = TimeSpan.FromSeconds(5),
+            UpdateStagingDirectory = Path.Combine(temp, "staging"),
+            UpdateStateDirectory = Path.Combine(temp, "state")
+        });
+        var http = new DeltaTestKit.HttpFactory(store);
+        return new AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller(
+            NullLogger<AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller>.Instance,
+            new AFK4.Agent.Service.Updates.Delta.UpdateManifestClient(http, options),
+            new DeltaTestKit.Roots(("agent-service", serviceDirectory)),
+            new AFK4.Agent.Service.Updates.Delta.UpdateBlobFetcher(http, options),
+            new FileUpdateInstallStateStore(options),
+            new DeltaTestKit.RecordingRestart(),
+            new DeltaTestKit.RecordingEnvironment(),
+            options,
+            TimeProvider.System);
+    }
+
     private static GuestSeatUpdateGuard FreeSeatGuard() => new(new SeatRuntimeStateStore(isLocked: true));
 
     private static GuestSeatUpdateGuard BusySeatGuard() => new(new SeatRuntimeStateStore(isLocked: false));

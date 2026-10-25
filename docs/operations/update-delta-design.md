@@ -1,7 +1,8 @@
 # Delta updates by file manifest
 
-Status: phase 1 (publish manifest + file bodies, contracts, API) is on `main`; phase 2a (agent engine:
-verify, plan, fetch — not wired) is in review; phase 2b (apply, rollback, wiring behind a flag) is next.
+Status: phase 1 (publish), 2a (agent engine) and 2b (apply, rollback, wiring) are built. The agent path is
+behind `Agent:UpdateDeltaEnabled` (off by default) until a live Windows PC acceptance; any delta failure installs
+the full MSI.
 
 ## Why a file manifest and not a binary diff of the MSI
 
@@ -33,9 +34,28 @@ the runtime is pinned in the packaging workflows, `AFK4_SHIPPED_DOTNET_SDK`).
 - `UpdateBlobFetcher`: downloads each distinct body once (4 in parallel), inflates it while hashing, rejects a
   wrong hash or a body that inflates past its declared size, and stages it outside the install folders.
 
-## Phase 2b (not built)
+## Phase 2b: apply, rollback, wiring
 
-Apply with a helper outside the service (stop service/shell, back up the files it replaces, move the staged
-files in, start; restore the backup on any failure), the coordinator choosing delta before downloading the MSI,
-and `Agent:UpdateDeltaEnabled` (off by default). Open risk to settle there: the files change behind MSI's back
-(Add/Remove Programs version, `msiexec /f` repair), so a full MSI update must keep working as a major upgrade.
+- `UpdateDeltaApplier`: Windows will not overwrite a DLL that a process has loaded, but it will rename it. Each
+  file is copied next to its target as `.afk4new`, the old one is renamed to `.afk4old`, the new one takes its
+  place; the running program keeps the old mapping until restart. Any error puts every replaced file back and
+  deletes what was added. A journal is written before the first file: at service start, `applying` (power cut
+  mid-swap) is rolled back, `applied` has its `.afk4old` copies deleted.
+- `UpdateDeltaInstaller`: prepare (manifest → plan → fetch) and apply. Then it sets the same machine variable the
+  component MSI writes (`Agent__AgentVersion`, `Agent__ShellVersion`, `Agent__OrganizationAdminVersion`) and
+  schedules the agent restart, so the platform sees the new version. Install state goes through the usual store,
+  so the existing recovery treats an interrupted delta like an interrupted MSI. The last-known-good MSI is not
+  replaced: rollback after a later failure still has a full package.
+- Coordinator: tries delta before downloading the MSI when the flag is on and the instruction has a manifest;
+  `null` from any step means "install the MSI". The Player Shell gate wraps the swap like it wraps msiexec.
+- `UpdateDeltaMaxDownloadRatio` (0.6): delta is used only when it downloads at most this share of the MSI.
+
+## Open risks (live PC acceptance)
+
+- Renaming loaded images works on NTFS, but antivirus or a file opened without `FILE_SHARE_DELETE` (a log in the
+  install folder) makes the swap fail: it rolls back and installs the MSI. Watch for this on the pilot.
+- Files change behind Windows Installer: Add/Remove Programs keeps the older version, and `msiexec /f` repair
+  would restore MSI files. A later full MSI update still works as a major upgrade.
+- A crash between swap and restart leaves the agent's own folder mixed until the next start, where the journal
+  rolls it back. If the new agent cannot start at all, Windows service recovery restarts it; the journal is read
+  by the new code — keep that code path dependency-light.
