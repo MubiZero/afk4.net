@@ -46,6 +46,8 @@ public sealed class OutboxMessageEntity
 public static class OutboxMessageStatus
 {
     public const string Pending = "Pending";
+    /// <summary>Claimed by a dispatcher; reclaimable once <see cref="OutboxMessageEntity.AvailableAtUtc"/> passes.</summary>
+    public const string Sending = "Sending";
     public const string Dispatched = "Dispatched";
     public const string Failed = "Failed";
 }
