@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
+using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Players;
@@ -47,6 +48,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval,
         [PlatformJobNames.ReputationSnapshot] = reputationSnapshotOptions.TickInterval,
         [PlatformJobNames.BirthdayGifts] = BirthdayGiftHostedService.TickInterval,
-        [PlatformJobNames.OrphanMediaSweep] = OrphanMediaSweepHostedService.TickInterval
+        [PlatformJobNames.OrphanMediaSweep] = OrphanMediaSweepHostedService.TickInterval,
+        [PlatformJobNames.EskhataReconciliation] = EskhataReconciliationHostedService.TickInterval
     };
 }

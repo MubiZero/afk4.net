@@ -408,7 +408,9 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartBodyLengthLimit = maxBytes + 2 * 1024 * 1024;
 });
 
-builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
+// Без своего срока клиент ждал бы банк 100 секунд: игрок у экрана оплаты решил бы, что всё зависло.
+builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHostedService<EskhataReconciliationHostedService>();
 // Копия картинки рекламы при одобрении: короткий срок — модератор ждёт ответа.
 builder.Services.AddHttpClient(AFK4.Platform.Api.Ads.AdCreativeImages.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(AFK4.Platform.Api.Ads.PublicAddressGuard.CreateHandler);
