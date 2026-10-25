@@ -112,6 +112,6 @@ internal static class EskhataPaymentEndpoints
             }
 
             return Results.Ok();
-        }).RequireRateLimiting("player-public");
+        }).RequireRateLimiting("payment-webhook");
     }
 }

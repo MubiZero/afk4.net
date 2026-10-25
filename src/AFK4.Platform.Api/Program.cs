@@ -1,3 +1,4 @@
+using AFK4.Platform.Api;
 using System.Globalization;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
@@ -421,12 +422,31 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    // Пределы на адрес = пределы на весь клуб за одним NAT: см. PublicRateLimits.
     options.AddPolicy("player-public", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
+                PermitLimit = PublicRateLimits.SignInPerMinute,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("player-session", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = PublicRateLimits.PlayerSessionPerMinute,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("payment-webhook", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = PublicRateLimits.PaymentWebhookPerMinute,
                 Window = TimeSpan.FromMinutes(1)
             }));
 
@@ -449,7 +469,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
+                PermitLimit = PublicRateLimits.RegistrationPerMinute,
                 Window = TimeSpan.FromMinutes(1)
             }));
 

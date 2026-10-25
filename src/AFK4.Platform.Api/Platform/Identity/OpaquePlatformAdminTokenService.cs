@@ -33,10 +33,9 @@ public sealed class OpaquePlatformAdminTokenService(
 
         var now = timeProvider.GetUtcNow();
         var refreshTokenHash = HashToken(request.RefreshToken);
-        var candidates = await dbContext.PlatformAdminRefreshTokens
-            .Where(candidate => candidate.RevokedAtUtc == null && candidate.ExpiresAtUtc > now)
-            .ToArrayAsync(cancellationToken);
-        var refreshToken = candidates.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(refreshTokenHash));
+        var refreshToken = await dbContext.PlatformAdminRefreshTokens
+            .Where(candidate => candidate.TokenHash == refreshTokenHash && candidate.RevokedAtUtc == null && candidate.ExpiresAtUtc > now)
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (refreshToken is null)
         {
@@ -66,11 +65,10 @@ public sealed class OpaquePlatformAdminTokenService(
 
         var now = timeProvider.GetUtcNow();
         var tokenHash = HashToken(bearerToken);
-        var candidates = await dbContext.PlatformAdminAccessTokens
+        var token = await dbContext.PlatformAdminAccessTokens
             .AsNoTracking()
-            .Where(candidate => candidate.RevokedAtUtc == null && candidate.ExpiresAtUtc > now)
-            .ToArrayAsync(cancellationToken);
-        var token = candidates.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(tokenHash));
+            .Where(candidate => candidate.TokenHash == tokenHash && candidate.RevokedAtUtc == null && candidate.ExpiresAtUtc > now)
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (token is null)
         {
@@ -97,10 +95,9 @@ public sealed class OpaquePlatformAdminTokenService(
 
         var now = timeProvider.GetUtcNow();
         var refreshTokenHash = HashToken(request.RefreshToken);
-        var candidates = await dbContext.PlatformAdminRefreshTokens
-            .Where(candidate => candidate.RevokedAtUtc == null)
-            .ToArrayAsync(cancellationToken);
-        var refreshToken = candidates.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(refreshTokenHash));
+        var refreshToken = await dbContext.PlatformAdminRefreshTokens
+            .Where(candidate => candidate.TokenHash == refreshTokenHash && candidate.RevokedAtUtc == null)
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (refreshToken is null)
         {
