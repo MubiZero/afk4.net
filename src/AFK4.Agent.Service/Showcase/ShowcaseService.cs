@@ -175,17 +175,7 @@ public sealed class FileShowcaseStore(IOptions<AgentOptions> options) : IShowcas
 
     public void Save(StoredShowcase showcase)
     {
-        Directory.CreateDirectory(options.Value.StateDirectory);
-        var temporary = $"{FilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(showcase, Json));
-            File.Copy(temporary, FilePath, overwrite: true);
-        }
-        finally
-        {
-            CachedImages.TryDelete(temporary);
-        }
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(showcase, Json));
     }
 }
 

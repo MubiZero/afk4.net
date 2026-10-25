@@ -87,11 +87,7 @@ public sealed class OfflineGraceState : IOfflineGraceState
 
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(stateFilePath)!);
-            var tempPath = $"{stateFilePath}.{Guid.NewGuid():N}.tmp";
-            File.WriteAllText(tempPath, JsonSerializer.Serialize(new PersistedGrace(contactAtUtc, graceMinutes), JsonOptions));
-            File.Copy(tempPath, stateFilePath, overwrite: true);
-            File.Delete(tempPath);
+            AtomicFile.WriteAllText(stateFilePath, JsonSerializer.Serialize(new PersistedGrace(contactAtUtc, graceMinutes), JsonOptions));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {

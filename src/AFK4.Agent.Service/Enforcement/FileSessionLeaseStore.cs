@@ -94,23 +94,8 @@ public sealed class FileSessionLeaseStore : ISessionLeaseStore
         }
     }
 
-    private void WriteAtomically(SessionLeaseDto lease)
-    {
-        var tempPath = $"{leaseFilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = File.Create(tempPath))
-            {
-                JsonSerializer.Serialize(stream, lease, JsonOptions);
-            }
-
-            File.Copy(tempPath, leaseFilePath, overwrite: true);
-        }
-        finally
-        {
-            TryDelete(tempPath);
-        }
-    }
+    private void WriteAtomically(SessionLeaseDto lease) =>
+        AtomicFile.Write(leaseFilePath, stream => JsonSerializer.Serialize(stream, lease, JsonOptions));
 
     private static void TryDelete(string path)
     {

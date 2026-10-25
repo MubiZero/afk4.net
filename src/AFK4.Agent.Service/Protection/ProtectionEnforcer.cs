@@ -390,20 +390,7 @@ public sealed class FileProtectionProfileStore(IOptions<AgentOptions> options) :
 
     public void Save(ProtectionProfileDto profile)
     {
-        Directory.CreateDirectory(options.Value.StateDirectory);
-        var temporary = $"{FilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(profile, Json));
-            File.Copy(temporary, FilePath, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporary))
-            {
-                File.Delete(temporary);
-            }
-        }
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(profile, Json));
     }
 }
 

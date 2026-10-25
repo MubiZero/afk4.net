@@ -73,23 +73,8 @@ public sealed class AgentRuntimeStateStore : IAgentRuntimeStateStore
         }
     }
 
-    private void WriteAtomically(AgentRuntimeState state)
-    {
-        var tempPath = $"{stateFilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = File.Create(tempPath))
-            {
-                JsonSerializer.Serialize(stream, state, JsonOptions);
-            }
-
-            File.Copy(tempPath, stateFilePath, overwrite: true);
-        }
-        finally
-        {
-            TryDelete(tempPath);
-        }
-    }
+    private void WriteAtomically(AgentRuntimeState state) =>
+        AtomicFile.Write(stateFilePath, stream => JsonSerializer.Serialize(stream, state, JsonOptions));
 
     private static void TryDelete(string path)
     {

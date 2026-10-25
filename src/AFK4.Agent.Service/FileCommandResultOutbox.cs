@@ -149,24 +149,7 @@ public sealed class FileCommandResultOutbox : ICommandResultOutbox
 
     private void PersistOnce()
     {
-        Directory.CreateDirectory(StateDirectory);
-        var tempPath = $"{outboxFilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = File.Create(tempPath))
-            {
-                JsonSerializer.Serialize(stream, pending, JsonOptions);
-            }
-
-            // Переименование, а не копирование: копия может оборваться на середине и оставить
-            // обрезанный файл, который при следующем запуске придётся выбросить целиком. Заголовок
-            // класса обещает атомарную запись — теперь это правда.
-            File.Move(tempPath, outboxFilePath, overwrite: true);
-        }
-        finally
-        {
-            TryDelete(tempPath);
-        }
+        AtomicFile.Write(outboxFilePath, stream => JsonSerializer.Serialize(stream, pending, JsonOptions));
     }
 
     private static void TryDelete(string path)

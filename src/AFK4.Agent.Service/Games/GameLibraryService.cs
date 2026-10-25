@@ -180,20 +180,7 @@ public sealed class FileGameLibraryStore(IOptions<AgentOptions> options) : IGame
 
     public void Save(DeviceGameLibraryDto library)
     {
-        Directory.CreateDirectory(options.Value.StateDirectory);
-        var temporary = $"{FilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(library, Json));
-            File.Copy(temporary, FilePath, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporary))
-            {
-                File.Delete(temporary);
-            }
-        }
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(library, Json));
     }
 }
 
