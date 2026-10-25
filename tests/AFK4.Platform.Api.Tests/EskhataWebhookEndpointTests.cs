@@ -1,10 +1,13 @@
 using System.Net;
 using System.Text;
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Payments.Eskhata;
+using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -35,7 +38,8 @@ public class EskhataWebhookEndpointTests
             services.AddSingleton<IEskhataMerchantClientFactory>(new StatusStubFactory(status));
         });
 
-    private static async Task<Guid> SeedEskhataIntentAsync(PlatformApiFactory factory, string state = "pending")
+    private static async Task<Guid> SeedEskhataIntentAsync(
+        PlatformApiFactory factory, string state = "pending", TimeSpan? age = null)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -64,7 +68,7 @@ public class EskhataWebhookEndpointTests
             Method = "eskhata",
             GatewayPaymentId = "order-abc",
             GatewayPosId = 48741,
-            CreatedAtUtc = DateTimeOffset.UtcNow
+            CreatedAtUtc = DateTimeOffset.UtcNow - (age ?? TimeSpan.Zero)
         });
         await db.SaveChangesAsync();
         return intentId;
@@ -168,5 +172,111 @@ public class EskhataWebhookEndpointTests
         var response = await PostWebhookAsync(client, "{not-json");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static async Task<string> IntentStateAsync(PlatformApiFactory factory, Guid intentId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return (await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId)).State;
+    }
+
+    /// <summary>
+    /// Игрок отменил заявку, а потом всё-таки оплатил уже показанный QR. Деньги у клуба —
+    /// кошелёк пополняется, заявка становится завершённой. Раньше вебхук отвечал банку «принято» и
+    /// не зачислял ничего.
+    /// </summary>
+    [Fact]
+    public async Task Webhook_PaidAfterPlayerCancelled_CreditsAndMarksFulfilled()
+    {
+        await using var factory = CreateFactory("COMPLETED");
+        var intentId = await SeedEskhataIntentAsync(factory, state: "cancelled");
+        using var client = factory.CreateClient();
+
+        var response = await PostWebhookAsync(client, CompletedBody(intentId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+        Assert.Equal("fulfilled", await IntentStateAsync(factory, intentId));
+    }
+
+    /// <summary>
+    /// Процесс упал между зачислением и отметкой: деньги в журнале, заявка ещё «ожидает». Повтор
+    /// вебхука дописывает отметку и не зачисляет второй раз.
+    /// </summary>
+    [Fact]
+    public async Task Webhook_AfterCrashBetweenCreditAndMark_FinishesWithoutSecondCredit()
+    {
+        await using var factory = CreateFactory("COMPLETED");
+        var intentId = await SeedEskhataIntentAsync(factory);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
+            var credit = await scope.ServiceProvider.GetRequiredService<EfBillingCommandService>()
+                .CreditOnlineTopUpAsync(intent.PlayerAccountId, intent.BranchId, new TopUpWalletRequest(
+                    intent.OrganizationId,
+                    new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+                    EskhataSettlement.CreditReason,
+                    intent.PaymentIntentId.ToString("N")), CancellationToken.None);
+            Assert.True(credit.Succeeded);
+        }
+        using var client = factory.CreateClient();
+
+        var response = await PostWebhookAsync(client, CompletedBody(intentId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+        Assert.Equal("fulfilled", await IntentStateAsync(factory, intentId));
+    }
+
+    private static Task ReconcileAsync(PlatformApiFactory factory) =>
+        new EskhataReconciliationHostedService(
+                factory.Services,
+                factory.Services.GetRequiredService<TimeProvider>(),
+                NullLogger<EskhataReconciliationHostedService>.Instance)
+            .RunOnceAsync(CancellationToken.None);
+
+    /// <summary>Вебхук не дошёл, игрок закрыл приложение — сверка находит оплату у банка сама.</summary>
+    [Fact]
+    public async Task Reconciliation_CreditsPaymentTheWebhookMissed()
+    {
+        await using var factory = CreateFactory("COMPLETED");
+        var pending = await SeedEskhataIntentAsync(factory, age: TimeSpan.FromMinutes(10));
+        var cancelled = await SeedEskhataIntentAsync(factory, state: "cancelled", age: TimeSpan.FromMinutes(10));
+
+        await ReconcileAsync(factory);
+
+        Assert.Equal(1, await CountTopUpsAsync(factory, pending));
+        Assert.Equal("fulfilled", await IntentStateAsync(factory, pending));
+        Assert.Equal(1, await CountTopUpsAsync(factory, cancelled));
+        Assert.Equal("fulfilled", await IntentStateAsync(factory, cancelled));
+
+        await ReconcileAsync(factory);
+        Assert.Equal(1, await CountTopUpsAsync(factory, pending));
+    }
+
+    /// <summary>
+    /// Неоплаченное, свежее (его ведёт опрос приложения) и старше суток — не трогаются.
+    /// </summary>
+    [Fact]
+    public async Task Reconciliation_LeavesUnpaidFreshAndStaleIntentsAlone()
+    {
+        await using (var unpaidFactory = CreateFactory("NEW"))
+        {
+            var unpaid = await SeedEskhataIntentAsync(unpaidFactory, age: TimeSpan.FromMinutes(10));
+            await ReconcileAsync(unpaidFactory);
+            Assert.Equal(0, await CountTopUpsAsync(unpaidFactory, unpaid));
+            Assert.Equal("pending", await IntentStateAsync(unpaidFactory, unpaid));
+        }
+
+        await using var factory = CreateFactory("COMPLETED");
+        var fresh = await SeedEskhataIntentAsync(factory);
+        var stale = await SeedEskhataIntentAsync(factory, age: TimeSpan.FromHours(25));
+
+        await ReconcileAsync(factory);
+
+        Assert.Equal(0, await CountTopUpsAsync(factory, fresh));
+        Assert.Equal(0, await CountTopUpsAsync(factory, stale));
     }
 }

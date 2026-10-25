@@ -19,6 +19,9 @@ namespace AFK4.Platform.Api.Payments;
 /// двигаются деньги. Занять и не зачислить — заявка останется в «завершено» без денег, и это
 /// видно человеку за стойкой; зачислить и не занять — деньги ушли под заявку, которую в тот же
 /// момент отменили, и узнать об этом неоткуда.
+///
+/// Оплата, подтверждённая банком, — исключение (<see cref="MarkPaidByBankAsync"/>): деньги уже у
+/// клуба, отменять нечего. Там порядок прямой — сначала зачисление, потом отметка.
 /// </summary>
 internal static class PaymentIntentClaim
 {
@@ -53,6 +56,24 @@ internal static class PaymentIntentClaim
         PaymentIntentEntity intent,
         CancellationToken cancellationToken) =>
         TryMoveAsync(dbContext, intent, Fulfilled, Pending, null, cancellationToken);
+
+    /// <summary>
+    /// Отмечает завершённой заявку, которую банк подтвердил оплаченной, — после зачисления, не до.
+    ///
+    /// Отмена тут не помеха: игрок мог нажать «отменить», а потом всё-таки оплатить QR, и деньги
+    /// уже у банка. Заявка, которая осталась бы отменённой при пополненном кошельке, соврала бы.
+    /// </summary>
+    public static async Task MarkPaidByBankAsync(
+        PlatformDbContext dbContext,
+        PaymentIntentEntity intent,
+        DateTimeOffset fulfilledAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (!await TryMoveAsync(dbContext, intent, Pending, Fulfilled, fulfilledAtUtc, cancellationToken))
+        {
+            await TryMoveAsync(dbContext, intent, Cancelled, Fulfilled, fulfilledAtUtc, cancellationToken);
+        }
+    }
 
     private static async Task<bool> TryMoveAsync(
         PlatformDbContext dbContext,

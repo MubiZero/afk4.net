@@ -392,9 +392,10 @@ internal static class PlayerSelfServiceEndpoints
                         merchantId.Value,
                         cancellationToken);
                 }
-                catch (HttpRequestException)
+                catch (Exception exception) when (exception is HttpRequestException ||
+                    (exception is TaskCanceledException && !cancellationToken.IsCancellationRequested))
                 {
-                    // Банк отказал в заказе. Самая частая причина при orderTypeId=3 — «отсутствует
+                    // Банк отказал в заказе или не ответил за срок клиента (15 с). Самая частая причина при orderTypeId=3 — «отсутствует
                     // свободная касса»: кассу выдаёт банк из своего пула, и пул бывает пуст
                     // (проверено живой сверкой 24.08.2026, отпускает через полминуты). Это «занято,
                     // подождите», а не «сломалось»: пятисотка звала бы человека повторять одно и то
@@ -626,41 +627,16 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.Ok(new { payment = "pending" });
             }
 
-            var status = await eskhataClient.GetOrderStatusAsync(
-                intent.PaymentIntentId.ToString("N"),
-                intent.GatewayPaymentId ?? "",
-                intent.AmountMinorUnits,
-                "972",
-                intent.GatewayPosId ?? 0,
-                cancellationToken);
+            var status = await AFK4.Platform.Api.Payments.Eskhata.EskhataSettlement.FetchStatusAsync(
+                eskhataClient, intent, cancellationToken);
 
             if (status == "COMPLETED")
             {
-                var topUpRequest = new TopUpWalletRequest(
-                    intent.OrganizationId,
-                    new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
-                    "eskhata_online_topup",
-                    intent.PaymentIntentId.ToString("N"));
-
-                // Захват до зачисления: иначе отмена, успевшая в зазор, оставила бы заявку отменённой при
-                // пополненном кошельке.
-                if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
-                        dbContext, intent, PaymentIntentClaim.Fulfilled, timeProvider.GetUtcNow(), cancellationToken))
-                {
-                    // Проиграли гонку — решение по заявке принял кто-то другой (вебхук банка или отмена
-                    // самого игрока). Называть исход отсюда нечем и незачем: следующий опрос прочтёт уже
-                    // записанное состояние выше и ответит «paid» или «failed» — ценой одного интервала.
-                    return Results.Ok(new { payment = "pending" });
-                }
-
-                var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
-                    intent.PlayerAccountId, intent.BranchId, topUpRequest, cancellationToken);
-                if (billingResult.Succeeded)
-                {
-                    return Results.Ok(new { payment = "paid" });
-                }
-
-                await PaymentIntentClaim.TryReleaseAsync(dbContext, intent, cancellationToken);
+                // Не вышло зачислить — «ожидает»: следующий опрос, вебхук или сверка повторят.
+                return await AFK4.Platform.Api.Payments.Eskhata.EskhataSettlement.SettleConfirmedAsync(
+                        billingCommandService, dbContext, intent, timeProvider.GetUtcNow())
+                    ? Results.Ok(new { payment = "paid" })
+                    : Results.Ok(new { payment = "pending" });
             }
 
             if (status is "CANCELED" or "REFUNDED")
