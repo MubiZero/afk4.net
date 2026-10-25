@@ -10,20 +10,23 @@ public sealed record BranchSnapshotBranch(
 /// <summary>Событие без денег: старт сеанса, открытие смены.</summary>
 public sealed record BranchSnapshotEvent(Guid BranchId, DateTimeOffset AtUtc);
 
-/// <summary>Денежная строка: платёж или запись реестра.</summary>
+/// <summary>Денежная строка: движение по чеку бара (<see cref="GoodsKind"/>) или запись журнала сессии.</summary>
 public sealed record BranchSnapshotMoney(
     Guid BranchId,
     DateTimeOffset AtUtc,
     string Kind,
     long AmountMinorUnits,
-    string CurrencyCode);
+    string CurrencyCode)
+{
+    public const string GoodsKind = "goods";
+}
 
 public sealed record BranchSnapshotInput(
     DateTimeOffset Now,
     IReadOnlyList<BranchSnapshotBranch> Branches,
     IReadOnlyDictionary<Guid, DateOnly> LastSnapshotDates,
     IReadOnlyList<BranchSnapshotEvent> SessionStarts,
-    IReadOnlyList<BranchSnapshotMoney> Payments,
+    IReadOnlyList<BranchSnapshotMoney> Goods,
     IReadOnlyList<BranchSnapshotMoney> LedgerEntries,
     IReadOnlyList<BranchSnapshotEvent> ShiftOpens,
     IReadOnlyDictionary<Guid, DateTimeOffset> LastHeartbeatUtc);
@@ -53,7 +56,7 @@ public static class BranchDailySnapshotBuilder
     public static IReadOnlyList<BranchDayFacts> Build(BranchSnapshotInput input)
     {
         var sessionsByBranch = input.SessionStarts.ToLookup(item => item.BranchId);
-        var paymentsByBranch = input.Payments.ToLookup(item => item.BranchId);
+        var goodsByBranch = input.Goods.ToLookup(item => item.BranchId);
         var ledgerByBranch = input.LedgerEntries.ToLookup(item => item.BranchId);
         var shiftsByBranch = input.ShiftOpens.ToLookup(item => item.BranchId);
 
@@ -83,13 +86,13 @@ public static class BranchDailySnapshotBuilder
 
             var sessionsByDay = GroupEvents(sessionsByBranch[branch.BranchId], zone);
             var shiftsByDay = GroupEvents(shiftsByBranch[branch.BranchId], zone);
-            var paymentsByDay = GroupMoney(paymentsByBranch[branch.BranchId], zone);
+            var goodsByDay = GroupMoney(goodsByBranch[branch.BranchId], zone);
             var ledgerByDay = GroupMoney(ledgerByBranch[branch.BranchId], zone);
             var agentAliveNow = ResolveAgentAlive(input, branch.BranchId);
 
             for (var day = startDay; day <= lastCompleteDay; day = day.AddDays(1))
             {
-                var dayPayments = paymentsByDay.TryGetValue(day, out var paid) ? paid : [];
+                var dayGoods = goodsByDay.TryGetValue(day, out var sold) ? sold : [];
                 var dayLedger = ledgerByDay.TryGetValue(day, out var entries) ? entries : [];
 
                 facts.Add(new BranchDayFacts(
@@ -97,9 +100,10 @@ public static class BranchDailySnapshotBuilder
                     branch.OrganizationId,
                     day,
                     sessionsByDay.TryGetValue(day, out var sessions) ? sessions : 0,
-                    BranchRevenue.PosNet(dayPayments.Select(item => (item.Kind, item.AmountMinorUnits)))
-                        + BranchRevenue.Gameplay(dayLedger.Select(item => (item.Kind, item.AmountMinorUnits))),
-                    ResolveCurrency(dayPayments, dayLedger),
+                    dayGoods.Sum(item => item.AmountMinorUnits)
+                        // Возвраты без сессии раннер не выбирает, поэтому каждая запись здесь — игровая.
+                        + BranchRevenue.Gameplay(dayLedger.Select(item => (item.Kind, item.AmountMinorUnits, HasSession: true))),
+                    ResolveCurrency(dayGoods, dayLedger),
                     shiftsByDay.TryGetValue(day, out var shifts) ? shifts : 0,
                     // Живость меряется только «сейчас» — heartbeat перезаписывается. Поэтому она
                     // ставится единственным суткам, которые только что закончились; доснятым
@@ -120,9 +124,9 @@ public static class BranchDailySnapshotBuilder
     }
 
     private static string ResolveCurrency(
-        IReadOnlyList<BranchSnapshotMoney> payments,
+        IReadOnlyList<BranchSnapshotMoney> goods,
         IReadOnlyList<BranchSnapshotMoney> ledger) =>
-        payments.FirstOrDefault()?.CurrencyCode
+        goods.FirstOrDefault()?.CurrencyCode
         ?? ledger.FirstOrDefault()?.CurrencyCode
         ?? BranchRevenue.DefaultCurrencyCode;
 

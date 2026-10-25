@@ -41,12 +41,20 @@ public sealed class EfBranchSnapshotRunner(PlatformDbContext dbContext, TimeProv
             .Select(session => new BranchSnapshotEvent(session.BranchId, session.StartedAtUtc!.Value))
             .ToListAsync(cancellationToken);
 
-        var payments = await dbContext.Payments
+        // Товары — чеки бара (оплата и возврат в свои дни), а не платежи: см. BranchRevenue.
+        var goodsSales = await dbContext.PosSales
             .AsNoTracking()
-            .Where(payment => payment.CreatedAtUtc >= windowStart && payment.CreatedAtUtc <= windowEnd)
-            .Select(payment => new BranchSnapshotMoney(
-                payment.BranchId, payment.CreatedAtUtc, payment.PaymentKind, payment.AmountMinorUnits, payment.CurrencyCode))
+            .Where(sale =>
+                (sale.PaidAtUtc >= windowStart && sale.PaidAtUtc <= windowEnd) ||
+                (sale.RefundedAtUtc >= windowStart && sale.RefundedAtUtc <= windowEnd))
+            .Select(sale => new { sale.BranchId, sale.PaidAtUtc, sale.RefundedAtUtc, sale.TotalMinorUnits, sale.CurrencyCode })
             .ToListAsync(cancellationToken);
+        var goods = goodsSales
+            .SelectMany(sale => BranchRevenue.GoodsMovements(sale.PaidAtUtc, sale.RefundedAtUtc, sale.TotalMinorUnits)
+                .Select(movement => new BranchSnapshotMoney(
+                    sale.BranchId, movement.AtUtc, BranchSnapshotMoney.GoodsKind, movement.AmountMinorUnits, sale.CurrencyCode)))
+            .Where(movement => movement.AtUtc >= windowStart && movement.AtUtc <= windowEnd)
+            .ToList();
 
         var ledgerEntries = await dbContext.LedgerEntries
             .AsNoTracking()
@@ -55,7 +63,8 @@ public sealed class EfBranchSnapshotRunner(PlatformDbContext dbContext, TimeProv
                 entry.CreatedAtUtc <= windowEnd &&
                 (entry.EntryType == LedgerEntryTypeNames.GameplayCharge ||
                     entry.EntryType == LedgerEntryTypeNames.PostpaidDebt ||
-                    entry.EntryType == LedgerEntryTypeNames.Refund))
+                    // Только возврат за игру: возврат пополнения кошелька выручкой не был.
+                    (entry.EntryType == LedgerEntryTypeNames.Refund && entry.SessionId != null)))
             .Select(entry => new BranchSnapshotMoney(
                 entry.BranchId, entry.CreatedAtUtc, entry.EntryType, entry.AmountMinorUnits, entry.CurrencyCode))
             .ToListAsync(cancellationToken);
@@ -79,7 +88,7 @@ public sealed class EfBranchSnapshotRunner(PlatformDbContext dbContext, TimeProv
             .ToDictionaryAsync(row => row.BranchId, row => row.Last, cancellationToken);
 
         var facts = BranchDailySnapshotBuilder.Build(new BranchSnapshotInput(
-            now, branches, lastSnapshotDates, sessionStarts, payments, ledgerEntries, shiftOpens, heartbeats));
+            now, branches, lastSnapshotDates, sessionStarts, goods, ledgerEntries, shiftOpens, heartbeats));
         if (facts.Count == 0) return 0;
 
         var createdAt = timeProvider.GetUtcNow();

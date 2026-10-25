@@ -6,36 +6,24 @@ namespace AFK4.Platform.Api.Tests.Platform.Analytics;
 public sealed class BranchRevenueTests
 {
     [Fact]
-    public void PosNet_CountsPaymentsAndRefunds_IgnoringOtherKinds()
-    {
-        var posNet = BranchRevenue.PosNet(
-        [
-            ("payment", 5_000L),
-            ("refund", -1_500L),
-            ("deposit", 90_000L)
-        ]);
-
-        Assert.Equal(3_500L, posNet);
-    }
-
-    [Fact]
-    public void PosNet_MatchesKindsCaseInsensitively()
-    {
-        Assert.Equal(700L, BranchRevenue.PosNet([("Payment", 700L)]));
-    }
-
-    [Fact]
-    public void Gameplay_AddsChargesAndDebt_SubtractsRefunds()
+    public void Gameplay_AddsChargesAndDebt_SubtractsGameRefunds_IgnoresEverythingElse()
     {
         var gameplay = BranchRevenue.Gameplay(
         [
-            (LedgerEntryTypeNames.GameplayCharge, -4_000L),
-            (LedgerEntryTypeNames.PostpaidDebt, 2_000L),
-            (LedgerEntryTypeNames.Refund, 500L),
-            (LedgerEntryTypeNames.TopUp, 100_000L)
+            (LedgerEntryTypeNames.GameplayCharge, -4_000L, true),
+            (LedgerEntryTypeNames.PostpaidDebt, 2_000L, true),
+            (LedgerEntryTypeNames.Refund, 500L, true),
+            (LedgerEntryTypeNames.TopUp, 100_000L, false)
         ]);
 
         Assert.Equal(4_000L + 2_000L - 500L, gameplay);
+    }
+
+    // Возврат пополнения кошелька (запись без сессии) выручкой не был: вычитать его — занижать день.
+    [Fact]
+    public void Gameplay_DoesNotSubtractAWalletRefundWithoutASession()
+    {
+        Assert.Equal(0L, BranchRevenue.Gameplay([(LedgerEntryTypeNames.Refund, -1_000L, false)]));
     }
 
     [Fact]
@@ -43,6 +31,18 @@ public sealed class BranchRevenueTests
     {
         // Погашение долга приходит той же строкой с отрицательной суммой — это не выручка суток,
         // выручка была зачтена в момент возникновения долга.
-        Assert.Equal(0L, BranchRevenue.Gameplay([(LedgerEntryTypeNames.PostpaidDebt, -2_000L)]));
+        Assert.Equal(0L, BranchRevenue.Gameplay([(LedgerEntryTypeNames.PostpaidDebt, -2_000L, true)]));
+    }
+
+    [Fact]
+    public void GoodsMovements_CountAPaidSaleOnItsDay_AndItsRefundOnTheRefundDay()
+    {
+        var paid = DateTimeOffset.Parse("2026-10-20T10:00:00Z");
+        var refunded = DateTimeOffset.Parse("2026-10-21T09:00:00Z");
+
+        Assert.Equal([(paid, 3_000L)], BranchRevenue.GoodsMovements(paid, null, 3_000));
+        Assert.Equal([(paid, 3_000L), (refunded, -3_000L)], BranchRevenue.GoodsMovements(paid, refunded, 3_000));
+        // Неоплаченный чек (черновик, аннулирован) не двигал денег.
+        Assert.Empty(BranchRevenue.GoodsMovements(null, null, 3_000));
     }
 }

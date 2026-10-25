@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Pos;
 ﻿using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
@@ -116,31 +117,77 @@ public sealed class EfOperatorDashboardServiceTests
     }
 
     [Fact]
-    public async Task Summary_SubtractsRefundsFromBothPosAndGameplayRevenue()
+    public async Task Summary_SubtractsBarAndGameRefunds_ButNotCashInOrWalletRefunds()
     {
         await using var db = CreateDbContext();
-        AddPayment(db, "payment", 5_000, DayStart.AddHours(11));
-        AddPayment(db, "refund", -1_500, DayStart.AddHours(12));
+        AddPaidSale(db, 5_000, DayStart.AddHours(11));
+        AddPaidSale(db, 1_500, DayStart.AddHours(11).AddMinutes(30), refundedAtUtc: DayStart.AddHours(12));
         // Внесение денег в кассу не выручка: это движение по смене.
         AddPayment(db, "cash_in", 100_000, DayStart.AddHours(13));
-        AddLedgerEntry(db, LedgerEntryTypeNames.GameplayCharge, -8_000, DayStart.AddHours(11));
-        AddLedgerEntry(db, LedgerEntryTypeNames.Refund, 2_000, DayStart.AddHours(12));
+        var sessionId = Guid.NewGuid();
+        AddLedgerEntry(db, LedgerEntryTypeNames.GameplayCharge, -8_000, DayStart.AddHours(11), sessionId);
+        AddLedgerEntry(db, LedgerEntryTypeNames.Refund, 2_000, DayStart.AddHours(12), sessionId);
+        // Возврат пополнения кошелька (без сессии) выручкой не был — вычитать его нельзя.
+        AddLedgerEntry(db, LedgerEntryTypeNames.Refund, -3_000, DayStart.AddHours(12));
         await db.SaveChangesAsync();
 
         var summary = await CreateService(db).GetSummaryAsync(
             TestIds.OrganizationId, TestIds.BranchId, new DashboardSummaryQuery(null, null, null), CancellationToken.None);
 
-        Assert.Equal(3_500, summary.Revenue.PosNetSales.MinorUnits);
+        Assert.Equal(5_000, summary.Revenue.PosNetSales.MinorUnits);
         Assert.Equal(6_000, summary.Revenue.GameplayRevenue.MinorUnits);
-        Assert.Equal(9_500, summary.Revenue.TotalRevenue.MinorUnits);
+        Assert.Equal(11_000, summary.Revenue.TotalRevenue.MinorUnits);
+    }
+
+    // Гость заплатил наличными за игру: в журнале списание, в платежах наличная оплата той же сессии.
+    // Раньше «Сводка» складывала и то и другое — 100 сомони игры показывались как 200.
+    [Fact]
+    public async Task Summary_CountsACashPaidGuestSessionOnce()
+    {
+        await using var db = CreateDbContext();
+        var sessionId = Guid.NewGuid();
+        AddLedgerEntry(db, LedgerEntryTypeNames.GameplayCharge, -10_000, DayStart.AddHours(11), sessionId);
+        var cash = NewPayment("payment", 10_000, DayStart.AddHours(11), TestIds.BranchId);
+        cash.SessionId = sessionId;
+        db.Payments.Add(cash);
+        await db.SaveChangesAsync();
+
+        var summary = await CreateService(db).GetSummaryAsync(
+            TestIds.OrganizationId, TestIds.BranchId, new DashboardSummaryQuery(null, null, null), CancellationToken.None);
+
+        Assert.Equal(0, summary.Revenue.PosNetSales.MinorUnits);
+        Assert.Equal(10_000, summary.Revenue.GameplayRevenue.MinorUnits);
+        Assert.Equal(10_000, summary.Revenue.TotalRevenue.MinorUnits);
+    }
+
+    // «Завершить и рассчитать»: постоплатный долг за игру и бар на сессию оплачиваются одним платежом,
+    // привязанным к сессии, а не к чеку. Бар обязан попасть в выручку (по чеку), а игра — один раз.
+    [Fact]
+    public async Task Summary_CountsBarPaidAtSessionCheckoutOnce()
+    {
+        await using var db = CreateDbContext();
+        var sessionId = Guid.NewGuid();
+        AddLedgerEntry(db, LedgerEntryTypeNames.PostpaidDebt, 10_000, DayStart.AddHours(10), sessionId);
+        db.PosSales.Add(NewSale(3_000, DayStart.AddHours(11), refundedAtUtc: null, TestIds.BranchId, sessionId));
+        var checkout = NewPayment("payment", 13_000, DayStart.AddHours(11), TestIds.BranchId);
+        checkout.SessionId = sessionId;
+        db.Payments.Add(checkout);
+        await db.SaveChangesAsync();
+
+        var summary = await CreateService(db).GetSummaryAsync(
+            TestIds.OrganizationId, TestIds.BranchId, new DashboardSummaryQuery(null, null, null), CancellationToken.None);
+
+        Assert.Equal(3_000, summary.Revenue.PosNetSales.MinorUnits);
+        Assert.Equal(10_000, summary.Revenue.GameplayRevenue.MinorUnits);
+        Assert.Equal(13_000, summary.Revenue.TotalRevenue.MinorUnits);
     }
 
     [Fact]
     public async Task Summary_IgnoresMoneyOutsideTheAskedRange()
     {
         await using var db = CreateDbContext();
-        AddPayment(db, "payment", 5_000, DayStart.AddHours(11));
-        AddPayment(db, "payment", 900_000, DayStart.AddDays(-3));
+        AddPaidSale(db, 5_000, DayStart.AddHours(11));
+        AddPaidSale(db, 900_000, DayStart.AddDays(-3));
         await db.SaveChangesAsync();
 
         var summary = await CreateService(db).GetSummaryAsync(
@@ -159,7 +206,7 @@ public sealed class EfOperatorDashboardServiceTests
     public async Task Summary_WithSwappedRange_StillReturnsThatRange()
     {
         await using var db = CreateDbContext();
-        AddPayment(db, "payment", 5_000, DayStart.AddHours(11));
+        AddPaidSale(db, 5_000, DayStart.AddHours(11));
         await db.SaveChangesAsync();
 
         var summary = await CreateService(db).GetSummaryAsync(
@@ -259,7 +306,7 @@ public sealed class EfOperatorDashboardServiceTests
     {
         await using var db = CreateDbContext();
         AddSeats(db, 2);
-        AddPayment(db, "payment", 5_000, DayStart.AddHours(11));
+        AddPaidSale(db, 5_000, DayStart.AddHours(11));
         db.Seats.Add(new SeatEntity
         {
             SeatId = Guid.NewGuid(),
@@ -270,7 +317,7 @@ public sealed class EfOperatorDashboardServiceTests
             SortOrder = 1,
             CreatedAtUtc = DayStart
         });
-        db.Payments.Add(NewPayment("payment", 777_000, DayStart.AddHours(12), OtherBranchId));
+        AddPaidSale(db, 777_000, DayStart.AddHours(12), branchId: OtherBranchId);
         await db.SaveChangesAsync();
 
         var summary = await CreateService(db).GetSummaryAsync(
@@ -434,9 +481,47 @@ public sealed class EfOperatorDashboardServiceTests
             CreatedAtUtc = createdAtUtc
         };
 
-    private static void AddLedgerEntry(PlatformDbContext db, string entryType, long minorUnits, DateTimeOffset createdAtUtc) =>
+    /// <summary>Продажа бара как в жизни: оплаченный чек и его платёж (и возврат, если был).</summary>
+    private static void AddPaidSale(
+        PlatformDbContext db, long totalMinorUnits, DateTimeOffset paidAtUtc, DateTimeOffset? refundedAtUtc = null, Guid? branchId = null)
+    {
+        var branch = branchId ?? TestIds.BranchId;
+        var sale = NewSale(totalMinorUnits, paidAtUtc, refundedAtUtc, branch, sessionId: null);
+        db.PosSales.Add(sale);
+        var payment = NewPayment("payment", totalMinorUnits, paidAtUtc, branch);
+        payment.PosSaleId = sale.PosSaleId;
+        db.Payments.Add(payment);
+        if (refundedAtUtc is { } refunded)
+        {
+            var refund = NewPayment("refund", -totalMinorUnits, refunded, branch);
+            refund.PosSaleId = sale.PosSaleId;
+            db.Payments.Add(refund);
+        }
+    }
+
+    private static PosSaleEntity NewSale(
+        long totalMinorUnits, DateTimeOffset paidAtUtc, DateTimeOffset? refundedAtUtc, Guid branchId, Guid? sessionId) =>
+        new()
+        {
+            PosSaleId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = branchId,
+            ShiftId = OpenShiftId,
+            CreatedByStaffUserId = StaffId,
+            SessionId = sessionId,
+            State = refundedAtUtc is null ? PosSaleStateNames.Paid : PosSaleStateNames.Refunded,
+            CurrencyCode = "TJS",
+            TotalMinorUnits = totalMinorUnits,
+            CreatedAtUtc = paidAtUtc,
+            PaidAtUtc = paidAtUtc,
+            RefundedAtUtc = refundedAtUtc
+        };
+
+    private static void AddLedgerEntry(
+        PlatformDbContext db, string entryType, long minorUnits, DateTimeOffset createdAtUtc, Guid? sessionId = null) =>
         db.LedgerEntries.Add(new LedgerEntryEntity
         {
+            SessionId = sessionId,
             LedgerEntryId = Guid.NewGuid(),
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,

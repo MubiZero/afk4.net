@@ -41,12 +41,12 @@ public sealed class OrganizationAdminReportServiceTests
             Name = "Central",
             PreferredTimeZone = "Asia/Dushanbe"
         });
-        // Деньги — движениями по их дню: бар 6 000 − 1 000 и игра 2 000 в отчётный день, бар
-        // 4 000 − 1 000 и игра 2 000 — в предыдущий.
-        db.Payments.Add(Pos("payment", 6_000, DateTimeOffset.Parse("2026-07-29T07:00:00Z")));
-        db.Payments.Add(Pos("refund", -1_000, DateTimeOffset.Parse("2026-07-29T07:30:00Z")));
-        db.Payments.Add(Pos("payment", 4_000, DateTimeOffset.Parse("2026-07-28T07:00:00Z")));
-        db.Payments.Add(Pos("refund", -1_000, DateTimeOffset.Parse("2026-07-28T07:30:00Z")));
+        // Деньги — движениями по их дню: бар 6 000 − 1 000 (возврат чека, проданного раньше) и игра
+        // 2 000 в отчётный день, бар 4 000 − 1 000 и игра 2 000 — в предыдущий.
+        AddSale(db, 6_000, DateTimeOffset.Parse("2026-07-29T07:00:00Z"));
+        AddSale(db, 1_000, DateTimeOffset.Parse("2026-07-27T07:00:00Z"), refundedAt: DateTimeOffset.Parse("2026-07-29T07:30:00Z"));
+        AddSale(db, 4_000, DateTimeOffset.Parse("2026-07-28T07:00:00Z"));
+        AddSale(db, 1_000, DateTimeOffset.Parse("2026-07-26T07:00:00Z"), refundedAt: DateTimeOffset.Parse("2026-07-28T07:30:00Z"));
         db.LedgerEntries.Add(Gameplay(LedgerEntryTypeNames.GameplayCharge, -2_000, DateTimeOffset.Parse("2026-07-29T08:00:00Z")));
         db.LedgerEntries.Add(Gameplay(LedgerEntryTypeNames.GameplayCharge, -2_000, DateTimeOffset.Parse("2026-07-28T08:00:00Z")));
         await db.SaveChangesAsync();
@@ -77,9 +77,9 @@ public sealed class OrganizationAdminReportServiceTests
         await using var db = CreateDbContext();
         db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Slug = "central", Name = "Central", PreferredTimeZone = "Asia/Dushanbe" });
         // Продажа накануне, возврат по ней — в отчётный день: возврат уменьшает отчётный день.
-        db.Payments.Add(Pos("payment", 6_000, DateTimeOffset.Parse("2026-07-29T03:00:00Z")));
-        db.Payments.Add(Pos("payment", 4_000, DateTimeOffset.Parse("2026-07-28T05:00:00Z")));
-        db.Payments.Add(Pos("refund", -1_000, DateTimeOffset.Parse("2026-07-29T04:00:00Z")));
+        AddSale(db, 6_000, DateTimeOffset.Parse("2026-07-29T03:00:00Z"));
+        AddSale(db, 4_000, DateTimeOffset.Parse("2026-07-28T05:00:00Z"));
+        AddSale(db, 1_000, DateTimeOffset.Parse("2026-07-28T05:30:00Z"), refundedAt: DateTimeOffset.Parse("2026-07-29T04:00:00Z"));
         // Сессия началась накануне, но доплата списана в отчётный день — это деньги отчётного дня.
         db.LedgerEntries.Add(Gameplay(LedgerEntryTypeNames.GameplayCharge, -3_000, DateTimeOffset.Parse("2026-07-29T02:00:00Z")));
         // Возврат за игру в тот же день уменьшает выручку.
@@ -104,6 +104,44 @@ public sealed class OrganizationAdminReportServiceTests
         // Кассиры и способы оплаты делят те же деньги, что в итоге.
         Assert.Equal(revenue.NetRevenue.MinorUnits, revenue.Operators.Sum(row => row.Revenue.MinorUnits));
         Assert.Equal(revenue.PosNetSales.MinorUnits, revenue.PaymentMethods.Sum(row => row.Revenue.MinorUnits));
+    }
+
+    // «Завершить и рассчитать»: игра (постоплатный долг) и бар на сессию оплачиваются одним платежом,
+    // привязанным к сессии. Отчёт брал бар из платежей с чеком и такой бар терял; теперь бар — по чеку,
+    // игра — по журналу, и платёж сессии не считается ещё раз.
+    [Fact]
+    public async Task BarPaidAtSessionCheckout_IsRevenueOnce_AndTheSessionPaymentIsNotCountedAgain()
+    {
+        await using var db = CreateDbContext();
+        db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Slug = "central", Name = "Central", PreferredTimeZone = "Asia/Dushanbe" });
+        var at = DateTimeOffset.Parse("2026-07-29T07:00:00Z");
+        var sessionId = Guid.NewGuid();
+        var cashierId = Guid.NewGuid();
+        db.LedgerEntries.Add(Gameplay(LedgerEntryTypeNames.PostpaidDebt, 10_000, at));
+        db.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, ShiftId = Guid.NewGuid(),
+            CreatedByStaffUserId = cashierId, SessionId = sessionId, State = "paid", CurrencyCode = "TJS",
+            TotalMinorUnits = 3_000, CreatedAtUtc = at, PaidAtUtc = at
+        });
+        db.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, SessionId = sessionId,
+            ShiftId = Guid.NewGuid(), CreatedByStaffUserId = cashierId, PaymentKind = "payment", Provider = "manual",
+            PaymentMethod = "cash", CurrencyCode = "TJS", AmountMinorUnits = 13_000, CreatedAtUtc = at
+        });
+        await db.SaveChangesAsync();
+        var service = new OrganizationAdminReportService(db, new RevenueReportStub());
+        var day = new DateOnly(2026, 7, 29);
+
+        var revenue = await service.GetRevenueAsync(TestIds.OrganizationId, TestIds.BranchId, day, day, CancellationToken.None);
+        var summary = await service.GetSummaryAsync(TestIds.OrganizationId, TestIds.BranchId, day, day, CancellationToken.None);
+
+        Assert.Equal(3_000, revenue.PosNetSales.MinorUnits);
+        Assert.Equal(10_000, revenue.GameplayRevenue.MinorUnits);
+        Assert.Equal(13_000, revenue.NetRevenue.MinorUnits);
+        Assert.Equal(13_000, summary.Figures.NetRevenue.MinorUnits);
+        Assert.Equal(13_000, revenue.Operators.Sum(row => row.Revenue.MinorUnits));
     }
 
     // Колонку ExpectedCashMinorUnits пишет только закрытие смены; у открытой смены она всегда 0.
@@ -144,10 +182,28 @@ public sealed class OrganizationAdminReportServiceTests
         Assert.Equal(14_000, result.ActiveShift.ExpectedCash.MinorUnits);
     }
 
-    private static PaymentEntity Pos(string kind, long amountMinorUnits, DateTimeOffset at) => new()
+    /// <summary>Чек бара как в жизни: оплаченный чек, его платёж и, если был, возврат (только целиком).</summary>
+    private static void AddSale(PlatformDbContext db, long total, DateTimeOffset paidAt, DateTimeOffset? refundedAt = null)
+    {
+        var saleId = Guid.NewGuid();
+        var cashierId = Guid.NewGuid();
+        db.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = saleId, OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, ShiftId = Guid.NewGuid(),
+            CreatedByStaffUserId = cashierId, State = refundedAt is null ? "paid" : "refunded", CurrencyCode = "TJS",
+            TotalMinorUnits = total, CreatedAtUtc = paidAt, PaidAtUtc = paidAt, RefundedAtUtc = refundedAt
+        });
+        db.Payments.Add(Pos(saleId, cashierId, "payment", total, paidAt));
+        if (refundedAt is { } refunded)
+        {
+            db.Payments.Add(Pos(saleId, cashierId, "refund", -total, refunded));
+        }
+    }
+
+    private static PaymentEntity Pos(Guid saleId, Guid cashierId, string kind, long amountMinorUnits, DateTimeOffset at) => new()
     {
         PaymentId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId,
-        PosSaleId = Guid.NewGuid(), ShiftId = Guid.NewGuid(), CreatedByStaffUserId = Guid.NewGuid(), PaymentKind = kind,
+        PosSaleId = saleId, ShiftId = Guid.NewGuid(), CreatedByStaffUserId = cashierId, PaymentKind = kind,
         Provider = "manual", PaymentMethod = "cash", CurrencyCode = "TJS", AmountMinorUnits = amountMinorUnits, CreatedAtUtc = at
     };
 
