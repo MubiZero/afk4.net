@@ -52,6 +52,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Экран падения рендера: тот же фон, спокойная строка по центру, пока страница перезагружается. */
+.shell-crash {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 1.125rem;
+}
+
 button {
   font: inherit;
   color: inherit;
