@@ -472,10 +472,10 @@ public sealed class WorkerTests
             impressions: stuckSync);
 
         await worker.StartAsync(stopping.Token);
-        await resultPosted.Task.WaitAsync(WorkerObservationTimeout);
+        // Оба события, в любом порядке: проход начат и висит, а ответ на команду всё равно ушёл.
+        await Task.WhenAll(stuckSync.Started.Task, resultPosted.Task).WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
-        Assert.True(stuckSync.Started.Task.IsCompleted);
         Assert.Equal(command.CommandId, Assert.Single(commandHandler.HandledCommands).CommandId);
     }
 
