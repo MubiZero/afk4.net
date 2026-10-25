@@ -66,7 +66,13 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
             new SignalRDeviceHubConnection(
                 new HubConnectionBuilder()
                     .WithUrl(new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"))
-                    .WithAutomaticReconnect()
+                    .WithAutomaticReconnect(new RealtimeRetryPolicy())
+                    // Короткий обрыв не теряет команды: сервер держит буфер для соединения и
+                    // досылает пропущенное после переподключения (AllowStatefulReconnects на хабе).
+                    .WithStatefulReconnect()
+                    // Тишина в 60 с, а не 30, прежде чем считать сервер пропавшим: каналы клубов
+                    // теряют пакеты пачками, и ложный разрыв стоит полного переподключения.
+                    .WithServerTimeout(TimeSpan.FromSeconds(60))
                     .Build()),
             credentialStore,
             playerSignIn)

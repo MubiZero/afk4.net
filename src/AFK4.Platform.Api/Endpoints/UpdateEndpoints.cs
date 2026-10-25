@@ -123,7 +123,9 @@ internal static class UpdateEndpoints
             return ToUpdateHttpResult(await updateService.ReportStatusAsync(request, cancellationToken));
         });
 
-        app.MapHub<DeviceHub>("/hubs/devices");
+        // Короткий обрыв не теряет сообщений: соединение держит буфер (100 КБ по умолчанию) и досылает
+        // пропущенное, если клиент вернулся с тем же соединением (агент и Панель включают это у себя).
+        app.MapHub<DeviceHub>("/hubs/devices", options => options.AllowStatefulReconnects = true);
     }
 
     private static OrganizationAdminUpdatePreferenceDto ToPreference(BranchEntity branch) => new(

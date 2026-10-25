@@ -78,7 +78,23 @@ builder.Services.AddWindowsService(options =>
 // аренды, и у монитора льготы, и у экрана игрока.
 builder.Services.AddSingleton(new PlatformSyncedTimeProvider(TimeProvider.System));
 builder.Services.AddSingleton<TimeProvider>(provider => provider.GetRequiredService<PlatformSyncedTimeProvider>());
-builder.Services.AddHttpClient("platform");
+// Канал к платформе на плохой сети клуба: просим сжатие (Cloudflare отдаёт Brotli/gzip только тем,
+// кто его заявил), HTTP/2 с откатом на 1.1, пинги живости для долгих соединений и пересоздание
+// пула, чтобы смена адреса за Cloudflare не держала мёртвые соединения.
+builder.Services.AddHttpClient("platform", client =>
+    {
+        client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+        ConnectTimeout = TimeSpan.FromSeconds(15),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests
+    });
 // Artifact downloads stream large MSIs: a whole-transfer timeout would abort slow but healthy
 // downloads, so the client has none and the downloader bounds silence instead (UpdateDownloadStallTimeout).
 builder.Services.AddHttpClient("updates", client => client.Timeout = Timeout.InfiniteTimeSpan);
