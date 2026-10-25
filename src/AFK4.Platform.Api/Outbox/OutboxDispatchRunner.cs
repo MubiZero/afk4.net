@@ -30,9 +30,10 @@ public sealed class OutboxDispatchRunner(
         foreach (var row in due)
         {
             await DispatchAsync(row, cancellationToken);
+            // Итог каждой строки — сразу: упади процесс посреди пачки, уже отправленные не уйдут
+            // второй раз после аренды захвата.
+            await outbox.SaveAsync(cancellationToken);
         }
-
-        await outbox.SaveAsync(cancellationToken);
         return due.Count;
     }
 
