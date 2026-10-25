@@ -13,7 +13,8 @@ public sealed class AgentUpdateCoordinator(
     IUpdateAttemptLedger attemptLedger,
     GuestSeatUpdateGuard guestSeatGuard,
     IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null,
-    AFK4.Agent.Service.Shell.IPlayerShellUpdateGate? shellUpdateGate = null) : IAgentUpdateCoordinator
+    AFK4.Agent.Service.Shell.IPlayerShellUpdateGate? shellUpdateGate = null,
+    AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller? deltaInstaller = null) : IAgentUpdateCoordinator
 {
 
     public async Task<AgentUpdateExecutionResult> CheckAndApplyUpdatesAsync(CancellationToken cancellationToken)
@@ -80,6 +81,23 @@ public sealed class AgentUpdateCoordinator(
 
             try
             {
+                var deltaResult = await TryDeltaAsync(instruction, installedVersion, cancellationToken);
+                if (deltaResult is not null)
+                {
+                    if (deltaResult.Succeeded)
+                    {
+                        appliedCount++;
+                        await ReportStatusAsync(instruction, instruction.Version, UpdateStatusNames.Installed, deltaResult.Message, cancellationToken);
+                    }
+                    else
+                    {
+                        failedCount++;
+                        await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Failed, deltaResult.Message, cancellationToken);
+                    }
+
+                    continue;
+                }
+
                 await ReportStatusAsync(
                     instruction,
                     installedVersion,
@@ -189,23 +207,61 @@ public sealed class AgentUpdateCoordinator(
     private async Task<UpdateInstallResult> InstallAsync(
         ComponentUpdateInstructionDto instruction,
         DownloadedUpdateArtifact artifact,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        (await GateShellAsync(instruction, async () => await installer.InstallAsync(instruction, artifact, cancellationToken)))!;
+
+    private async Task<UpdateInstallResult?> GateShellAsync(
+        ComponentUpdateInstructionDto instruction,
+        Func<Task<UpdateInstallResult?>> install)
     {
         if (instruction.Component != UpdateComponentNames.PlayerShell || shellUpdateGate is null)
         {
-            return await installer.InstallAsync(instruction, artifact, cancellationToken);
+            return await install();
         }
 
         using (shellUpdateGate.Suspend())
         {
-            var result = await installer.InstallAsync(instruction, artifact, cancellationToken);
-            if (result.Succeeded && !result.RestartPending)
+            var result = await install();
+            if (result is { Succeeded: true, RestartPending: false })
             {
                 shellUpdateGate.StopRunningShells();
             }
 
             return result;
         }
+    }
+
+    /// <summary>
+    /// Дельта-путь: скачать только изменившиеся файлы и подменить их. null — дельта не применялась
+    /// (выключена, нет манифеста, невыгодна, не скачалась или подмена откатилась): ставится целый MSI.
+    /// </summary>
+    private async Task<UpdateInstallResult?> TryDeltaAsync(
+        ComponentUpdateInstructionDto instruction,
+        string installedVersion,
+        CancellationToken cancellationToken)
+    {
+        if (deltaInstaller is not { IsEnabled: true } || instruction.Manifest is null)
+        {
+            return null;
+        }
+
+        await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Downloading, "Downloading changed files.", cancellationToken);
+        var preparation = await deltaInstaller.PrepareAsync(instruction, cancellationToken);
+        if (preparation is null)
+        {
+            return null;
+        }
+
+        await ReportStatusAsync(
+            instruction,
+            installedVersion,
+            UpdateStatusNames.Downloaded,
+            $"Changed files downloaded: {preparation.Plan.ToFetch.Count} files, {preparation.Plan.DownloadBytes} bytes.",
+            cancellationToken);
+        await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Installing, "Replacing changed files.", cancellationToken);
+        return await GateShellAsync(
+            instruction,
+            () => deltaInstaller.ApplyAsync(instruction, preparation, installedVersion, cancellationToken));
     }
 
     private bool TryMarkAttempted(Guid rolloutId)

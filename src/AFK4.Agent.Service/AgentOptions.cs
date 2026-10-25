@@ -104,6 +104,15 @@ public sealed class AgentOptions
         "Agent",
         "Updates");
 
+    /// <summary>
+    /// Дельта-обновление по манифесту файлов: качать только изменившиеся файлы вместо целого MSI.
+    /// Выключено по умолчанию, пока подмена не прошла приёмку на живом ПК; любой отказ дельты ставит целый MSI.
+    /// </summary>
+    public bool UpdateDeltaEnabled { get; init; }
+
+    /// <summary>Дельта применяется, только если качать надо не больше этой доли целого пакета.</summary>
+    public double UpdateDeltaMaxDownloadRatio { get; init; } = 0.6;
+
     public string UpdateInstallerExecutablePath { get; init; } = string.Empty;
 
     public string UpdateInstallerArgumentsTemplate { get; init; } = "\"{PackagePath}\" --component \"{Component}\" --version \"{Version}\"";

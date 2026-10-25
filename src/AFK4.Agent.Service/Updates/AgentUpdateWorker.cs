@@ -7,7 +7,8 @@ public sealed class AgentUpdateWorker(
     IAgentUpdateCoordinator updateCoordinator,
     IUpdateRecoveryService recoveryService,
     IOptions<AgentOptions> options,
-    IOrganizationAdminProcessLauncher? organizationAdminProcessLauncher = null) : BackgroundService
+    IOrganizationAdminProcessLauncher? organizationAdminProcessLauncher = null,
+    AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller? deltaInstaller = null) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -40,6 +41,13 @@ public sealed class AgentUpdateWorker(
     {
         try
         {
+            // Сначала журнал подмены файлов: оборванная дельта возвращается раньше, чем восстановление
+            // смотрит на версии установленных программ.
+            if (deltaInstaller is not null)
+            {
+                await deltaInstaller.RecoverAsync(cancellationToken);
+            }
+
             await recoveryService.RecoverAsync(cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
