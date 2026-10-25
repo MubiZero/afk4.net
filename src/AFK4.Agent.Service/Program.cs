@@ -76,7 +76,9 @@ builder.Services.AddWindowsService(options =>
 // Часы агента подтягиваются к часам платформы: аренда приходит абсолютным временем, а на игровом
 // ПК часы врут регулярно. Один экземпляр на всех — время должно быть одно и то же и у проверки
 // аренды, и у монитора льготы, и у экрана игрока.
-builder.Services.AddSingleton(new PlatformSyncedTimeProvider(TimeProvider.System));
+builder.Services.AddSingleton(provider => new PlatformSyncedTimeProvider(
+    TimeProvider.System,
+    provider.GetRequiredService<IOptions<AgentOptions>>().Value.StateDirectory));
 builder.Services.AddSingleton<TimeProvider>(provider => provider.GetRequiredService<PlatformSyncedTimeProvider>());
 // Канал к платформе на плохой сети клуба: просим сжатие (Cloudflare отдаёт Brotli/gzip только тем,
 // кто его заявил), HTTP/2 с откатом на 1.1, пинги живости для долгих соединений и пересоздание
