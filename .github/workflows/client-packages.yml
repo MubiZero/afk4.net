@@ -132,7 +132,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Guard release mode
         shell: pwsh
@@ -278,12 +278,12 @@ jobs:
           $sdkPin | ConvertTo-Json -Depth 5 | Set-Content global.json
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -455,7 +455,7 @@ jobs:
 
       - name: Upload update package requests
         if: ${{ inputs.publish_update_metadata }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: afk4-update-package-requests-${{ inputs.version }}-${{ inputs.channel }}
           path: artifacts/update-packages/*-request.json
@@ -517,7 +517,7 @@ jobs:
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 @arguments
 
       - name: Upload client packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: afk4-client-packages-${{ inputs.version }}-${{ inputs.channel }}
           path: |
