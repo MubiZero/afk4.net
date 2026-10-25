@@ -56,14 +56,29 @@ public sealed class BranchSnapshotRunnerTests
         });
     }
 
-    private static void SeedPayment(PlatformDbContext db, Guid organizationId, Guid branchId, DateTimeOffset createdAtUtc, long amount)
+    /// <summary>Оплаченный чек бара и его платёж: выручка товаров считается по чекам, а не по платежам.</summary>
+    private static void SeedPaidSale(PlatformDbContext db, Guid organizationId, Guid branchId, DateTimeOffset createdAtUtc, long amount)
     {
+        var saleId = Guid.NewGuid();
+        db.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = saleId,
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            ShiftId = Guid.NewGuid(),
+            CreatedByStaffUserId = Guid.NewGuid(),
+            State = "paid",
+            CurrencyCode = "TJS",
+            TotalMinorUnits = amount,
+            CreatedAtUtc = createdAtUtc,
+            PaidAtUtc = createdAtUtc
+        });
         db.Payments.Add(new PaymentEntity
         {
             PaymentId = Guid.NewGuid(),
             OrganizationId = organizationId,
             BranchId = branchId,
-            PosSaleId = Guid.NewGuid(),
+            PosSaleId = saleId,
             ShiftId = Guid.NewGuid(),
             CreatedByStaffUserId = Guid.NewGuid(),
             PaymentKind = "payment",
@@ -187,10 +202,10 @@ public sealed class BranchSnapshotRunnerTests
         var atNoonYesterdayOffset = new DateTimeOffset(atNoonYesterday, TimeSpan.Zero);
 
         SeedSession(db, organizationAId, branchAId, atNoonYesterdayOffset);
-        SeedPayment(db, organizationAId, branchAId, atNoonYesterdayOffset, 5_000);
+        SeedPaidSale(db, organizationAId, branchAId, atNoonYesterdayOffset, 5_000);
 
         SeedSession(db, organizationBId, branchBId, atNoonYesterdayOffset);
-        SeedPayment(db, organizationBId, branchBId, atNoonYesterdayOffset, 9_000);
+        SeedPaidSale(db, organizationBId, branchBId, atNoonYesterdayOffset, 9_000);
         await db.SaveChangesAsync();
 
         var runner = scope.ServiceProvider.GetRequiredService<EfBranchSnapshotRunner>();

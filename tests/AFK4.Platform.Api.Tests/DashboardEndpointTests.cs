@@ -76,9 +76,9 @@ public sealed class DashboardEndpointTests
         Assert.Equal(1, result.Utilization.OfflineDevices);
         Assert.Equal(2, result.Utilization.SessionStarts);
         Assert.Equal(50, result.Utilization.UtilizationPercent);
-        Assert.Equal(2_000, result.Revenue.PosNetSales.MinorUnits);
+        Assert.Equal(2_400, result.Revenue.PosNetSales.MinorUnits);
         Assert.Equal(12_000, result.Revenue.GameplayRevenue.MinorUnits);
-        Assert.Equal(14_000, result.Revenue.TotalRevenue.MinorUnits);
+        Assert.Equal(14_400, result.Revenue.TotalRevenue.MinorUnits);
         Assert.Equal(1, result.Revenue.PosCheckCount);
         Assert.Equal(1, result.Revenue.NewPlayerCount);
         Assert.Equal(1, result.AlertPressure.PendingCommands);
@@ -288,20 +288,23 @@ public sealed class DashboardEndpointTests
                 Note = "sale",
                 CreatedAtUtc = DashboardDay.AddHours(12)
             },
+            // Гость заплатил наличными за игру: платёж привязан к сессии, а списание лежит в журнале
+            // (ниже, 12 000). В выручку игра входит один раз — по журналу, а не ещё раз по платежу.
             new PaymentEntity
             {
                 PaymentId = Guid.NewGuid(),
                 OrganizationId = TestIds.OrganizationId,
                 BranchId = TestIds.BranchId,
-                PosSaleId = SaleId,
+                PosSaleId = null,
+                SessionId = ActiveSessionId,
                 ShiftId = ShiftId,
                 CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
-                PaymentKind = "refund",
+                PaymentKind = "payment",
                 Provider = "manual",
                 PaymentMethod = PaymentMethodNames.Cash,
                 CurrencyCode = "TJS",
-                AmountMinorUnits = -400,
-                Note = "partial refund",
+                AmountMinorUnits = 12_000,
+                Note = "guest session",
                 CreatedAtUtc = DashboardDay.AddHours(13)
             });
         dbContext.LedgerEntries.Add(new LedgerEntryEntity

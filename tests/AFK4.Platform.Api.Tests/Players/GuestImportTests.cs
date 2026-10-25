@@ -58,7 +58,7 @@ public sealed class GuestImportTests
         // Начальный остаток — не выручка и не наличные смены.
         var entries = await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.OpeningBalance).ToListAsync();
         Assert.All(entries, entry => Assert.Null(entry.ShiftId));
-        Assert.Equal(0, BranchRevenue.Gameplay(entries.Select(entry => (Kind: entry.EntryType, entry.AmountMinorUnits))));
+        Assert.Equal(0, BranchRevenue.Gameplay(entries.Select(entry => (Kind: entry.EntryType, entry.AmountMinorUnits, HasSession: entry.SessionId != null))));
     }
 
     [Fact]

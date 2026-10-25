@@ -3,34 +3,54 @@ using AFK4.Shared.Contracts.Billing;
 namespace AFK4.Platform.Api.Platform.Analytics;
 
 /// <summary>
-/// Что считается выручкой филиала. Правило одно на весь проект: до этого оно жило только внутри
-/// операторского дашборда, и второй его экземпляр в снимках разошёлся бы с первым молча — цифры
-/// в двух местах перестали бы сходиться, и никакой тест этого не заметил бы.
+/// Что считается выручкой филиала. Правило одно на «Сводку» Панели, отчёт владельца и суточные снимки
+/// платформы; деньги считаются по дню, когда они прошли (решение владельца 2026-09-23).
+///
+/// <list type="bullet">
+/// <item><b>Игра</b> — журнал сессий: списание за игру (+), возникший постоплатный долг (+), возврат за игру (−).
+/// Возврат пополнения кошелька (запись без сессии) выручкой не был и вычитаться не должен.</item>
+/// <item><b>Товары</b> — чеки бара: сумма чека в день оплаты (+), в день возврата (−). Неоплаченный чек
+/// (черновик, аннулирован) в выручку не входит.</item>
+/// </list>
+///
+/// Платежи (<c>payments</c>) в правиле не участвуют. Раньше «Сводка» складывала все платежи и списания за
+/// игру: наличная оплата гостевой сессии пишется и тем и другим, и игра считалась дважды. Отчёт владельца
+/// брал только платежи с чеком и терял бар, оплаченный при расчёте сессии (такой платёж привязан к сессии,
+/// а не к чеку). Платёж — это способ, которым пришли деньги, а не то, за что.
 /// </summary>
 public static class BranchRevenue
 {
     public const string DefaultCurrencyCode = "TJS";
 
-    private const string PaymentKindPayment = "payment";
-    private const string PaymentKindRefund = "refund";
+    /// <summary>Вклад одной записи журнала в игровую выручку.</summary>
+    public static long GameplayImpact(string entryType, long amountMinorUnits, bool hasSession) => entryType switch
+    {
+        LedgerEntryTypeNames.GameplayCharge => Math.Abs(amountMinorUnits),
+        // Погашение долга приходит той же записью с отрицательной суммой — выручка была зачтена,
+        // когда долг возник.
+        LedgerEntryTypeNames.PostpaidDebt => Math.Max(0, amountMinorUnits),
+        LedgerEntryTypeNames.Refund when hasSession => -Math.Abs(amountMinorUnits),
+        _ => 0
+    };
 
-    /// <summary>Нетто по кассе: платежи и возвраты (возврат приходит отрицательной суммой).</summary>
-    public static long PosNet(IEnumerable<(string Kind, long AmountMinorUnits)> payments) =>
-        payments.Sum(payment =>
-            IsKind(payment.Kind, PaymentKindPayment) || IsKind(payment.Kind, PaymentKindRefund)
-                ? payment.AmountMinorUnits
-                : 0);
+    public static long Gameplay(IEnumerable<(string Kind, long AmountMinorUnits, bool HasSession)> entries) =>
+        entries.Sum(entry => GameplayImpact(entry.Kind, entry.AmountMinorUnits, entry.HasSession));
 
-    /// <summary>Игровая выручка: списания за игру и возникший постоплатный долг минус возвраты.</summary>
-    public static long Gameplay(IEnumerable<(string Kind, long AmountMinorUnits)> entries) =>
-        entries.Sum(entry => entry.Kind switch
+    /// <summary>Движения денег по одному чеку: оплата в свой день, возврат в свой.</summary>
+    public static IEnumerable<(DateTimeOffset AtUtc, long AmountMinorUnits)> GoodsMovements(
+        DateTimeOffset? paidAtUtc,
+        DateTimeOffset? refundedAtUtc,
+        long totalMinorUnits)
+    {
+        if (paidAtUtc is not { } paid)
         {
-            LedgerEntryTypeNames.GameplayCharge => Math.Abs(entry.AmountMinorUnits),
-            LedgerEntryTypeNames.PostpaidDebt => Math.Max(0, entry.AmountMinorUnits),
-            LedgerEntryTypeNames.Refund => -Math.Abs(entry.AmountMinorUnits),
-            _ => 0
-        });
+            yield break;
+        }
 
-    private static bool IsKind(string actual, string expected) =>
-        string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        yield return (paid, totalMinorUnits);
+        if (refundedAtUtc is { } refunded)
+        {
+            yield return (refunded, -totalMinorUnits);
+        }
+    }
 }

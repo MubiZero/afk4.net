@@ -133,10 +133,21 @@ public sealed class EfOperatorDashboardService(
                 await dbContext.Payments.AsNoTracking().Where(payment => payment.ShiftId == currentShift.ShiftId).ToListAsync(cancellationToken),
                 await dbContext.LedgerEntries.AsNoTracking().Where(entry => entry.ShiftId == currentShift.ShiftId).ToListAsync(cancellationToken))
                 .Expected;
-        var posNetSalesMinorUnits = BranchRevenue.PosNet(
-            payments.Select(payment => (Kind: payment.PaymentKind, payment.AmountMinorUnits)));
+        var goodsSales = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale =>
+                sale.OrganizationId == organizationId &&
+                sale.BranchId == branchId &&
+                ((sale.PaidAtUtc >= fromUtc && sale.PaidAtUtc <= toUtc) ||
+                    (sale.RefundedAtUtc >= fromUtc && sale.RefundedAtUtc <= toUtc)))
+            .Select(sale => new { sale.PaidAtUtc, sale.RefundedAtUtc, sale.TotalMinorUnits })
+            .ToListAsync(cancellationToken);
+        var posNetSalesMinorUnits = goodsSales
+            .SelectMany(sale => BranchRevenue.GoodsMovements(sale.PaidAtUtc, sale.RefundedAtUtc, sale.TotalMinorUnits))
+            .Where(movement => movement.AtUtc >= fromUtc && movement.AtUtc <= toUtc)
+            .Sum(movement => movement.AmountMinorUnits);
         var gameplayRevenueMinorUnits = BranchRevenue.Gameplay(
-            ledgerEntries.Select(entry => (Kind: entry.EntryType, entry.AmountMinorUnits)));
+            ledgerEntries.Select(entry => (Kind: entry.EntryType, entry.AmountMinorUnits, HasSession: entry.SessionId != null)));
         var paidSaleCount = await dbContext.PosSales
             .AsNoTracking()
             .CountAsync(sale =>

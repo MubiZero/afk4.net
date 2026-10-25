@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
@@ -60,15 +61,15 @@ public sealed class OrganizationAdminReportService(
         var trend = new List<OrganizationAdminRevenueTrendPointDto>(7);
         var trendFromDate = toDate.AddDays(-6);
         var trendPeriod = await ResolvePeriodAsync(organizationId, branchId, trendFromDate, toDate, cancellationToken);
-        var trendPayments = await PosMoneyAsync(organizationId, branchId, trendPeriod, cancellationToken);
+        var trendGoods = await GoodsMoneyAsync(organizationId, branchId, trendPeriod, cancellationToken);
         var trendGameplay = await GameplayMoneyAsync(organizationId, branchId, trendPeriod, cancellationToken);
         var periodGameplay = GameplayTotals.Of(await GameplayMoneyAsync(organizationId, branchId, period, cancellationToken));
-        var periodPos = PosTotals.Of(await PosMoneyAsync(organizationId, branchId, period, cancellationToken));
+        var periodPos = GoodsTotals.Of(await GoodsMoneyAsync(organizationId, branchId, period, cancellationToken));
         var trendTimeZone = TimeZoneInfo.FindSystemTimeZoneById(period.TimeZone);
         for (var offset = 6; offset >= 0; offset--)
         {
             var date = toDate.AddDays(-offset);
-            var posRevenue = trendPayments.Where(row => LocalDate(row.CreatedAtUtc, trendTimeZone) == date).Sum(row => row.AmountMinorUnits);
+            var posRevenue = trendGoods.Where(row => LocalDate(row.AtUtc, trendTimeZone) == date).Sum(row => row.AmountMinorUnits);
             var gameplayRevenue = trendGameplay.Where(row => LocalDate(row.CreatedAtUtc, trendTimeZone) == date).Sum(row => GameplayImpact(row.EntryType, row.AmountMinorUnits));
             trend.Add(new(date, Money(sales.NetSalesTotal.CurrencyCode, posRevenue + gameplayRevenue)));
         }
@@ -108,21 +109,22 @@ public sealed class OrganizationAdminReportService(
         var gameplayMoney = GameplayTotals.Of(gameplayEntries);
         var previousGameplayMoney = GameplayTotals.Of(await GameplayMoneyAsync(organizationId, branchId, previousPeriod, cancellationToken));
         var payments = await PosMoneyAsync(organizationId, branchId, period, cancellationToken);
-        var posMoney = PosTotals.Of(payments);
-        var previousPosMoney = PosTotals.Of(await PosMoneyAsync(organizationId, branchId, previousPeriod, cancellationToken));
+        var goods = await GoodsMoneyAsync(organizationId, branchId, period, cancellationToken);
+        var posMoney = GoodsTotals.Of(goods);
+        var previousPosMoney = GoodsTotals.Of(await GoodsMoneyAsync(organizationId, branchId, previousPeriod, cancellationToken));
         var net = posMoney.Net + gameplayMoney.Net;
         var previousNet = previousPosMoney.Net + previousGameplayMoney.Net;
         var difference = net - previousNet;
         decimal? percent = previousNet == 0 ? null : Math.Round(difference * 100m / Math.Abs(previousNet), 2);
         var currency = sales.NetSalesTotal.CurrencyCode;
-        var staffIds = payments.Select(row => row.CreatedByStaffUserId).Concat(gameplayEntries.Select(row => row.CreatedByStaffUserId)).Distinct().ToList();
+        var staffIds = goods.Select(row => row.StaffUserId).Concat(gameplayEntries.Select(row => row.CreatedByStaffUserId)).Distinct().ToList();
         var staffNames = await dbContext.StaffUsers.AsNoTracking()
             .Where(row => row.OrganizationId == organizationId && staffIds.Contains(row.StaffUserId))
             .ToDictionaryAsync(row => row.StaffUserId, row => row.DisplayName, cancellationToken);
         var paymentMethods = payments.GroupBy(row => row.PaymentMethod)
             .Select(group => new OrganizationAdminRevenueBreakdownDto(group.Key, group.Key, Money(currency, group.Sum(row => row.AmountMinorUnits))))
             .OrderByDescending(row => row.Revenue.MinorUnits).ToList();
-        var operatorAmounts = payments.Select(row => (row.CreatedByStaffUserId, row.AmountMinorUnits))
+        var operatorAmounts = goods.Select(row => (CreatedByStaffUserId: row.StaffUserId, row.AmountMinorUnits))
             .Concat(gameplayEntries.Select(row => (row.CreatedByStaffUserId, GameplayImpact(row.EntryType, row.AmountMinorUnits))))
             .GroupBy(row => row.CreatedByStaffUserId)
             .Select(group => new OrganizationAdminRevenueBreakdownDto(group.Key.ToString("D"), staffNames.GetValueOrDefault(group.Key, "Staff"), Money(currency, group.Sum(row => row.Item2))))
@@ -159,31 +161,50 @@ public sealed class OrganizationAdminReportService(
                 (row.EntryType == LedgerEntryTypeNames.GameplayCharge || row.EntryType == LedgerEntryTypeNames.PostpaidDebt || row.EntryType == LedgerEntryTypeNames.Refund))
             .ToListAsync(cancellationToken);
 
-    // Бар — оплаты по чекам: оплата в свой день, возврат (отрицательная сумма) в свой.
+    // Бар — чеки: сумма в день оплаты, минус та же сумма в день возврата (BranchRevenue.GoodsMovements).
+    // Не платежи: бар, оплаченный при расчёте сессии, приходит одним платежом с игрой, привязанным к
+    // сессии, а не к чеку, — по платежам с чеком он терялся из отчёта.
+    private async Task<List<GoodsMovement>> GoodsMoneyAsync(
+        Guid organizationId, Guid branchId, OrganizationAdminReportPeriod period, CancellationToken cancellationToken)
+    {
+        var sales = await dbContext.PosSales.AsNoTracking()
+            .Where(row => row.OrganizationId == organizationId && row.BranchId == branchId &&
+                ((row.PaidAtUtc >= period.FromUtc && row.PaidAtUtc < period.ToUtc) ||
+                    (row.RefundedAtUtc >= period.FromUtc && row.RefundedAtUtc < period.ToUtc)))
+            .Select(row => new { row.PaidAtUtc, row.RefundedAtUtc, row.TotalMinorUnits, row.CreatedByStaffUserId })
+            .ToListAsync(cancellationToken);
+        return sales
+            .SelectMany(sale => BranchRevenue.GoodsMovements(sale.PaidAtUtc, sale.RefundedAtUtc, sale.TotalMinorUnits)
+                .Select(movement => new GoodsMovement(movement.AtUtc, movement.AmountMinorUnits, sale.CreatedByStaffUserId)))
+            .Where(movement => movement.AtUtc >= period.FromUtc && movement.AtUtc < period.ToUtc)
+            .ToList();
+    }
+
+    private sealed record GoodsMovement(DateTimeOffset AtUtc, long AmountMinorUnits, Guid StaffUserId);
+
+    private readonly record struct GoodsTotals(long Paid, long Refunded)
+    {
+        public long Net => Paid + Refunded;
+
+        public static GoodsTotals Of(IEnumerable<GoodsMovement> movements)
+        {
+            long paid = 0, refunded = 0;
+            foreach (var movement in movements)
+            {
+                if (movement.AmountMinorUnits < 0) refunded += movement.AmountMinorUnits;
+                else paid += movement.AmountMinorUnits;
+            }
+            return new(paid, refunded);
+        }
+    }
+
+    // Оплаты по чекам — только для разбивки бара по способам оплаты.
     private Task<List<PaymentEntity>> PosMoneyAsync(
         Guid organizationId, Guid branchId, OrganizationAdminReportPeriod period, CancellationToken cancellationToken) =>
         dbContext.Payments.AsNoTracking()
             .Where(row => row.OrganizationId == organizationId && row.BranchId == branchId && row.PosSaleId != null &&
                 row.CreatedAtUtc >= period.FromUtc && row.CreatedAtUtc < period.ToUtc)
             .ToListAsync(cancellationToken);
-
-    private readonly record struct PosTotals(long Paid, long Refunded)
-    {
-        public long Net => Paid + Refunded;
-
-        public static PosTotals Of(IEnumerable<PaymentEntity> payments)
-        {
-            long paid = 0, refunded = 0;
-            foreach (var payment in payments)
-            {
-                if (payment.PaymentKind == PaymentKindRefund) refunded += payment.AmountMinorUnits;
-                else paid += payment.AmountMinorUnits;
-            }
-            return new(paid, refunded);
-        }
-    }
-
-    private const string PaymentKindRefund = "refund";
 
     private readonly record struct GameplayTotals(long Charged, long Refunded)
     {
@@ -220,13 +241,9 @@ public sealed class OrganizationAdminReportService(
 
     private static MoneyDto Money(string currencyCode, long minorUnits) => new(currencyCode, minorUnits);
 
-    private static long GameplayImpact(string entryType, long amountMinorUnits) => entryType switch
-    {
-        LedgerEntryTypeNames.GameplayCharge => Math.Abs(amountMinorUnits),
-        LedgerEntryTypeNames.PostpaidDebt => Math.Max(0, amountMinorUnits),
-        LedgerEntryTypeNames.Refund => -Math.Abs(amountMinorUnits),
-        _ => 0
-    };
+    // Записи игры уже выбраны с сессией (GameplayMoneyAsync), поэтому возврат здесь — всегда возврат за игру.
+    private static long GameplayImpact(string entryType, long amountMinorUnits) =>
+        BranchRevenue.GameplayImpact(entryType, amountMinorUnits, hasSession: true);
 
     private static DateOnly LocalDate(DateTimeOffset timestamp, TimeZoneInfo timeZone) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(timestamp, timeZone).DateTime);
