@@ -15,6 +15,15 @@ using Microsoft.EntityFrameworkCore;
 
 var options = DevSeedOptions.Parse(args);
 
+// Сид пишет учебные данные (owner@afk4.test, нулевой ПИН) и по умолчанию удаляет базу. Переменная
+// ConnectionStrings__PlatformDatabase у сида та же, что у боевого API: запуск в оболочке с окружением
+// сервера снёс бы базу клубов. Поэтому сид работает только с локальной или явно учебной базой.
+if (!DevSeedOptions.IsDisposableDatabase(options.ConnectionString, out var refusal))
+{
+    Console.Error.WriteLine(refusal);
+    return 2;
+}
+
 var dbOptions = new DbContextOptionsBuilder<PlatformDbContext>()
     .UseNpgsql(options.ConnectionString)
     .Options;
@@ -55,6 +64,25 @@ internal sealed record DevSeedOptions(string ConnectionString, string OperatorPa
     // Шесть нулей — очевидно ненастоящий ПИН: локальная база и так не секрет, а принять его за
     // рабочий нельзя даже по невнимательности.
     private const string DefaultOperatorPassword = "000000";
+
+    private static readonly string[] LocalHosts = ["localhost", "127.0.0.1", "::1"];
+
+    /// <summary>Локальный хост или база, названная учебной (<c>_dev</c>, <c>_test</c>), — только такую сид трогает.</summary>
+    public static bool IsDisposableDatabase(string connectionString, out string refusal)
+    {
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+        var database = builder.Database ?? string.Empty;
+        var hosts = (builder.Host ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var local = hosts.Length > 0 && hosts.All(host => LocalHosts.Contains(host, StringComparer.OrdinalIgnoreCase));
+        var namedDisposable = database.EndsWith("_dev", StringComparison.OrdinalIgnoreCase)
+            || database.EndsWith("_test", StringComparison.OrdinalIgnoreCase);
+
+        refusal = local || namedDisposable
+            ? string.Empty
+            : $"DevSeed refuses database '{database}' on '{builder.Host}': it is neither local nor named *_dev/*_test. "
+                + "Seeding writes demo accounts and, by default, drops the database.";
+        return refusal.Length == 0;
+    }
 
     public static DevSeedOptions Parse(string[] args)
     {

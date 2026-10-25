@@ -85,6 +85,6 @@ internal static class EskhataPaymentEndpoints
             return await EskhataSettlement.SettleConfirmedAsync(billingCommandService, db, intent, timeProvider.GetUtcNow())
                 ? Results.Ok()
                 : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
-        }).RequireRateLimiting("player-public");
+        }).RequireRateLimiting("payment-webhook");
     }
 }
