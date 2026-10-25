@@ -601,7 +601,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("if: ${{ needs.changes.outputs.run_dotnet == 'true' }}", workflow, StringComparison.Ordinal);
         Assert.Contains("runs-on: windows-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("timeout-minutes: 45", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: actions/setup-dotnet@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/setup-dotnet@v6", workflow, StringComparison.Ordinal);
         Assert.Contains("global-json-file: global.json", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet restore AFK4.sln", workflow, StringComparison.Ordinal);
@@ -615,7 +615,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         // Postgres-backed tests skip themselves without a database, and GitHub service containers
         // are Linux-only — so this job is the only place they actually run.
         Assert.Contains("test-postgres:", workflow, StringComparison.Ordinal);
-        Assert.Contains("image: postgres:16", workflow, StringComparison.Ordinal);
+        Assert.Contains("image: postgres:17", workflow, StringComparison.Ordinal);
         Assert.Contains("--health-cmd pg_isready", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_REQUIRE_POSTGRES_TESTS: '1'", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/test-shard.sh tests/AFK4.Platform.Api.Tests ${{ matrix.shard }} 3 -p:NuGetAudit=false -v minimal", workflow, StringComparison.Ordinal);
@@ -675,7 +675,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.OrganizationAdmin.Web/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/setup-node@v7", workflow, StringComparison.Ordinal);
         Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: oven-sh/setup-bun@v2", workflow, StringComparison.Ordinal);
         Assert.Contains("bun-version: 1.3.14", workflow, StringComparison.Ordinal);
@@ -706,7 +706,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.DoesNotContain("Publish staging bootstrapper to MinIO", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("artifacts/bootstrapper", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: actions/upload-artifact@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/upload-artifact@v7", workflow, StringComparison.Ordinal);
         Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
         Assert.Contains("retention-days: 3", workflow, StringComparison.Ordinal);
         Assert.Contains("-OrganizationAdminStableAliasObjectKey organization-admin/internal/latest/afk4-organization-admin-internal.msi", workflow, StringComparison.Ordinal);
@@ -850,7 +850,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             pins.Add(match.Groups["version"].Value);
 
             var pinStep = workflow.IndexOf("name: Pin the SDK that decides the shipped .NET runtime", StringComparison.Ordinal);
-            var setupStep = workflow.IndexOf("uses: actions/setup-dotnet@v4", StringComparison.Ordinal);
+            var setupStep = workflow.IndexOf("uses: actions/setup-dotnet@v6", StringComparison.Ordinal);
             Assert.True(pinStep >= 0 && pinStep < setupStep, $"{workflowPath}: the pin must come before Setup .NET.");
             Assert.Contains("$sdkPin.sdk.rollForward = 'disable'", workflow, StringComparison.Ordinal);
             Assert.Contains("$sdkPin.sdk.version = $env:AFK4_SHIPPED_DOTNET_SDK", workflow, StringComparison.Ordinal);
@@ -1068,7 +1068,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Contains("timeout-minutes: 90", workflow, StringComparison.Ordinal);
         Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
-        Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/setup-node@v7", workflow, StringComparison.Ordinal);
         Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: oven-sh/setup-bun@v2", workflow, StringComparison.Ordinal);
         Assert.Contains("bun-version: 1.3.14", workflow, StringComparison.Ordinal);

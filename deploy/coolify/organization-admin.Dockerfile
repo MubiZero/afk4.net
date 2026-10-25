@@ -45,7 +45,7 @@ ENV VITE_SETUP_INSTALLER_URL=${VITE_SETUP_INSTALLER_URL}
 WORKDIR /src/src/AFK4.OrganizationAdmin.Web
 RUN bun run build
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
 COPY deploy/coolify/organization-admin.nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /src/src/AFK4.OrganizationAdmin.Web/dist/ /usr/share/nginx/html/
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \

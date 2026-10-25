@@ -18,25 +18,25 @@
     "@afk4/money": "workspace:*",
     "@afk4/tokens": "workspace:*",
     "@afk4/ui": "workspace:*",
-    "@microsoft/signalr": "^10.0.0",
-    "lucide-react": "^1.16.0",
+    "@microsoft/signalr": "^10.0.11",
+    "lucide-react": "^1.61.0",
     "qrcode": "^1.5.4",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@happy-dom/global-registrator": "^20.9.0",
+    "@happy-dom/global-registrator": "^21.0.4",
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/bun": "^1.3.14",
     "@types/qrcode": "^1.5.6",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "typescript": "^6.0.3",
-    "vite": "^8.0.13"
+    "vite": "^8.3.5"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.12.0"
   }
 }

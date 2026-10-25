@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Версия .NET внутри пакетов — рантайм того SDK, которым их собрали (self-contained).
       # global.json разрешает latestFeature, и setup-dotnet ставит самый свежий SDK на момент
@@ -62,12 +62,12 @@ jobs:
           $sdkPin | ConvertTo-Json -Depth 5 | Set-Content global.json
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -231,7 +231,7 @@ jobs:
           Write-Host "Stable Organization Admin installer verified: $($stableUri.AbsoluteUri)"
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: afk4-package-smoke-0.1.${{ github.run_number }}-internal
           path: |
@@ -241,7 +241,7 @@ jobs:
           retention-days: 3
 
       - name: Upload update package requests
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: afk4-package-smoke-update-requests-0.1.${{ github.run_number }}-internal
           path: artifacts/update-packages/*-request.json

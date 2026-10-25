@@ -37,7 +37,7 @@ ENV VITE_PLATFORM_API_BASE_URL=${VITE_PLATFORM_API_BASE_URL}
 WORKDIR /src/src/AFK4.PlatformControl.Web
 RUN bun run build
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
 COPY deploy/coolify/platform-control.nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /src/src/AFK4.PlatformControl.Web/dist/ /usr/share/nginx/html/
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
