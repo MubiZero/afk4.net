@@ -2,6 +2,7 @@ import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ShellI18nProvider } from './i18n/ShellI18nProvider';
 import { App } from './App';
+import { ShellErrorBoundary } from './ShellErrorBoundary';
 import './styles/shell.css';
 
 async function start() {
@@ -22,7 +23,9 @@ async function start() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <ShellI18nProvider>
-        {frame(<App />)}
+        <ShellErrorBoundary>
+          {frame(<App />)}
+        </ShellErrorBoundary>
       </ShellI18nProvider>
     </StrictMode>
   );

@@ -77,6 +77,14 @@ public partial class WebViewPlayerWindow : Window
     {
         try
         {
+            // Пока агент молчит, ПК заперт: перехват стоит с первой секунды — и до WebView2. Раньше
+            // он ставился после, и сбой WebView2 (битая установка, нет рантайма, упавший процесс
+            // браузера) оставлял киоск без перехвата: Alt+Tab и Win уводили гостя на рабочий стол.
+            // Правила закрытия окон приезжают с состоянием, поэтому блокировщик окон до тех пор
+            // ничего не трогает — в том числе окна самого WebView2.
+            keyboard.Start();
+            windows.Start();
+
             var userDataFolder = PlayerWebView2UserDataFolder.EnsureExists();
             var webViewEnvironment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
             await Browser.EnsureCoreWebView2Async(webViewEnvironment);
@@ -130,10 +138,6 @@ public partial class WebViewPlayerWindow : Window
             _ = ListenForPushesAsync(lifetime.Token);
             _ = RefreshAuthLoopAsync(lifetime.Token);
 
-            // Пока агент молчит, ПК заперт: перехват стоит с первой секунды, а не с первого состояния.
-            keyboard.Start();
-            windows.Start();
-
             overlay = new OverlayWindow(localization);
             overlay.ExtendRequested += BringShellForward;
             tick.Tick += OnTick;
@@ -144,7 +148,8 @@ public partial class WebViewPlayerWindow : Window
             // A throw from this async-void handler would crash the kiosk window, and the agent
             // would relaunch it in a tight loop with no record of why. Log and keep the window up.
             PlayerShellStartupLog.Write("WebView startup failed in OnLoaded.", exception);
-            ApplyWatchdog(WebViewWatchdogPolicy.Decide(new WebViewHealthSignal(ProcessFailed: true, Unresponsive: false)));
+            // Перезагружать нечего: CoreWebView2 не поднялся, и Reload() сам бросил бы исключение.
+            ApplyWatchdog(new WebViewWatchdogAction(ShowFallback: true, RestartWebView: false));
         }
     }
 
@@ -193,7 +198,11 @@ public partial class WebViewPlayerWindow : Window
     {
         FallbackPanel.Visibility = action.ShowFallback ? Visibility.Visible : Visibility.Collapsed;
         FallbackTimer.Text = RemainingTimeFormatterText();
-        FallbackMessage.Text = "Восстанавливаем соединение…";
+        // Перезапуск — короткая заминка; без него плашка остаётся, и гостю нужен человек, а не
+        // обещание «восстанавливаем», которое не сбудется.
+        FallbackMessage.Text = localization.T(action.RestartWebView
+            ? "playerShell.fallback.reconnecting"
+            : "playerShell.fallback.broken");
 
         if (action.RestartWebView)
         {
