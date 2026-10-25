@@ -15,9 +15,11 @@ import {
   enqueueAction,
   loadActionOutbox,
   reconcileActionOutbox,
+  type OperatorActionOutboxEntry,
   type OperatorCommandType
 } from './actionOutbox';
 import type { SeatSummary } from './operatorData';
+import { realtimeRetryDelayMs } from './operatorRealtime';
 import { retryKeys } from './unsettledKeys';
 import type {
   AuthStatus,
@@ -47,6 +49,13 @@ import {
 } from './operatorHelpers';
 
 type Translate = ReturnType<typeof useI18n>['t'];
+
+// Перечитанная карта не сбрасывает выбор кассира на первое место, если его место всё ещё в зале.
+function keepSelectedSeat(currentSeatId: string, nextState: OperatorFloorMapState): string {
+  return nextState.seats.some((seat) => seat.id === currentSeatId)
+    ? currentSeatId
+    : nextState.seats[0]?.id ?? '';
+}
 
 export interface UseFloorMapOptions {
   config: OperatorConfig;
@@ -96,6 +105,9 @@ export function useFloorMap({
   const [selectedSeatId, setSelectedSeatId] = useState('');
   const [remainingNowMs, setRemainingNowMs] = useState(() => Date.now());
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
+  // Повтор загрузки, пока карта показывает офлайн-снимок: каждое увеличение перезапускает загрузку.
+  const [reloadAttempt, setReloadAttempt] = useState(0);
+  const drainingRef = useRef(false);
 
   const displayedFloorMap = useMemo(
     () => refreshFloorMapRemaining(floorMap, t, remainingNowMs),
@@ -131,12 +143,16 @@ export function useFloorMap({
 
     let disposed = false;
 
-    setFloorMap((current) => ({
-      ...current,
-      branchId,
-      loadStatus: 'loading',
-      error: null
-    }));
+    // Повтор поверх офлайн-снимка того же филиала идёт молча: скелетон на месте зала при каждой
+    // попытке мигал бы у кассира весь обрыв.
+    setFloorMap((current) => current.isOffline && current.branchId === branchId
+      ? current
+      : {
+          ...current,
+          branchId,
+          loadStatus: 'loading',
+          error: null
+        });
 
     void (async () => {
       try {
@@ -146,8 +162,7 @@ export function useFloorMap({
         }
 
         setFloorMap(nextState);
-        setSelectedSeatId(nextState.seats[0]?.id ?? '');
-        void drainQueuedActions(nextState.seats);
+        setSelectedSeatId((current) => keepSelectedSeat(current, nextState));
       } catch (error) {
         if (isUnauthorizedPlatformError(error)) {
           try {
@@ -166,7 +181,7 @@ export function useFloorMap({
 
             setAuthSession(nextSession);
             setFloorMap(nextState);
-            setSelectedSeatId(nextState.seats[0]?.id ?? '');
+            setSelectedSeatId((current) => keepSelectedSeat(current, nextState));
             return;
           } catch (refreshError) {
             if (!isUnauthorizedStaffAuthError(refreshError)) {
@@ -229,7 +244,36 @@ export function useFloorMap({
       disposed = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, activeBranchId, config.platformBaseUrl]);
+  }, [authStatus, authSession, activeBranchId, config.platformBaseUrl, reloadAttempt]);
+
+  // Офлайн-снимок раньше висел до перезапуска Панели: после обрыва карту ничто не перечитывало.
+  // Теперь каждая неудачная попытка (новый снимок из кэша) назначает следующую с нарастающей
+  // паузой до 30 с, а возврат сети в браузере будит попытку сразу.
+  const offlineRetriesRef = useRef(0);
+  useEffect(() => {
+    if (!floorMap.isOffline) {
+      offlineRetriesRef.current = 0;
+      return undefined;
+    }
+
+    const retry = () => setReloadAttempt((attempt) => attempt + 1);
+    const timeoutId = window.setTimeout(retry, realtimeRetryDelayMs(offlineRetriesRef.current++));
+    window.addEventListener('online', retry);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('online', retry);
+    };
+  }, [floorMap]);
+
+  // Очередь блокировок досылается при любом возврате живой карты — и своей загрузкой, и
+  // перечитыванием после переподключения realtime. Раньше только при первой загрузке, и
+  // поставленное в офлайне ждало перезапуска Панели.
+  useEffect(() => {
+    if (floorMap.source === 'backend' && !floorMap.isOffline && floorMap.loadStatus === 'ready') {
+      void drainQueuedActions(floorMap.seats);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floorMap.source, floorMap.isOffline, floorMap.loadStatus]);
 
   const runSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
     const session = authSession;
@@ -383,9 +427,19 @@ export function useFloorMap({
   // seat or session moved on while offline, recording an operator-visible audit note (D9).
   const drainQueuedActions = async (liveSeats: SeatSummary[]): Promise<void> => {
     const pending = loadActionOutbox();
-    if (pending.length === 0) {
+    if (pending.length === 0 || drainingRef.current) {
       return;
     }
+
+    drainingRef.current = true;
+    try {
+      await replayQueuedActions(pending, liveSeats);
+    } finally {
+      drainingRef.current = false;
+    }
+  };
+
+  const replayQueuedActions = async (pending: OperatorActionOutboxEntry[], liveSeats: SeatSummary[]): Promise<void> => {
 
     const { replay, dropped } = reconcileActionOutbox(pending, liveSeats, t);
     for (const drop of dropped) {

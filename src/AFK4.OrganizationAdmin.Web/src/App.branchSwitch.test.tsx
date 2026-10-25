@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
+import type { FloorMapDto } from './operatorApiClients';
 import type { OperatorRealtimeOptions, SessionLifecycleChangedDto } from './operatorRealtime';
 
 // Task 11: реактивный контекст филиала + свитчер в шапке. Отдельный (не App.test.tsx) файл — тот
@@ -384,5 +385,87 @@ describe('App — branch switch (Task 11)', () => {
     fireEvent.click(within(switcher).getByText('Север'));
 
     await waitFor(() => expect(shiftPaths.some((path) => path.includes(BRANCH_B))).toBe(true));
+  });
+});
+
+// Офлайн-снимок карты: харнесс этого файла (минимальные моки, свой realtime) подходит и сюда, а
+// App.test.tsx и так слишком велик.
+describe('App — карта сама возвращается после обрыва', () => {
+  beforeEach(() => {
+    realtimeInstances.length = 0;
+    fetchMock = mock(mockFetch) as unknown as Mock<FetchLike>;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    cleanup();
+    globalThis.fetch = originalFetch;
+    delete window.__AFK4_ORGANIZATION_ADMIN_CONFIG__;
+    localStorage.clear();
+    sessionStorage.clear();
+    mock.restore();
+  });
+
+  it('перечитывает карту при возврате сети и досылает блокировку из очереди', async () => {
+    installConfig();
+    sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession({
+      branchIds: [BRANCH_A],
+      permissions: ['organization.floor_map.view', 'organization.devices.commands.dispatch']
+    })));
+    const { saveFloorMapCache } = await import('./floorMapCache');
+    const { enqueueAction, loadActionOutbox } = await import('./actionOutbox');
+    const floorMap: FloorMapDto = {
+      branchId: BRANCH_A,
+      branchName: BRANCH_NAMES[BRANCH_A],
+      seats: [{
+        ...floorMapSeatDto(SEAT_A),
+        state: 'Locked',
+        lastHeartbeatAtUtc: null,
+        agentVersion: null,
+        shellVersion: null
+      }],
+      zones: []
+    };
+    saveFloorMapCache(BRANCH_A, floorMap, Date.now() - 60_000);
+    enqueueAction({
+      idempotencyKey: 'queued-lock-1',
+      deviceId: SEAT_A.deviceId,
+      seatId: SEAT_A.seatId,
+      seatName: SEAT_A.seatName,
+      commandType: 'lock',
+      expectedSessionId: null,
+      queuedAtMs: Date.now() - 30_000
+    });
+
+    let online = false;
+    const dispatched: string[] = [];
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (!online) {
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      if (pathname.endsWith('/floor-map')) {
+        return Promise.resolve(jsonResponse(floorMap));
+      }
+      if (pathname.endsWith(`/devices/${SEAT_A.deviceId}/commands`) && init?.method === 'POST') {
+        dispatched.push(String(init.body));
+        return Promise.resolve(jsonResponse({ commandId: 'cmd-1', status: 'pending' }));
+      }
+      return mockFetch(input);
+    });
+
+    render(<App />);
+
+    await screen.findByText(/Офлайн — данные от/);
+
+    online = true;
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+
+    await waitFor(() => expect(screen.queryByText(/Офлайн — данные от/)).not.toBeInTheDocument());
+    await waitFor(() => expect(dispatched).toHaveLength(1));
+    expect(dispatched[0]).toContain('queued-lock-1');
+    await waitFor(() => expect(loadActionOutbox()).toHaveLength(0));
   });
 });
