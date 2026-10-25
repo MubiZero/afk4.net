@@ -102,25 +102,12 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
 
     private void WriteAtomically(string credentialSecret)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(credentialFilePath)!);
-        var tempPath = $"{credentialFilePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = File.Create(tempPath))
-            {
-                JsonSerializer.Serialize(stream, new StoredCredential(credentialSecret), JsonOptions);
-            }
-
-            // Права сужаем на временном файле, до того как он станет боевым: иначе между
-            // появлением файла и сужением прав есть окно, в котором ключ читает кто угодно.
-            // Переименование права сохраняет.
-            DeviceSecretFile.RestrictAccess(tempPath);
-            File.Move(tempPath, credentialFilePath, overwrite: true);
-        }
-        finally
-        {
-            TryDelete(tempPath);
-        }
+        // Права сужаются на временном файле, до того как он станет боевым: иначе между появлением
+        // файла и сужением прав есть окно, в котором ключ читает кто угодно. Переименование права сохраняет.
+        AtomicFile.Write(
+            credentialFilePath,
+            stream => JsonSerializer.Serialize(stream, new StoredCredential(credentialSecret), JsonOptions),
+            beforeReplace: path => DeviceSecretFile.RestrictAccess(path));
     }
 
     private static void TryDelete(string path)
