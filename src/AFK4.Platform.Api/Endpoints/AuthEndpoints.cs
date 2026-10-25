@@ -213,7 +213,7 @@ internal static class AuthEndpoints
 
             var legacy = await tokenService.RefreshAsync(request, cancellationToken);
             return legacy is null ? Results.Unauthorized() : Results.Ok(legacy);
-        }).RequireRateLimiting("player-public");
+        }).RequireRateLimiting("player-session");
 
         // Телефон бывает общим, а планшет на стойке — тем более: выход обязан гасить токены на
         // сервере, иначе следующий в руках человек продолжит чужую сессию из сохранённого refresh.
@@ -229,7 +229,7 @@ internal static class AuthEndpoints
                 cancellationToken);
 
             return revoked ? Results.NoContent() : Results.Unauthorized();
-        }).RequireRateLimiting("player-public");
+        }).RequireRateLimiting("player-session");
 
         // Каталог клубов для мобильного приложения: у него нет поддомена, из которого веб-сборка
         // берёт организацию, а вход без неё невозможен (игрок опознаётся парой организация+телефон).
@@ -243,7 +243,7 @@ internal static class AuthEndpoints
             CancellationToken cancellationToken) =>
             Results.Ok(await PublicClubDirectory.GetAsync(
                 dbContext, cache, directoryOptions.Value, query, timeProvider.GetUtcNow(), cancellationToken)))
-            .RequireRateLimiting("player-public");
+            .RequireRateLimiting("player-session");
 
         organizations.MapPost("auth/staff/sign-in-by-phone", async (
             Guid organizationId,

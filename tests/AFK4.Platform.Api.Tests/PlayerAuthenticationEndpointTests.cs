@@ -265,9 +265,9 @@ public sealed class PlayerAuthenticationEndpointTests
         var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
         using var client = factory.CreateClient();
 
-        // player-public policy = 10 requests / minute per IP. The 11th must be rejected.
+        // player-public: PublicRateLimits.SignInPerMinute на адрес. Следующий за пределом отклоняется.
         HttpStatusCode last = HttpStatusCode.OK;
-        for (var i = 0; i < 11; i++)
+        for (var i = 0; i < PublicRateLimits.SignInPerMinute + 1; i++)
         {
             var resp = await client.PostAsJsonAsync(
                 "/api/public/player/sign-in",

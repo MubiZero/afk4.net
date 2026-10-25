@@ -29,13 +29,13 @@ public sealed class OpaqueStaffTokenService(
 
         var now = timeProvider.GetUtcNow();
         var refreshTokenHash = HashToken(request.RefreshToken);
-        var candidateRefreshTokens = await dbContext.StaffRefreshTokens
+        var refreshToken = await dbContext.StaffRefreshTokens
             .Where(candidate =>
+                candidate.TokenHash == refreshTokenHash &&
                 candidate.OrganizationId == request.OrganizationId &&
                 candidate.RevokedAtUtc == null &&
                 candidate.ExpiresAtUtc > now)
-            .ToArrayAsync(cancellationToken);
-        var refreshToken = candidateRefreshTokens.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(refreshTokenHash));
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (refreshToken is null)
         {
@@ -67,13 +67,15 @@ public sealed class OpaqueStaffTokenService(
 
         var now = timeProvider.GetUtcNow();
         var tokenHash = HashToken(bearerToken);
-        var candidateTokens = await dbContext.StaffAccessTokens
+        // Поиск по хешу (уникальный индекс), а не перебор всех живых токенов в памяти: проверка
+        // идёт на каждый запрос Панели, и раньше её цена росла с числом сотрудников на платформе.
+        var token = await dbContext.StaffAccessTokens
             .AsNoTracking()
             .Where(candidate =>
+                candidate.TokenHash == tokenHash &&
                 candidate.RevokedAtUtc == null &&
                 candidate.ExpiresAtUtc > now)
-            .ToArrayAsync(cancellationToken);
-        var token = candidateTokens.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(tokenHash));
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (token is null)
         {
@@ -105,13 +107,12 @@ public sealed class OpaqueStaffTokenService(
 
         var now = timeProvider.GetUtcNow();
         var refreshTokenHash = HashToken(request.RefreshToken);
-        var candidateRefreshTokens = await dbContext.StaffRefreshTokens
+        var refreshToken = await dbContext.StaffRefreshTokens
             .Where(candidate =>
+                candidate.TokenHash == refreshTokenHash &&
                 candidate.OrganizationId == request.OrganizationId &&
                 candidate.RevokedAtUtc == null)
-            .ToArrayAsync(cancellationToken);
-        var refreshToken = candidateRefreshTokens.SingleOrDefault(
-            candidate => candidate.TokenHash.SequenceEqual(refreshTokenHash));
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (refreshToken is null)
         {
@@ -126,14 +127,13 @@ public sealed class OpaqueStaffTokenService(
         if (!string.IsNullOrWhiteSpace(accessToken))
         {
             var accessTokenHash = HashToken(accessToken);
-            var candidateAccessTokens = await dbContext.StaffAccessTokens
+            var presentedAccessToken = await dbContext.StaffAccessTokens
                 .Where(candidate =>
+                    candidate.TokenHash == accessTokenHash &&
                     candidate.OrganizationId == refreshToken.OrganizationId &&
                     candidate.StaffUserId == refreshToken.StaffUserId &&
                     candidate.RevokedAtUtc == null)
-                .ToArrayAsync(cancellationToken);
-            var presentedAccessToken = candidateAccessTokens.SingleOrDefault(
-                candidate => candidate.TokenHash.SequenceEqual(accessTokenHash));
+                .SingleOrDefaultAsync(cancellationToken);
             if (presentedAccessToken is not null)
             {
                 presentedAccessToken.RevokedAtUtc = now;
