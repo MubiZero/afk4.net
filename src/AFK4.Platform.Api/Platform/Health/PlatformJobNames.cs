@@ -34,6 +34,9 @@ public static class PlatformJobNames
     /// <summary>Уборка картинок клуба, на которые больше ничто не ссылается.</summary>
     public const string OrphanMediaSweep = "orphan_media_sweep";
 
+    /// <summary>Сверка онлайн-оплат Eskhata с банком: зачисление тех, о ком не дошёл вебхук.</summary>
+    public const string EskhataReconciliation = "eskhata_reconciliation";
+
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
 
@@ -59,6 +62,7 @@ public static class PlatformJobNames
         PlayerReminders,
         ReputationSnapshot,
         BirthdayGifts,
-        OrphanMediaSweep
+        OrphanMediaSweep,
+        EskhataReconciliation
     ];
 }

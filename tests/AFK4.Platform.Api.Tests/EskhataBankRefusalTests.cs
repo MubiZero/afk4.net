@@ -60,6 +60,27 @@ public sealed class EskhataBankRefusalTests
         Assert.Empty(intents!);
     }
 
+    /// <summary>
+    /// Банк молчит дольше срока клиента. Таймаут HttpClient — это TaskCanceledException, а не
+    /// HttpRequestException, и раньше он уходил игроку пятисоткой.
+    /// </summary>
+    [Fact]
+    public async Task WhenTheBankDoesNotAnswerInTime_ThePlayerIsToldToTryLater()
+    {
+        await using var factory = FactoryWith(new SilentEskhataClient());
+        var player = await TopUpTestData.SeedPlayerAsync(factory, Pin);
+        await TopUpTestData.SeedMerchantConfigAsync(factory, player.OrgId);
+        using var client = factory.CreateClient();
+        await TopUpTestData.AuthenticateAsync(client, player, Pin);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent", new PlayerTopUpIntentRequest(10_000, "TJS", "eskhata"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(
+            "online_payment_busy", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
     /// <summary>Стойка при этом работает: она не зависит ни от банка, ни от его касс.</summary>
     [Fact]
     public async Task TheCounterStillTakesMoneyWhenTheBankIsBusy()
@@ -89,6 +110,18 @@ public sealed class EskhataBankRefusalTests
         public Task<EskhataCreateOrderResult> CreateOrderAsync(string invoiceId, long amountMinor,
             string currencyCode, string description, int merchantId, CancellationToken ct) =>
             throw new HttpRequestException("Eskhata: Отсутствует свободная касса, повторите попытку позже");
+
+        public Task<string?> GetOrderStatusAsync(string invoiceId, string orderId, long amountMinor,
+            string currencyCode, int posId, CancellationToken ct) => Task.FromResult<string?>(null);
+    }
+
+    /// <summary>Банк, не ответивший за срок клиента: так HttpClient сообщает о таймауте.</summary>
+    private sealed class SilentEskhataClient : IEskhataMerchantClient
+    {
+        public Task<EskhataCreateOrderResult> CreateOrderAsync(string invoiceId, long amountMinor,
+            string currencyCode, string description, int merchantId, CancellationToken ct) =>
+            throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout.",
+                new TimeoutException());
 
         public Task<string?> GetOrderStatusAsync(string invoiceId, string orderId, long amountMinor,
             string currencyCode, int posId, CancellationToken ct) => Task.FromResult<string?>(null);

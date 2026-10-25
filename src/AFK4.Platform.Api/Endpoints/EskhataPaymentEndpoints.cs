@@ -1,20 +1,16 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Payments.Eskhata;
-using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Endpoints;
 
 // Публичный webhook Eskhata Merchant. Тело БЕЗ подписи — защита только IP allowlist банка,
 // поэтому перед зачислением статус ПЕРЕПРОВЕРЯЕТСЯ запросом /orders/status (там наша подпись).
-// Идемпотентность — по intent.State + ключ идемпотентности биллинга (intentId).
+// Идемпотентность — ключ биллинга (intentId); intent.State — лишь короткий путь для повторов.
 internal static class EskhataPaymentEndpoints
 {
-    private const string CreditReason = "eskhata_online_topup";
-
     public static void MapEskhataPaymentEndpoints(this WebApplication app)
     {
         app.MapPost("/api/public/payments/eskhata/webhook", async (
@@ -79,39 +75,16 @@ internal static class EskhataPaymentEndpoints
             {
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
-            var verified = await client.GetOrderStatusAsync(
-                invoiceId, orderId, intent.AmountMinorUnits,
-                intent.CurrencyCode == "TJS" ? "972" : intent.CurrencyCode,
-                intent.GatewayPosId ?? 0, ct);
-            if (verified != "COMPLETED")
+            if (await EskhataSettlement.FetchStatusAsync(client, intent, ct) != "COMPLETED")
             {
                 return Results.Ok(); // не подтверждено API → без кредита
             }
 
-            var topUpRequest = new TopUpWalletRequest(
-                intent.OrganizationId,
-                new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
-                CreditReason,
-                intent.PaymentIntentId.ToString("N"));
-
-            // Захват до зачисления: игрок мог отменить заявку в тот же момент, когда пришёл ответ банка.
-            if (!await PaymentIntentClaim.TryMoveFromPendingAsync(
-                    db, intent, PaymentIntentClaim.Fulfilled, timeProvider.GetUtcNow(), ct))
-            {
-                // Банку отвечаем успехом: вебхук доставлен и повторять его не нужно — решение по
-                // заявке уже принято здесь.
-                return Results.Ok();
-            }
-
-            var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
-                intent.PlayerAccountId, intent.BranchId, topUpRequest, ct);
-            if (!billingResult.Succeeded)
-            {
-                await PaymentIntentClaim.TryReleaseAsync(db, intent, ct);
-                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
-            }
-
-            return Results.Ok();
+            // Отменённая игроком заявка тоже зачисляется: QR уже оплачен, деньги у клуба.
+            // Не вышло зачислить — 503, чтобы банк повторил; не повторит — подберёт сверка.
+            return await EskhataSettlement.SettleConfirmedAsync(billingCommandService, db, intent, timeProvider.GetUtcNow())
+                ? Results.Ok()
+                : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         }).RequireRateLimiting("payment-webhook");
     }
 }
