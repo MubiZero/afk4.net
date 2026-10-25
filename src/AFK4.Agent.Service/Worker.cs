@@ -51,6 +51,16 @@ public sealed class Worker(
     /// </summary>
     private bool KioskPresent => machineRegistry is not { IsSupported: true } || machineRegistry.HasPlayerAccount;
 
+    /// <summary>
+    /// Как часто агент проверяет, жива ли оболочка и нет ли запрещённых программ. Раньше это шло в
+    /// общем цикле раз за сердцебиение, и упавшая оболочка оставляла рабочий стол открытым до
+    /// следующего круга — десятки секунд, а на плохой сети и дольше.
+    /// </summary>
+    private static readonly TimeSpan LocalGuardInterval = TimeSpan.FromSeconds(3);
+
+    /// <summary>Фоновая синхронизация игр, железа и витрины — одна за раз.</summary>
+    private Task contentSync = Task.CompletedTask;
+
     /// <summary>Когда инвентарь установленного софта отправляли в прошлый раз.</summary>
     private DateTimeOffset lastInstalledAppReportUtc = DateTimeOffset.MinValue;
 
@@ -91,13 +101,12 @@ public sealed class Worker(
         await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
         await TryProtectAsync(() => protection!.ApplyAsync(stoppingToken), stoppingToken);
+        _ = Task.Run(() => RunLocalGuardsAsync(stoppingToken), CancellationToken.None);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             _ = realtimeClient.EnsureConnectedAsync(stoppingToken);
             await TryEnforceGraceModeAsync(stoppingToken);
-            await TryEnforceProcessPolicyAsync(stoppingToken);
-            await TryMaintainPlayerShellAsync(stoppingToken);
             await TryReportInstalledAppsOnScheduleAsync(stoppingToken);
             var outcome = await TrySendHeartbeatAsync(client, stoppingToken);
             var delay = HeartbeatCadence.NextDelay(
@@ -185,7 +194,6 @@ public sealed class Worker(
 
                 // Профиль защиты — после обслуживания: в обслуживании запреты сняты и остаются снятыми.
                 await TryProtectAsync(() => protection!.SyncAsync(heartbeat.PolicyProfileVersion, cancellationToken), cancellationToken);
-                await TryStepAsync("Game library", () => games?.SyncAsync(heartbeat.GameLibraryVersion, cancellationToken), cancellationToken);
                 // Простой — по профилю, который только что сверили. Без киоска ПК не игровое место:
                 // оболочки нет, о вводе никто не сообщает, и выключение «по простою» выключало бы
                 // машину под работающим за ней администратором.
@@ -194,12 +202,14 @@ public sealed class Worker(
                     idleShutdown?.Check();
                 }
 
-                // Железо — раз в несколько часов; своё расписание у отправителя.
-                await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
-                // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
-                await TryStepAsync("Showcase", () => showcase?.SyncIfDueAsync(cancellationToken), cancellationToken);
-                // Показы рекламы — пачкой раз в час.
-                await TryStepAsync("Showcase impressions", () => impressions?.FlushIfDueAsync(cancellationToken), cancellationToken);
+                // Игры, железо, витрина и показы — в фоне: на плохом канале клуба они тянутся десятки
+                // секунд, а команды ниже (открыть или запереть ПК) ждали их целиком. Проход один за раз:
+                // пока прошлый идёт, этот круг пропускается — следующее сердцебиение принесёт свежую версию.
+                if (contentSync.IsCompleted)
+                {
+                    var gameLibraryVersion = heartbeat.GameLibraryVersion;
+                    contentSync = Task.Run(() => SyncContentAsync(gameLibraryVersion, cancellationToken), CancellationToken.None);
+                }
 
                 shellStateSignal.Notify();
                 if (heartbeat.RotateCredential)
@@ -541,6 +551,42 @@ public sealed class Worker(
     /// Шаг после сердцебиения, который не должен ронять круг: библиотека игр, опись железа, витрина.
     /// Шаг, которого на этом ПК нет, возвращает null и просто пропускается.
     /// </summary>
+    /// <summary>Местные стражи: только эта машина, без сети — поэтому свой быстрый цикл.</summary>
+    private async Task RunLocalGuardsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await TryEnforceProcessPolicyAsync(cancellationToken);
+                await TryMaintainPlayerShellAsync(cancellationToken);
+                await Task.Delay(LocalGuardInterval, timeProvider, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task SyncContentAsync(int gameLibraryVersion, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await TryStepAsync("Game library", () => games?.SyncAsync(gameLibraryVersion, cancellationToken), cancellationToken);
+            // Железо — раз в несколько часов; своё расписание у отправителя.
+            await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
+            // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
+            await TryStepAsync("Showcase", () => showcase?.SyncIfDueAsync(cancellationToken), cancellationToken);
+            // Показы рекламы — пачкой раз в час.
+            await TryStepAsync("Showcase impressions", () => impressions?.FlushIfDueAsync(cancellationToken), cancellationToken);
+            // Новый список игр и витрина — оболочке сразу, не дожидаясь её круга.
+            shellStateSignal.Notify();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
     private async Task TryStepAsync(string step, Func<Task?> action, CancellationToken cancellationToken)
     {
         try
