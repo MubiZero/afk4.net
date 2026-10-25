@@ -20,6 +20,18 @@ describe('useHotkeys', () => {
     press({ key: 'k', ctrlKey: true });
     expect(onK).toHaveBeenCalledTimes(1);
   });
+  it('fires on a Cyrillic layout, where Ctrl+K arrives as «л»', () => {
+    const onK = mock(() => {});
+    render(<Harness onK={onK} />);
+    press({ key: 'л', code: 'KeyK', ctrlKey: true });
+    expect(onK).toHaveBeenCalledTimes(1);
+  });
+  it('does not fire for a different physical key', () => {
+    const onK = mock(() => {});
+    render(<Harness onK={onK} />);
+    press({ key: 'д', code: 'KeyL', ctrlKey: true });
+    expect(onK).not.toHaveBeenCalled();
+  });
   it('ignores key repeat', () => {
     const onK = mock(() => {});
     render(<Harness onK={onK} />);
