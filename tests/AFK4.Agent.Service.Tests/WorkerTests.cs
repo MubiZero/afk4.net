@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
+using AFK4.Agent.Service.Showcase;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
@@ -422,6 +423,131 @@ public sealed class WorkerTests
         Assert.Equal(command.CommandId, handler.ResultBody.CommandId);
         Assert.Equal("Accepted", handler.ResultBody.Status);
         Assert.Empty(commandResultOutbox.Pending);
+    }
+
+    // На плохом канале синхронизация витрины и игр тянется десятки секунд. Команда «запереть» из
+    // того же сердцебиения раньше ждала её целиком; теперь синхронизация идёт в фоне.
+    [Fact]
+    public async Task ExecuteAsync_HandlesHeartbeatCommandsWithoutWaitingForASlowContentSync()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var resultPosted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+        var command = new DeviceCommandDto(
+            Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            "lock",
+            DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            new Dictionary<string, string> { ["reason"] = "heartbeat-fallback" });
+        using var handler = new HeartbeatCommandResultHandler(command, resultPosted);
+        var commandHandler = new RecordingDeviceCommandHandler(options.Value);
+        var stuckSync = new NeverFinishingImpressions();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(handler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new ShellHeartbeatSnapshot(),
+            commandHandler,
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellStateSignal(),
+            TimeProvider.System,
+            impressions: stuckSync);
+
+        await worker.StartAsync(stopping.Token);
+        await resultPosted.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.True(stuckSync.Started.Task.IsCompleted);
+        Assert.Equal(command.CommandId, Assert.Single(commandHandler.HandledCommands).CommandId);
+    }
+
+    // Оболочку проверяют чаще сердцебиения: упавшая, она оставляла рабочий стол открытым до
+    // следующего круга.
+    [Fact]
+    public async Task ExecuteAsync_ChecksThePlayerShellMoreOftenThanTheHeartbeat()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001"
+        });
+        using var handler = new ShellFeedHeartbeatHandler("418207", DateTimeOffset.UtcNow.AddMinutes(5), new ShellBrandingDto("Клуб", null, "#C8FF00"), intervalSeconds: 600);
+        var supervisor = new CountingPlayerShellProcessSupervisor();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(handler)),
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            supervisor,
+            new ShellHeartbeatSnapshot(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
+            new ShellStateSignal(),
+            TimeProvider.System);
+
+        await worker.StartAsync(stopping.Token);
+        // Старт проверяет оболочку один раз сам, а второй и третий — уже свой цикл, при сердцебиении раз в 10 минут.
+        await WaitUntilAsync(() => supervisor.Calls >= 3, TimeSpan.FromSeconds(15));
+        await worker.StopAsync(CancellationToken.None);
+    }
+
+    private sealed class NeverFinishingImpressions : IShowcaseImpressions
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Record(string cardId, long shownMs)
+        {
+        }
+
+        public Task FlushIfDueAsync(CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            return Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+    }
+
+    private sealed class CountingPlayerShellProcessSupervisor : IPlayerShellProcessSupervisor
+    {
+        private int calls;
+
+        public int Calls => Volatile.Read(ref calls);
+
+        public Task EnsureRunningAsync(AgentRuntimeState runtimeState, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref calls);
+            return Task.CompletedTask;
+        }
     }
 
     [Fact]
