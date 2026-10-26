@@ -42,6 +42,7 @@ import { buildSeatMenu, type SeatMenuItem } from './seatMenu';
 import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact, isPendingSeatCommand } from './floorMapState';
 import { createSessionStartSelection, SessionStartForm, type SessionStartClient, type SessionStartSelection } from './session/SessionStartForm';
+import { useLiveSeat } from './useLiveSeat';
 
 // Местное настенное время HH:MM начала сессии — оператор читает зал в локальном времени.
 function formatSessionClock(iso: string | null | undefined): string | null {
@@ -341,7 +342,7 @@ const RETRY: Partial<Record<string, { action: 'lock' | 'unlock' | Exclude<PcComm
 };
 
 export function MapSidePanel({
-  seat,
+  seat: loadedSeat,
   seats: floorSeats,
   currencyCode,
   backend,
@@ -364,6 +365,7 @@ export function MapSidePanel({
   onResolveAssistance?: (seat: SeatSummary) => Promise<PcControlActionResult>;
 }) {
   const { t } = useI18n();
+  const seat = useLiveSeat(loadedSeat);
   const session = backend?.session ?? null;
   const state = seatPanelState(seat);
   const lead = seatTileLead(seat);

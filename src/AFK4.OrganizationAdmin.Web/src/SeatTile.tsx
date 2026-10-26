@@ -4,6 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
 import { formatDurationCompact } from './floorMapState';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
+import { useLiveSeat } from './useLiveSeat';
 
 // Иконка типа проблемы для мест без сессии — настоящий сигнификатор «что не так», по тону.
 // На занятом месте рядом с именем ПК показываем клиента (реальное имя из floor-map DTO или «Гость»),
@@ -17,7 +18,7 @@ const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'ari
 };
 
 export function SeatTile({
-  seat,
+  seat: loadedSeat,
   selected,
   picked,
   onPick,
@@ -36,6 +37,7 @@ export function SeatTile({
   onContextMenu?: (event: ReactMouseEvent) => void;
 }) {
   const { t } = useI18n();
+  const seat = useLiveSeat(loadedSeat);
   const lead = seatTileLead(seat);
   const hasSession = seat.hasActiveSession === true || Boolean(seat.activeSessionId) || seat.tone === 'active';
   // Кто за местом: реальное имя из DTO, иначе «Гость» для сессии без аккаунта. Для свободного

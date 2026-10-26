@@ -321,7 +321,7 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   };
 }
 
-function refreshSeatRemaining(seat: SeatSummary, t: TFn, nowMs: number): SeatSummary {
+export function refreshSeatRemaining(seat: SeatSummary, t: TFn, nowMs: number): SeatSummary {
   // На паузе сервер держит остаток замершим — и карта не должна тикать его вниз между снимками.
   if (!seat.hasActiveSession || seat.sessionState === 'Paused' || seat.remainingDeadlineMs === null || seat.remainingDeadlineMs === undefined) {
     return seat;
