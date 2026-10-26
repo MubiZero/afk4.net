@@ -468,6 +468,22 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotContain("Netfx", script, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Задание Start-Job умирает вместе с процессом скрипта, то есть сразу после «exit 0»: агент не
+    // перезапускался и ставил тот же пакет второй раз. Перезапуск обязан уйти в отдельный процесс.
+    [Fact]
+    public void RestartScript_RestartsFromAProcessThatOutlivesTheScript()
+    {
+        var path = Path.Combine(GetRepositoryRoot(), "scripts", "restart-afk4-agent-service.ps1");
+        var commands = Parser.ParseFile(path, out _, out _)
+            .FindAll(node => node is CommandAst, searchNestedScriptBlocks: true)
+            .Select(node => ((CommandAst)node).GetCommandName())
+            .ToList();
+
+        Assert.DoesNotContain("Start-Job", commands, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Start-Process", commands, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Restart-Service", File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
     // Помощники обновления запускают msiexec/sc.exe/powershell, а не `dotnet`: на ПК может не быть
     // ни SDK, ни общего рантайма.
     [Theory]
