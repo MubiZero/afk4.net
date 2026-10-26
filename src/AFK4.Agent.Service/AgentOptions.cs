@@ -106,9 +106,10 @@ public sealed class AgentOptions
 
     /// <summary>
     /// Дельта-обновление по манифесту файлов: качать только изменившиеся файлы вместо целого MSI.
-    /// Выключено по умолчанию, пока подмена не прошла приёмку на живом ПК; любой отказ дельты ставит целый MSI.
+    /// Включено с приёмки на Windows 11 (VM, 27.10.2026): агент, Панель и работающая оболочка
+    /// обновились за 0,8–1,2 МБ вместо 55–62 МБ. Любой отказ дельты ставит целый MSI.
     /// </summary>
-    public bool UpdateDeltaEnabled { get; init; }
+    public bool UpdateDeltaEnabled { get; init; } = true;
 
     /// <summary>Дельта применяется, только если качать надо не больше этой доли целого пакета.</summary>
     public double UpdateDeltaMaxDownloadRatio { get; init; } = 0.6;
