@@ -10,8 +10,11 @@ public static class UpdateRootNames
     public const string PlayerShell = "player-shell";
     public const string OrganizationAdmin = "organization-admin";
 
+    /// <summary>Скрипты установки, отката и перезапуска: без этого корня их правка не доезжала бы с дельтой.</summary>
+    public const string UpdateHelpers = "update-helpers";
+
     public static bool IsKnown(string root) =>
-        root is AgentService or SetupWizard or PlayerShell or OrganizationAdmin;
+        root is AgentService or SetupWizard or PlayerShell or OrganizationAdmin or UpdateHelpers;
 }
 
 /// <summary>Где на этой машине лежит папка установки корня. null — корень здесь не установлен, дельта невозможна.</summary>
@@ -32,6 +35,7 @@ public sealed class OptionsUpdateRootResolver(IOptions<AgentOptions> options) : 
             UpdateRootNames.AgentService => agentServiceDirectory,
             // Мастер ставится MSI агента рядом со службой: …\AFK4\Setup Wizard.
             UpdateRootNames.SetupWizard => Path.Combine(Path.GetDirectoryName(agentServiceDirectory) ?? string.Empty, "Setup Wizard"),
+            UpdateRootNames.UpdateHelpers => Path.Combine(Path.GetDirectoryName(agentServiceDirectory) ?? string.Empty, "Update Helpers"),
             UpdateRootNames.PlayerShell => DirectoryOf(agentOptions.PlayerShellExecutablePath),
             UpdateRootNames.OrganizationAdmin => DirectoryOf(agentOptions.OrganizationAdminExecutablePath),
             _ => null

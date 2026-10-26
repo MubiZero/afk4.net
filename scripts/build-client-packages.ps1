@@ -381,7 +381,9 @@ $agentServicePublishDir = Join-Path $publishRoot "agent-service-$Version-$Channe
 $setupWizardPublishDir = Join-Path $publishRoot "setup-wizard-$Version-$Channel"
 $agentServiceSupportDir = Join-Path $wixInputRoot 'agent-service-support'
 $setupWizardSupportDir = Join-Path $wixInputRoot 'setup-wizard-support'
-$updateHelperDir = Join-Path $wixInputRoot 'update-helpers'
+# Помощники обновления лежат среди папок публикации, а не во входах WiX: из этой папки собирается
+# корень манифеста update-helpers, иначе правка помощника не доехала бы до ПК, которые обновляются дельтой.
+$updateHelperDir = Join-Path $publishRoot "update-helpers-$Version-$Channel"
 
 New-Item -ItemType Directory -Force -Path $agentServiceSupportDir | Out-Null
 New-Item -ItemType Directory -Force -Path $setupWizardSupportDir | Out-Null

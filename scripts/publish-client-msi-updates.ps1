@@ -348,7 +348,7 @@ else {
 $publisherProject = Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj'
 
 # Папки публикации, из которых собраны MSI: манифест описывает ровно то, что MSI кладёт на диск.
-# Агент ставит рядом с собой мастер установки, поэтому у него два корня.
+# Агент ставит рядом с собой мастер установки и помощники обновления, поэтому у него три корня.
 function Get-ManifestRoots {
     param([string[]] $Roots)
 
@@ -389,7 +389,7 @@ $requests = @(
         ArtifactUploadUri = $AgentArtifactUploadUri
         ArtifactPublicUri = $AgentArtifactPublicUri
         StableAliasObjectKey = $null
-        ManifestRoots = Get-ManifestRoots @('agent-service', 'setup-wizard')
+        ManifestRoots = Get-ManifestRoots @('agent-service', 'setup-wizard', 'update-helpers')
     },
     [pscustomobject]@{
         Component = 'player-shell'

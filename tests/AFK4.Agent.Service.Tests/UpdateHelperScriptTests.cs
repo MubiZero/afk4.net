@@ -484,6 +484,23 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("Restart-Service", File.ReadAllText(path), StringComparison.Ordinal);
     }
 
+    // Корень манифеста, которого агент не знает, отклоняет весь манифест: дельта молча превращается в
+    // целый MSI. А папка, которой нет среди корней, не обновляется дельтой вовсе — так было с помощниками
+    // обновления, и исправление скрипта перезапуска не доехало бы до ПК на дельте.
+    [Fact]
+    public void EveryPublishedManifestRoot_IsKnownToTheAgent_AndTheAgentPackageCoversItsHelpers()
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "publish-client-msi-updates.ps1"));
+        var roots = System.Text.RegularExpressions.Regex.Matches(script, @"Get-ManifestRoots @\(([^)]*)\)")
+            .SelectMany(match => match.Groups[1].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Select(root => root.Trim('\''))
+            .ToList();
+
+        Assert.NotEmpty(roots);
+        Assert.All(roots, root => Assert.True(AFK4.Agent.Service.Updates.Delta.UpdateRootNames.IsKnown(root), root));
+        Assert.Contains(AFK4.Agent.Service.Updates.Delta.UpdateRootNames.UpdateHelpers, roots);
+    }
+
     // Помощники обновления запускают msiexec/sc.exe/powershell, а не `dotnet`: на ПК может не быть
     // ни SDK, ни общего рантайма.
     [Theory]
