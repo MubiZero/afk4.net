@@ -798,6 +798,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("$platformBaseUrl = if ($PlatformBaseUrl) { $PlatformBaseUrl } else { $platformBaseUrlByChannel[$Channel] }", script, StringComparison.Ordinal);
         Assert.Contains("No platform base URL is configured for channel", script, StringComparison.Ordinal);
         Assert.Contains("-p:AFK4PlatformBaseUrl=\"$platformBaseUrl\"", script, StringComparison.Ordinal);
+        // Версия пакета — и в сборках: Панель показывает её из атрибута сборки, и без этого
+        // свойства в строке состояния стояло «1.0.0» при установленной 0.1.360 (приёмка в VM).
+        Assert.Contains("-p:Version=\"$Version\"", script, StringComparison.Ordinal);
     }
 
     [Fact]

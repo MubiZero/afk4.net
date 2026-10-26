@@ -64,7 +64,22 @@
       <ComponentRef Id="OrganizationAdminAgentConfiguration" />
       <ComponentRef Id="OrganizationAdminStartMenuShortcut" />
       <ComponentRef Id="OrganizationAdminDesktopShortcut" />
+      <ComponentRef Id="OrganizationAdminAutoStart" />
     </Feature>
+
+    <!-- Автозапуск при входе в Windows. Касса — первое, что нужно после включения ПК, а после
+         отключения света кассир искал ярлык (увидено на приёмке в VM 26.10.2026). Второй экземпляр
+         Панель не открывает: повторный запуск выводит уже открытую вперёд. MSI Панели ставится
+         только на ПК администратора, игровым ПК эта запись не достаётся. -->
+    <Component Id="OrganizationAdminAutoStart" Directory="OrganizationAdminFolder" Guid="{0E3B7C52-6A41-4F0D-9B7E-2C8D5A41F3B6}">
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\Microsoft\Windows\CurrentVersion\Run"
+          Name="AFK4.NET Panel"
+          Type="string"
+          Value="&quot;[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe&quot;"
+          KeyPath="yes" />
+    </Component>
 
     <!-- Start Menu shortcut so the cashier can launch the operator after the wizard installs it. -->
     <Component Id="OrganizationAdminStartMenuShortcut" Directory="OrganizationAdminMenuFolder" Guid="{5686D743-A622-4B89-8983-29B596BBCBC6}">
