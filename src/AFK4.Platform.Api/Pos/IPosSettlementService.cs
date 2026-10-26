@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Shared.Contracts.Pos;
 
@@ -9,11 +10,13 @@ public interface IPosSettlementService
         Guid posSaleId,
         Guid actorStaffUserId,
         SettlePosSaleRequest request,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null);
 
     Task<BillingCommandServiceResult<PosSaleDto>> RefundAsync(
         Guid posSaleId,
         Guid actorStaffUserId,
         RefundPosSaleRequest request,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null);
 }

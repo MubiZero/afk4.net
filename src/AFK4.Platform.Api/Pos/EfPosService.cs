@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
@@ -16,7 +17,8 @@ namespace AFK4.Platform.Api.Pos;
 public sealed class EfPosService(
     PlatformDbContext dbContext,
     IPosSettlementService posSettlementService,
-    TimeProvider timeProvider) : IPosService
+    TimeProvider timeProvider,
+    IAuditRecordStager? auditRecordStager = null) : IPosService
 {
     private const string CreateSaleOperation = "pos-sale-create";
     private const string VoidSaleOperation = "pos-sale-void";
@@ -26,7 +28,8 @@ public sealed class EfPosService(
         Guid branchId,
         Guid actorStaffUserId,
         CreatePosSaleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null)
     {
         var requestHashInput = new
         {
@@ -177,6 +180,7 @@ public sealed class EfPosService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = ToDto(sale, lines);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 sale.OrganizationId,
                 sale.BranchId,
@@ -201,14 +205,16 @@ public sealed class EfPosService(
         Guid posSaleId,
         Guid actorStaffUserId,
         RefundPosSaleRequest request,
-        CancellationToken cancellationToken) =>
-        posSettlementService.RefundAsync(posSaleId, actorStaffUserId, request, cancellationToken);
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null) =>
+        posSettlementService.RefundAsync(posSaleId, actorStaffUserId, request, cancellationToken, auditOnCommit);
 
     public async Task<BillingCommandServiceResult<PosSaleDto>> VoidSaleAsync(
         Guid posSaleId,
         Guid actorStaffUserId,
         VoidPosSaleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null)
     {
         var saleScope = await dbContext.PosSales
             .AsNoTracking()
@@ -265,6 +271,7 @@ public sealed class EfPosService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = ToDto(sale, lines);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 sale.OrganizationId,
                 sale.BranchId,

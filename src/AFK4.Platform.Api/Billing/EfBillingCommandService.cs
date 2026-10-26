@@ -403,7 +403,7 @@ public sealed class EfBillingCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = LedgerBalanceProjector.ToDto(refund);
-            StageAudit(auditOnCommit, response);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 request.OrganizationId,
                 branchId,
@@ -747,23 +747,6 @@ public sealed class EfBillingCommandService(
             cancellationToken);
     }
 
-    /// <summary>
-    /// Ставит записи журнала в текущую транзакцию: следующее сохранение команды закоммитит их вместе
-    /// с деньгами. Повтор по ключу идемпотентности сюда не доходит — журнал не задваивается.
-    /// </summary>
-    private void StageAudit<TResponse>(AuditOnCommit<TResponse>? auditOnCommit, TResponse response)
-    {
-        if (auditOnCommit is null)
-        {
-            return;
-        }
-
-        foreach (var audit in auditOnCommit(response))
-        {
-            auditRecordStager.Stage(audit);
-        }
-    }
-
     private async Task<BillingCommandServiceResult<WalletSummaryDto>> ExecuteLedgerSummaryCommandAsync<TRequest>(
         Guid organizationId,
         Guid branchId,
@@ -791,7 +774,7 @@ public sealed class EfBillingCommandService(
                 return BillingCommandServiceResult<WalletSummaryDto>.Missing("Player wallet summary was not found.");
             }
 
-            StageAudit(auditOnCommit, summary);
+            auditRecordStager.StageOnCommit(auditOnCommit, summary);
             AddIdempotencyRecord(
                 organizationId,
                 branchId,

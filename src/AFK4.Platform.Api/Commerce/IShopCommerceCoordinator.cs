@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Pos;
@@ -17,5 +18,6 @@ public interface IShopCommerceCoordinator
         Guid playerAccountId, Guid orderId, CancellationToken cancellationToken);
 
     Task<BillingCommandServiceResult<PosSaleDto>> RefundLinkedSaleAsync(
-        Guid saleId, Guid staffUserId, RefundPosSaleRequest request, CancellationToken cancellationToken);
+        Guid saleId, Guid staffUserId, RefundPosSaleRequest request, CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null);
 }

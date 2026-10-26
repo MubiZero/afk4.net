@@ -255,7 +255,22 @@ internal static class SessionEndpoints
                 sessionId,
                 authorization.StaffContext!.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: checkout => [new AuditRecordWriteRequest(
+                    authorization.StaffContext.OrganizationId,
+                    session.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.CheckoutSession,
+                    "Session",
+                    sessionId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    "PlatformApi",
+                    JsonSerializer.Serialize(new
+                    {
+                        GrandTotal = checkout.GrandTotal.MinorUnits,
+                        checkout.GrandTotal.CurrencyCode,
+                        PaymentParts = checkout.Payments.Count
+                    }))]);
 
             if (result.Conflict)
             {
@@ -271,23 +286,6 @@ internal static class SessionEndpoints
             {
                 return Results.BadRequest(new { Error = result.Error, result.Code });
             }
-
-            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                authorization.StaffContext.OrganizationId,
-                session.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.CheckoutSession,
-                "Session",
-                sessionId.ToString("D"),
-                AuditOutcome.Succeeded,
-                "PlatformApi",
-                JsonSerializer.Serialize(new
-                {
-                    GrandTotal = result.Response!.GrandTotal.MinorUnits,
-                    result.Response.GrandTotal.CurrencyCode,
-                    PaymentParts = result.Response.Payments.Count
-                })),
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });

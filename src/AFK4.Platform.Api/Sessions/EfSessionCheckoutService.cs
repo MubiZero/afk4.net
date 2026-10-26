@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
@@ -36,7 +37,8 @@ public sealed class EfSessionCheckoutService(
     ISessionLifecycleNotifier lifecycleNotifier,
     TimeProvider timeProvider,
     ILowStockNotifier? lowStockNotifier = null,
-    ILogger<EfSessionCheckoutService>? logger = null)
+    ILogger<EfSessionCheckoutService>? logger = null,
+    IAuditRecordStager? auditRecordStager = null)
 {
     private const string CheckoutOperation = "session-checkout";
     private const string SessionCheckoutReceiptType = "session_checkout";
@@ -52,7 +54,8 @@ public sealed class EfSessionCheckoutService(
         Guid sessionId,
         Guid actorStaffUserId,
         SessionCheckoutRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<SessionCheckoutResponse>? auditOnCommit = null)
     {
         var session = await dbContext.Sessions
             .AsNoTracking()
@@ -430,6 +433,7 @@ public sealed class EfSessionCheckoutService(
                 Session: ToSessionDto(trackedSession, now),
                 DeviceCommands: [command]);
 
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 trackedSession.OrganizationId,
                 trackedSession.BranchId,

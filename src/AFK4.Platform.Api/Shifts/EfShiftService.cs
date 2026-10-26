@@ -2,6 +2,7 @@
 using System.Text.Json;
 using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
@@ -15,7 +16,8 @@ namespace AFK4.Platform.Api.Shifts;
 public sealed class EfShiftService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    EfShiftDiscrepancyNotifier? discrepancyNotifier = null) : IOpenShiftResolver
+    EfShiftDiscrepancyNotifier? discrepancyNotifier = null,
+    IAuditRecordStager? auditRecordStager = null) : IOpenShiftResolver
 {
     private const string ShiftOpenOperation = "shift-open";
     private const string CashMovementOperation = "shift-cash-movement";
@@ -162,7 +164,8 @@ public sealed class EfShiftService(
         Guid shiftId,
         Guid actorStaffUserId,
         RecordCashMovementRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<CashMovementDto>? auditOnCommit = null)
     {
         var requestHashInput = ShiftScopedRequest(shiftId, request);
         var shiftBranch = await GetShiftBranchAsync(request.OrganizationId, shiftId, cancellationToken);
@@ -245,6 +248,7 @@ public sealed class EfShiftService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = ToDto(movement);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 request.OrganizationId,
                 shift.BranchId,
@@ -269,7 +273,8 @@ public sealed class EfShiftService(
         Guid shiftId,
         Guid actorStaffUserId,
         CloseShiftRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<ShiftDto>? auditOnCommit = null)
     {
         var requestHashInput = ShiftScopedRequest(shiftId, request);
         var shiftBranch = await GetShiftBranchAsync(request.OrganizationId, shiftId, cancellationToken);
@@ -387,6 +392,7 @@ public sealed class EfShiftService(
             }
 
             var response = ToDto(shift);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 request.OrganizationId,
                 shift.BranchId,

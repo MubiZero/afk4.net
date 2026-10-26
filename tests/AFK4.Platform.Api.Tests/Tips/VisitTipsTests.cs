@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Tests.Devices;
 using AFK4.Shared.Contracts.Billing;
@@ -115,6 +116,8 @@ public sealed class VisitTipsTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         // Возврат — «отмена операции», а не «возврат»: тот уменьшил бы выручку за игру.
         Assert.False(await db.LedgerEntries.AnyAsync(entry => entry.EntryType == LedgerEntryTypeNames.Refund));
+        // Запись журнала — одна, в той же транзакции, что и отмена; отказ на повтор её не пишет.
+        Assert.Equal(1, await db.AuditRecords.CountAsync(record => record.Action == AuditActionNames.ReverseTip));
     }
 
     // Выданное из кассы уже на руках у администратора: вернуть его ещё и игроку — клуб заплатит дважды.
@@ -159,6 +162,8 @@ public sealed class VisitTipsTests
         Assert.Equal(1000, movement.AmountMinorUnits);
         // Причина — кодом: Панель подписывает её на языке экрана.
         Assert.Equal($"{CashMovementReasonNames.TipPayout}:Шерзод", movement.Reason);
+        // Выдача записана в журнал ровно раз — вместе с движением наличных.
+        Assert.Equal(1, await db.AuditRecords.CountAsync(record => record.Action == AuditActionNames.PayOutTips));
     }
 
     // Смену закрыли, а чаевые не выдали — это долг перед администратором. Он виден, а выдают его из

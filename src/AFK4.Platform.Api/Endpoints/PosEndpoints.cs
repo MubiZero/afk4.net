@@ -710,24 +710,21 @@ internal static class PosEndpoints
                 branchId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.CreatePosSale,
+                    "PosSale",
+                    response.PosSaleId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.ShiftId, LineCount = request.Lines.Count })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.CreatePosSale,
-                "PosSale",
-                result.Response!.PosSaleId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.ShiftId, LineCount = request.Lines.Count },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -786,23 +783,20 @@ internal static class PosEndpoints
                 saleId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    sale.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.PayPosSale,
+                    "PosSale",
+                    saleId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { paymentPartCount = request.Payments.Count })]);
             if (!result.Succeeded)
             {
                 return ToPosSettlementHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                sale.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.PayPosSale,
-                "PosSale",
-                saleId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { paymentPartCount = request.Payments.Count },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -856,24 +850,21 @@ internal static class PosEndpoints
                 saleId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    sale.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.RefundPosSale,
+                    "PosSale",
+                    saleId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.Reason })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                sale.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.RefundPosSale,
-                "PosSale",
-                saleId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.Reason },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -969,24 +960,21 @@ internal static class PosEndpoints
                 saleId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    sale.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.VoidPosSale,
+                    "PosSale",
+                    saleId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.Reason })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                sale.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.VoidPosSale,
-                "PosSale",
-                saleId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.Reason },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });
