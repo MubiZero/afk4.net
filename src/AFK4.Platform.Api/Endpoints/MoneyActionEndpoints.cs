@@ -381,24 +381,21 @@ internal static class MoneyActionEndpoints
                 player.BranchId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    player.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.PayDebt,
+                    "PlayerAccount",
+                    playerAccountId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.Amount })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                player.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.PayDebt,
-                "PlayerAccount",
-                playerAccountId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.Amount },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });

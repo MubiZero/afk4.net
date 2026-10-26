@@ -548,24 +548,21 @@ internal static class PlayerManagementEndpoints
                 player.BranchId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    player.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.TopUpWallet,
+                    "PlayerAccount",
+                    playerAccountId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.Amount })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                player.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.TopUpWallet,
-                "PlayerAccount",
-                playerAccountId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.Amount },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -664,25 +661,22 @@ internal static class PlayerManagementEndpoints
                 player.BranchId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    player.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.RefundLedgerEntry,
+                    "LedgerEntry",
+                    response.LedgerEntryId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.LedgerEntryId, request.Amount },
+                    amountMinorUnits: Math.Abs(request.Amount.MinorUnits))]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                player.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.RefundLedgerEntry,
-                "LedgerEntry",
-                result.Response!.LedgerEntryId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.LedgerEntryId, request.Amount },
-                cancellationToken,
-                amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
             return Results.Ok(result.Response);
         });
@@ -762,25 +756,22 @@ internal static class PlayerManagementEndpoints
                 player.BranchId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    player.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ManualLedgerCorrection,
+                    "PlayerAccount",
+                    playerAccountId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.AccountType, request.Amount, request.QuantitySeconds },
+                    amountMinorUnits: Math.Abs(request.Amount.MinorUnits))]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                player.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.ManualLedgerCorrection,
-                "PlayerAccount",
-                playerAccountId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.AccountType, request.Amount, request.QuantitySeconds },
-                cancellationToken,
-                amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
             return Results.Ok(result.Response);
         });
