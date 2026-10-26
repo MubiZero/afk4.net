@@ -30,6 +30,7 @@ const CODE_KEYS = {
   too_many_password_attempts: 'setup.wizard.error.tooManyPasswordAttempts',
   tariff_name_taken: 'setup.wizard.error.tariffNameTaken',
   seat_occupied: 'setup.wizard.error.seatOccupied',
+  seat_session_active: 'setup.wizard.error.seatSessionActive',
   invalid_phone: 'setup.wizard.error.invalidPhone',
   staff_phone_taken: 'setup.wizard.error.staffPhoneTaken',
   staff_username_taken: 'setup.wizard.error.staffUserNameTaken',

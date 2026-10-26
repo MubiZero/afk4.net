@@ -324,10 +324,12 @@ public sealed class EfInstallService(
 
         // Та же машина после переустановки Windows: ключ уже другой, а имя прежнее. Без этого
         // прежняя запись оставалась в зале мёртвой, держала место, и сервер молча заводил второе
-        // устройство с тем же именем.
-        IReadOnlyList<DeviceEntity> replacedDevices = existingDevice is null
-            ? await FindReplaceableDevicesAsync(organizationId, branchId, machineName, devicePublicKey, cancellationToken)
-            : [];
+        // устройство с тем же именем. Ищем её и тогда, когда нынешний ключ уже знаком: машину после
+        // переустановки могли сначала завести в другой роли, пока прежняя запись ещё не замолчала.
+        // Подбор места и список мест в мастере считают так же — иначе мастер показывал место как
+        // «здесь уже стоял этот ПК», а регистрация отказывала «место занято».
+        var replacedDevices = await FindReplaceableDevicesAsync(
+            organizationId, branchId, machineName, devicePublicKey, cancellationToken);
 
         // Лимит тарифа — только для нового ПК: переустановка того же места в зале не добавляет.
         // Раньше его проверял лишь старый вход по коду, и мастер ставил ПК сверх тарифа.
@@ -373,11 +375,21 @@ public sealed class EfInstallService(
                 && occupyingDeviceId != existingDevice?.DeviceId
                 && replacedDevices.All(device => device.DeviceId != occupyingDeviceId))
             {
+                // Мастер предлагает место прежней записи этой машины как её собственное. Если запись
+                // не снята из-за незакрытой сессии, «место занято другим ПК» уводило бы человека
+                // искать чужой ПК — а закрыть надо сессию в Панели.
+                var occupant = await dbContext.Devices.AsNoTracking()
+                    .SingleAsync(device => device.DeviceId == occupyingDeviceId, cancellationToken);
+                var heldBySessionOfThisMachine =
+                    string.Equals(occupant.MachineName.Trim(), machineName, StringComparison.OrdinalIgnoreCase)
+                    && await Endpoints.EndpointHelpers.HasActiveDeviceSessionAsync(dbContext, occupant, cancellationToken);
                 return InstallOperationResult<InstallEnrollResponse>.Conflict(
-                    "Seat already has an active device assignment.",
+                    heldBySessionOfThisMachine
+                        ? "Seat is held by this machine's previous record, which still has an open session."
+                        : "Seat already has an active device assignment.",
                     organizationId,
                     branchId,
-                    InstallErrorCodeNames.SeatOccupied);
+                    heldBySessionOfThisMachine ? InstallErrorCodeNames.SeatSessionActive : InstallErrorCodeNames.SeatOccupied);
             }
         }
 
