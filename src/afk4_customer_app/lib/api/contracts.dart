@@ -450,6 +450,9 @@ abstract final class HardwareComponentNames {
 abstract final class InstallErrorCodeNames {
   /// На выбранное место уже привязан другой ПК.
   static const String seatOccupied = 'seat_occupied';
+  /// Место держит прежняя запись этой же машины, но на ней не закрыта сессия гостя (ПК упал посреди
+  /// сессии, его переустановили). Запись с деньгами в работе сервер сам не снимает.
+  static const String seatSessionActive = 'seat_session_active';
   /// Код установки не подходит: неизвестен, истёк, отозван или исчерпан. Одна причина на все
   /// четыре: угадывающему код не надо подсказывать, какой из них был почти верным.
   static const String installCodeInvalid = 'install_code_invalid';

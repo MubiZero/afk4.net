@@ -11,6 +11,12 @@ public static class InstallErrorCodeNames
     public const string SeatOccupied = "seat_occupied";
 
     /// <summary>
+    /// Место держит прежняя запись этой же машины, но на ней не закрыта сессия гостя (ПК упал посреди
+    /// сессии, его переустановили). Запись с деньгами в работе сервер сам не снимает.
+    /// </summary>
+    public const string SeatSessionActive = "seat_session_active";
+
+    /// <summary>
     /// Код установки не подходит: неизвестен, истёк, отозван или исчерпан. Одна причина на все
     /// четыре: угадывающему код не надо подсказывать, какой из них был почти верным.
     /// </summary>

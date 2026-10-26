@@ -4999,6 +4999,7 @@ export const en = {
   "setup.wizard.error.invalidPhone": "Check the number: the invite is sent by SMS, and this one cannot receive it.",
   "setup.wizard.error.planLimitReached": "The club's plan does not allow adding more PCs: the free plan has up to 10 PCs for the whole club. The owner lifts the limit in the AFK4.NET Panel: Network → Subscription — a trial or the per-PC plan.",
   "setup.wizard.error.seatOccupied": "Another PC is already attached to this seat. Pick a different seat, or detach the old PC in the AFK4.NET Panel.",
+  "setup.wizard.error.seatSessionActive": "A guest session from this PC's previous record is still open on this seat. Close it in the AFK4.NET Panel, then press “Connect PC” again.",
   "setup.wizard.error.staffPhoneTaken": "This number already belongs to a club employee — there is no need to invite them again.",
   "setup.wizard.error.staffUserNameTaken": "A club employee with this login already exists.",
   "setup.wizard.error.tariffNameTaken": "A tariff with this name already exists. Pick another name, or skip this step — the club already has one.",

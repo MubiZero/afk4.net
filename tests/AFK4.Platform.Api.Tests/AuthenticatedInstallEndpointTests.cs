@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Organizations;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -234,6 +235,77 @@ public sealed class AuthenticatedInstallEndpointTests
         var audit = await db.AuditRecords.SingleAsync(row => row.Action == AuditActionNames.RemoveDevice);
         Assert.Equal(before.Body.DeviceId.ToString("D"), audit.TargetId);
         Assert.Contains("replaced_by_reinstall", audit.DetailsJson, StringComparison.Ordinal);
+    }
+
+    // Переустановленную машину сначала завели администратором, а потом вернули в зал игровым ПК: её
+    // нынешний ключ платформе уже знаком. Раньше прежнюю запись искали только для нового ключа, и она
+    // держала место, хотя мастер показывал это место как «здесь уже стоял этот ПК» (VM-приёмка 27.10.2026).
+    [Fact]
+    public async Task AuthEnroll_KnownMachineReturningToItsSeat_RetiresItsOldRecordFromBeforeTheReinstall()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+        var beforeReinstall = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        // Администратором машину завели сразу после переустановки: прежняя запись ещё не успела
+        // замолчать, и тогда её законно не тронули.
+        var asWorkstation = await EnrollAsync(
+            client, null, DeviceRoleNames.ManagerWorkstation, "Стенд 12", publicKey: "ключ-после-переустановки");
+        Assert.Equal(HttpStatusCode.OK, asWorkstation.Response.StatusCode);
+        await MakeSilentAsync(factory, beforeReinstall.Body!.DeviceId);
+
+        var backInTheHall = await EnrollAsync(
+            client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12", publicKey: "ключ-после-переустановки");
+
+        Assert.Equal(HttpStatusCode.OK, backInTheHall.Response.StatusCode);
+        Assert.Equal(asWorkstation.Body!.DeviceId, backInTheHall.Body!.DeviceId);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(
+            DeviceEnrollmentStateNames.Removed,
+            (await db.Devices.SingleAsync(device => device.DeviceId == beforeReinstall.Body.DeviceId)).EnrollmentState);
+        var holder = await db.DeviceSeatAssignments.SingleAsync(row => row.SeatId == TestIds.SeatId && row.DetachedAtUtc == null);
+        Assert.Equal(backInTheHall.Body.DeviceId, holder.DeviceId);
+    }
+
+    // ПК упал посреди сессии гостя, его переустановили. Прежнюю запись с незакрытой сессией сервер сам
+    // не снимает, но мастер показывает её место как место этого ПК, и «место занято другим ПК» уводило
+    // искать чужой ПК. Отказ называет настоящую причину: закрыть сессию в Панели.
+    [Fact]
+    public async Task AuthEnroll_ReinstalledMachineWhoseOldRecordHasAnOpenSession_SaysToCloseTheSession()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await SeedLayoutAsync(factory);
+        var before = await EnrollAsync(client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12");
+        await MakeSilentAsync(factory, before.Body!.DeviceId);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var now = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow();
+            db.Sessions.Add(new SessionEntity
+            {
+                SessionId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = TestIds.SeatId,
+                DeviceId = before.Body.DeviceId,
+                CreatedByStaffUserId = Guid.NewGuid(),
+                PlayerKind = "guest",
+                State = SessionStateNames.Active,
+                RequestedAtUtc = now.AddHours(-3),
+                StartedAtUtc = now.AddHours(-3)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var after = await EnrollAsync(
+            client, TestIds.SeatId, DeviceRoleNames.GamingPc, "Стенд 12", publicKey: "ключ-после-переустановки");
+
+        Assert.Equal(HttpStatusCode.Conflict, after.Response.StatusCode);
+        Assert.Contains(InstallErrorCodeNames.SeatSessionActive, await after.Response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     // Одно имя у двух живых машин — это не переустановка (клон образа, опечатка в имени): чужую
