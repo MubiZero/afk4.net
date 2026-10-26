@@ -103,7 +103,26 @@ internal static partial class EndpointHelpers
         CancellationToken cancellationToken,
         long? amountMinorUnits = null)
     {
-        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        await auditRecordWriter.WriteAsync(
+            StaffAudit(organizationId, branchId, actorStaffUserId, action, targetType, targetId, outcome, details, amountMinorUnits),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Запись журнала о действии сотрудника — та же, что пишет <see cref="WriteAuditAsync"/>, но без
+    /// сохранения: её отдают денежной команде, и та ставит её в свою транзакцию (<see cref="AuditOnCommit{TResponse}"/>).
+    /// </summary>
+    public static AuditRecordWriteRequest StaffAudit(
+        Guid organizationId,
+        Guid branchId,
+        Guid actorStaffUserId,
+        string action,
+        string targetType,
+        string? targetId,
+        string outcome,
+        object details,
+        long? amountMinorUnits = null) =>
+        new(
             organizationId,
             branchId,
             actorStaffUserId,
@@ -115,9 +134,7 @@ internal static partial class EndpointHelpers
             JsonSerializer.Serialize(details))
         {
             AmountMinorUnits = amountMinorUnits
-        },
-            cancellationToken);
-    }
+        };
 
     public static async Task WritePlatformAuditAsync(
         IAuditRecordWriter auditRecordWriter,

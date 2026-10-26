@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shifts;
@@ -14,7 +15,8 @@ public sealed class EfBillingCommandService(
     IOpenShiftResolver openShiftResolver,
     TimeProvider timeProvider,
     ILoyaltyAccrualService loyaltyAccrualService,
-    ReferralService referralService)
+    ReferralService referralService,
+    IAuditRecordStager auditRecordStager)
 {
     private const string PlayerCreateOperation = "player-create";
     private const string WalletTopUpOperation = "wallet-top-up";
@@ -151,9 +153,10 @@ public sealed class EfBillingCommandService(
         Guid branchId,
         Guid actorStaffUserId,
         TopUpWalletRequest request,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        AuditOnCommit<WalletSummaryDto>? auditOnCommit = null) =>
         TopUpWalletCoreAsync(playerAccountId, branchId, actorStaffUserId, request,
-            requireOpenShift: true, cancellationToken);
+            requireOpenShift: true, auditOnCommit, cancellationToken);
 
     public Task<BillingCommandServiceResult<WalletSummaryDto>> CreditOnlineTopUpAsync(
         Guid playerAccountId,
@@ -161,7 +164,7 @@ public sealed class EfBillingCommandService(
         TopUpWalletRequest request,
         CancellationToken cancellationToken) =>
         TopUpWalletCoreAsync(playerAccountId, branchId, actorStaffUserId: Guid.Empty, request,
-            requireOpenShift: false, cancellationToken);
+            requireOpenShift: false, auditOnCommit: null, cancellationToken);
 
     private async Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletCoreAsync(
         Guid playerAccountId,
@@ -169,6 +172,7 @@ public sealed class EfBillingCommandService(
         Guid actorStaffUserId,
         TopUpWalletRequest request,
         bool requireOpenShift,
+        AuditOnCommit<WalletSummaryDto>? auditOnCommit,
         CancellationToken cancellationToken)
     {
         var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
@@ -288,6 +292,7 @@ public sealed class EfBillingCommandService(
             PlayerScopedRequest(playerAccountId, request),
             topUpEntry,
             extraEntries.Count == 0 ? null : extraEntries.ToArray(),
+            auditOnCommit,
             cancellationToken);
     }
 
@@ -295,7 +300,8 @@ public sealed class EfBillingCommandService(
         Guid branchId,
         Guid actorStaffUserId,
         RefundLedgerEntryRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<LedgerEntryDto>? auditOnCommit = null)
     {
         var idempotency = await GetExistingIdempotencyAsync<LedgerEntryDto, RefundLedgerEntryRequest>(
             request.OrganizationId,
@@ -397,6 +403,7 @@ public sealed class EfBillingCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = LedgerBalanceProjector.ToDto(refund);
+            StageAudit(auditOnCommit, response);
             AddIdempotencyRecord(
                 request.OrganizationId,
                 branchId,
@@ -424,7 +431,8 @@ public sealed class EfBillingCommandService(
         Guid branchId,
         Guid actorStaffUserId,
         ManualLedgerCorrectionRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<WalletSummaryDto>? auditOnCommit = null)
     {
         var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
             request.OrganizationId,
@@ -505,6 +513,7 @@ public sealed class EfBillingCommandService(
                 timeProvider.GetUtcNow(),
                 openShift.ShiftId),
             additionalEntries: null,
+            auditOnCommit,
             cancellationToken);
     }
 
@@ -513,7 +522,8 @@ public sealed class EfBillingCommandService(
         Guid branchId,
         Guid actorStaffUserId,
         PayDebtRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<WalletSummaryDto>? auditOnCommit = null)
     {
         var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
             request.OrganizationId,
@@ -605,6 +615,7 @@ public sealed class EfBillingCommandService(
                 timeProvider.GetUtcNow(),
                 openShift.ShiftId),
             additionalEntries: null,
+            auditOnCommit,
             cancellationToken);
     }
 
@@ -732,7 +743,25 @@ public sealed class EfBillingCommandService(
                     now,
                     shiftId: null)
             ],
+            auditOnCommit: null,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Ставит записи журнала в текущую транзакцию: следующее сохранение команды закоммитит их вместе
+    /// с деньгами. Повтор по ключу идемпотентности сюда не доходит — журнал не задваивается.
+    /// </summary>
+    private void StageAudit<TResponse>(AuditOnCommit<TResponse>? auditOnCommit, TResponse response)
+    {
+        if (auditOnCommit is null)
+        {
+            return;
+        }
+
+        foreach (var audit in auditOnCommit(response))
+        {
+            auditRecordStager.Stage(audit);
+        }
     }
 
     private async Task<BillingCommandServiceResult<WalletSummaryDto>> ExecuteLedgerSummaryCommandAsync<TRequest>(
@@ -744,6 +773,7 @@ public sealed class EfBillingCommandService(
         object requestHashInput,
         LedgerEntryEntity entry,
         IReadOnlyList<LedgerEntryEntity>? additionalEntries,
+        AuditOnCommit<WalletSummaryDto>? auditOnCommit,
         CancellationToken cancellationToken)
     {
         return await ExecuteInTransactionAsync(async () =>
@@ -761,6 +791,7 @@ public sealed class EfBillingCommandService(
                 return BillingCommandServiceResult<WalletSummaryDto>.Missing("Player wallet summary was not found.");
             }
 
+            StageAudit(auditOnCommit, summary);
             AddIdempotencyRecord(
                 organizationId,
                 branchId,

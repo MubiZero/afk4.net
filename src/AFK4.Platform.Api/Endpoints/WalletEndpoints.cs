@@ -137,7 +137,16 @@ internal static class WalletEndpoints
                 intent.BranchId,
                 staffContext.StaffUserId,
                 topUpRequest,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: _ => [StaffAudit(
+                    staffContext.OrganizationId,
+                    intent.BranchId,
+                    staffContext.StaffUserId,
+                    AuditActionNames.FulfilPaymentIntent,
+                    "PaymentIntent",
+                    intentId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { intent.AmountMinorUnits, intent.CurrencyCode })]);
 
             if (!billingResult.Succeeded)
             {
@@ -149,18 +158,6 @@ internal static class WalletEndpoints
 
             // FulfilledByLedgerEntryId left null (v1): TopUpWalletAsync returns WalletSummaryDto,
             // not the created ledger entry id.
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                staffContext.OrganizationId,
-                intent.BranchId,
-                staffContext.StaffUserId,
-                AuditActionNames.FulfilPaymentIntent,
-                "PaymentIntent",
-                intentId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { intent.AmountMinorUnits, intent.CurrencyCode },
-                cancellationToken);
 
             // Заявку оставляют и уходят играть: без этого пуша игрок узнаёт о зачислении, только
             // когда сам откроет кошелёк. Ключ — id заявки: повторное подтверждение не звонит дважды.
