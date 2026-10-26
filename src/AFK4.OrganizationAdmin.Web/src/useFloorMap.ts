@@ -103,26 +103,22 @@ export function useFloorMap({
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const floorMapRef = useRef(floorMap);
   const [selectedSeatId, setSelectedSeatId] = useState('');
-  const [remainingNowMs, setRemainingNowMs] = useState(() => Date.now());
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
   // Повтор загрузки, пока карта показывает офлайн-снимок: каждое увеличение перезапускает загрузку.
   const [reloadAttempt, setReloadAttempt] = useState(0);
   const drainingRef = useRef(false);
 
+  // Остаток — на момент загрузки; дальше его ведёт каждое место само (useLiveSeat). Секундный тик
+  // здесь перерисовывал всю Панель каждую секунду, пока в зале шла хоть одна сессия.
   const displayedFloorMap = useMemo(
-    () => refreshFloorMapRemaining(floorMap, t, remainingNowMs),
-    [floorMap, remainingNowMs, t]
+    () => refreshFloorMapRemaining(floorMap, t, Date.now()),
+    [floorMap, t]
   );
   const selectedSeat = displayedFloorMap.seats.find((seat) => seat.id === selectedSeatId) ?? displayedFloorMap.seats[0] ?? null;
 
   useEffect(() => {
     floorMapRef.current = floorMap;
   }, [floorMap]);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setRemainingNowMs(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   useEffect(() => {
     if (authStatus !== 'signed-in' || authSession === null) {

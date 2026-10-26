@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, jest } from 'bun:test';
+import { act, cleanup, render } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
 import { SeatTile } from './SeatTile';
@@ -31,6 +31,36 @@ function renderTile(s: SeatSummary) {
 }
 
 describe('SeatTile', () => {
+  // Отсчёт ведёт сама плитка: раньше его двигал секундный тик всего приложения, и каждую секунду
+  // перерисовывалась вся Панель. Здесь плитке никто сверху новых данных не даёт — время всё равно идёт.
+  it('counts its own remaining time down without new data from above', () => {
+    jest.useFakeTimers();
+    const now = Date.parse('2026-10-26T18:00:00Z');
+    let clock = now;
+    const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+    try {
+      const { container } = renderTile(seat({
+        tone: 'active',
+        hasActiveSession: true,
+        sessionState: 'Active',
+        remainingSeconds: 65,
+        remainingDeadlineMs: now + 65_000,
+        remaining: '2 мин'
+      }));
+      expect(container.querySelector('.seat-clock')?.textContent).toBe('2 мин');
+
+      act(() => {
+        clock = now + 10_000;
+        jest.advanceTimersByTime(10_000);
+      });
+
+      expect(container.querySelector('.seat-clock')?.textContent).toBe('55 с');
+    } finally {
+      dateNow.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it('renders a "+" affordance for a free seat, without a player line or billing', () => {
     const { container } = renderTile(seat({ tone: 'ready', hasActiveSession: false, player: 'Гость' }));
     const free = container.querySelector('.seat-free');
