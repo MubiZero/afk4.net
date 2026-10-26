@@ -1,8 +1,10 @@
 # Delta updates by file manifest
 
 Status: phase 1 (publish), 2a (agent engine) and 2b (apply, rollback, wiring) are built. The agent path is
-behind `Agent:UpdateDeltaEnabled` (off by default) until a live Windows PC acceptance; any delta failure installs
-the full MSI.
+controlled by `Agent:UpdateDeltaEnabled`, on by default since the Windows 11 VM acceptance on 2026-10-27: Agent,
+Organization Admin and a running Player Shell updated 0.1.361 → 0.1.362 with 0.8–1.2 MB instead of 55–62 MB. Any
+delta failure installs the full MSI. Known cosmetic gap: the Windows "Installed apps" version stays at the last
+full MSI until the next one.
 
 ## Why a file manifest and not a binary diff of the MSI
 
