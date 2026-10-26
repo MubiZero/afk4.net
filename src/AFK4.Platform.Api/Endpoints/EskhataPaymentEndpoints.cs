@@ -19,8 +19,10 @@ internal static class EskhataPaymentEndpoints
             EfBillingCommandService billingCommandService,
             PlatformDbContext db,
             TimeProvider timeProvider,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
+            var logger = loggerFactory.CreateLogger(EskhataSettlement.LogCategory);
             string raw;
             using (var reader = new StreamReader(httpRequest.Body))
             {
@@ -75,14 +77,19 @@ internal static class EskhataPaymentEndpoints
             {
                 return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
-            if (await EskhataSettlement.FetchStatusAsync(client, intent, ct) != "COMPLETED")
+            var verified = await EskhataSettlement.FetchStatusAsync(client, intent, ct);
+            if (verified != "COMPLETED")
             {
+                // Вебхук без подписи: «оплачено» в нём, не подтверждённое банком, — повод присмотреться.
+                logger.LogWarning(
+                    "Eskhata webhook said COMPLETED for {PaymentIntentId}, the bank says {BankStatus}; not credited",
+                    intent.PaymentIntentId, verified ?? "no answer");
                 return Results.Ok(); // не подтверждено API → без кредита
             }
 
             // Отменённая игроком заявка тоже зачисляется: QR уже оплачен, деньги у клуба.
             // Не вышло зачислить — 503, чтобы банк повторил; не повторит — подберёт сверка.
-            return await EskhataSettlement.SettleConfirmedAsync(billingCommandService, db, intent, timeProvider.GetUtcNow())
+            return await EskhataSettlement.SettleConfirmedAsync(billingCommandService, db, intent, timeProvider.GetUtcNow(), logger)
                 ? Results.Ok()
                 : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         }).RequireRateLimiting("payment-webhook");

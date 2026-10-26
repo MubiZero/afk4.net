@@ -60,6 +60,17 @@ const string CombinedWebCorsPolicyName = "afk4-web";
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Журнал — одна строка на запись, время в UTC, с областью запроса: TraceId в каждой строке
+// связывает все записи одного запроса, и сбой у клуба можно проследить от входа до ответа.
+// Раньше строки шли многострочными блоками без области, и строки соседних запросов перемешивались.
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.SingleLine = true;
+    options.IncludeScopes = true;
+    options.UseUtcTimestamp = true;
+    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ ";
+});
+
 // Каналы клубов теряют пакеты пачками: клиент считается пропавшим после 60 с тишины, а не 30.
 // Клиенты (агент и Панель) шлют пинг каждые 15 с, так что запас — четыре пропущенных пинга.
 builder.Services.AddSignalR(options => options.ClientTimeoutInterval = TimeSpan.FromSeconds(60));
