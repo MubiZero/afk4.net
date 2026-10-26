@@ -468,6 +468,39 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotContain("Netfx", script, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Задание Start-Job умирает вместе с процессом скрипта, то есть сразу после «exit 0»: агент не
+    // перезапускался и ставил тот же пакет второй раз. Перезапуск обязан уйти в отдельный процесс.
+    [Fact]
+    public void RestartScript_RestartsFromAProcessThatOutlivesTheScript()
+    {
+        var path = Path.Combine(GetRepositoryRoot(), "scripts", "restart-afk4-agent-service.ps1");
+        var commands = Parser.ParseFile(path, out _, out _)
+            .FindAll(node => node is CommandAst, searchNestedScriptBlocks: true)
+            .Select(node => ((CommandAst)node).GetCommandName())
+            .ToList();
+
+        Assert.DoesNotContain("Start-Job", commands, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Start-Process", commands, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Restart-Service", File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
+    // Корень манифеста, которого агент не знает, отклоняет весь манифест: дельта молча превращается в
+    // целый MSI. А папка, которой нет среди корней, не обновляется дельтой вовсе — так было с помощниками
+    // обновления, и исправление скрипта перезапуска не доехало бы до ПК на дельте.
+    [Fact]
+    public void EveryPublishedManifestRoot_IsKnownToTheAgent_AndTheAgentPackageCoversItsHelpers()
+    {
+        var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "publish-client-msi-updates.ps1"));
+        var roots = System.Text.RegularExpressions.Regex.Matches(script, @"Get-ManifestRoots @\(([^)]*)\)")
+            .SelectMany(match => match.Groups[1].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Select(root => root.Trim('\''))
+            .ToList();
+
+        Assert.NotEmpty(roots);
+        Assert.All(roots, root => Assert.True(AFK4.Agent.Service.Updates.Delta.UpdateRootNames.IsKnown(root), root));
+        Assert.Contains(AFK4.Agent.Service.Updates.Delta.UpdateRootNames.UpdateHelpers, roots);
+    }
+
     // Помощники обновления запускают msiexec/sc.exe/powershell, а не `dotnet`: на ПК может не быть
     // ни SDK, ни общего рантайма.
     [Theory]
