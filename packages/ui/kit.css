@@ -249,6 +249,9 @@
   transition: border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
+/* У поля пароля своя кнопка «показать»; встроенная кнопка Edge/WebView2 рядом с ней давала два
+   «глаза» в одном поле (увидено на живом мастере установки). */
+.ui-password > input::-ms-reveal { display: none; }
 .ui-field > input::placeholder,
 .ui-password > input::placeholder { color: var(--text-placeholder); }
 /* Наведение у поля было только на экране входа, а в консоли — нет: курсор над полем ничем не

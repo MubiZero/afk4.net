@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { PIN_LENGTH, isWellFormedPin, keepPinDigits } from '@afk4/contracts';
@@ -184,6 +184,21 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
       ? t('setup.wizard.phoneLogin.hint.phone')
       : null;
 
+  // Общее у поля телефона и поля логина; различаются только тип и рамка.
+  const identityProps = {
+    autoComplete: 'username',
+    autoFocus: true,
+    spellCheck: false,
+    value: identity,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+      setIdentity(mode === 'phone' ? formatLocal(event.target.value) : event.target.value);
+      clearError();
+    },
+    onBlur: () => setTouched(true),
+    'aria-invalid': identityHint !== null,
+    'aria-describedby': identityHint !== null ? 'identity-hint' : undefined
+  };
+
   return (
     // Вход — форма входа, а не шаг с «Назад» и «Дальше»: «Войти» стоит во всю ширину под полями,
     // как на любом экране входа. Шапка — та же, что у шагов.
@@ -200,30 +215,19 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
               ? t('setup.wizard.phoneLogin.field.phone')
               : t('setup.wizard.phoneLogin.field.credentials')}
           </span>
-          <div className={mode === 'phone' ? 'ui-phone-field' : undefined}>
-            {mode === 'phone' && (
+          {/* Поле логина — прямо в .ui-field: общие стили полей ищут `.ui-field > input`, и
+              в безымянной обёртке оно оставалось голым узким полем браузера. */}
+          {/* key — новое поле при смене режима: чистит автозаполнение и IME. Поле логина стоит прямо
+              в .ui-field: стили кита ищут `.ui-field > input`, и в безымянной обёртке оно оставалось
+              голым узким полем браузера (увидено на приёмке в VM). */}
+          {mode === 'phone' ? (
+            <div className="ui-phone-field">
               <span className="ui-phone-prefix" aria-hidden>+992</span>
-            )}
-            <input
-              // key forces a fresh input on mode switch — clears autofill/IME state cleanly.
-              key={mode}
-              className={mode === 'phone' ? 'ui-phone-input' : undefined}
-              type={mode === 'phone' ? 'tel' : 'text'}
-              inputMode={mode === 'phone' ? 'tel' : undefined}
-              autoComplete="username"
-              autoFocus
-              spellCheck={false}
-              value={identity}
-              onChange={(event) => {
-                setIdentity(mode === 'phone' ? formatLocal(event.target.value) : event.target.value);
-                clearError();
-              }}
-              onBlur={() => setTouched(true)}
-              placeholder={mode === 'phone' ? '93 738 00 70' : 'name@example.com'}
-              aria-invalid={identityHint !== null}
-              aria-describedby={identityHint !== null ? 'identity-hint' : undefined}
-            />
-          </div>
+              <input key="phone" {...identityProps} className="ui-phone-input" type="tel" inputMode="tel" placeholder="93 738 00 70" />
+            </div>
+          ) : (
+            <input key="credentials" {...identityProps} type="text" placeholder="name@example.com" />
+          )}
           {identityHint !== null && (
             <span id="identity-hint" className="ui-field-hint">{identityHint}</span>
           )}
