@@ -519,21 +519,32 @@ textarea,
    закреплены, прокручивается только середина: кнопки не уезжают под край окна 1100×740. */
 .wizard-body {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 48px;
+  gap: var(--space-5);
   min-height: 0;
   overflow: hidden;
   padding: 24px;
 }
 
+/* Шаги — полосой над карточкой, по центру окна (решение владельца после приёмки на VM, 26.10.2026):
+   колонка слева сдвигала карточку вправо, а на входе пустовала. Высоту полосы держим и на входе,
+   когда шагов ещё нет, — иначе карточка прыгает вниз после входа. */
 .wizard-rail {
-  flex: 0 0 200px;
-  align-self: center;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  width: min(100%, 760px);
+  min-height: 28px;
 }
 
 .wizard-stepper {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2) var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -542,7 +553,7 @@ textarea,
 .wizard-stepper-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-2);
   min-height: 28px;
   color: var(--text-tertiary);
   font-size: var(--text-sm);
@@ -558,7 +569,7 @@ textarea,
   font-weight: 800;
 }
 
-/* Таджикские подписи длиннее: «Минбаъд» переносится, а не вылезает за колонку. */
+/* Таджикские подписи длиннее: «Минбаъд» переносится, а не вылезает за полосу. */
 .wizard-stepper-label {
   overflow-wrap: anywhere;
 }
@@ -590,11 +601,10 @@ textarea,
   color: var(--accent-text);
 }
 
-/* Связка между кружками — вертикальная черта под центром кружка. */
+/* Связка между шагами — горизонтальная черта. */
 .wizard-stepper-separator {
-  width: 2px;
-  height: 10px;
-  margin-left: 10px;
+  width: 24px;
+  height: 2px;
   border-radius: var(--radius-pill);
   background: var(--border-default);
 }
@@ -605,7 +615,8 @@ textarea,
 
 .wizard-screen {
   display: flex;
-  flex: 0 1 560px;
+  flex: 0 1 auto;
+  width: min(100%, 560px);
   flex-direction: column;
   gap: 24px;
   min-width: 0;
