@@ -20,6 +20,9 @@ public sealed class SetupWizardDeviceSetup(
     /// <summary>Регистрация прошла, а настройка на эту машину не записалась.</summary>
     public const string LocalConfigWriteFailedCode = "wizard_local_config_write_failed";
 
+    /// <summary>Платформа назвала адрес, по которому агент работать не станет (не https или localhost).</summary>
+    public const string PlatformAddressUnusableCode = "wizard_platform_address_unusable";
+
     /// <summary>Приложение встало, а служба агента не запустилась.</summary>
     public const string AgentStartFailedStatus = "agent_start_failed";
 
@@ -39,6 +42,20 @@ public sealed class SetupWizardDeviceSetup(
     /// </summary>
     public async Task WriteBootstrapAsync(InstallEnrollResponse response, string role)
     {
+        // Агент принимает только https-адрес не на этой машине (AgentOptions.IsConfigured). Раньше
+        // мастер записывал любой адрес, агент молча простаивал, а человек через 30 с видел туманное
+        // «агент не принял настройки». Сервер с неверным Install__ApiBaseUrl — ошибка настройки
+        // платформы, и называть её надо до записи, а не после установки.
+        if (!AgentCanUse(response.ApiBaseUrl))
+        {
+            SetupWizardStartupLog.Write(
+                $"The platform named an address the agent cannot use: '{response.ApiBaseUrl}'. Check Install__ApiBaseUrl on the platform.");
+            throw new SetupWizardApiException(
+                PlatformAddressUnusableCode,
+                $"The platform address '{response.ApiBaseUrl}' is not an https address reachable from this PC.",
+                remainingAttempts: null);
+        }
+
         var bootstrap = new SetupWizardBootstrapConfig(
             response.OrganizationId,
             response.BranchId,
@@ -67,6 +84,11 @@ public sealed class SetupWizardDeviceSetup(
             throw new SetupWizardApiException(LocalConfigWriteFailedCode, exception.Message, remainingAttempts: null);
         }
     }
+
+    internal static bool AgentCanUse(string? apiBaseUrl) =>
+        Uri.TryCreate(apiBaseUrl?.Trim(), UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && !uri.IsLoopback;
 
     /// <summary>
     /// Ставит приложение роли и поднимает агента.

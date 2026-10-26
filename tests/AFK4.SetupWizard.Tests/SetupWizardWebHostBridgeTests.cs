@@ -607,6 +607,32 @@ public sealed class SetupWizardWebHostBridgeTests
             response.GetProperty("error").GetProperty("code").GetString());
     }
 
+    // Агент работает только с https-адресом не на этой машине. Раньше мастер записывал любой адрес,
+    // который назвал сервер, агент молча простаивал, а через 30 с человек видел «агент не принял
+    // настройки» — и шёл чинить ПК, хотя ошибка в настройке платформы.
+    [Theory]
+    [InlineData("http://api.afk4.net")]
+    [InlineData("https://localhost:5074")]
+    [InlineData("https://127.0.0.1")]
+    [InlineData("")]
+    public async Task Enroll_WhenThePlatformNamesAnAddressTheAgentCannotUse_StopsBeforeWritingTheConfig(string apiBaseUrl)
+    {
+        var bridge = await SignedIn();
+        bridge.Deps.Api.EnrolledApiBaseUrl = apiBaseUrl;
+
+        var response = await Send(
+            bridge.Bridge,
+            "wizard:enrollAuth",
+            $$"""{"branchId":"{{BranchId}}","seatId":"{{SeatId}}","role":"gaming_pc"}""");
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(
+            "wizard_platform_address_unusable",
+            response.GetProperty("error").GetProperty("code").GetString());
+        Assert.Null(bridge.Deps.Bootstrap.Written);
+        Assert.False(bridge.Deps.Completion.Completed);
+    }
+
     // Приложение встало, а служба не запустилась: машина зарегистрирована и настроена, но на
     // связь не выйдет. Раньше это вылетало исключением и доезжало как провал регистрации.
     [Fact]
@@ -940,6 +966,7 @@ public sealed class SetupWizardWebHostBridgeTests
         public (string Phone, string Password)? PhoneSignIn { get; private set; }
         public List<string> DiscoverCalls { get; } = [];
         public AuthenticatedInstallEnrollRequest? EnrollRequest { get; private set; }
+        public string EnrolledApiBaseUrl { get; set; } = "https://afk4.example";
         public bool SeatCreated { get; private set; }
         public SetupWizardApiException? ResetByPhoneThrows { get; set; }
         public IReadOnlyList<InstallBranchDto> Branches { get; set; } = [];
@@ -1074,7 +1101,7 @@ public sealed class SetupWizardWebHostBridgeTests
                 Guid.Parse("55555555-5555-5555-5555-555555555555"),
                 "secret-1",
                 "approved",
-                "https://afk4.example",
+                EnrolledApiBaseUrl,
                 "internal",
                 DateTimeOffset.UnixEpoch)
             {
