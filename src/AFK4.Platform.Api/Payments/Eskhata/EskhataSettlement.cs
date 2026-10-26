@@ -14,6 +14,9 @@ internal static class EskhataSettlement
 {
     public const string CreditReason = "eskhata_online_topup";
 
+    /// <summary>Категория журнала онлайн-оплат: одна на вебхук, опрос и сверку, чтобы их строки фильтровались вместе.</summary>
+    public const string LogCategory = "AFK4.Payments.Eskhata";
+
     /// <summary>Статус заказа подписанным запросом к банку — единственное, чему здесь верят.</summary>
     public static Task<string?> FetchStatusAsync(
         IEskhataMerchantClient client, PaymentIntentEntity intent, CancellationToken cancellationToken) =>
@@ -37,7 +40,8 @@ internal static class EskhataSettlement
         EfBillingCommandService billingCommandService,
         PlatformDbContext dbContext,
         PaymentIntentEntity intent,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        ILogger logger)
     {
         var request = new TopUpWalletRequest(
             intent.OrganizationId,
@@ -48,10 +52,17 @@ internal static class EskhataSettlement
             intent.PlayerAccountId, intent.BranchId, request, CancellationToken.None);
         if (!credit.Succeeded)
         {
+            // Деньги у банка, а кошелёк не пополнен — это надо видеть в журнале, а не узнавать от игрока.
+            logger.LogWarning(
+                "Eskhata payment {PaymentIntentId} confirmed by the bank but the wallet credit failed ({Code}): {Error}",
+                intent.PaymentIntentId, credit.Code, credit.Error);
             return false;
         }
 
         await PaymentIntentClaim.MarkPaidByBankAsync(dbContext, intent, now, CancellationToken.None);
+        logger.LogInformation(
+            "Eskhata payment {PaymentIntentId} credited: {AmountMinorUnits} {CurrencyCode} to player {PlayerAccountId}",
+            intent.PaymentIntentId, intent.AmountMinorUnits, intent.CurrencyCode, intent.PlayerAccountId);
         return true;
     }
 }
@@ -117,7 +128,7 @@ public sealed class EskhataReconciliationHostedService(
                     continue;
                 }
 
-                if (await EskhataSettlement.SettleConfirmedAsync(billingCommandService, dbContext, intent, GetUtcNow()))
+                if (await EskhataSettlement.SettleConfirmedAsync(billingCommandService, dbContext, intent, GetUtcNow(), Log))
                 {
                     settled++;
                     Log.LogWarning(

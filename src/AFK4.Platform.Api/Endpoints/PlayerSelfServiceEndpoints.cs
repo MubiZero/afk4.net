@@ -595,6 +595,7 @@ internal static class PlayerSelfServiceEndpoints
             EfBillingCommandService billingCommandService,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -634,7 +635,8 @@ internal static class PlayerSelfServiceEndpoints
             {
                 // Не вышло зачислить — «ожидает»: следующий опрос, вебхук или сверка повторят.
                 return await AFK4.Platform.Api.Payments.Eskhata.EskhataSettlement.SettleConfirmedAsync(
-                        billingCommandService, dbContext, intent, timeProvider.GetUtcNow())
+                        billingCommandService, dbContext, intent, timeProvider.GetUtcNow(),
+                        loggerFactory.CreateLogger(AFK4.Platform.Api.Payments.Eskhata.EskhataSettlement.LogCategory))
                     ? Results.Ok(new { payment = "paid" })
                     : Results.Ok(new { payment = "pending" });
             }
