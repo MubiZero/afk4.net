@@ -43,6 +43,19 @@ public partial class WebViewSetupWindow : Window
         this.isPreview = isPreview;
 
         InitializeComponent();
+        FitIntoWorkArea();
+    }
+
+    // Окно не больше рабочей области. 740 точек при масштабе 125% — это 925 пикселей: больше экрана
+    // 1366×768 или низкого ноутбука, и CenterScreen уводил заголовок за верхний край (VM-приёмка
+    // 27.10.2026). Так же первое окно ставит Панель (OrganizationAdminWindowPlacement.FirstRun).
+    private void FitIntoWorkArea()
+    {
+        var work = SystemParameters.WorkArea;
+        MinWidth = Math.Min(MinWidth, work.Width);
+        MinHeight = Math.Min(MinHeight, work.Height);
+        Width = Math.Min(Width, work.Width);
+        Height = Math.Min(Height, work.Height);
     }
 
     protected override async void OnContentRendered(EventArgs e)
