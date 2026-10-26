@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { I18nProvider, useI18n } from '@afk4/i18n';
+import { useI18n } from '@afk4/i18n';
+import { PanelI18nProvider } from './PanelI18nProvider';
 import { projectOperatorError } from './apiErrors';
 import { checkStaffInviteCode, refreshOperatorSession, staffSignInNextStep } from './authClient';
 import { ConnectionResolutionScreen } from './ConnectionResolutionScreen';
@@ -72,11 +73,11 @@ import {
 
 export function App() {
   return (
-    <I18nProvider>
+    <PanelI18nProvider>
       <ToastProvider>
         <AppInner />
       </ToastProvider>
-    </I18nProvider>
+    </PanelI18nProvider>
   );
 }
 

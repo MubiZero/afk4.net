@@ -17,6 +17,14 @@
     "./catalogs/player-shell": {
       "types": "./src/catalogs/playerShell.ts",
       "default": "./src/catalogs/playerShell.ts"
+    },
+    "./catalogs/organization-admin": {
+      "types": "./src/catalogs/organizationAdmin.ts",
+      "default": "./src/catalogs/organizationAdmin.ts"
+    },
+    "./catalogs/organization-admin-scope": {
+      "types": "./src/catalogs/organizationAdminScope.ts",
+      "default": "./src/catalogs/organizationAdminScope.ts"
     }
   },
   "scripts": {
