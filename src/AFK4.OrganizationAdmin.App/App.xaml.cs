@@ -1,4 +1,6 @@
-﻿using System.IO;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
 using AFK4.OrganizationAdmin.App.Updates;
@@ -10,6 +12,14 @@ namespace AFK4.OrganizationAdmin.App;
 /// </summary>
 public partial class App : Application
 {
+    /// <summary>
+    /// Одна Панель на сеанс. Она стартует сама при входе в Windows, и кассир, не заметив её за
+    /// другими окнами, жмёт ярлык: вторая копия открыла бы второе подключение к залу и дралась бы
+    /// с первой за канал обновлений. Повторный запуск выводит уже открытую Панель вперёд и выходит.
+    /// </summary>
+    private const string SingleInstanceName = @"Local\AFK4.OrganizationAdmin.Host";
+
+    private Mutex? singleInstance;
     private NamedPipeUpdateCoordinationServer? updateCoordinationServer;
     internal OrganizationAdminActivityState UpdateActivityState { get; } = new();
     internal IOrganizationAdminShutdownAcknowledgementStore UpdateAcknowledgementStore { get; } =
@@ -21,6 +31,15 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        singleInstance = new Mutex(initiallyOwned: true, SingleInstanceName, out var first);
+        if (!first)
+        {
+            BringRunningCopyForward();
+            StartupUri = null;
+            Shutdown();
+            return;
+        }
+
         base.OnStartup(e);
 
         // Backstop: an exception escaping a UI callback (e.g. the async-void bridge handler)
@@ -46,8 +65,44 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         updateCoordinationServer?.Dispose();
+        singleInstance?.Dispose();
         base.OnExit(e);
     }
+
+    private static void BringRunningCopyForward()
+    {
+        using var current = Process.GetCurrentProcess();
+        foreach (var other in Process.GetProcessesByName(current.ProcessName))
+        {
+            using (other)
+            {
+                if (other.Id == current.Id || other.SessionId != current.SessionId || other.MainWindowHandle == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                // Из свёрнутого — вернуть; развёрнутую на весь экран не трогать, только вывести вперёд.
+                if (IsIconic(other.MainWindowHandle))
+                {
+                    ShowWindow(other.MainWindowHandle, SwRestore);
+                }
+
+                SetForegroundWindow(other.MainWindowHandle);
+                return;
+            }
+        }
+    }
+
+    private const int SwRestore = 9;
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr window);
 
     private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
