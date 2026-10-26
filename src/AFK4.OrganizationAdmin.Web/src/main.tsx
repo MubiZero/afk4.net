@@ -1,6 +1,6 @@
 import { StrictMode, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nProvider } from '@afk4/i18n';
+import { PanelI18nProvider } from './PanelI18nProvider';
 import { App } from './App';
 import { OperatorThemeProvider } from './operatorTheme';
 import { getOperatorConfig } from './operatorConfig';
@@ -13,11 +13,11 @@ import './styles.css';
 function mount(children: ReactElement): void {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <I18nProvider>
+      <PanelI18nProvider>
         <OperatorThemeProvider>
           {children}
         </OperatorThemeProvider>
-      </I18nProvider>
+      </PanelI18nProvider>
     </StrictMode>
   );
 }

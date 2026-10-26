@@ -7,6 +7,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PANEL_FOREIGN_PREFIXES, PANEL_KEPT_PREFIXES, isPanelKey } from '../src/catalogs/organizationAdminScope';
 
 const LOCALES = ['ru', 'en', 'tg'] as const;
 
@@ -95,8 +96,25 @@ console.log(`generated ${outFile} from ${LOCALES.length} locales`);
 /**
  * Части каталога для поверхностей, которым весь каталог не нужен. Экран ПК читает только
  * `playerShell.*` — около 4% ключей; весь каталог стоил ему больше мегабайта JS на холодном старте.
+ *
+ * Панель берёт всё, кроме чужих разделов: приложения игрока, экрана ПК, Platform Control и мастера
+ * установки (оставлены лишь их кусочки, которые Панель показывает сама). Это почти половина каталога
+ * в каждом из трёх языков. Тест Панели запрещает ей упоминать исключённые разделы в обход `keep`.
  */
-const CATALOG_SUBSETS = [{ name: 'playerShell', prefixes: ['playerShell.'] }] as const;
+type CatalogSubset = { name: string; description: string; include: (key: string) => boolean };
+
+const CATALOG_SUBSETS: CatalogSubset[] = [
+  {
+    name: 'playerShell',
+    description: 'keys playerShell.',
+    include: (key) => key.startsWith('playerShell.')
+  },
+  {
+    name: 'organizationAdmin',
+    description: `all keys except ${PANEL_FOREIGN_PREFIXES.join(', ')} (keeping ${PANEL_KEPT_PREFIXES.join(', ')})`,
+    include: isPanelKey
+  }
+];
 
 mkdirSync(join(sourceDir, 'catalogs'), { recursive: true });
 for (const subset of CATALOG_SUBSETS) {
@@ -104,7 +122,7 @@ for (const subset of CATALOG_SUBSETS) {
     const catalog = JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
     const picked = Object.fromEntries(
       Object.keys(catalog)
-        .filter((key) => subset.prefixes.some((prefix) => key.startsWith(prefix)))
+        .filter(subset.include)
         .sort()
         .map((key) => [key, catalog[key]])
     );
@@ -112,7 +130,7 @@ for (const subset of CATALOG_SUBSETS) {
   });
   writeFileSync(
     join(sourceDir, 'catalogs', `${subset.name}.ts`),
-    `// AUTO-GENERATED from locales/*.json (keys ${subset.prefixes.join(', ')}). Do not edit by hand.\n` +
+    `// AUTO-GENERATED from locales/*.json (${subset.description}). Do not edit by hand.\n` +
       `import type { Catalog } from '../core';\n\n` +
       `export const ${subset.name}Catalog: Catalog = {\n${parts.join(',\n')}\n};\n`
   );
