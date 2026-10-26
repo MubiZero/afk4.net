@@ -4981,6 +4981,7 @@
   "setup.wizard.device.error.enroll": "This PC could not be connected. Check the connection to the server and try again.",
   "setup.wizard.device.error.generic": "The action failed. Try again.",
   "setup.wizard.device.error.localConfig": "The PC is enrolled, but its configuration could not be written to it. Run the wizard as administrator and try again — it will not enroll the PC twice.",
+  "setup.wizard.device.error.platformAddress": "The platform gave an address this PC cannot reach it at. The PC is enrolled but will not start working — tell the platform administrator, then try again once it is fixed: the PC will not be enrolled twice.",
   "setup.wizard.device.field.name": "PC name",
   "setup.wizard.device.gaming.subtitle": "Set a PC name. You can place it on the floor map later in the AFK4.NET Panel.",
   "setup.wizard.device.gaming.title": "Gaming PC on the floor",

@@ -23,6 +23,8 @@ const CODE_KEYS = {
   // Регистрация прошла, а настройка на эту машину не легла — почти всегда права. Под общим
   // «не удалось зарегистрировать» причину искали в сети и в платформе, где её нет.
   wizard_local_config_write_failed: 'setup.wizard.device.error.localConfig',
+  // Платформа назвала адрес, по которому агент на связь не выйдет: чинить надо сервер, не ПК.
+  wizard_platform_address_unusable: 'setup.wizard.device.error.platformAddress',
 
   // Коды сервера: почему он отказал. Эти причины человек за мастером правит сам.
   too_many_password_attempts: 'setup.wizard.error.tooManyPasswordAttempts',

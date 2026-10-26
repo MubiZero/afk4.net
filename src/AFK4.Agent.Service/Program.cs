@@ -123,7 +123,8 @@ builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContex
 builder.Services.AddSingleton<IPlayerShellUpdateGate, PlayerShellUpdateGate>();
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
 builder.Services.AddSingleton<ShellWarningStore>();
-builder.Services.AddSingleton<ShellHeartbeatSnapshot>();
+builder.Services.AddSingleton(provider => new ShellHeartbeatSnapshot(
+    provider.GetRequiredService<IOptions<AgentOptions>>().Value.StateDirectory));
 builder.Services.AddSingleton<IShellStateSignal, ShellStateSignal>();
 builder.Services.AddSingleton<IPlayerShellStateBuilder, PlayerShellStateBuilder>();
 builder.Services.AddSingleton<IAssistanceRequestReporter, HttpAssistanceRequestReporter>();
