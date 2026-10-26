@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Shell;
 
@@ -9,10 +10,21 @@ namespace AFK4.Agent.Service.Shell;
 ///
 /// Раньше это были поля работника, и собрать состояние оболочки мог только он — раз в
 /// сердцебиение. Теперь их читает сборщик, и канал отдаёт состояние, когда оно изменилось.
+///
+/// Место, оформление клуба и права тарифа меняются редко и нужны экрану и без связи: после
+/// загрузки без интернета (утро после отключения света) оболочка иначе теряла «PC-012 · Основной
+/// зал» и логотип клуба до первого сердцебиения. Они лежат на диске (<see cref="FileName"/>) и
+/// переписываются, только когда меняются. Код посадки, обслуживание и идущая сессия — только от
+/// сервера: устаревшими они врали бы.
 /// </summary>
 public sealed class ShellHeartbeatSnapshot
 {
+    public const string FileName = "shell-place.json";
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly Lock gate = new();
+    private readonly string? path;
+    private string? remembered;
     private string? seatingCode;
     private DateTimeOffset? seatingCodeExpiresAtUtc;
     private ShellBrandingDto? branding;
@@ -23,6 +35,29 @@ public sealed class ShellHeartbeatSnapshot
     private DateTimeOffset? maintenanceSinceUtc;
     private string? maintenanceByName;
     private DeviceLiveSessionDto? liveSession;
+
+    public ShellHeartbeatSnapshot(string? stateDirectory = null)
+    {
+        path = stateDirectory is null ? null : Path.Combine(stateDirectory, FileName);
+        if (path is null || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            remembered = File.ReadAllText(path);
+            var place = JsonSerializer.Deserialize<RememberedPlace>(remembered, JsonOptions);
+            seat = place?.Seat;
+            branding = place?.Branding;
+            features = place?.Features;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // Нет файла — экран как до первого сердцебиения; вреда больше, чем прежде, нет.
+            remembered = null;
+        }
+    }
 
     /// <summary>Идущая сессия по словам сервера: её начало и конец. null — сессии нет.</summary>
     public DeviceLiveSessionDto? LiveSession { get { lock (gate) { return liveSession; } } }
@@ -93,6 +128,7 @@ public sealed class ShellHeartbeatSnapshot
             this.seat = seat;
             this.sessionOwner = sessionOwner;
             this.features = features;
+            RememberPlace();
         }
     }
 
@@ -115,6 +151,35 @@ public sealed class ShellHeartbeatSnapshot
             }
 
             this.intervalSeconds = intervalSeconds;
+            RememberPlace();
         }
     }
+
+    // Под gate. Пишет, только если что-то поменялось: сердцебиение раз в 10–30 с, а место и
+    // оформление клуба меняются раз в недели.
+    private void RememberPlace()
+    {
+        if (path is null)
+        {
+            return;
+        }
+
+        var json = JsonSerializer.Serialize(new RememberedPlace(seat, branding, features), JsonOptions);
+        if (json == remembered)
+        {
+            return;
+        }
+
+        try
+        {
+            AtomicFile.WriteAllText(path, json);
+            remembered = json;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Не записалось — попробуем со следующим сердцебиением.
+        }
+    }
+
+    private sealed record RememberedPlace(DeviceSeatDto? Seat, ShellBrandingDto? Branding, IReadOnlyList<string>? Features);
 }
