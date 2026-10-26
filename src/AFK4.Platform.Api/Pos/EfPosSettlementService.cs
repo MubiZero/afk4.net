@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Inventory;
@@ -22,7 +23,8 @@ public sealed class EfPosSettlementService(
     IReceiptNumberGenerator receiptNumberGenerator,
     TimeProvider timeProvider,
     ILowStockNotifier? lowStockNotifier = null,
-    ILogger<EfPosSettlementService>? logger = null) : IPosSettlementService
+    ILogger<EfPosSettlementService>? logger = null,
+    IAuditRecordStager? auditRecordStager = null) : IPosSettlementService
 {
     private const string SettlementOperation = "pos-sale-settle";
     private const string RefundOperation = "pos-sale-refund";
@@ -34,7 +36,8 @@ public sealed class EfPosSettlementService(
         Guid posSaleId,
         Guid actorStaffUserId,
         SettlePosSaleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null)
     {
         // The dependency marks Inventory as the owner of cost policy. Outbound settlement deliberately
         // consumes only the immutable cost/tracking snapshots captured on each POS sale line.
@@ -233,6 +236,7 @@ public sealed class EfPosSettlementService(
             sale.State = PosSaleStateNames.Paid;
             sale.PaidAtUtc = now;
             var response = ToDto(sale, lines, receipt);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 sale.OrganizationId,
                 sale.BranchId,
@@ -275,7 +279,8 @@ public sealed class EfPosSettlementService(
         Guid posSaleId,
         Guid actorStaffUserId,
         RefundPosSaleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null)
     {
         var saleScope = await dbContext.PosSales
             .AsNoTracking()
@@ -524,6 +529,7 @@ public sealed class EfPosSettlementService(
             sale.RefundReason = normalizedRequest.Reason;
             sale.RefundedAtUtc = now;
             var response = ToDto(sale, lines, receipt);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddRefundIdempotencyRecord(
                 sale.OrganizationId,
                 sale.BranchId,

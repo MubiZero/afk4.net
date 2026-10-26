@@ -100,7 +100,7 @@ internal static class TipEndpoints
         });
 
         organizations.MapPost("shifts/{shiftId:guid}/tips/{ledgerEntryId:guid}/reverse", async (
-            Guid shiftId, Guid ledgerEntryId, StaffAuthorizationService authorizationService, IAuditRecordWriter audit,
+            Guid shiftId, Guid ledgerEntryId, StaffAuthorizationService authorizationService,
             PlatformDbContext db, VisitTips tips, CancellationToken ct) =>
         {
             var branchId = await ShiftBranchAsync(db, shiftId, ct);
@@ -110,16 +110,16 @@ internal static class TipEndpoints
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
             var staff = authorization.StaffContext!;
-            var outcome = await tips.ReverseAsync(staff.OrganizationId, shiftId, ledgerEntryId, staff.StaffUserId, ct);
+            var outcome = await tips.ReverseAsync(staff.OrganizationId, shiftId, ledgerEntryId, staff.StaffUserId, ct,
+                auditOnCommit: new AuditRecordWriteRequest(
+                    staff.OrganizationId, BranchId: branchId, ActorStaffUserId: staff.StaffUserId, Action: AuditActionNames.ReverseTip,
+                    TargetType: "LedgerEntry", TargetId: ledgerEntryId.ToString("N"), Outcome: AuditOutcome.Succeeded,
+                    SourceApp: "PlatformApi", DetailsJson: JsonSerializer.Serialize(new { shiftId })));
             if (outcome == VisitTips.ReverseOutcome.NotFound) return Results.NotFound();
             if (outcome == VisitTips.ReverseOutcome.ShiftClosed) return Results.Conflict(new { error = TipErrorCodeNames.ShiftClosed });
             if (outcome == VisitTips.ReverseOutcome.AlreadyReversed) return Results.Conflict(new { error = TipErrorCodeNames.AlreadyReversed });
             if (outcome == VisitTips.ReverseOutcome.AlreadyPaidOut) return Results.Conflict(new { error = TipErrorCodeNames.AlreadyPaidOut });
 
-            await audit.WriteAsync(new AuditRecordWriteRequest(
-                staff.OrganizationId, BranchId: branchId, ActorStaffUserId: staff.StaffUserId, Action: AuditActionNames.ReverseTip,
-                TargetType: "LedgerEntry", TargetId: ledgerEntryId.ToString("N"), Outcome: AuditOutcome.Succeeded,
-                SourceApp: "PlatformApi", DetailsJson: JsonSerializer.Serialize(new { shiftId })), ct);
             return Results.Ok(await tips.ForShiftAsync(staff.OrganizationId, shiftId, ct));
         });
     }
@@ -130,7 +130,7 @@ internal static class TipEndpoints
         // клиента нет: сервер выводит его из того, сколько уже выдано, — и повтор после обрыва,
         // и два кассира, нажавших разом, выдадут один раз.
         organizations.MapPost("shifts/{shiftId:guid}/tips/payout", async (
-            Guid shiftId, StaffAuthorizationService authorizationService, IAuditRecordWriter audit,
+            Guid shiftId, StaffAuthorizationService authorizationService,
             PlatformDbContext db, VisitTips tips, AFK4.Platform.Api.Shifts.EfShiftService shifts, CancellationToken ct) =>
         {
             var branchId = await ShiftBranchAsync(db, shiftId, ct);
@@ -140,14 +140,14 @@ internal static class TipEndpoints
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
             var staff = authorization.StaffContext!;
-            var (result, error) = await tips.PayOutAsync(shifts, staff.OrganizationId, shiftId, staff.StaffUserId, ct);
+            var (result, error) = await tips.PayOutAsync(shifts, staff.OrganizationId, shiftId, staff.StaffUserId, ct,
+                auditOnCommit: movement => [new AuditRecordWriteRequest(
+                    staff.OrganizationId, BranchId: branchId, ActorStaffUserId: staff.StaffUserId, Action: AuditActionNames.PayOutTips,
+                    TargetType: "Shift", TargetId: shiftId.ToString("N"), Outcome: AuditOutcome.Succeeded,
+                    SourceApp: "PlatformApi", DetailsJson: JsonSerializer.Serialize(new { PaidOut = movement.Amount }))]);
             if (result is null) return Results.NotFound();
             if (error is not null) return Results.Conflict(new { error });
 
-            await audit.WriteAsync(new AuditRecordWriteRequest(
-                staff.OrganizationId, BranchId: branchId, ActorStaffUserId: staff.StaffUserId, Action: AuditActionNames.PayOutTips,
-                TargetType: "Shift", TargetId: shiftId.ToString("N"), Outcome: AuditOutcome.Succeeded,
-                SourceApp: "PlatformApi", DetailsJson: JsonSerializer.Serialize(new { result.PaidOut })), ct);
             return Results.Ok(result);
         });
     }

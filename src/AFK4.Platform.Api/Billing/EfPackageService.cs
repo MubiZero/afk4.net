@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
@@ -11,7 +12,8 @@ namespace AFK4.Platform.Api.Billing;
 public sealed class EfPackageService(
     PlatformDbContext dbContext,
     IOpenShiftResolver openShiftResolver,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IAuditRecordStager? auditRecordStager = null)
 {
     private const string PackageCreateOperation = "package-create";
     private const string PackagePurchaseOperation = "package-purchase";
@@ -188,13 +190,15 @@ public sealed class EfPackageService(
         Guid branchId,
         Guid actorStaffUserId,
         PurchasePackageRequest request,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        AuditOnCommit<PlayerPackageDto>? auditOnCommit = null) =>
         PurchasePackageCoreAsync(
             playerAccountId,
             branchId,
             actorStaffUserId,
             request,
             requireOpenShift: true,
+            auditOnCommit,
             cancellationToken);
 
     /// <summary>
@@ -214,6 +218,7 @@ public sealed class EfPackageService(
             SystemActorIds.PlayerSelfService,
             request,
             requireOpenShift: false,
+            auditOnCommit: null,
             cancellationToken);
 
     private async Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageCoreAsync(
@@ -222,6 +227,7 @@ public sealed class EfPackageService(
         Guid actorStaffUserId,
         PurchasePackageRequest request,
         bool requireOpenShift,
+        AuditOnCommit<PlayerPackageDto>? auditOnCommit,
         CancellationToken cancellationToken)
     {
         var requestHashInput = PlayerScopedRequest(playerAccountId, request);
@@ -385,6 +391,7 @@ public sealed class EfPackageService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = await ToPlayerPackageDtoAsync(playerPackage, cancellationToken);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 request.OrganizationId,
                 branchId,

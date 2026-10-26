@@ -246,24 +246,21 @@ internal static class PackageEndpoints
                 player.BranchId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    player.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.PurchasePackage,
+                    "PlayerPackage",
+                    response.PlayerPackageId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.PackageDefinitionId })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                player.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.PurchasePackage,
-                "PlayerPackage",
-                result.Response!.PlayerPackageId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.PackageDefinitionId },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });

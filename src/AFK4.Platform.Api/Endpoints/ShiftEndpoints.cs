@@ -159,24 +159,21 @@ internal static class ShiftEndpoints
                 shiftId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: response => [StaffAudit(
+                    authorization.StaffContext.OrganizationId,
+                    shift.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.RecordCashMovement,
+                    "CashMovement",
+                    response.CashMovementId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.MovementType, request.Amount })]);
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
-
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                shift.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.RecordCashMovement,
-                "CashMovement",
-                result.Response!.CashMovementId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.MovementType, request.Amount },
-                cancellationToken);
 
             return Results.Ok(result.Response);
         });
@@ -312,43 +309,55 @@ internal static class ShiftEndpoints
                 shiftId,
                 authorization.StaffContext.StaffUserId,
                 request,
-                cancellationToken);
+                cancellationToken,
+                auditOnCommit: closed => CloseShiftAudit(
+                    authorization.StaffContext.OrganizationId,
+                    shift.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    shiftId,
+                    request,
+                    closed));
 
             if (!result.Succeeded)
             {
                 return ToHttpResult(result);
             }
 
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                shift.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.CloseShift,
-                "Shift",
-                shiftId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { request.CountedCash, result.Response!.Difference },
-                cancellationToken);
-
-            // Anti-fraud §5.7: record the manager sign-off as its own audit fact when a discrepancy was cleared.
-            if (result.Response.ManagerSignOffStaffUserId is { } signOffStaffUserId)
-            {
-                await WriteAuditAsync(
-                    auditRecordWriter,
-                    authorization.StaffContext.OrganizationId,
-                    shift.BranchId,
-                    authorization.StaffContext.StaffUserId,
-                    AuditActionNames.ShiftSignOff,
-                    "Shift",
-                    shiftId.ToString("D"),
-                    AuditOutcome.Succeeded,
-                    new { SignOffStaffUserId = signOffStaffUserId, result.Response.Difference, request.SignOffReason },
-                    cancellationToken);
-            }
-
             return Results.Ok(result.Response);
         });
 
+    }
+
+    private static IEnumerable<AuditRecordWriteRequest> CloseShiftAudit(
+        Guid organizationId,
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid shiftId,
+        CloseShiftRequest request,
+        ShiftDto closed)
+    {
+        yield return StaffAudit(
+            organizationId,
+            branchId,
+            actorStaffUserId,
+            AuditActionNames.CloseShift,
+            "Shift",
+            shiftId.ToString("D"),
+            AuditOutcome.Succeeded,
+            new { request.CountedCash, closed.Difference });
+
+        // Anti-fraud §5.7: record the manager sign-off as its own audit fact when a discrepancy was cleared.
+        if (closed.ManagerSignOffStaffUserId is { } signOffStaffUserId)
+        {
+            yield return StaffAudit(
+                organizationId,
+                branchId,
+                actorStaffUserId,
+                AuditActionNames.ShiftSignOff,
+                "Shift",
+                shiftId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { SignOffStaffUserId = signOffStaffUserId, closed.Difference, request.SignOffReason });
+        }
     }
 }

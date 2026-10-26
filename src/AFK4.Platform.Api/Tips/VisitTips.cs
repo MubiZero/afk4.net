@@ -2,6 +2,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
@@ -18,7 +19,7 @@ namespace AFK4.Platform.Api.Tips;
 /// игрока записью <c>tip</c> со сменой и сессией; ни один расчёт выручки этот вид не видит.
 /// Возврат — записью <c>reversal</c>: <c>refund</c> уменьшил бы выручку за игру.
 /// </summary>
-public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
+public sealed class VisitTips(PlatformDbContext db, TimeProvider clock, IAuditRecordStager? auditRecordStager = null)
 {
     private const string Operation = "visit-tip";
 
@@ -190,7 +191,8 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
     /// ту же.
     /// </summary>
     public async Task<(ShiftTipsDto? Tips, string? Error)> PayOutAsync(
-        EfShiftService shifts, Guid organizationId, Guid shiftId, Guid actorStaffUserId, CancellationToken ct)
+        EfShiftService shifts, Guid organizationId, Guid shiftId, Guid actorStaffUserId, CancellationToken ct,
+        AuditOnCommit<CashMovementDto>? auditOnCommit = null)
     {
         var current = await ForShiftAsync(organizationId, shiftId, ct);
         if (current is null) return (null, null);
@@ -206,7 +208,8 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
             $"{CashMovementReasonNames.TipPayout}:{current.RecipientName}",
             $"tips-payout:{shiftId:N}:{paidBefore}");
 
-        var movement = await shifts.RecordCashMovementAsync(cashShiftId.Value, actorStaffUserId, request, ct);
+        // Выдача — это движение наличных; запись журнала о ней едет в его транзакции.
+        var movement = await shifts.RecordCashMovementAsync(cashShiftId.Value, actorStaffUserId, request, ct, auditOnCommit);
         if (movement.Response is null) return (current, movement.Code ?? movement.Error ?? TipErrorCodeNames.ShiftClosed);
 
         if (!await db.ShiftTipPayouts.AnyAsync(payout => payout.CashMovementId == movement.Response.CashMovementId, ct))
@@ -240,7 +243,9 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
 
     public enum ReverseOutcome { Reversed, NotFound, ShiftClosed, AlreadyReversed, AlreadyPaidOut }
 
-    public async Task<ReverseOutcome> ReverseAsync(Guid organizationId, Guid shiftId, Guid ledgerEntryId, Guid actorStaffUserId, CancellationToken ct)
+    public async Task<ReverseOutcome> ReverseAsync(
+        Guid organizationId, Guid shiftId, Guid ledgerEntryId, Guid actorStaffUserId, CancellationToken ct,
+        AuditRecordWriteRequest? auditOnCommit = null)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var tip = await db.LedgerEntries.AsNoTracking().SingleOrDefaultAsync(entry =>
@@ -268,6 +273,7 @@ public sealed class VisitTips(PlatformDbContext db, TimeProvider clock)
             LedgerEntryTypeNames.Reversal, LedgerAccountTypeNames.Wallet, -tip.AmountMinorUnits, quantitySeconds: 0,
             tip.CurrencyCode, description: LedgerEntryTypeNames.Tip, reason: "tip_reversal",
             reversesLedgerEntryId: tip.LedgerEntryId, actorStaffUserId, clock.GetUtcNow(), shiftId));
+        auditRecordStager.StageOnCommit(auditOnCommit);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return ReverseOutcome.Reversed;

@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Inventory;
@@ -20,7 +21,8 @@ public sealed class EfShopCommerceCoordinator(
     IShopOrderNotifier notifier,
     ILogger<EfShopCommerceCoordinator> logger,
     IPosService? posService = null,
-    ILowStockNotifier? lowStockNotifier = null) : IShopCommerceCoordinator
+    ILowStockNotifier? lowStockNotifier = null,
+    IAuditRecordStager? auditRecordStager = null) : IShopCommerceCoordinator
 {
     private const string PlaceOperation = "shop-order-place";
     private const string RefundOperation = "pos-sale-refund";
@@ -120,7 +122,8 @@ public sealed class EfShopCommerceCoordinator(
         Guid saleId,
         Guid staffUserId,
         RefundPosSaleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditOnCommit<PosSaleDto>? auditOnCommit = null)
     {
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
@@ -132,7 +135,7 @@ public sealed class EfShopCommerceCoordinator(
         {
             return posService is null
                 ? BillingCommandServiceResult<PosSaleDto>.Missing("sale_not_found")
-                : await posService.RefundSaleAsync(saleId, staffUserId, request, cancellationToken);
+                : await posService.RefundSaleAsync(saleId, staffUserId, request, cancellationToken, auditOnCommit);
         }
         dbContext.Entry(linkedOrder.Order).State = EntityState.Detached;
 
@@ -195,6 +198,7 @@ public sealed class EfShopCommerceCoordinator(
                 settlement.Lines,
                 settlement.Receipt,
                 order.ShopOrderId);
+            auditRecordStager.StageOnCommit(auditOnCommit, response);
             AddIdempotencyRecord(
                 order.OrganizationId,
                 order.BranchId,
