@@ -17,7 +17,8 @@ public static class HeartbeatPayloadFactory
         DateTimeOffset observedAtUtc,
         ISessionLeaseStore? leaseStore,
         NetworkIdentity? network = null,
-        bool? kioskInstalled = null)
+        bool? kioskInstalled = null,
+        bool? gameCacheReachable = null)
     {
         var lease = leaseStore?.Current;
 
@@ -38,6 +39,7 @@ public static class HeartbeatPayloadFactory
             NetworkBroadcastAddress: network?.BroadcastAddress,
             NetworkAddress: network?.Address,
             ActiveSessionLeaseOffline: lease is null ? null : OfflineLeaseSigning.TryGetKeyId(lease.SignatureAlgorithm, out _),
-            KioskInstalled: kioskInstalled);
+            KioskInstalled: kioskInstalled,
+            GameCacheReachable: gameCacheReachable);
     }
 }

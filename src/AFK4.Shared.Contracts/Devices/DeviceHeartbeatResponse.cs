@@ -53,4 +53,7 @@ public sealed record DeviceHeartbeatResponse(
     DeviceLiveSessionDto? LiveSession = null,
     /// Ключи ПК администраторов этого филиала, которыми Панель без интернета подписывает офлайн-аренды.
     /// null — сервер прежней версии, список не трогаем; пустой — доверенных ключей нет.
-    IReadOnlyList<OfflineLeaseKeyDto>? OfflineLeaseKeys = null);
+    IReadOnlyList<OfflineLeaseKeyDto>? OfflineLeaseKeys = null,
+    /// Кеш игр клуба (GameCacheNames): IPv4 сервера в сети клуба. Пусто — кеша нет, агент убирает свои
+    /// строки из hosts; null — сервер прежней версии, hosts не трогаем.
+    string? GameCacheAddress = null);

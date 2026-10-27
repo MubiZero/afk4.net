@@ -679,6 +679,7 @@ organizations.MapBranchSettingsEndpoints();
 organizations.MapStaffTelegramEndpoints();
 organizations.MapOfflineLeaseKeyEndpoints();
 organizations.MapOfflineJournalEndpoints();
+organizations.MapGameCacheEndpoints();
 app.MapProtectionProfileEndpoints(organizations);
 app.MapInstallCodeEndpoints(organizations);
 app.MapGameLibraryEndpoints(organizations);

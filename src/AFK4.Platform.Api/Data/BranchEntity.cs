@@ -104,5 +104,8 @@ public sealed class BranchEntity
 
     public bool RefundReasonWhitelistEnabled { get; set; }
 
+    /// <summary>IPv4 кеша игр клуба (LANCache) в сети филиала; null — кеша нет. Агенты ведут по нему hosts.</summary>
+    public string? GameCacheAddress { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

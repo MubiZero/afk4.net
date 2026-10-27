@@ -420,6 +420,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.ToTable("branches");
             entity.HasKey(branch => branch.BranchId);
+            entity.Property(branch => branch.GameCacheAddress).HasMaxLength(15);
             entity.Property(branch => branch.Slug).HasMaxLength(64).IsRequired();
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();

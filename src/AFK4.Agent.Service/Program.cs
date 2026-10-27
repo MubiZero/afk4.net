@@ -105,6 +105,11 @@ builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
 builder.Services.AddSingleton<IDeviceCredentialStore, FileDeviceCredentialStore>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<TrustedOfflineKeys>();
+// Кеш игр клуба: hosts ведёт одна служба, сердцебиение только сообщает ей адрес.
+builder.Services.AddHttpClient(GameCacheService.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
+builder.Services.AddSingleton(provider => new GameCacheService(
+    provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<ILogger<GameCacheService>>()));
+builder.Services.AddHostedService(provider => provider.GetRequiredService<GameCacheService>());
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IMachinePolicyStore, WindowsMachinePolicyStore>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
