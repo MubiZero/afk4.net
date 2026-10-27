@@ -563,6 +563,9 @@ abstract final class OfflineJournalKindNames {
   static const String sessionStarted = 'session_started';
   static const String sessionExtended = 'session_extended';
   static const String sessionEnded = 'session_ended';
+  static const String sale = 'sale';
+  static const String shiftClosed = 'shift_closed';
+  static const String shiftOpened = 'shift_opened';
 }
 
 /// Словарь: Sessions/OfflineJournalContracts.cs
@@ -573,6 +576,10 @@ abstract final class OfflineJournalRejectionNames {
   static const String unknownTarget = 'offline_unknown_target';
   /// Запись не по правилам: вид, минуты, сумма, валюта.
   static const String invalid = 'offline_record_invalid';
+  /// У того, кто досылает журнал, нет права на эту операцию (продать, открыть или закрыть смену).
+  static const String notAllowed = 'offline_not_allowed';
+  /// Открыть смену без связи нельзя: в филиале уже открыта другая.
+  static const String shiftAlreadyOpen = 'offline_shift_already_open';
 }
 
 /// Словарь: Sessions/OfflineJournalContracts.cs
@@ -10115,8 +10122,12 @@ class NotificationRecipient {
 }
 
 /// Запись журнала кассы, который Панель вела без интернета (docs/roadmap/offline-front-desk.md). Одна
-/// запись — одна операция у стойки: посадить гостя, продлить, закончить. Деньги — как их взяли
-/// на самом деле, время — когда это было.
+/// запись — одна операция у стойки: посадить гостя, продлить, закончить, продать товар, закрыть или
+/// открыть смену. Деньги — как их взяли на самом деле, время — когда это было.
+/// SessionId — только у записей о сессии. ChargeMinorUnits — сколько взяли с
+/// гостя (за время или за товар). CashMinorUnits — наличные в ящике: посчитанные при
+/// закрытии смены или размен при открытии. ShiftId у открытия — номер новой смены,
+/// придуманный Панелью: следующие записи кладут деньги в неё.
 ///
 /// Контракт: Sessions/OfflineJournalContracts.cs
 class OfflineJournalRecordDto {
@@ -10132,6 +10143,9 @@ class OfflineJournalRecordDto {
     this.minutes,
     this.chargeMinorUnits,
     this.currencyCode,
+    this.lines,
+    this.cashMinorUnits,
+    this.note,
   });
 
   final String id;
@@ -10145,6 +10159,9 @@ class OfflineJournalRecordDto {
   final int? minutes;
   final int? chargeMinorUnits;
   final String? currencyCode;
+  final List<OfflineSaleLineDto>? lines;
+  final int? cashMinorUnits;
+  final String? note;
 
   factory OfflineJournalRecordDto.fromJson(Map<String, dynamic> json) => OfflineJournalRecordDto(
         id: json['id'] as String,
@@ -10158,6 +10175,9 @@ class OfflineJournalRecordDto {
         minutes: json['minutes'] == null ? null : (json['minutes'] as num).toInt(),
         chargeMinorUnits: json['chargeMinorUnits'] == null ? null : (json['chargeMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] == null ? null : json['currencyCode'] as String,
+        lines: json['lines'] == null ? null : (json['lines'] as List<dynamic>).map((item) => OfflineSaleLineDto.fromJson(item as Map<String, dynamic>)).toList(),
+        cashMinorUnits: json['cashMinorUnits'] == null ? null : (json['cashMinorUnits'] as num).toInt(),
+        note: json['note'] == null ? null : json['note'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -10172,6 +10192,9 @@ class OfflineJournalRecordDto {
         'minutes': minutes,
         'chargeMinorUnits': chargeMinorUnits,
         'currencyCode': currencyCode,
+        'lines': lines?.map((item) => item.toJson()).toList(),
+        'cashMinorUnits': cashMinorUnits,
+        'note': note,
       };
 }
 
@@ -10256,6 +10279,33 @@ class OfflineLeaseKeyDto {
   Map<String, dynamic> toJson() => {
         'keyId': keyId,
         'publicKeyPem': publicKeyPem,
+      };
+}
+
+/// Товар, проданный без связи: цена — та, по которой взяли деньги (из кэша Панели).
+///
+/// Контракт: Sessions/OfflineJournalContracts.cs
+class OfflineSaleLineDto {
+  const OfflineSaleLineDto({
+    required this.productId,
+    required this.quantity,
+    required this.unitPriceMinorUnits,
+  });
+
+  final String productId;
+  final int quantity;
+  final int unitPriceMinorUnits;
+
+  factory OfflineSaleLineDto.fromJson(Map<String, dynamic> json) => OfflineSaleLineDto(
+        productId: json['productId'] as String,
+        quantity: (json['quantity'] as num).toInt(),
+        unitPriceMinorUnits: (json['unitPriceMinorUnits'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'productId': productId,
+        'quantity': quantity,
+        'unitPriceMinorUnits': unitPriceMinorUnits,
       };
 }
 

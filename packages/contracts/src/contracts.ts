@@ -685,6 +685,9 @@ export const OfflineJournalKindNames = {
   SessionStarted: 'session_started',
   SessionExtended: 'session_extended',
   SessionEnded: 'session_ended',
+  Sale: 'sale',
+  ShiftClosed: 'shift_closed',
+  ShiftOpened: 'shift_opened',
 } as const;
 export type OfflineJournalKindName = (typeof OfflineJournalKindNames)[keyof typeof OfflineJournalKindNames];
 
@@ -696,6 +699,10 @@ export const OfflineJournalRejectionNames = {
   UnknownTarget: 'offline_unknown_target',
   /** Запись не по правилам: вид, минуты, сумма, валюта. */
   Invalid: 'offline_record_invalid',
+  /** У того, кто досылает журнал, нет права на эту операцию (продать, открыть или закрыть смену). */
+  NotAllowed: 'offline_not_allowed',
+  /** Открыть смену без связи нельзя: в филиале уже открыта другая. */
+  ShiftAlreadyOpen: 'offline_shift_already_open',
 } as const;
 export type OfflineJournalRejectionName = (typeof OfflineJournalRejectionNames)[keyof typeof OfflineJournalRejectionNames];
 
@@ -4856,8 +4863,12 @@ export interface NotificationRecipient {
 
 /**
  * Запись журнала кассы, который Панель вела без интернета (docs/roadmap/offline-front-desk.md). Одна
- * запись — одна операция у стойки: посадить гостя, продлить, закончить. Деньги — как их взяли
- * на самом деле, время — когда это было.
+ * запись — одна операция у стойки: посадить гостя, продлить, закончить, продать товар, закрыть или
+ * открыть смену. Деньги — как их взяли на самом деле, время — когда это было.
+ * SessionId — только у записей о сессии. ChargeMinorUnits — сколько взяли с
+ * гостя (за время или за товар). CashMinorUnits — наличные в ящике: посчитанные при
+ * закрытии смены или размен при открытии. ShiftId у открытия — номер новой смены,
+ * придуманный Панелью: следующие записи кладут деньги в неё.
  *
  * Контракт: Sessions/OfflineJournalContracts.cs
  */
@@ -4873,6 +4884,9 @@ export interface OfflineJournalRecordDto {
   minutes?: number;
   chargeMinorUnits?: number;
   currencyCode?: string | null;
+  lines?: OfflineSaleLineDto[] | null;
+  cashMinorUnits?: number;
+  note?: string | null;
 }
 
 /**
@@ -4904,6 +4918,17 @@ export interface OfflineJournalUploadResponse {
 export interface OfflineLeaseKeyDto {
   keyId: string;
   publicKeyPem: string;
+}
+
+/**
+ * Товар, проданный без связи: цена — та, по которой взяли деньги (из кэша Панели).
+ *
+ * Контракт: Sessions/OfflineJournalContracts.cs
+ */
+export interface OfflineSaleLineDto {
+  productId: Guid;
+  quantity: number;
+  unitPriceMinorUnits: number;
 }
 
 /**

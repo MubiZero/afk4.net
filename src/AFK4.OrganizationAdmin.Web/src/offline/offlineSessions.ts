@@ -1,12 +1,23 @@
 import type { TariffOptionDto } from '@afk4/contracts';
 
+/** Номер сессии у записей кассы, которые не о сессии: продажа и смена. */
+export const NO_SESSION = '00000000-0000-0000-0000-000000000000';
+
+/** Товар, проданный без связи: имя и цена — из кэша, по ним взяли деньги. */
+export interface OfflineSaleLine {
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPriceMinorUnits: number;
+}
+
 /**
  * Запись журнала кассы без интернета. Поля сервера (OfflineJournalRecordDto) плюс то, что нужно Панели,
  * пока связи нет: адрес ПК, номер аренды и её конец.
  */
 export interface OfflineJournalRecord {
   id: string;
-  kind: 'session_started' | 'session_extended' | 'session_ended';
+  kind: 'session_started' | 'session_extended' | 'session_ended' | 'sale' | 'shift_closed' | 'shift_opened';
   sessionId: string;
   occurredAtUtc: string;
   shiftId: string;
@@ -18,8 +29,12 @@ export interface OfflineJournalRecord {
   minutes?: number;
   chargeMinorUnits?: number;
   currencyCode?: string;
-  sequence: number;
-  leaseExpiresAtUtc: string;
+  sequence?: number;
+  leaseExpiresAtUtc?: string;
+  lines?: OfflineSaleLine[];
+  /** Наличные в ящике: посчитанные при закрытии смены или размен при открытии. */
+  cashMinorUnits?: number;
+  note?: string;
 }
 
 /** Гость, посаженный без связи: то, что Панель знает о нём по журналу. */
@@ -61,22 +76,45 @@ export function foldOfflineSessions(records: OfflineJournalRecord[], tariffs: Ta
         roundingIncrementMinutes: tariff?.roundingIncrementMinutes ?? 1,
         currencyCode: record.currencyCode ?? 'TJS',
         startedAtUtc: record.occurredAtUtc,
-        endsAtUtc: record.leaseExpiresAtUtc,
-        sequence: record.sequence,
+        endsAtUtc: record.leaseExpiresAtUtc ?? record.occurredAtUtc,
+        sequence: record.sequence ?? 1,
         paidMinorUnits: record.chargeMinorUnits ?? 0,
         ended: false
       });
     } else if (current && record.kind === 'session_extended') {
-      current.endsAtUtc = record.leaseExpiresAtUtc;
-      current.sequence = record.sequence;
+      current.endsAtUtc = record.leaseExpiresAtUtc ?? current.endsAtUtc;
+      current.sequence = record.sequence ?? current.sequence;
       current.paidMinorUnits += record.chargeMinorUnits ?? 0;
     } else if (current && record.kind === 'session_ended') {
-      current.sequence = record.sequence;
+      current.sequence = record.sequence ?? current.sequence;
       current.ended = true;
     }
   }
 
   return bySession;
+}
+
+/**
+ * Открытая смена без связи: та, что была открыта при обрыве, пока журнал её не закрыл, — или открытая
+ * по журналу следующая. В неё ложатся деньги новых записей.
+ */
+export function currentOfflineShift(
+  cached: { shiftId: string | null; shiftOpenedByStaffUserId?: string | null },
+  records: OfflineJournalRecord[],
+  staffUserId: string | null
+): { shiftId: string | null; openedByMe: boolean } {
+  let shiftId = cached.shiftId;
+  let openedByMe = shiftId !== null && cached.shiftOpenedByStaffUserId === staffUserId;
+  for (const record of records) {
+    if (record.kind === 'shift_closed' && record.shiftId === shiftId) {
+      shiftId = null;
+      openedByMe = false;
+    } else if (record.kind === 'shift_opened') {
+      shiftId = record.shiftId;
+      openedByMe = true;
+    }
+  }
+  return { shiftId, openedByMe };
 }
 
 /** Идущие офлайн-сессии по месту: закончили кнопкой или вышло время — места они больше не держат. */

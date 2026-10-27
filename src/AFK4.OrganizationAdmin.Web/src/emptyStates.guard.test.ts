@@ -45,6 +45,11 @@ const EXEMPT: { file: string; key: string; why: string }[] = [
     why: '«Добавьте товар из каталога» — это и есть следующий шаг пустой корзины; каталог в соседней колонке.'
   },
   {
+    file: 'offline/OfflineCashScreen.tsx',
+    key: 'op.offline.cash.cartEmpty',
+    why: 'Пустой чек кассы без связи — как op.pos.cart.emptyHint: «нажмите на товар» и есть следующий шаг, товары над строкой.'
+  },
+  {
     file: 'cash/CashShiftWorkspace.tsx',
     key: 'op.cash.shift.empty',
     why: 'Подпись героя «нет открытой смены»: под ней кнопка «Открыть смену», а без права — к кому идти.'

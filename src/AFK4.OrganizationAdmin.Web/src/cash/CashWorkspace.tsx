@@ -12,6 +12,8 @@ import { CashReceiptsLedger } from './CashReceiptsLedger';
 import { CashTopUpRequests } from './CashTopUpRequests';
 import { ReviewWorkspace } from '../ReviewWorkspace';
 import { useFeedbackToasts } from '../useFeedbackToasts';
+import { OfflineCashScreen } from '../offline/OfflineCashScreen';
+import { useOfflineDeskContext } from '../offline/useOfflineDesk';
 
 // Раздел «Касса» = шапка раздела (деньги смены и её команды — на любой вкладке) + вкладки.
 export function CashWorkspace({
@@ -31,6 +33,7 @@ export function CashWorkspace({
   openOrder?: { orderId: string } | null;
 }) {
   const { t } = useI18n();
+  const offlineDesk = useOfflineDeskContext();
   const [activeTab, setActiveTab] = useState<CashTab>(() => visibleCashTabs(session)[0] ?? 'sales');
   const [shiftNonce, setShiftNonce] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>({ label: '', state: 'idle' });
@@ -61,6 +64,11 @@ export function CashWorkspace({
   ];
   const tabs = allTabs.filter((tab) => visible.has(tab.value));
   const bumpShift = () => setShiftNonce((n) => n + 1);
+
+  // Без связи вкладки кассы спрашивать некого: продажа и пересменка идут через журнал на ПК стойки.
+  if (offlineDesk?.isOffline) {
+    return <OfflineCashScreen />;
+  }
 
   return (
     <main className="workspace-screen cash-screen">

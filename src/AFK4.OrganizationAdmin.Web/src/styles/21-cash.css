@@ -480,3 +480,60 @@
 .cash-shift-tips-lead { margin: 0; padding: var(--space-2) var(--space-4) 0; color: var(--text-secondary); font-size: 13px; }
 .cash-shift-tips .cash-shift-movements li.reversed > b { color: var(--text-tertiary); text-decoration: line-through; }
 .cash-shift-tips > footer { gap: var(--space-3); }
+
+/* ── Касса без связи: товар за наличные и пересменка по журналу на ПК стойки ── */
+.offline-cash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.offline-cash-header {
+  margin: 0;
+}
+
+.offline-cash-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.offline-cash-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.offline-cash-panel h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.offline-cash-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.offline-cash-cart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offline-cash-cart li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: var(--space-2);
+  align-items: center;
+}
