@@ -10,6 +10,7 @@ namespace AFK4.Agent.Service.Enforcement;
 /// </summary>
 public sealed class OfflineSeatCommands(
     ISessionEnforcementCoordinator coordinator,
+    SessionLeaseValidator leaseValidator,
     ISessionLeaseStore leaseStore,
     IAgentRuntimeStateStore runtimeStateStore,
     IOfflineGraceState graceState,
@@ -58,6 +59,14 @@ public sealed class OfflineSeatCommands(
         if (!OfflineLeaseSigning.TryGetKeyId(lease.SignatureAlgorithm, out _))
         {
             return "Only offline leases are accepted over the club network.";
+        }
+
+        // Подпись проверяется до любого действия, и у «конца» тоже: запирание идёт мимо проверки
+        // координатора, а чужой в сети клуба не должен выгнать гостя, зная номер его сессии.
+        var validation = leaseValidator.Validate(lease);
+        if (!validation.IsValid)
+        {
+            return validation.Error;
         }
 
         var lastContact = graceState.LastSuccessfulContactUtc;
