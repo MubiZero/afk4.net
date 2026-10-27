@@ -41,7 +41,8 @@ public sealed class Worker(
     AFK4.Agent.Service.Hardware.HardwareReporter? hardware = null,
     AFK4.Agent.Service.Showcase.ShowcaseService? showcase = null,
     AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null,
-    IMachineRegistry? machineRegistry = null) : BackgroundService
+    IMachineRegistry? machineRegistry = null,
+    TrustedOfflineKeys? offlineKeys = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -176,6 +177,13 @@ public sealed class Worker(
                 // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
                 var agentNowUtc = timeProvider.GetUtcNow();
                 offlineGraceState.RecordSuccessfulContact(agentNowUtc, heartbeat.EffectiveGraceMinutes);
+                // Ключи ПК администраторов: по ним без интернета придёт офлайн-аренда. Сервер прежней
+                // версии их не шлёт — тогда помним последний список.
+                if (heartbeat.OfflineLeaseKeys is { } trustedKeys)
+                {
+                    offlineKeys?.Replace(trustedKeys);
+                }
+
                 // Код для монитора, оформление клуба и интервал, по которому оболочка судит о
                 // связи, — всё приезжает с сердцебиением. Канал отдаст их экрану сразу, не дожидаясь
                 // своего круга.

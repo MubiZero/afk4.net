@@ -6516,6 +6516,7 @@ class DeviceHeartbeatRequest {
     this.networkSubnet,
     this.networkBroadcastAddress,
     this.kioskInstalled,
+    this.networkAddress,
   });
 
   final String organizationId;
@@ -6544,6 +6545,10 @@ class DeviceHeartbeatRequest {
   /// зала. null — агент этого не сообщает (прежняя версия): признак не трогаем.
   final bool? kioskInstalled;
 
+  /// IPv4 этого адаптера в сети клуба («192.168.1.23»): по нему Панель без интернета передаёт ПК
+  /// офлайн-аренду (docs/roadmap/offline-front-desk.md). Пусто — агент прежней версии.
+  final String? networkAddress;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6560,6 +6565,7 @@ class DeviceHeartbeatRequest {
         networkSubnet: json['networkSubnet'] == null ? null : json['networkSubnet'] as String,
         networkBroadcastAddress: json['networkBroadcastAddress'] == null ? null : json['networkBroadcastAddress'] as String,
         kioskInstalled: json['kioskInstalled'] == null ? null : json['kioskInstalled'] as bool,
+        networkAddress: json['networkAddress'] == null ? null : json['networkAddress'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6578,6 +6584,7 @@ class DeviceHeartbeatRequest {
         'networkSubnet': networkSubnet,
         'networkBroadcastAddress': networkBroadcastAddress,
         'kioskInstalled': kioskInstalled,
+        'networkAddress': networkAddress,
       };
 }
 
@@ -6602,6 +6609,7 @@ class DeviceHeartbeatResponse {
     this.policyProfileVersion,
     this.gameLibraryVersion,
     this.liveSession,
+    this.offlineLeaseKeys,
   });
 
   final DateTime serverTimeUtc;
@@ -6663,6 +6671,10 @@ class DeviceHeartbeatResponse {
   /// Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет.
   final DeviceLiveSessionDto? liveSession;
 
+  /// Ключи ПК администраторов этого филиала, которыми Панель без интернета подписывает офлайн-аренды.
+  /// null — сервер прежней версии, список не трогаем; пустой — доверенных ключей нет.
+  final List<OfflineLeaseKeyDto>? offlineLeaseKeys;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -6682,6 +6694,7 @@ class DeviceHeartbeatResponse {
         policyProfileVersion: json['policyProfileVersion'] == null ? null : (json['policyProfileVersion'] as num).toInt(),
         gameLibraryVersion: json['gameLibraryVersion'] == null ? null : (json['gameLibraryVersion'] as num).toInt(),
         liveSession: json['liveSession'] == null ? null : DeviceLiveSessionDto.fromJson(json['liveSession'] as Map<String, dynamic>),
+        offlineLeaseKeys: json['offlineLeaseKeys'] == null ? null : (json['offlineLeaseKeys'] as List<dynamic>).map((item) => OfflineLeaseKeyDto.fromJson(item as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -6703,6 +6716,7 @@ class DeviceHeartbeatResponse {
         'policyProfileVersion': policyProfileVersion,
         'gameLibraryVersion': gameLibraryVersion,
         'liveSession': liveSession?.toJson(),
+        'offlineLeaseKeys': offlineLeaseKeys?.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -10016,6 +10030,64 @@ class NotificationRecipient {
         'staffUserId': staffUserId,
         'playerAccountId': playerAccountId,
         'telegramChatId': telegramChatId,
+      };
+}
+
+/// Публичный ключ ПК администратора, которым тот подписывает офлайн-аренды.
+///
+/// Контракт: Sessions/OfflineLeaseContracts.cs
+class OfflineLeaseKeyDto {
+  const OfflineLeaseKeyDto({
+    required this.keyId,
+    required this.publicKeyPem,
+  });
+
+  final String keyId;
+  final String publicKeyPem;
+
+  factory OfflineLeaseKeyDto.fromJson(Map<String, dynamic> json) => OfflineLeaseKeyDto(
+        keyId: json['keyId'] as String,
+        publicKeyPem: json['publicKeyPem'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'keyId': keyId,
+        'publicKeyPem': publicKeyPem,
+      };
+}
+
+/// Что ПК ответил Панели на офлайн-аренду, присланную по сети клуба.
+///
+/// Контракт: Sessions/OfflineLeaseContracts.cs
+class OfflineSeatResponse {
+  const OfflineSeatResponse({
+    required this.accepted,
+    this.reason,
+    required this.isLocked,
+    this.activeSessionId,
+    this.leaseExpiresAtUtc,
+  });
+
+  final bool accepted;
+  final String? reason;
+  final bool isLocked;
+  final String? activeSessionId;
+  final DateTime? leaseExpiresAtUtc;
+
+  factory OfflineSeatResponse.fromJson(Map<String, dynamic> json) => OfflineSeatResponse(
+        accepted: json['accepted'] as bool,
+        reason: json['reason'] == null ? null : json['reason'] as String,
+        isLocked: json['isLocked'] as bool,
+        activeSessionId: json['activeSessionId'] == null ? null : json['activeSessionId'] as String,
+        leaseExpiresAtUtc: json['leaseExpiresAtUtc'] == null ? null : DateTime.parse(json['leaseExpiresAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'accepted': accepted,
+        'reason': reason,
+        'isLocked': isLocked,
+        'activeSessionId': activeSessionId,
+        'leaseExpiresAtUtc': leaseExpiresAtUtc?.toIso8601String(),
       };
 }
 

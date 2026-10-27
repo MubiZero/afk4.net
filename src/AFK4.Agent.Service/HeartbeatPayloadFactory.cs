@@ -35,6 +35,7 @@ public static class HeartbeatPayloadFactory
             NetworkMacAddress: network?.MacAddress,
             NetworkSubnet: network?.Subnet,
             NetworkBroadcastAddress: network?.BroadcastAddress,
+            NetworkAddress: network?.Address,
             KioskInstalled: kioskInstalled);
     }
 }

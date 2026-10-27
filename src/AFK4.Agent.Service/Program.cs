@@ -104,6 +104,7 @@ builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();
 builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
 builder.Services.AddSingleton<IDeviceCredentialStore, FileDeviceCredentialStore>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
+builder.Services.AddSingleton<TrustedOfflineKeys>();
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IMachinePolicyStore, WindowsMachinePolicyStore>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
@@ -226,6 +227,8 @@ builder.Services.AddSingleton<IOrganizationAdminProcessLauncher, OrganizationAdm
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<AgentUpdateWorker>();
 builder.Services.AddHostedService<ShellPipeServer>();
+builder.Services.AddSingleton<OfflineSeatCommands>();
+builder.Services.AddHostedService<OfflineLanListener>();
 
 var host = builder.Build();
 host.Run();

@@ -21,4 +21,7 @@ public sealed record DeviceHeartbeatRequest(
     string? NetworkBroadcastAddress = null,
     // Есть ли на ПК учётка игрока (киоск). false — киоск снят или не ставился: сервер уводит ПК из
     // зала. null — агент этого не сообщает (прежняя версия): признак не трогаем.
-    bool? KioskInstalled = null);
+    bool? KioskInstalled = null,
+    // IPv4 этого адаптера в сети клуба («192.168.1.23»): по нему Панель без интернета передаёт ПК
+    // офлайн-аренду (docs/roadmap/offline-front-desk.md). Пусто — агент прежней версии.
+    string? NetworkAddress = null);

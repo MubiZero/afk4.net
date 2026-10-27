@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
 
 namespace AFK4.Shared.Contracts.Devices;
@@ -49,4 +50,7 @@ public sealed record DeviceHeartbeatResponse(
     /// Версия библиотеки игр филиала: по её смене агент перечитывает список игр (спека оболочки, §6.6).
     int GameLibraryVersion = 0,
     /// Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет.
-    DeviceLiveSessionDto? LiveSession = null);
+    DeviceLiveSessionDto? LiveSession = null,
+    /// Ключи ПК администраторов этого филиала, которыми Панель без интернета подписывает офлайн-аренды.
+    /// null — сервер прежней версии, список не трогаем; пустой — доверенных ключей нет.
+    IReadOnlyList<OfflineLeaseKeyDto>? OfflineLeaseKeys = null);
