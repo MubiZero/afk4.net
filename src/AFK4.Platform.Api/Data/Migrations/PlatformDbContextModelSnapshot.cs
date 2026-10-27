@@ -2035,6 +2035,63 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("notification_preferences", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OfflineJournalRecordEntity", b =>
+                {
+                    b.Property<Guid>("OfflineJournalRecordId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecordId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RejectionCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("UploadedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OfflineJournalRecordId");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("BranchId", "RecordId")
+                        .IsUnique();
+
+                    b.ToTable("offline_journal_records", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.OfflineLeaseKeyEntity", b =>
                 {
                     b.Property<Guid>("OfflineLeaseKeyId")

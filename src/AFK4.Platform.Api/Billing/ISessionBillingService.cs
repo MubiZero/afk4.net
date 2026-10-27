@@ -55,6 +55,14 @@ public interface ISessionBillingService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Наличные гостя, взятые без интернета: те же строки, что при посадке онлайн, со временем и сменой
+    /// из журнала кассы. По умолчанию не поддержано — тестовым подделкам биллинга оно не нужно.
+    /// </summary>
+    void AppendOfflineGuestCashCharge(
+        Data.SessionEntity session, Guid actorStaffUserId, long amountMinorUnits, string currencyCode, Guid shiftId, DateTimeOffset occurredAtUtc) =>
+        throw new NotSupportedException();
+
+    /// <summary>
     /// Compute the time charge for an open-tab postpaid session at checkout from
     /// the elapsed time (<c>StartedAtUtc → now</c>) and the session's tariff. A
     /// guest/unbilled session yields a zero charge.

@@ -469,6 +469,17 @@ public sealed class SessionBillingService(
     /// Наличные в ящик смены кладёт отдельная оплата: так же их кладёт расчёт на закрытии. На старте и
     /// продлении она пишется здесь; на «Завершить и рассчитать» оплаты пишет сам расчёт.
     /// </summary>
+    /// <summary>
+    /// Наличные гостя, взятые без интернета (docs/roadmap/offline-front-desk.md): те же две строки, что
+    /// при посадке онлайн, — списание за игру и оплата наличными, — но со временем и сменой из журнала
+    /// кассы и с суммой, которую взяли на самом деле.
+    /// </summary>
+    public void AppendOfflineGuestCashCharge(
+        SessionEntity session, Guid actorStaffUserId, long amountMinorUnits, string currencyCode, Guid shiftId, DateTimeOffset occurredAtUtc) =>
+        AppendGuestCharge(
+            session, actorStaffUserId, amountMinorUnits, currencyCode, shiftId, occurredAtUtc,
+            collectCash: true, CashMovementReasonNames.GuestGameplayCash);
+
     private void AppendGuestCharge(
         SessionEntity session,
         Guid actorStaffUserId,

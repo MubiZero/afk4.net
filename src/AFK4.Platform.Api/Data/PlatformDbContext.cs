@@ -34,6 +34,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<OfflineLeaseKeyEntity> OfflineLeaseKeys => Set<OfflineLeaseKeyEntity>();
 
+    public DbSet<OfflineJournalRecordEntity> OfflineJournalRecords => Set<OfflineJournalRecordEntity>();
+
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
 
     public DbSet<StaffAccessTokenEntity> StaffAccessTokens => Set<StaffAccessTokenEntity>();
@@ -465,6 +467,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasFilter("\"TelegramLinkCodeHash\" IS NOT NULL");
             entity.HasIndex(staffUser => staffUser.TelegramChatId)
                 .HasFilter("\"TelegramChatId\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<OfflineJournalRecordEntity>(entity =>
+        {
+            entity.ToTable("offline_journal_records");
+            entity.HasKey(record => record.OfflineJournalRecordId);
+            entity.Property(record => record.RecordId).HasMaxLength(64).IsRequired();
+            entity.Property(record => record.Kind).HasMaxLength(32).IsRequired();
+            entity.Property(record => record.Status).HasMaxLength(16).IsRequired();
+            entity.Property(record => record.RejectionCode).HasMaxLength(64);
+            entity.Property(record => record.PayloadJson).IsRequired();
+            entity.HasIndex(record => new { record.BranchId, record.RecordId }).IsUnique();
+            entity.HasIndex(record => record.SessionId);
         });
 
         modelBuilder.Entity<OfflineLeaseKeyEntity>(entity =>
