@@ -8,6 +8,25 @@ and audit records.
 Do not commit database dumps, production connection strings, credentials,
 certificates, signing keys, or restore logs containing secrets.
 
+## Где лежат бэкапы сейчас (с 27.10.2026)
+
+- **Расписание.** Coolify, база `afk4-staging-postgres` (`foie51tkp2w68t6nwc5xks63`), бэкап `gihlcftelvqwfedtzrwoax3h`: каждый час (`0 * * * *`, время сервера), `pg_dump` в своём формате (`.dmp`), база `afk4_staging`. Локально на сервере держится 24 копии, в R2 — 30 дней.
+- **Хранилище.** Cloudflare R2, бакет `afk4-db-backup`, хранилище Coolify `afk4-r2-backup` (`ovoq7l5tvsl9xyg37au3ytt0`). Ключ — отдельный токен R2 только на этот бакет (чтение и запись объектов). Чужие бакеты аккаунта ему отвечают 403, это проверено. Ключи S3 лежат в связке ключей macOS как `claude/afk4-r2-access-key-id` и `claude/afk4-r2-secret-access-key`, в репозитории их нет.
+- **Шифрование.** R2 шифрует данные на диске. Отдельного шифрования дампа на нашей стороне нет.
+- **Внимание к версии.** На staging Postgres 17. Дамп читает только `pg_restore` 17 или новее; версия 16 отвечает `unsupported version (1.16) in file header`.
+
+Восстановить последний дамп в отдельную базу (не в рабочую):
+
+```bash
+ACC=$(secret get r2-account-id)
+AUTH="$(secret get afk4-r2-access-key-id):$(secret get afk4-r2-secret-access-key)"
+EP="https://$ACC.r2.cloudflarestorage.com/afk4-db-backup"
+curl -s --aws-sigv4 "aws:amz:auto:s3" --user "$AUTH" "$EP?list-type=2"   # список: ключи и размеры
+curl -s --aws-sigv4 "aws:amz:auto:s3" --user "$AUTH" -o afk4.dmp "$EP/<ключ из списка>"
+createdb afk4_restore_check
+pg_restore --no-owner --no-acl -d afk4_restore_check afk4.dmp
+```
+
 ## Scope
 
 Use this runbook before production rollout and before destructive operational
