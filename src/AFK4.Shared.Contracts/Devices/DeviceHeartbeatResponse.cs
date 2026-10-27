@@ -56,4 +56,7 @@ public sealed record DeviceHeartbeatResponse(
     IReadOnlyList<OfflineLeaseKeyDto>? OfflineLeaseKeys = null,
     /// Кеш игр клуба (GameCacheNames): IPv4 сервера в сети клуба. Пусто — кеша нет, агент убирает свои
     /// строки из hosts; null — сервер прежней версии, hosts не трогаем.
-    string? GameCacheAddress = null);
+    string? GameCacheAddress = null,
+    /// Этот ПК — кеш игр филиала: ПК администратора, кеш в Панели не выключен и своего сервера LANCache у
+    /// клуба нет. Агент поднимает встроенный кеш; остальным ПК сервер называет его адрес.
+    bool GameCacheHost = false);

@@ -2381,12 +2381,17 @@ export interface BranchDynamicsDto {
 }
 
 /**
- * Кеш игр клуба (LANCache, lancache.net): сервер в сети клуба, который качает игру из интернета один раз
- * и раздаёт её остальным ПК по локальной сети. Агент направляет к нему ПК через файл hosts — роутер клуба
- * перенастраивать не нужно (docs/operations/game-cache-lancache.md).
- * <param name="Address">IPv4 кеш-сервера в сети клуба; null — кеша нет.</param>
+ * Кеш игр клуба: качает игру из интернета один раз и раздаёт её остальным ПК по локальной сети. По умолчанию
+ * он встроен в агента ПК администратора — клубу ничего не ставить; большой клуб может указать свой сервер
+ * LANCache. Агент направляет к кешу ПК через файл hosts — роутер клуба не трогаем
+ * (docs/operations/game-cache-lancache.md).
+ * <param name="Address">Свой сервер LANCache клуба (IPv4 в сети клуба); null — кеш встроенный, на ПК администратора.</param>
  * <param name="DevicesSeeing">Сколько ПК филиала при последней проверке достучались до кеша.</param>
  * <param name="DevicesReporting">Сколько ПК вообще сообщили о проверке (агенты прежних версий молчат).</param>
+ * <param name="Enabled">Кеш включён. По умолчанию — да: клубу ничего настраивать не нужно.</param>
+ * <param name="HostName">Имя ПК администратора со встроенным кешем; null — такого ПК на связи нет или задан свой сервер.</param>
+ * <param name="EffectiveAddress">Куда сейчас идут игровые ПК; null — некуда, качают напрямую.</param>
+ * <param name="StoredBytes">Сколько лежит во встроенном кеше.</param>
  *
  * Контракт: Games/GameCacheContracts.cs
  */
@@ -2394,6 +2399,10 @@ export interface BranchGameCacheDto {
   address: string | null;
   devicesSeeing: number;
   devicesReporting: number;
+  enabled?: boolean;
+  hostName?: string | null;
+  effectiveAddress?: string | null;
+  storedBytes?: number;
 }
 
 /**
@@ -3686,6 +3695,9 @@ export interface DeviceHeartbeatRequest {
    * версии: Панель такой ПК не считает.
    */
   gameCacheReachable?: boolean | null;
+  /** Встроенный кеш игр на этом ПК поднят и сколько в нём лежит. null — ПК не кеш или агент прежней версии. */
+  gameCacheServing?: boolean | null;
+  gameCacheStoredBytes?: number | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -3761,6 +3773,11 @@ export interface DeviceHeartbeatResponse {
    * строки из hosts; null — сервер прежней версии, hosts не трогаем.
    */
   gameCacheAddress?: GameCacheName | null;
+  /**
+   * Этот ПК — кеш игр филиала: ПК администратора, кеш в Панели не выключен и своего сервера LANCache у
+   * клуба нет. Агент поднимает встроенный кеш; остальным ПК сервер называет его адрес.
+   */
+  gameCacheHost?: boolean;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -8832,9 +8849,14 @@ export interface UpdateBranchBookingSettingsRequest {
   keepPrepaymentOnNoShow: boolean;
 }
 
-/** Контракт: Games/GameCacheContracts.cs */
+/**
+ * <param name="Address">Свой сервер LANCache клуба; null — встроенный кеш на ПК администратора.</param>
+ *
+ * Контракт: Games/GameCacheContracts.cs
+ */
 export interface UpdateBranchGameCacheRequest {
   address: string | null;
+  enabled?: boolean;
 }
 
 /** Контракт: Branches/UpdateBranchProfileRequest.cs */

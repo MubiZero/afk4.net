@@ -31,4 +31,7 @@ public sealed record DeviceHeartbeatRequest(
     bool? ActiveSessionLeaseOffline = null,
     // Достучался ли ПК до кеша игр клуба при последней проверке. null — кеш не задан или агент прежней
     // версии: Панель такой ПК не считает.
-    bool? GameCacheReachable = null);
+    bool? GameCacheReachable = null,
+    // Встроенный кеш игр на этом ПК поднят и сколько в нём лежит. null — ПК не кеш или агент прежней версии.
+    bool? GameCacheServing = null,
+    long? GameCacheStoredBytes = null);

@@ -110,6 +110,11 @@ builder.Services.AddHttpClient(GameCacheService.HttpClientName, client => client
 builder.Services.AddSingleton(provider => new GameCacheService(
     provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<ILogger<GameCacheService>>()));
 builder.Services.AddHostedService(provider => provider.GetRequiredService<GameCacheService>());
+// Встроенный кеш на ПК администратора: поднимается, только когда сервер назовёт этот ПК кешем филиала.
+builder.Services.AddHttpClient(GameCacheServer.UpstreamClientName, client => client.Timeout = TimeSpan.FromMinutes(2));
+builder.Services.AddSingleton(provider => new GameCacheServer(
+    provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<ILogger<GameCacheServer>>()));
+builder.Services.AddHostedService(provider => provider.GetRequiredService<GameCacheServer>());
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IMachinePolicyStore, WindowsMachinePolicyStore>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();

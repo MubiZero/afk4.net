@@ -2803,12 +2803,17 @@ class BranchDynamicsDto {
       };
 }
 
-/// Кеш игр клуба (LANCache, lancache.net): сервер в сети клуба, который качает игру из интернета один раз
-/// и раздаёт её остальным ПК по локальной сети. Агент направляет к нему ПК через файл hosts — роутер клуба
-/// перенастраивать не нужно (docs/operations/game-cache-lancache.md).
-/// <param name="Address">IPv4 кеш-сервера в сети клуба; null — кеша нет.</param>
+/// Кеш игр клуба: качает игру из интернета один раз и раздаёт её остальным ПК по локальной сети. По умолчанию
+/// он встроен в агента ПК администратора — клубу ничего не ставить; большой клуб может указать свой сервер
+/// LANCache. Агент направляет к кешу ПК через файл hosts — роутер клуба не трогаем
+/// (docs/operations/game-cache-lancache.md).
+/// <param name="Address">Свой сервер LANCache клуба (IPv4 в сети клуба); null — кеш встроенный, на ПК администратора.</param>
 /// <param name="DevicesSeeing">Сколько ПК филиала при последней проверке достучались до кеша.</param>
 /// <param name="DevicesReporting">Сколько ПК вообще сообщили о проверке (агенты прежних версий молчат).</param>
+/// <param name="Enabled">Кеш включён. По умолчанию — да: клубу ничего настраивать не нужно.</param>
+/// <param name="HostName">Имя ПК администратора со встроенным кешем; null — такого ПК на связи нет или задан свой сервер.</param>
+/// <param name="EffectiveAddress">Куда сейчас идут игровые ПК; null — некуда, качают напрямую.</param>
+/// <param name="StoredBytes">Сколько лежит во встроенном кеше.</param>
 ///
 /// Контракт: Games/GameCacheContracts.cs
 class BranchGameCacheDto {
@@ -2816,22 +2821,38 @@ class BranchGameCacheDto {
     this.address,
     required this.devicesSeeing,
     required this.devicesReporting,
+    this.enabled,
+    this.hostName,
+    this.effectiveAddress,
+    this.storedBytes,
   });
 
   final String? address;
   final int devicesSeeing;
   final int devicesReporting;
+  final bool? enabled;
+  final String? hostName;
+  final String? effectiveAddress;
+  final int? storedBytes;
 
   factory BranchGameCacheDto.fromJson(Map<String, dynamic> json) => BranchGameCacheDto(
         address: json['address'] == null ? null : json['address'] as String,
         devicesSeeing: (json['devicesSeeing'] as num).toInt(),
         devicesReporting: (json['devicesReporting'] as num).toInt(),
+        enabled: json['enabled'] == null ? null : json['enabled'] as bool,
+        hostName: json['hostName'] == null ? null : json['hostName'] as String,
+        effectiveAddress: json['effectiveAddress'] == null ? null : json['effectiveAddress'] as String,
+        storedBytes: json['storedBytes'] == null ? null : (json['storedBytes'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'address': address,
         'devicesSeeing': devicesSeeing,
         'devicesReporting': devicesReporting,
+        'enabled': enabled,
+        'hostName': hostName,
+        'effectiveAddress': effectiveAddress,
+        'storedBytes': storedBytes,
       };
 }
 
@@ -6640,6 +6661,8 @@ class DeviceHeartbeatRequest {
     this.networkAddress,
     this.activeSessionLeaseOffline,
     this.gameCacheReachable,
+    this.gameCacheServing,
+    this.gameCacheStoredBytes,
   });
 
   final String organizationId;
@@ -6681,6 +6704,10 @@ class DeviceHeartbeatRequest {
   /// версии: Панель такой ПК не считает.
   final bool? gameCacheReachable;
 
+  /// Встроенный кеш игр на этом ПК поднят и сколько в нём лежит. null — ПК не кеш или агент прежней версии.
+  final bool? gameCacheServing;
+  final int? gameCacheStoredBytes;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6700,6 +6727,8 @@ class DeviceHeartbeatRequest {
         networkAddress: json['networkAddress'] == null ? null : json['networkAddress'] as String,
         activeSessionLeaseOffline: json['activeSessionLeaseOffline'] == null ? null : json['activeSessionLeaseOffline'] as bool,
         gameCacheReachable: json['gameCacheReachable'] == null ? null : json['gameCacheReachable'] as bool,
+        gameCacheServing: json['gameCacheServing'] == null ? null : json['gameCacheServing'] as bool,
+        gameCacheStoredBytes: json['gameCacheStoredBytes'] == null ? null : (json['gameCacheStoredBytes'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -6721,6 +6750,8 @@ class DeviceHeartbeatRequest {
         'networkAddress': networkAddress,
         'activeSessionLeaseOffline': activeSessionLeaseOffline,
         'gameCacheReachable': gameCacheReachable,
+        'gameCacheServing': gameCacheServing,
+        'gameCacheStoredBytes': gameCacheStoredBytes,
       };
 }
 
@@ -6747,6 +6778,7 @@ class DeviceHeartbeatResponse {
     this.liveSession,
     this.offlineLeaseKeys,
     this.gameCacheAddress,
+    this.gameCacheHost,
   });
 
   final DateTime serverTimeUtc;
@@ -6816,6 +6848,10 @@ class DeviceHeartbeatResponse {
   /// строки из hosts; null — сервер прежней версии, hosts не трогаем.
   final String? gameCacheAddress;
 
+  /// Этот ПК — кеш игр филиала: ПК администратора, кеш в Панели не выключен и своего сервера LANCache у
+  /// клуба нет. Агент поднимает встроенный кеш; остальным ПК сервер называет его адрес.
+  final bool? gameCacheHost;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -6837,6 +6873,7 @@ class DeviceHeartbeatResponse {
         liveSession: json['liveSession'] == null ? null : DeviceLiveSessionDto.fromJson(json['liveSession'] as Map<String, dynamic>),
         offlineLeaseKeys: json['offlineLeaseKeys'] == null ? null : (json['offlineLeaseKeys'] as List<dynamic>).map((item) => OfflineLeaseKeyDto.fromJson(item as Map<String, dynamic>)).toList(),
         gameCacheAddress: json['gameCacheAddress'] == null ? null : json['gameCacheAddress'] as String,
+        gameCacheHost: json['gameCacheHost'] == null ? null : json['gameCacheHost'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6860,6 +6897,7 @@ class DeviceHeartbeatResponse {
         'liveSession': liveSession?.toJson(),
         'offlineLeaseKeys': offlineLeaseKeys?.map((item) => item.toJson()).toList(),
         'gameCacheAddress': gameCacheAddress,
+        'gameCacheHost': gameCacheHost,
       };
 }
 
@@ -21515,20 +21553,26 @@ class UpdateBranchBookingSettingsRequest {
       };
 }
 
+/// <param name="Address">Свой сервер LANCache клуба; null — встроенный кеш на ПК администратора.</param>
+///
 /// Контракт: Games/GameCacheContracts.cs
 class UpdateBranchGameCacheRequest {
   const UpdateBranchGameCacheRequest({
     this.address,
+    this.enabled,
   });
 
   final String? address;
+  final bool? enabled;
 
   factory UpdateBranchGameCacheRequest.fromJson(Map<String, dynamic> json) => UpdateBranchGameCacheRequest(
         address: json['address'] == null ? null : json['address'] as String,
+        enabled: json['enabled'] == null ? null : json['enabled'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
         'address': address,
+        'enabled': enabled,
       };
 }
 

@@ -107,5 +107,8 @@ public sealed class BranchEntity
     /// <summary>IPv4 кеша игр клуба (LANCache) в сети филиала; null — кеша нет. Агенты ведут по нему hosts.</summary>
     public string? GameCacheAddress { get; set; }
 
+    /// <summary>Клуб выключил кеш игр в Панели. По умолчанию кеш — на ПК администратора, без настройки.</summary>
+    public bool GameCacheDisabled { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

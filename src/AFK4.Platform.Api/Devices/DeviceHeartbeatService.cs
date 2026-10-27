@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Games;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Players;
@@ -69,6 +70,8 @@ public sealed class DeviceHeartbeatService(
             }
 
             device.GameCacheReachable = request.GameCacheReachable;
+            device.GameCacheServing = request.GameCacheServing;
+            device.GameCacheStoredBytes = request.GameCacheStoredBytes;
 
             await dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -180,6 +183,7 @@ public sealed class DeviceHeartbeatService(
                 branch.GraceLeaseMinutes,
                 branch.PreferredTimeZone,
                 branch.GameCacheAddress,
+                branch.GameCacheDisabled,
                 // Версия профиля защиты — тем же запросом: число, которое меняется раз в неделю.
                 PolicyProfileVersion = dbContext.BranchProtectionProfiles
                     .Where(profile => profile.BranchId == branch.BranchId)
@@ -275,6 +279,16 @@ public sealed class DeviceHeartbeatService(
 
         var rotationRequested = device?.CredentialRotationRequestedAtUtc is not null;
 
+        // Кеш игр: свой сервер клуба, иначе встроенный на ПК администратора. Сам ПК администратора к кешу
+        // не направляем — он и есть кеш (или рабочее место, которому игры не нужны).
+        var isCacheHostRole = device?.Role == DeviceRoleNames.ManagerWorkstation;
+        var cacheEnabled = allowOperationalCommands && branchInfo is { GameCacheDisabled: false };
+        var gameCacheAddress = !cacheEnabled || isCacheHostRole
+            ? string.Empty
+            : branchInfo!.GameCacheAddress
+                ?? (await BranchGameCache.HostAsync(dbContext, request.BranchId, cancellationToken))?.NetworkAddress
+                ?? string.Empty;
+
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: timeProvider.GetUtcNow(),
             HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(commands.Count > 0, heartbeatOptions.Value),
@@ -309,7 +323,8 @@ public sealed class DeviceHeartbeatService(
                 : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc, hold),
             OfflineLeaseKeys: offlineLeaseKeys,
             // Незаверенному ПК кеш не называем: hosts всех машин меняет только принятый клубом ПК.
-            GameCacheAddress: allowOperationalCommands ? branchInfo?.GameCacheAddress ?? string.Empty : string.Empty);
+            GameCacheAddress: gameCacheAddress,
+            GameCacheHost: cacheEnabled && isCacheHostRole && branchInfo!.GameCacheAddress is null);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);
