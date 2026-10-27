@@ -90,6 +90,10 @@ export interface SeatSummary {
   // Как оплачена идущая сессия (BillingModeName). У гостя, заплатившего наличными, «+15 мин» — новая
   // оплата у стойки, и кнопка называет сумму, а не продлевает молча.
   sessionBillingMode?: string | null;
+  // IPv4 ПК в сети клуба: по нему Панель без интернета передаёт ПК офлайн-аренду.
+  deviceNetworkAddress?: string | null;
+  // Гость посажен без связи: место занято по журналу кассы, а не по данным сервера.
+  isOfflineSession?: boolean;
 }
 
 export interface NavItem {

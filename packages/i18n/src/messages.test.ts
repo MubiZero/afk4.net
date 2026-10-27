@@ -34,7 +34,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «ГБ» по-таджикски пишется так же.
     'op.hardware.gb',
     // «Тариф» — заимствование, в таджикском пишется так же; переводить его нечем.
-    'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff',
+    'customer.reservations.tariff', 'setup.wizard.stepper.tariff', 'playerShell.showcase.kind.tariff', 'op.offline.tariff',
     // «ПК» — канон и в таджикском каталоге (не «КМ», не «компютер»).
     'setup.wizard.stepper.device',
     // «Баланс» — то же слово в таджикском каталоге (см. «Аз баланс», «Дар баланс» у чаевых).

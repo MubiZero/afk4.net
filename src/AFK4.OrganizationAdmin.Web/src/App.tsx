@@ -49,6 +49,8 @@ import { useOperatorConnection } from './useOperatorConnection';
 import { usePostAuthShiftGate } from './usePostAuthShiftGate';
 import { useFloorMap } from './useFloorMap';
 import { floorActionsEnabled } from './floorMapState';
+import { OfflineDeskProvider, useOfflineDesk, withOfflineSessions } from './offline/useOfflineDesk';
+import { OfflineSeatActions } from './offline/OfflineSeatActions';
 import { ToastProvider } from './operatorToast';
 import { useHotkeys } from './useHotkeys';
 import type {
@@ -256,6 +258,18 @@ function AppInner() {
     setAuthStatus,
     setAuthError
   });
+  // Касса без связи (docs/roadmap/offline-front-desk.md): гости, посаженные по журналу, занимают места
+  // на карте, пока сервер о них не знает.
+  const offlineDesk = useOfflineDesk({
+    backend: backendContext,
+    isOffline: floorMap.isOffline,
+    canSeat: hasPermission(authSession, permissionNames.startSession)
+  });
+  const offlineGuestLabel = t('op.offline.guest');
+  const mapForDisplay = floorMap.isOffline
+    ? { ...displayedFloorMap, seats: withOfflineSessions(displayedFloorMap.seats, offlineDesk.sessionsBySeat, offlineGuestLabel) }
+    : displayedFloorMap;
+  const seatForPanel = selectedSeat === null ? null : mapForDisplay.seats.find((seat) => seat.id === selectedSeat.id) ?? selectedSeat;
   const { realtimeState, realtimeError } = useOperatorRealtime({
     authStatus: operationalAuthStatus,
     authSession,
@@ -583,7 +597,7 @@ function AppInner() {
             session={authSession}
             backend={backendContext}
             currencyCode={config.currencyCode}
-            displayedFloorMap={displayedFloorMap}
+            displayedFloorMap={mapForDisplay}
             actionsEnabled={actionsEnabled}
             selectedSeatId={selectedSeat?.id ?? ''}
             mapFilter={mapFilter}
@@ -603,11 +617,14 @@ function AppInner() {
           />
         </div>
 
-        {workspace === 'map' && selectedSeat !== null && (
+        {workspace === 'map' && seatForPanel !== null && (
           <ContextPanel>
+            <OfflineDeskProvider value={offlineDesk}>
+              <OfflineSeatActions seat={seatForPanel} />
+            </OfflineDeskProvider>
             <MapSidePanel
-              seat={selectedSeat}
-              seats={displayedFloorMap.seats}
+              seat={seatForPanel}
+              seats={mapForDisplay.seats}
               currencyCode={config.currencyCode}
               backend={backendContext}
               actionsEnabled={actionsEnabled}

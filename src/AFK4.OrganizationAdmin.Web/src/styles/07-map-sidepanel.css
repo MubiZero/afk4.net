@@ -227,3 +227,50 @@
   color: var(--accent-text);
 }
 
+
+/* ── Касса без связи: посадить, продлить, закончить по журналу на ПК стойки ── */
+.offline-seat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--warning-soft-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-soft-bg);
+}
+
+.offline-seat-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.offline-seat-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.offline-seat-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--text-sm);
+}
+
+.offline-seat-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.offline-seat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
