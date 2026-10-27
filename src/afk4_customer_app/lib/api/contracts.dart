@@ -1449,6 +1449,14 @@ abstract final class StaffSignInStepNames {
   static const String unknown = 'unknown';
 }
 
+/// Словарь: Identity/StaffTelegramContracts.cs
+abstract final class StaffTelegramErrorCodeNames {
+  /// У платформы нет бота (не задан Telegram__BotToken).
+  static const String notConfigured = 'telegram_not_configured';
+  /// Telegram не ответил, когда спросили имя бота для ссылки.
+  static const String unreachable = 'telegram_unreachable';
+}
+
 /// Словарь: Inventory/StockMovementTypeNames.cs
 abstract final class StockMovementTypeNames {
   static const String purchase = 'purchase';
@@ -9982,6 +9990,7 @@ class NotificationRecipient {
     this.phoneNumber,
     this.staffUserId,
     this.playerAccountId,
+    this.telegramChatId,
   });
 
   final String locale;
@@ -9989,6 +9998,7 @@ class NotificationRecipient {
   final String? phoneNumber;
   final String? staffUserId;
   final String? playerAccountId;
+  final String? telegramChatId;
 
   factory NotificationRecipient.fromJson(Map<String, dynamic> json) => NotificationRecipient(
         locale: json['locale'] as String,
@@ -9996,6 +10006,7 @@ class NotificationRecipient {
         phoneNumber: json['phoneNumber'] == null ? null : json['phoneNumber'] as String,
         staffUserId: json['staffUserId'] == null ? null : json['staffUserId'] as String,
         playerAccountId: json['playerAccountId'] == null ? null : json['playerAccountId'] as String,
+        telegramChatId: json['telegramChatId'] == null ? null : json['telegramChatId'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -10004,6 +10015,7 @@ class NotificationRecipient {
         'phoneNumber': phoneNumber,
         'staffUserId': staffUserId,
         'playerAccountId': playerAccountId,
+        'telegramChatId': telegramChatId,
       };
 }
 
@@ -20005,6 +20017,58 @@ class StaffSignOutRequest {
   Map<String, dynamic> toJson() => {
         'organizationId': organizationId,
         'refreshToken': refreshToken,
+      };
+}
+
+/// Разовая ссылка на бота: человек открывает её на телефоне (Панель показывает QR), бот получает
+/// код и привязывает этот чат. Код действует до ExpiresAtUtc.
+///
+/// Контракт: Identity/StaffTelegramContracts.cs
+class StaffTelegramLinkDto {
+  const StaffTelegramLinkDto({
+    required this.deepLink,
+    required this.expiresAtUtc,
+  });
+
+  final String deepLink;
+  final DateTime expiresAtUtc;
+
+  factory StaffTelegramLinkDto.fromJson(Map<String, dynamic> json) => StaffTelegramLinkDto(
+        deepLink: json['deepLink'] as String,
+        expiresAtUtc: DateTime.parse(json['expiresAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'deepLink': deepLink,
+        'expiresAtUtc': expiresAtUtc.toIso8601String(),
+      };
+}
+
+/// Привязан ли Telegram сотрудника к боту AFK4.NET. BotConfigured — есть ли бот у
+/// платформы вообще: без него Панель не предлагает кнопку, которая кончилась бы ошибкой.
+///
+/// Контракт: Identity/StaffTelegramContracts.cs
+class StaffTelegramStatusDto {
+  const StaffTelegramStatusDto({
+    required this.botConfigured,
+    required this.linked,
+    this.linkedAtUtc,
+  });
+
+  final bool botConfigured;
+  final bool linked;
+  final DateTime? linkedAtUtc;
+
+  factory StaffTelegramStatusDto.fromJson(Map<String, dynamic> json) => StaffTelegramStatusDto(
+        botConfigured: json['botConfigured'] as bool,
+        linked: json['linked'] as bool,
+        linkedAtUtc: json['linkedAtUtc'] == null ? null : DateTime.parse(json['linkedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'botConfigured': botConfigured,
+        'linked': linked,
+        'linkedAtUtc': linkedAtUtc?.toIso8601String(),
       };
 }
 

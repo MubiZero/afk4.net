@@ -498,6 +498,7 @@ function AppInner() {
           <AccountPanel
             backend={backendContext}
             displayName={operatorDisplayName}
+            canReceiveReports={hasPermission(authSession, permissionNames.viewReports)}
             onClose={() => setAccountPanelOpen(false)}
           />
         )}

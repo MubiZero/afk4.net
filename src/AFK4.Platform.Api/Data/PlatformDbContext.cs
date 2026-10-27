@@ -457,6 +457,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(staffUser => staffUser.NormalizedPhone)
                 .IsUnique()
                 .HasFilter("\"NormalizedPhone\" IS NOT NULL AND \"PhoneVerifiedAtUtc\" IS NOT NULL AND \"IsActive\"");
+            entity.Property(staffUser => staffUser.TelegramLinkCodeHash).HasMaxLength(64);
+            entity.HasIndex(staffUser => staffUser.TelegramLinkCodeHash)
+                .IsUnique()
+                .HasFilter("\"TelegramLinkCodeHash\" IS NOT NULL");
+            entity.HasIndex(staffUser => staffUser.TelegramChatId)
+                .HasFilter("\"TelegramChatId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<StaffRoleAssignmentEntity>(entity =>

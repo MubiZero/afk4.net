@@ -217,6 +217,11 @@ public static class AuditActionNames
 
     public const string UpdateStaffProfile = "identity.staff.profile.update";
 
+    /// <summary>Сотрудник привязал или отвязал чат Telegram, куда идут отчёты владельцу.</summary>
+    public const string LinkStaffTelegram = "identity.staff.telegram.link";
+
+    public const string UnlinkStaffTelegram = "identity.staff.telegram.unlink";
+
     public const string UpdateStaffRoles = "identity.staff.roles.update";
 
     public const string UpdateStaffState = "identity.staff.state.update";

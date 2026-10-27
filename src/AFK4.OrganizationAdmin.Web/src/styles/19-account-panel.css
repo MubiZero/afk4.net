@@ -225,3 +225,25 @@
 .account-phone-verified button {
   margin-left: auto;
 }
+
+/* ── Отчёты в Telegram: QR рядом с подсказкой ── */
+.account-telegram-qr {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.account-telegram-qr-image {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.account-telegram-qr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}

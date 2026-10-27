@@ -21,6 +21,12 @@ public enum NotificationChannel
 
     /// <summary>Пуш на телефон игрока. Адресуется аккаунтом: устройств у одного игрока бывает несколько.</summary>
     Push,
+
+    /// <summary>
+    /// Чат сотрудника с ботом AFK4.NET в Telegram: отчёты владельцу и тревоги кассы. Владельцы входят
+    /// по номеру телефона, почты у многих нет, а Telegram у каждого.
+    /// </summary>
+    Telegram,
 }
 
 /// <summary>
@@ -41,7 +47,8 @@ public sealed record NotificationRecipient(
     string? EmailAddress = null,
     string? PhoneNumber = null,
     Guid? StaffUserId = null,
-    Guid? PlayerAccountId = null);
+    Guid? PlayerAccountId = null,
+    string? TelegramChatId = null);
 
 /// <summary>
 /// A file attached to a notification (e.g. a scheduled report CSV). The bytes are persisted on the

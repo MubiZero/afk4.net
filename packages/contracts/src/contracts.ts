@@ -1741,6 +1741,15 @@ export const StaffSignInStepNames = {
 } as const;
 export type StaffSignInStepName = (typeof StaffSignInStepNames)[keyof typeof StaffSignInStepNames];
 
+/** Словарь: Identity/StaffTelegramContracts.cs */
+export const StaffTelegramErrorCodeNames = {
+  /** У платформы нет бота (не задан Telegram__BotToken). */
+  NotConfigured: 'telegram_not_configured',
+  /** Telegram не ответил, когда спросили имя бота для ссылки. */
+  Unreachable: 'telegram_unreachable',
+} as const;
+export type StaffTelegramErrorCodeName = (typeof StaffTelegramErrorCodeNames)[keyof typeof StaffTelegramErrorCodeNames];
+
 /** Словарь: Inventory/StockMovementTypeNames.cs */
 export const StockMovementTypeNames = {
   Purchase: 'purchase',
@@ -4764,6 +4773,7 @@ export interface NotificationRecipient {
   phoneNumber?: string | null;
   staffUserId?: Guid | null;
   playerAccountId?: Guid | null;
+  telegramChatId?: string | null;
 }
 
 /** Контракт: Shifts/OpenShiftRequest.cs */
@@ -8254,6 +8264,29 @@ export interface StaffSignInResponse {
 export interface StaffSignOutRequest {
   organizationId: Guid;
   refreshToken: string;
+}
+
+/**
+ * Разовая ссылка на бота: человек открывает её на телефоне (Панель показывает QR), бот получает
+ * код и привязывает этот чат. Код действует до ExpiresAtUtc.
+ *
+ * Контракт: Identity/StaffTelegramContracts.cs
+ */
+export interface StaffTelegramLinkDto {
+  deepLink: string;
+  expiresAtUtc: IsoDateTime;
+}
+
+/**
+ * Привязан ли Telegram сотрудника к боту AFK4.NET. BotConfigured — есть ли бот у
+ * платформы вообще: без него Панель не предлагает кнопку, которая кончилась бы ошибкой.
+ *
+ * Контракт: Identity/StaffTelegramContracts.cs
+ */
+export interface StaffTelegramStatusDto {
+  botConfigured: boolean;
+  linked: boolean;
+  linkedAtUtc: IsoDateTime | null;
 }
 
 /** Контракт: Identity/StaffUserDto.cs */

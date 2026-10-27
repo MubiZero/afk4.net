@@ -36,5 +36,18 @@ public sealed class StaffUserEntity
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Чат с ботом AFK4.NET в Telegram, куда идут отчёты. Null — не привязан.</summary>
+    public long? TelegramChatId { get; set; }
+
+    public DateTimeOffset? TelegramLinkedAtUtc { get; set; }
+
+    /// <summary>
+    /// SHA-256 разового кода привязки из ссылки на бота и срок его жизни. Сам код хранится только в
+    /// ссылке у человека: утечка базы не даёт привязать чужой чат к отчётам владельца.
+    /// </summary>
+    public string? TelegramLinkCodeHash { get; set; }
+
+    public DateTimeOffset? TelegramLinkCodeExpiresAtUtc { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

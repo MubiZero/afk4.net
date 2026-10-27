@@ -56,6 +56,13 @@ public static class NotificationTemplateKeys
     /// <summary>Daily owner summary digest — revenue, shifts and cash discrepancies for the prior day (Stage 5 digest trigger).</summary>
     public const string OwnerDailySummary = "owner.daily_summary";
 
+    /// <summary>Ответы бота AFK4.NET в Telegram: чат привязан, отвязан, ссылка не подошла.</summary>
+    public const string TelegramLinked = "telegram.linked";
+
+    public const string TelegramUnlinked = "telegram.unlinked";
+
+    public const string TelegramLinkExpired = "telegram.link_expired";
+
     /// <summary>Platform announcement (severity warning or above) delivered to the organization owner (Wave D §3).</summary>
     public const string PlatformAnnouncement = "platform.announcement";
 
@@ -87,5 +94,5 @@ public static class NotificationTemplateKeys
     public const string PlayerReviewReplied = "player.review_replied";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied, TelegramLinked, TelegramUnlinked, TelegramLinkExpired];
 }

@@ -49,6 +49,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.ReputationSnapshot] = reputationSnapshotOptions.TickInterval,
         [PlatformJobNames.BirthdayGifts] = BirthdayGiftHostedService.TickInterval,
         [PlatformJobNames.OrphanMediaSweep] = OrphanMediaSweepHostedService.TickInterval,
-        [PlatformJobNames.EskhataReconciliation] = EskhataReconciliationHostedService.TickInterval
+        [PlatformJobNames.EskhataReconciliation] = EskhataReconciliationHostedService.TickInterval,
+        [PlatformJobNames.TelegramUpdates] = Notifications.Telegram.TelegramUpdatesJob.TickInterval
     };
 }

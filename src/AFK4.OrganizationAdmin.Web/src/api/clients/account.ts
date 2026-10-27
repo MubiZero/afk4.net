@@ -1,3 +1,4 @@
+import type { StaffTelegramLinkDto, StaffTelegramStatusDto } from '@afk4/contracts';
 import { PlatformApiClient } from '../../platformApi';
 
 export interface StaffPhoneStatusDto {
@@ -26,6 +27,15 @@ export function createAccountClient(api: PlatformApiClient) {
     confirmPhoneVerification(request: { code: string }): Promise<StaffPhoneConfirmedDto> {
       return api.post<StaffPhoneConfirmedDto, { code: string }>(
         'account/phone/confirm', request);
+    },
+    getMyTelegram(): Promise<StaffTelegramStatusDto> {
+      return api.get<StaffTelegramStatusDto>('account/telegram');
+    },
+    createTelegramLink(): Promise<StaffTelegramLinkDto> {
+      return api.post<StaffTelegramLinkDto>('account/telegram/link');
+    },
+    unlinkTelegram(): Promise<void> {
+      return api.delete<void>('account/telegram');
     }
   };
 }
