@@ -128,6 +128,7 @@ public sealed class OfflineSeatCommandsTests : IDisposable
         });
         using var listener = new OfflineLanListener(commands, options, NullLogger<OfflineLanListener>.Instance);
         await listener.StartAsync(CancellationToken.None);
+        Assert.True(await listener.Listening.WaitAsync(TimeSpan.FromSeconds(10)));
         try
         {
             using var http = new HttpClient();

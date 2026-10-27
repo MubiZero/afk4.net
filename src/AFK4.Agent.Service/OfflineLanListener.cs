@@ -20,15 +20,24 @@ public sealed class OfflineLanListener(
     private const string FirewallRuleName = "AFK4.NET Agent (club network)";
     private const int MaxBodyBytes = 16 * 1024;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private readonly TaskCompletionSource<bool> listening = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Слушатель поднят (true) или не поднимется (false). Хост запускает <see cref="ExecuteAsync"/> в
+    /// отдельной задаче, и до этого момента стучаться на порт бесполезно.
+    /// </summary>
+    public Task<bool> Listening => listening.Task;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.IsConfigured || options.Value.OfflineLanPort <= 0)
         {
+            listening.TrySetResult(false);
             return;
         }
 
-        if (OperatingSystem.IsWindows())
+        // Брандмауэр — только когда слушаем сеть клуба, а не одну петлю.
+        if (OperatingSystem.IsWindows() && options.Value.OfflineLanPrefixHost == "http://+")
         {
             EnsureFirewallRule(options.Value.OfflineLanPort);
         }
@@ -42,8 +51,11 @@ public sealed class OfflineLanListener(
         catch (HttpListenerException exception)
         {
             logger.LogWarning("The club network listener did not start: {Reason}. Offline leases from the Panel will not arrive.", exception.Message);
+            listening.TrySetResult(false);
             return;
         }
+
+        listening.TrySetResult(true);
 
         using var stop = stoppingToken.Register(listener.Stop);
         while (!stoppingToken.IsCancellationRequested)
