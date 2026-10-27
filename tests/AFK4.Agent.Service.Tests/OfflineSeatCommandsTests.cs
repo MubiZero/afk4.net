@@ -37,9 +37,9 @@ public sealed class OfflineSeatCommandsTests : IDisposable
         var time = new FixedTime(Now);
         runtimeState = new AgentRuntimeStateStore(directory, time);
         var options = Options.Create(new AgentOptions { OrganizationId = OrganizationId, BranchId = BranchId, DeviceId = DeviceId });
-        var coordinator = new SessionEnforcementCoordinator(
-            new SessionLeaseValidator(options, time, trustedKeys), leaseStore, runtimeState, new OpenLock(), time);
-        commands = new OfflineSeatCommands(coordinator, leaseStore, runtimeState, graceState, time);
+        var validator = new SessionLeaseValidator(options, time, trustedKeys);
+        var coordinator = new SessionEnforcementCoordinator(validator, leaseStore, runtimeState, new OpenLock(), time);
+        commands = new OfflineSeatCommands(coordinator, validator, leaseStore, runtimeState, graceState, time);
         graceState.RecordSuccessfulContact(Now.AddMinutes(-10), 15);
     }
 
@@ -92,6 +92,22 @@ public sealed class OfflineSeatCommandsTests : IDisposable
         // Повтор старой аренды (её можно было перехватить в сети) не продлевает и не открывает заново.
         Assert.False((await commands.ApplyAsync(Lease(session, 2, Now.AddHours(3)), CancellationToken.None)).Accepted);
         Assert.False((await commands.ApplyAsync(Lease(Guid.NewGuid(), 1, Now.AddHours(1)), CancellationToken.None)).Accepted);
+    }
+
+    // «Конец» тоже подписан: чужой в сети клуба без ключа не выгонит гостя, даже зная номер его сессии.
+    [Fact]
+    public async Task AnEndSignedByAStranger_DoesNotLockTheGuestOut()
+    {
+        using var stranger = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var session = Guid.NewGuid();
+        Assert.True((await commands.ApplyAsync(Lease(session, 1, Now.AddHours(1)), CancellationToken.None)).Accepted);
+
+        var forged = await commands.ApplyAsync(
+            Lease(session, 2, Now.AddMinutes(5), OfflineLeaseSigning.EndedState, stranger), CancellationToken.None);
+
+        Assert.False(forged.Accepted);
+        Assert.False(forged.IsLocked);
+        Assert.Equal(session, forged.ActiveSessionId);
     }
 
     [Fact]
