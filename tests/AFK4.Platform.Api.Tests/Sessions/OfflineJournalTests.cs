@@ -2,8 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Payments;
+using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
@@ -149,6 +152,124 @@ public sealed class OfflineJournalTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    // Товар без связи: те же строки, что онлайн-продажа, — чек, платёж наличными в смену, списание со
+    // склада — с ценой, по которой взяли деньги, и временем продажи. Остаток в минус не останавливает: товар отдан.
+    [Fact]
+    public async Task GoodsSoldOffline_AreReceipted_PaidInCash_AndTakenOffStock()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        var shiftId = await SeedAsync(factory, client);
+        var cola = await SeedProductAsync(factory, "Cola", priceMinorUnits: 1500);
+
+        var result = await UploadAsync(client, new OfflineJournalUploadRequest(
+        [
+            new OfflineJournalRecordDto("s1", OfflineJournalKindNames.Sale, Guid.Empty, Offline, shiftId,
+                ChargeMinorUnits: 2400, CurrencyCode: "TJS", Lines: [new OfflineSaleLineDto(cola, 2, 1200)])
+        ]));
+
+        Assert.Equal(OfflineJournalStatusNames.Applied, Assert.Single(result.Results).Status);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var sale = await db.PosSales.SingleAsync();
+        Assert.Equal((PosSaleStateNames.Paid, 2400L, shiftId, Offline), (sale.State, sale.TotalMinorUnits, sale.ShiftId, sale.PaidAtUtc!.Value));
+        var payment = await db.Payments.SingleAsync(row => row.PosSaleId == sale.PosSaleId);
+        Assert.Equal((PaymentMethodNames.Cash, 2400L, shiftId), (payment.PaymentMethod, payment.AmountMinorUnits, payment.ShiftId));
+        Assert.Equal(-2, (await db.StockMovements.SingleAsync(row => row.ProductId == cola)).QuantityDelta);
+        Assert.Equal(sale.PosSaleId, (await db.Receipts.SingleAsync()).PosSaleId);
+    }
+
+    [Fact]
+    public async Task ASaleWhoseLinesDoNotAddUpToTheMoneyTaken_IsRefused()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        var shiftId = await SeedAsync(factory, client);
+        var cola = await SeedProductAsync(factory, "Cola", priceMinorUnits: 1500);
+
+        var result = await UploadAsync(client, new OfflineJournalUploadRequest(
+        [
+            new OfflineJournalRecordDto("s1", OfflineJournalKindNames.Sale, Guid.Empty, Offline, shiftId,
+                ChargeMinorUnits: 100, CurrencyCode: "TJS", Lines: [new OfflineSaleLineDto(cola, 2, 1200)])
+        ]));
+
+        Assert.Equal(OfflineJournalRejectionNames.Invalid, Assert.Single(result.Results).Code);
+    }
+
+    // Смену сдали без связи и открыли следующую: расхождение сервер считает по всем деньгам смены, включая
+    // присланные в том же журнале, а деньги после пересменки ложатся в новую смену.
+    [Fact]
+    public async Task AShiftHandedOverOffline_ClosesAtThatTime_AndTheNextShiftTakesTheLaterMoney()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        var shiftId = await SeedAsync(factory, client, OrganizationRoleNames.Operator);
+        var cola = await SeedProductAsync(factory, "Cola", priceMinorUnits: 1000);
+        var nextShiftId = Guid.NewGuid();
+
+        var result = await UploadAsync(client, new OfflineJournalUploadRequest(
+        [
+            new OfflineJournalRecordDto("s1", OfflineJournalKindNames.Sale, Guid.Empty, Offline, shiftId,
+                ChargeMinorUnits: 1000, CurrencyCode: "TJS", Lines: [new OfflineSaleLineDto(cola, 1, 1000)]),
+            new OfflineJournalRecordDto("c1", OfflineJournalKindNames.ShiftClosed, Guid.Empty, Offline.AddHours(1), shiftId,
+                CashMinorUnits: 1000, Note: "handover"),
+            new OfflineJournalRecordDto("o1", OfflineJournalKindNames.ShiftOpened, Guid.Empty, Offline.AddHours(1).AddMinutes(1), nextShiftId,
+                CurrencyCode: "TJS", CashMinorUnits: 1000),
+            new OfflineJournalRecordDto("s2", OfflineJournalKindNames.Sale, Guid.Empty, Offline.AddHours(2), nextShiftId,
+                ChargeMinorUnits: 1000, CurrencyCode: "TJS", Lines: [new OfflineSaleLineDto(cola, 1, 1000)])
+        ]));
+
+        Assert.All(result.Results, row => Assert.Equal(OfflineJournalStatusNames.Applied, row.Status));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var closed = await db.Shifts.SingleAsync(row => row.ShiftId == shiftId);
+        Assert.Equal((ShiftStateNames.Closed, Offline.AddHours(1), 1000L, 0L), (closed.State, closed.ClosedAtUtc!.Value, closed.ExpectedCashMinorUnits, closed.DifferenceMinorUnits));
+        Assert.Null(closed.SignOffReason);
+        var next = await db.Shifts.SingleAsync(row => row.ShiftId == nextShiftId);
+        Assert.Equal((ShiftStateNames.Open, 1000L), (next.State, next.StartingCashMinorUnits));
+        Assert.Equal(nextShiftId, (await db.Payments.SingleAsync(row => row.CreatedAtUtc == Offline.AddHours(2))).ShiftId);
+    }
+
+    // Расхождение сверх допуска без связи подписать некому: смена всё равно закрывается — иначе встала бы
+    // вся следующая смена, — но с пометкой «без подписи», а владелец получает тревогу как обычно.
+    [Fact]
+    public async Task AShortfallOverToleranceOffline_ClosesTheShift_MarkedUnsigned()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        var shiftId = await SeedAsync(factory, client, OrganizationRoleNames.Operator);
+        var cola = await SeedProductAsync(factory, "Cola", priceMinorUnits: 100000);
+
+        var result = await UploadAsync(client, new OfflineJournalUploadRequest(
+        [
+            new OfflineJournalRecordDto("s1", OfflineJournalKindNames.Sale, Guid.Empty, Offline, shiftId,
+                ChargeMinorUnits: 100000, CurrencyCode: "TJS", Lines: [new OfflineSaleLineDto(cola, 1, 100000)]),
+            new OfflineJournalRecordDto("c1", OfflineJournalKindNames.ShiftClosed, Guid.Empty, Offline.AddHours(1), shiftId, CashMinorUnits: 0)
+        ]));
+
+        Assert.All(result.Results, row => Assert.Equal(OfflineJournalStatusNames.Applied, row.Status));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var closed = await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Shifts.SingleAsync(row => row.ShiftId == shiftId);
+        Assert.Equal((ShiftStateNames.Closed, -100000L), (closed.State, closed.DifferenceMinorUnits));
+        Assert.Equal(OfflineCashRecords.UnsignedOfflineCloseReason, closed.SignOffReason);
+    }
+
+    // Оператор сдаёт только свою смену: чужую без связи не закроет, как и при связи.
+    [Fact]
+    public async Task AnOperatorCannotCloseSomeoneElsesShiftOffline()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        var shiftId = await SeedAsync(factory, client, OrganizationRoleNames.Operator, openedBy: Guid.NewGuid());
+
+        var result = await UploadAsync(client, new OfflineJournalUploadRequest(
+        [
+            new OfflineJournalRecordDto("c1", OfflineJournalKindNames.ShiftClosed, Guid.Empty, Offline, shiftId, CashMinorUnits: 0)
+        ]));
+
+        Assert.Equal(OfflineJournalRejectionNames.NotAllowed, Assert.Single(result.Results).Code);
+    }
+
     private static OfflineJournalRecordDto Started(string id, Guid sessionId, Guid shiftId, int minutes, long charge) =>
         new(id, OfflineJournalKindNames.SessionStarted, sessionId, Offline, shiftId,
             SeatId: TestIds.SeatId, DeviceId: TestIds.DeviceId, TariffRuleVersionId: Guid.NewGuid().ToString("D"),
@@ -162,9 +283,10 @@ public sealed class OfflineJournalTests
     }
 
     /// <returns>Смена, открытая до обрыва связи.</returns>
-    private static async Task<Guid> SeedAsync(PlatformApiFactory factory, HttpClient client)
+    private static async Task<Guid> SeedAsync(
+        PlatformApiFactory factory, HttpClient client, string role = OrganizationRoleNames.OrganizationOwner, Guid? openedBy = null)
     {
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, role);
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var at = DateTimeOffset.Parse("2026-10-01T00:00:00Z");
@@ -178,9 +300,30 @@ public sealed class OfflineJournalTests
         await db.SaveChangesAsync();
 
         var opened = await scope.ServiceProvider.GetRequiredService<EfShiftService>().OpenShiftAsync(
-            TestIds.BranchId, TestIds.TechnicianStaffUserId,
+            TestIds.BranchId, openedBy ?? TestIds.TechnicianStaffUserId,
             new OpenShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 0), "front", "open-1"), CancellationToken.None);
         Assert.True(opened.Succeeded, opened.Error);
         return opened.Response!.ShiftId;
+    }
+
+    private static async Task<Guid> SeedProductAsync(PlatformApiFactory factory, string name, long priceMinorUnits)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var at = DateTimeOffset.Parse("2026-10-01T00:00:00Z");
+        var category = new PosProductCategoryEntity
+        {
+            CategoryId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, Name = "Drinks", IsActive = true, CreatedAtUtc = at
+        };
+        var product = new PosProductEntity
+        {
+            ProductId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, CategoryId = category.CategoryId,
+            Name = name, Sku = $"SKU-{Guid.NewGuid():N}", CurrencyCode = "TJS", PriceMinorUnits = priceMinorUnits,
+            TrackStock = true, IsActive = true, CreatedAtUtc = at
+        };
+        db.PosProductCategories.Add(category);
+        db.PosProducts.Add(product);
+        await db.SaveChangesAsync();
+        return product.ProductId;
     }
 }

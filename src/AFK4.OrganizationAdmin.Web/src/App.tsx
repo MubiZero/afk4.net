@@ -263,7 +263,13 @@ function AppInner() {
   const offlineDesk = useOfflineDesk({
     backend: backendContext,
     isOffline: floorMap.isOffline,
-    canSeat: hasPermission(authSession, permissionNames.startSession)
+    canSeat: hasPermission(authSession, permissionNames.startSession),
+    cash: {
+      sell: hasPermission(authSession, permissionNames.createPosSale) && hasPermission(authSession, permissionNames.payPosSale),
+      openShift: hasPermission(authSession, permissionNames.openShift),
+      closeShift: hasPermission(authSession, permissionNames.closeShift),
+      closeOwnShift: hasPermission(authSession, permissionNames.closeOwnShift)
+    }
   });
   const offlineGuestLabel = t('op.offline.guest');
   const mapForDisplay = floorMap.isOffline

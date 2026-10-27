@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ namespace AFK4.Platform.Api.Sessions;
 public sealed class OfflineJournalIngest(
     PlatformDbContext db,
     ISessionBillingService billing,
+    OfflineCashRecords cash,
     IAuditRecordWriter audit,
     TimeProvider clock)
 {
@@ -31,20 +33,33 @@ public sealed class OfflineJournalIngest(
     private static readonly string[] LiveStates = [SessionStateNames.Active, SessionStateNames.Paused, SessionStateNames.Ending];
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Права, которые нужны записям кассы сверх посадки гостя: эндпоинт проверяет их заранее.</summary>
+    public static readonly string[] CashPermissions =
+    [
+        OrganizationPermissionNames.CreatePosSale,
+        OrganizationPermissionNames.PayPosSale,
+        OrganizationPermissionNames.OpenShift,
+        OrganizationPermissionNames.CloseShift,
+        OrganizationPermissionNames.CloseOwnShift
+    ];
+
+    /// <param name="granted">Какие из <see cref="CashPermissions"/> есть у того, кто досылает журнал.</param>
     public async Task<OfflineJournalUploadResponse> IngestAsync(
-        Guid organizationId, Guid branchId, Guid staffUserId, IReadOnlyList<OfflineJournalRecordDto> records, CancellationToken cancellationToken)
+        Guid organizationId, Guid branchId, Guid staffUserId, IReadOnlyList<OfflineJournalRecordDto> records,
+        IReadOnlySet<string> granted, CancellationToken cancellationToken)
     {
         var results = new List<OfflineJournalRecordResultDto>(records.Count);
         foreach (var record in records)
         {
-            results.Add(await IngestOneAsync(organizationId, branchId, staffUserId, record, cancellationToken));
+            results.Add(await IngestOneAsync(organizationId, branchId, staffUserId, record, granted, cancellationToken));
         }
 
         return new OfflineJournalUploadResponse(results);
     }
 
     private async Task<OfflineJournalRecordResultDto> IngestOneAsync(
-        Guid organizationId, Guid branchId, Guid staffUserId, OfflineJournalRecordDto record, CancellationToken cancellationToken)
+        Guid organizationId, Guid branchId, Guid staffUserId, OfflineJournalRecordDto record, IReadOnlySet<string> granted,
+        CancellationToken cancellationToken)
     {
         var seen = await db.OfflineJournalRecords.AsNoTracking()
             .Where(row => row.BranchId == branchId && row.RecordId == record.Id)
@@ -55,7 +70,7 @@ public sealed class OfflineJournalIngest(
             return new OfflineJournalRecordResultDto(record.Id, OfflineJournalStatusNames.Duplicate, null);
         }
 
-        var rejection = await ApplyAsync(organizationId, branchId, staffUserId, record, cancellationToken);
+        var rejection = await ApplyAsync(organizationId, branchId, staffUserId, record, granted, cancellationToken);
         db.OfflineJournalRecords.Add(new OfflineJournalRecordEntity
         {
             OfflineJournalRecordId = Guid.NewGuid(),
@@ -100,15 +115,20 @@ public sealed class OfflineJournalIngest(
 
     /// <returns>null — применено; иначе код отказа. Изменения остаются в контексте до общего сохранения.</returns>
     private async Task<string?> ApplyAsync(
-        Guid organizationId, Guid branchId, Guid staffUserId, OfflineJournalRecordDto record, CancellationToken cancellationToken)
+        Guid organizationId, Guid branchId, Guid staffUserId, OfflineJournalRecordDto record, IReadOnlySet<string> granted,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(record.Id) || record.Id.Length > 64 || record.SessionId == Guid.Empty)
+        var isSessionRecord = record.Kind is OfflineJournalKindNames.SessionStarted or OfflineJournalKindNames.SessionExtended or OfflineJournalKindNames.SessionEnded;
+        if (string.IsNullOrWhiteSpace(record.Id) || record.Id.Length > 64 || (isSessionRecord && record.SessionId == Guid.Empty))
         {
             return OfflineJournalRejectionNames.Invalid;
         }
 
         return record.Kind switch
         {
+            OfflineJournalKindNames.Sale => await cash.SaleAsync(organizationId, branchId, staffUserId, record, granted, cancellationToken),
+            OfflineJournalKindNames.ShiftClosed => await cash.CloseShiftAsync(organizationId, branchId, staffUserId, record, granted, cancellationToken),
+            OfflineJournalKindNames.ShiftOpened => await cash.OpenShiftAsync(organizationId, branchId, staffUserId, record, granted, cancellationToken),
             OfflineJournalKindNames.SessionStarted => await StartAsync(organizationId, branchId, staffUserId, record, cancellationToken),
             OfflineJournalKindNames.SessionExtended => await ExtendAsync(organizationId, branchId, staffUserId, record, cancellationToken),
             OfflineJournalKindNames.SessionEnded => await EndAsync(organizationId, branchId, staffUserId, record, cancellationToken),
@@ -302,12 +322,22 @@ public sealed class OfflineJournalIngest(
             {
                 OfflineJournalKindNames.SessionStarted => AuditActionNames.StartSession,
                 OfflineJournalKindNames.SessionExtended => AuditActionNames.ExtendSession,
+                OfflineJournalKindNames.Sale => AuditActionNames.PayPosSale,
+                OfflineJournalKindNames.ShiftClosed => AuditActionNames.CloseShift,
+                OfflineJournalKindNames.ShiftOpened => AuditActionNames.OpenShift,
                 _ => AuditActionNames.EndSession
             },
-            "Session",
-            record.SessionId.ToString("D"),
+            record.Kind switch
+            {
+                OfflineJournalKindNames.Sale => "PosSale",
+                OfflineJournalKindNames.ShiftClosed or OfflineJournalKindNames.ShiftOpened => "Shift",
+                _ => "Session"
+            },
+            record.Kind is OfflineJournalKindNames.ShiftClosed or OfflineJournalKindNames.ShiftOpened
+                ? record.ShiftId.ToString("D")
+                : record.SessionId.ToString("D"),
             AuditOutcome.Succeeded,
             "PlatformApi",
-            JsonSerializer.Serialize(new { offline = true, recordId = record.Id, record.OccurredAtUtc, record.Minutes, record.ChargeMinorUnits }, Json)),
+            JsonSerializer.Serialize(new { offline = true, recordId = record.Id, record.OccurredAtUtc, record.Minutes, record.ChargeMinorUnits, record.CashMinorUnits }, Json)),
             cancellationToken);
 }

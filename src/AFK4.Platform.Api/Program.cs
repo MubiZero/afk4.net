@@ -403,6 +403,7 @@ builder.Services.AddScoped<MoneyActionApprovalService>();
 builder.Services.AddScoped<EfTariffService>();
 builder.Services.AddScoped<EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
+builder.Services.AddScoped<OfflineCashRecords>();
 builder.Services.AddScoped<OfflineJournalIngest>();
 builder.Services.AddScoped<EfOperatorReferenceDataService>();
 builder.Services.AddScoped<EfBranchSearchService>();

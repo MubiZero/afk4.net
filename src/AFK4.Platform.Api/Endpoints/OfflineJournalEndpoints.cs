@@ -8,7 +8,8 @@ namespace AFK4.Platform.Api.Endpoints;
 /// <summary>
 /// Панель досылает журнал кассы, который вела без интернета (docs/roadmap/offline-front-desk.md). Право —
 /// сажать гостей: журнал пишет тот, кто сажал. Ответ называет судьбу каждой записи; Панель убирает из
-/// журнала всё, на что пришёл окончательный ответ, — отказанные записи остаются у сервера.
+/// журнала всё, на что пришёл окончательный ответ, — отказанные записи остаются у сервера. Продажа и смена
+/// сверх того проверяются своими правами — по записи.
 /// </summary>
 internal static class OfflineJournalEndpoints
 {
@@ -26,8 +27,15 @@ internal static class OfflineJournalEndpoints
                 return Results.BadRequest(new { error = $"Send 1 to {OfflineJournalIngest.MaxRecordsPerUpload} records." });
             }
 
+            // Продажа и смена — свои права: кто сажает гостей, не обязательно продаёт или сдаёт смену.
+            var granted = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var permission in OfflineJournalIngest.CashPermissions)
+            {
+                if ((await authorizationService.RequireBranchPermissionAsync(branchId, permission, ct)).IsAllowed) granted.Add(permission);
+            }
+
             var staff = authorization.StaffContext!;
-            return Results.Ok(await ingest.IngestAsync(staff.OrganizationId, branchId, staff.StaffUserId, request.Records, ct));
+            return Results.Ok(await ingest.IngestAsync(staff.OrganizationId, branchId, staff.StaffUserId, request.Records, granted, ct));
         });
     }
 }

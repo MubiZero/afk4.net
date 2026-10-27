@@ -6,13 +6,17 @@ import type { SeatSummary } from '../operatorData';
 import { createAuthenticatedOperatorClients, tariffPriceForMinutes } from '../operatorHelpers';
 import { useToast } from '../operatorToast';
 import { offlineDeskClient, type OfflineDeskClient } from './offlineDeskClient';
-import { readOfflineDeskCache, writeOfflineDeskCache, type OfflineDeskCache } from './offlineCache';
+import { readCategoryDirectory } from '../posCategoryDirectory';
+import { readOfflineDeskCache, writeOfflineDeskCache, type OfflineDeskCache, type OfflineProduct } from './offlineCache';
 import {
+  currentOfflineShift,
   extensionPrice,
+  NO_SESSION,
   foldOfflineSessions,
   liveOfflineSessionsBySeat,
   tariffAppliesAt,
   type OfflineJournalRecord,
+  type OfflineSaleLine,
   type OfflineSession
 } from './offlineSessions';
 
@@ -35,7 +39,29 @@ export interface OfflineDesk {
   end: (session: OfflineSession) => Promise<void>;
   priceFor: (tariff: TariffOptionDto, minutes: number) => number;
   extensionPriceFor: (session: OfflineSession, minutes: number) => number;
+  /** Товары и цены — как при последней связи; когда это было, говорит cachedAtMs. */
+  products: OfflineProduct[];
+  cachedAtMs: number | null;
+  /** Открытая смена по журналу: null — сдали без связи, а новую ещё не открыли. */
+  shiftId: string | null;
+  currencyCode: string;
+  canSell: boolean;
+  canCloseShift: boolean;
+  canOpenShift: boolean;
+  sell: (lines: OfflineSaleLine[]) => Promise<void>;
+  closeShift: (countedCashMinorUnits: number, note: string) => Promise<void>;
+  openShift: (startingCashMinorUnits: number, note: string) => Promise<void>;
 }
+
+/** Что сотруднику можно в кассе без связи — те же права, что сервер проверит у журнала. */
+export interface OfflineCashPermissions {
+  sell: boolean;
+  openShift: boolean;
+  closeShift: boolean;
+  closeOwnShift: boolean;
+}
+
+const NO_CASH_PERMISSIONS: OfflineCashPermissions = { sell: false, openShift: false, closeShift: false, closeOwnShift: false };
 
 const OfflineDeskContext = createContext<OfflineDesk | null>(null);
 
@@ -49,18 +75,21 @@ export function useOfflineDeskContext(): OfflineDesk | null {
 
 /**
  * Офлайн у стойки (docs/roadmap/offline-front-desk.md). Без связи — посадить гостя за наличные, продлить,
- * закончить: ПК открывает подписанная ключом этого ПК аренда, деньги ложатся в журнал на диске. Пока
- * связь есть — кэш тарифов и смены, ключ на сервере; когда связь вернулась — журнал уходит на сервер.
+ * закончить: ПК открывает подписанная ключом этого ПК аренда, деньги ложатся в журнал на диске. Там же
+ * продажа товара за наличные и пересменка. Пока связь есть — кэш тарифов, товаров и смены, ключ на
+ * сервере; когда связь вернулась — журнал уходит на сервер.
  */
 export function useOfflineDesk({
   backend,
   isOffline,
   canSeat,
+  cash = NO_CASH_PERMISSIONS,
   client = offlineDeskClient
 }: {
   backend: OperatorBackendContext | null;
   isOffline: boolean;
   canSeat: boolean;
+  cash?: OfflineCashPermissions;
   client?: OfflineDeskClient;
 }): OfflineDesk {
   const { t } = useI18n();
@@ -70,6 +99,8 @@ export function useOfflineDesk({
   const [records, setRecords] = useState<OfflineJournalRecord[]>([]);
   const [cache, setCache] = useState<OfflineDeskCache | null>(() => (branchId ? readOfflineDeskCache(branchId) : null));
   const [, setTick] = useState(0);
+  // Журнал досылается — кэш перечитывается: смена, закрытая или открытая без связи, теперь на сервере.
+  const [cacheNonce, setCacheNonce] = useState(0);
   const syncing = useRef(false);
   const registeredFor = useRef<string | null>(null);
 
@@ -103,12 +134,28 @@ export function useOfflineDesk({
     let disposed = false;
     const refresh = async () => {
       try {
-        const [tariffs, shift] = await Promise.all([
+        const [tariffs, shift, catalog, categories] = await Promise.all([
           clients.settings.getTariffOptions(branchId),
-          clients.shifts.getCurrentShift(branchId)
+          clients.shifts.getCurrentShift(branchId),
+          clients.pos.getCatalog(branchId),
+          clients.settings.listProductCategories(branchId)
         ]);
         if (disposed) return;
-        const next = { tariffs, shiftId: shift?.shiftId ?? null, cachedAtMs: Date.now() };
+        const directory = readCategoryDirectory(Array.isArray(categories) ? categories : []);
+        // В кэш — только то, что продаётся сейчас: скрытую категорию сервер не продал бы и при связи.
+        const products = (Array.isArray(catalog) ? catalog : [])
+          .filter((product) => product.isActive && directory.get(product.categoryId)?.isActive !== false)
+          .map((product) => ({
+            productId: product.productId, name: product.name, priceMinorUnits: product.price.minorUnits, currencyCode: product.price.currencyCode
+          }));
+        const next: OfflineDeskCache = {
+          tariffs,
+          products,
+          shiftId: shift?.shiftId ?? null,
+          shiftOpenedByStaffUserId: shift?.openedByStaffUserId ?? null,
+          currencyCode: shift?.startingCash.currencyCode ?? products[0]?.currencyCode ?? tariffs[0]?.currencyCode,
+          cachedAtMs: Date.now()
+        };
         writeOfflineDeskCache(branchId, next);
         setCache(next);
       } catch {
@@ -128,7 +175,7 @@ export function useOfflineDesk({
     void refresh();
     const timer = window.setInterval(() => void refresh(), CACHE_REFRESH_MS);
     return () => { disposed = true; window.clearInterval(timer); };
-  }, [branchId, client, clients, hostAvailable, isOffline]);
+  }, [branchId, cacheNonce, client, clients, hostAvailable, isOffline]);
 
   // Связь вернулась — журнал на сервер. Убираем из журнала только то, на что пришёл окончательный ответ.
   useEffect(() => {
@@ -143,6 +190,7 @@ export function useOfflineDesk({
         if (applied > 0) toast.success(t('op.offline.synced', { count: applied }));
         if (rejected > 0) toast.error(t('op.offline.syncRejected', { count: rejected }));
         await reload();
+        setCacheNonce((value) => value + 1);
       } catch {
         // Не дошло — журнал на месте, попробуем со следующим изменением.
       } finally {
@@ -152,6 +200,13 @@ export function useOfflineDesk({
   }, [branchId, client, clients, hostAvailable, isOffline, records, reload, t, toast]);
 
   const tariffs = cache?.tariffs ?? [];
+  const staffUserId = backend?.session.staffUserId ?? null;
+  const shift = useMemo(
+    () => currentOfflineShift({ shiftId: cache?.shiftId ?? null, shiftOpenedByStaffUserId: cache?.shiftOpenedByStaffUserId }, records, staffUserId),
+    [cache, records, staffUserId]
+  );
+  const shiftId = shift.shiftId;
+  const currencyCode = cache?.currencyCode ?? tariffs[0]?.currencyCode ?? 'TJS';
   const sessions = useMemo(() => foldOfflineSessions(records, tariffs), [records, tariffs]);
   const sessionsBySeat = liveOfflineSessionsBySeat(sessions, Date.now());
   const tariffsNow = useMemo(() => tariffs.filter((tariff) => tariffAppliesAt(tariff, new Date())), [tariffs]);
@@ -160,7 +215,7 @@ export function useOfflineDesk({
     ? 'no-host'
     : !cache || cache.tariffs.length === 0
       ? 'no-cache'
-      : !cache.shiftId
+      : !shiftId
         ? 'no-shift'
         : null;
 
@@ -175,7 +230,7 @@ export function useOfflineDesk({
   }, [client]);
 
   const seatGuest = useCallback(async (seat: SeatSummary, tariff: TariffOptionDto, minutes: number) => {
-    if (!backend || !cache?.shiftId || !seat.deviceId || !seat.deviceNetworkAddress) throw new Error('not-ready');
+    if (!backend || !shiftId || !seat.deviceId || !seat.deviceNetworkAddress) throw new Error('not-ready');
     const sessionId = crypto.randomUUID();
     const issuedAt = new Date();
     const expiresAt = new Date(issuedAt.getTime() + minutes * 60_000);
@@ -186,7 +241,7 @@ export function useOfflineDesk({
     await send(seat.deviceNetworkAddress, lease);
     try {
       await append({
-        id: crypto.randomUUID(), kind: 'session_started', sessionId, occurredAtUtc: issuedAt.toISOString(), shiftId: cache.shiftId,
+        id: crypto.randomUUID(), kind: 'session_started', sessionId, occurredAtUtc: issuedAt.toISOString(), shiftId,
         seatId: seat.id, deviceId: seat.deviceId, deviceAddress: seat.deviceNetworkAddress, tariffRuleVersionId: tariff.tariffRuleVersionId,
         tariffName: tariff.name, minutes, chargeMinorUnits: tariffPriceForMinutes(tariff, minutes), currencyCode: tariff.currencyCode,
         sequence: 1, leaseExpiresAtUtc: lease.expiresAtUtc
@@ -196,10 +251,10 @@ export function useOfflineDesk({
       await send(seat.deviceNetworkAddress, { ...lease, state: 'Ended', sequence: 2, expiresAtUtc: new Date(Date.now() + END_LEASE_MS).toISOString() });
       throw error;
     }
-  }, [append, backend, cache, send]);
+  }, [append, backend, send, shiftId]);
 
   const extend = useCallback(async (session: OfflineSession, minutes: number) => {
-    if (!backend || !cache?.shiftId) throw new Error('not-ready');
+    if (!backend || !shiftId) throw new Error('not-ready');
     const now = new Date();
     const base = Math.max(Date.parse(session.endsAtUtc), now.getTime());
     const expiresAt = new Date(base + minutes * 60_000).toISOString();
@@ -209,13 +264,13 @@ export function useOfflineDesk({
       deviceId: session.deviceId, state: 'Active', sequence, issuedAtUtc: now.toISOString(), expiresAtUtc: expiresAt
     });
     await append({
-      id: crypto.randomUUID(), kind: 'session_extended', sessionId: session.sessionId, occurredAtUtc: now.toISOString(), shiftId: cache.shiftId,
+      id: crypto.randomUUID(), kind: 'session_extended', sessionId: session.sessionId, occurredAtUtc: now.toISOString(), shiftId,
       minutes, chargeMinorUnits: extensionPrice(session, minutes), currencyCode: session.currencyCode, sequence, leaseExpiresAtUtc: expiresAt
     });
-  }, [append, backend, cache, send]);
+  }, [append, backend, send, shiftId]);
 
   const end = useCallback(async (session: OfflineSession) => {
-    if (!backend || !cache?.shiftId) throw new Error('not-ready');
+    if (!backend || !shiftId) throw new Error('not-ready');
     const now = new Date();
     const sequence = session.sequence + 1;
     await send(session.deviceAddress, {
@@ -224,10 +279,34 @@ export function useOfflineDesk({
       expiresAtUtc: new Date(now.getTime() + END_LEASE_MS).toISOString()
     });
     await append({
-      id: crypto.randomUUID(), kind: 'session_ended', sessionId: session.sessionId, occurredAtUtc: now.toISOString(), shiftId: cache.shiftId,
+      id: crypto.randomUUID(), kind: 'session_ended', sessionId: session.sessionId, occurredAtUtc: now.toISOString(), shiftId,
       sequence, leaseExpiresAtUtc: now.toISOString()
     });
-  }, [append, backend, cache, send]);
+  }, [append, backend, send, shiftId]);
+
+  const sell = useCallback(async (lines: OfflineSaleLine[]) => {
+    if (!shiftId || lines.length === 0) throw new Error('not-ready');
+    await append({
+      id: crypto.randomUUID(), kind: 'sale', sessionId: NO_SESSION, occurredAtUtc: new Date().toISOString(), shiftId,
+      chargeMinorUnits: lines.reduce((sum, line) => sum + line.unitPriceMinorUnits * line.quantity, 0), currencyCode, lines
+    });
+  }, [append, currencyCode, shiftId]);
+
+  const closeShift = useCallback(async (countedCashMinorUnits: number, note: string) => {
+    if (!shiftId) throw new Error('not-ready');
+    await append({
+      id: crypto.randomUUID(), kind: 'shift_closed', sessionId: NO_SESSION, occurredAtUtc: new Date().toISOString(), shiftId,
+      cashMinorUnits: countedCashMinorUnits, note
+    });
+  }, [append, shiftId]);
+
+  const openShift = useCallback(async (startingCashMinorUnits: number, note: string) => {
+    if (shiftId) throw new Error('shift-open');
+    await append({
+      id: crypto.randomUUID(), kind: 'shift_opened', sessionId: NO_SESSION, occurredAtUtc: new Date().toISOString(),
+      shiftId: crypto.randomUUID(), currencyCode, cashMinorUnits: startingCashMinorUnits, note
+    });
+  }, [append, currencyCode, shiftId]);
 
   return {
     ready: unavailableReason === null,
@@ -240,7 +319,17 @@ export function useOfflineDesk({
     extend,
     end,
     priceFor: tariffPriceForMinutes,
-    extensionPriceFor: extensionPrice
+    extensionPriceFor: extensionPrice,
+    products: cache?.products ?? [],
+    cachedAtMs: cache?.cachedAtMs ?? null,
+    shiftId,
+    currencyCode,
+    canSell: hostAvailable && cash.sell,
+    canCloseShift: hostAvailable && (cash.closeShift || (cash.closeOwnShift && shift.openedByMe)),
+    canOpenShift: hostAvailable && cash.openShift,
+    sell,
+    closeShift,
+    openShift
   };
 }
 
@@ -249,7 +338,9 @@ function toServerRecord(record: OfflineJournalRecord) {
   return {
     id: record.id, kind: record.kind, sessionId: record.sessionId, occurredAtUtc: record.occurredAtUtc, shiftId: record.shiftId,
     seatId: record.seatId ?? null, deviceId: record.deviceId ?? null, tariffRuleVersionId: record.tariffRuleVersionId ?? null,
-    minutes: record.minutes ?? 0, chargeMinorUnits: record.chargeMinorUnits ?? 0, currencyCode: record.currencyCode ?? null
+    minutes: record.minutes ?? 0, chargeMinorUnits: record.chargeMinorUnits ?? 0, currencyCode: record.currencyCode ?? null,
+    lines: record.lines?.map(({ productId, quantity, unitPriceMinorUnits }) => ({ productId, quantity, unitPriceMinorUnits })) ?? null,
+    cashMinorUnits: record.cashMinorUnits ?? 0, note: record.note ?? null
   };
 }
 

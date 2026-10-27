@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { TariffOptionDto } from '@afk4/contracts';
-import { extensionPrice, foldOfflineSessions, liveOfflineSessionsBySeat, tariffAppliesAt, type OfflineJournalRecord } from './offlineSessions';
+import { currentOfflineShift, extensionPrice, foldOfflineSessions, liveOfflineSessionsBySeat, tariffAppliesAt, type OfflineJournalRecord } from './offlineSessions';
 
 const tariff = {
   tariffRuleVersionId: 'tariff-v1',
@@ -52,5 +52,14 @@ describe('журнал кассы без связи', () => {
     expect(tariffAppliesAt(night, new Date(2026, 9, 31, 1, 0))).toBe(true); // суббота 01:00 — ночь пятницы
     expect(tariffAppliesAt(night, new Date(2026, 9, 31, 23, 0))).toBe(false); // суббота 23:00
     expect(tariffAppliesAt({ appliesOnDaysMask: 0, appliesFromMinuteOfDay: null, appliesToMinuteOfDay: null }, new Date())).toBe(true);
+  });
+
+  it('смена по журналу: закрыли — смены нет, открыли — деньги идут в новую', () => {
+    const closed = record({ id: 'c', kind: 'shift_closed', shiftId: 'shift-1' });
+    const opened = record({ id: 'o', kind: 'shift_opened', shiftId: 'shift-2' });
+
+    expect(currentOfflineShift({ shiftId: 'shift-1', shiftOpenedByStaffUserId: 'me' }, [], 'me')).toEqual({ shiftId: 'shift-1', openedByMe: true });
+    expect(currentOfflineShift({ shiftId: 'shift-1' }, [closed], 'me')).toEqual({ shiftId: null, openedByMe: false });
+    expect(currentOfflineShift({ shiftId: 'shift-1' }, [closed, opened], 'me')).toEqual({ shiftId: 'shift-2', openedByMe: true });
   });
 });

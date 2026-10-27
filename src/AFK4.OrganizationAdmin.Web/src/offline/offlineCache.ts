@@ -1,12 +1,24 @@
 import type { TariffOptionDto } from '@afk4/contracts';
 
+/** Товар в продаже, каким он был при последней связи. */
+export interface OfflineProduct {
+  productId: string;
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+}
+
 /**
- * Что Панель помнит о филиале на случай обрыва связи: тарифы (цену гостю без сервера называет она же)
+ * Что Панель помнит о филиале на случай обрыва связи: тарифы и товары (цену без сервера называет она же)
  * и открытую смену (деньги без связи ложатся в неё). Пишется, пока связь есть.
  */
 export interface OfflineDeskCache {
   tariffs: TariffOptionDto[];
+  products?: OfflineProduct[];
   shiftId: string | null;
+  shiftOpenedByStaffUserId?: string | null;
+  /** Валюта филиала: размен новой смены без связи — в ней. */
+  currencyCode?: string;
   cachedAtMs: number;
 }
 

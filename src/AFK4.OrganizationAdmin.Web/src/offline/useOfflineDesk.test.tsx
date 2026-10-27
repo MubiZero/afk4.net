@@ -11,6 +11,7 @@ import { writeOfflineDeskCache } from './offlineCache';
 import type { OfflineJournalRecord } from './offlineSessions';
 import { OfflineDeskProvider, useOfflineDesk, withOfflineSessions, type OfflineDesk } from './useOfflineDesk';
 import { OfflineSeatActions } from './OfflineSeatActions';
+import { OfflineCashScreen } from './OfflineCashScreen';
 
 const tariff = {
   tariffRuleVersionId: 'tariff-v1', name: 'Дневной', currencyCode: 'TJS', pricePerMinuteMinorUnits: 200,
@@ -93,6 +94,73 @@ describe('касса без связи', () => {
     fireEvent.click(screen.getByRole('button', { name: /Взял наличными/ }));
 
     await waitFor(() => expect(seatGuest).toHaveBeenCalledWith(seat, tariff, 60));
+  });
+
+  it('продажа и пересменка: деньги после закрытия смены ложатся в новую', async () => {
+    writeOfflineDeskCache('branch-a', {
+      tariffs: [tariff], shiftId: 'shift-1', shiftOpenedByStaffUserId: 'staff-1', currencyCode: 'TJS', cachedAtMs: Date.now(),
+      products: [{ productId: 'cola', name: 'Cola', priceMinorUnits: 1200, currencyCode: 'TJS' }]
+    });
+    const { client, journal } = fakeClient();
+    const cash = { sell: true, openShift: true, closeShift: false, closeOwnShift: true };
+    const { result } = renderHook(() => useOfflineDesk({ backend, isOffline: true, canSeat: true, cash, client }), { wrapper });
+    await waitFor(() => expect(result.current.canCloseShift).toBe(true));
+
+    await act(() => result.current.sell([{ productId: 'cola', name: 'Cola', quantity: 2, unitPriceMinorUnits: 1200 }]));
+    await act(() => result.current.closeShift(2400, 'handover'));
+    await waitFor(() => expect(result.current.shiftId).toBeNull());
+    await act(() => result.current.openShift(1000, ''));
+    await waitFor(() => expect(result.current.shiftId).not.toBeNull());
+    await act(() => result.current.sell([{ productId: 'cola', name: 'Cola', quantity: 1, unitPriceMinorUnits: 1200 }]));
+
+    expect(journal.map((row) => row.kind)).toEqual(['sale', 'shift_closed', 'shift_opened', 'sale']);
+    expect(journal[0]).toMatchObject({ shiftId: 'shift-1', chargeMinorUnits: 2400, currencyCode: 'TJS' });
+    expect(journal[1]).toMatchObject({ shiftId: 'shift-1', cashMinorUnits: 2400, note: 'handover' });
+    expect(journal[3].shiftId).toBe(journal[2].shiftId);
+  });
+
+  // Оператор сдаёт только свою смену — та же граница, что проверит сервер у журнала.
+  it('чужую смену оператор без связи не закрывает', async () => {
+    writeOfflineDeskCache('branch-a', { tariffs: [tariff], shiftId: 'shift-1', shiftOpenedByStaffUserId: 'someone-else', cachedAtMs: Date.now() });
+    const { client } = fakeClient();
+    const cash = { sell: true, openShift: true, closeShift: false, closeOwnShift: true };
+    const { result } = renderHook(() => useOfflineDesk({ backend, isOffline: true, canSeat: true, cash, client }), { wrapper });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    expect(result.current.canCloseShift).toBe(false);
+  });
+
+  it('экран кассы: товар в чек, «взял наличными» продаёт по цене из кэша', async () => {
+    const sell = mock(async () => undefined);
+    const desk = {
+      isOffline: true, unavailableReason: null, pendingCount: 0, cachedAtMs: Date.now(), shiftId: 'shift-1', currencyCode: 'TJS',
+      products: [{ productId: 'cola', name: 'Cola', priceMinorUnits: 1200, currencyCode: 'TJS' }],
+      canSell: true, canCloseShift: true, canOpenShift: true, sell, closeShift: mock(async () => undefined), openShift: mock(async () => undefined)
+    } as unknown as OfflineDesk;
+    render(<I18nProvider><ToastProvider><OfflineDeskProvider value={desk}><OfflineCashScreen /></OfflineDeskProvider></ToastProvider></I18nProvider>);
+
+    fireEvent.click(screen.getByRole('button', { name: /Cola/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Больше: Cola/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Взял наличными/ }));
+
+    await waitFor(() => expect(sell).toHaveBeenCalledWith([{ productId: 'cola', name: 'Cola', quantity: 2, unitPriceMinorUnits: 1200 }]));
+  });
+
+  // Закрытие — в два нажатия: смену не сдают случайным кликом.
+  it('экран кассы: смена закрывается только после подтверждения', async () => {
+    const closeShift = mock(async () => undefined);
+    const desk = {
+      isOffline: true, unavailableReason: null, pendingCount: 0, cachedAtMs: Date.now(), shiftId: 'shift-1', currencyCode: 'TJS', products: [],
+      canSell: true, canCloseShift: true, canOpenShift: true, sell: mock(async () => undefined), closeShift, openShift: mock(async () => undefined)
+    } as unknown as OfflineDesk;
+    render(<I18nProvider><ToastProvider><OfflineDeskProvider value={desk}><OfflineCashScreen /></OfflineDeskProvider></ToastProvider></I18nProvider>);
+
+    fireEvent.change(screen.getByLabelText('Наличные в ящике'), { target: { value: '150,50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть смену' }));
+    expect(closeShift).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Точно закрыть/ }));
+
+    await waitFor(() => expect(closeShift).toHaveBeenCalledWith(15050, ''));
   });
 
   it('со связью карточка ничего не добавляет', () => {
