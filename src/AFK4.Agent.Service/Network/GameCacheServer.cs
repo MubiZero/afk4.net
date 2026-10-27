@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -311,23 +310,9 @@ public sealed class GameCacheServer(
 
     private void EnsureFirewallRule()
     {
-        Netsh($"advfirewall firewall delete rule name=\"{FirewallRuleName}\"");
-        if (!Netsh($"advfirewall firewall add rule name=\"{FirewallRuleName}\" dir=in action=allow protocol=TCP localport=80 profile=private,domain remoteip=localsubnet"))
+        if (!ClubNetworkFirewall.EnsureRule(FirewallRuleName, 80))
         {
             logger.LogWarning("Could not open TCP 80 for the game cache; club PCs may not reach it.");
-        }
-    }
-
-    private static bool Netsh(string arguments)
-    {
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo("netsh", arguments) { CreateNoWindow = true, UseShellExecute = false });
-            return process is not null && process.WaitForExit(10_000) && process.ExitCode == 0;
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            return false;
         }
     }
 }
