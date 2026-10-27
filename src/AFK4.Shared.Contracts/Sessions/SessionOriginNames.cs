@@ -21,7 +21,13 @@ public static class SessionOriginNames
     /// <summary>Сессия выросла из брони: человек пришёл на забронированное время.</summary>
     public const string Reservation = "reservation";
 
-    public static readonly string[] All = [Operator, SelfService, Reservation];
+    /// <summary>
+    /// Посадил администратор без интернета: Панель открыла ПК офлайн-арендой, а сервер узнал о сессии
+    /// из журнала кассы, когда связь вернулась (docs/roadmap/offline-front-desk.md).
+    /// </summary>
+    public const string Offline = "offline";
+
+    public static readonly string[] All = [Operator, SelfService, Reservation, Offline];
 
     public static bool IsSupported(string? origin) =>
         origin is not null && All.Contains(origin, StringComparer.Ordinal);

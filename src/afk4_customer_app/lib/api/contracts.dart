@@ -555,6 +555,32 @@ abstract final class MediaPurposeNames {
   static const String productImage = 'product-image';
 }
 
+/// Словарь: Sessions/OfflineJournalContracts.cs
+abstract final class OfflineJournalKindNames {
+  static const String sessionStarted = 'session_started';
+  static const String sessionExtended = 'session_extended';
+  static const String sessionEnded = 'session_ended';
+}
+
+/// Словарь: Sessions/OfflineJournalContracts.cs
+abstract final class OfflineJournalRejectionNames {
+  /// Смену, в которую брали деньги, уже закрыли: задним числом в неё не пишем.
+  static const String shiftClosed = 'offline_shift_closed';
+  /// Место, ПК, смена или сессия — не из этого филиала или их нет.
+  static const String unknownTarget = 'offline_unknown_target';
+  /// Запись не по правилам: вид, минуты, сумма, валюта.
+  static const String invalid = 'offline_record_invalid';
+}
+
+/// Словарь: Sessions/OfflineJournalContracts.cs
+abstract final class OfflineJournalStatusNames {
+  static const String applied = 'applied';
+  static const String duplicate = 'duplicate';
+  /// Отказ окончательный: повтор не поможет. Запись всё равно хранится у сервера целиком — деньги,
+  /// взятые без связи, не теряются, их видит владелец.
+  static const String rejected = 'rejected';
+}
+
 /// Словарь: Sessions/OfflineLeaseContracts.cs
 abstract final class OfflineLeaseKeyErrorCodeNames {
   /// Имя ключа занято другим ключом в этом филиале.
@@ -1185,6 +1211,9 @@ abstract final class SessionOriginNames {
   static const String selfService = 'self_service';
   /// Сессия выросла из брони: человек пришёл на забронированное время.
   static const String reservation = 'reservation';
+  /// Посадил администратор без интернета: Панель открыла ПК офлайн-арендой, а сервер узнал о сессии
+  /// из журнала кассы, когда связь вернулась (docs/roadmap/offline-front-desk.md).
+  static const String offline = 'offline';
 }
 
 /// Словарь: Sessions/SessionStateNames.cs
@@ -10079,6 +10108,128 @@ class NotificationRecipient {
         'staffUserId': staffUserId,
         'playerAccountId': playerAccountId,
         'telegramChatId': telegramChatId,
+      };
+}
+
+/// Запись журнала кассы, который Панель вела без интернета (docs/roadmap/offline-front-desk.md). Одна
+/// запись — одна операция у стойки: посадить гостя, продлить, закончить. Деньги — как их взяли
+/// на самом деле, время — когда это было.
+///
+/// Контракт: Sessions/OfflineJournalContracts.cs
+class OfflineJournalRecordDto {
+  const OfflineJournalRecordDto({
+    required this.id,
+    required this.kind,
+    required this.sessionId,
+    required this.occurredAtUtc,
+    required this.shiftId,
+    this.seatId,
+    this.deviceId,
+    this.tariffRuleVersionId,
+    this.minutes,
+    this.chargeMinorUnits,
+    this.currencyCode,
+  });
+
+  final String id;
+  final String kind;
+  final String sessionId;
+  final DateTime occurredAtUtc;
+  final String shiftId;
+  final String? seatId;
+  final String? deviceId;
+  final String? tariffRuleVersionId;
+  final int? minutes;
+  final int? chargeMinorUnits;
+  final String? currencyCode;
+
+  factory OfflineJournalRecordDto.fromJson(Map<String, dynamic> json) => OfflineJournalRecordDto(
+        id: json['id'] as String,
+        kind: json['kind'] as String,
+        sessionId: json['sessionId'] as String,
+        occurredAtUtc: DateTime.parse(json['occurredAtUtc'] as String),
+        shiftId: json['shiftId'] as String,
+        seatId: json['seatId'] == null ? null : json['seatId'] as String,
+        deviceId: json['deviceId'] == null ? null : json['deviceId'] as String,
+        tariffRuleVersionId: json['tariffRuleVersionId'] == null ? null : json['tariffRuleVersionId'] as String,
+        minutes: json['minutes'] == null ? null : (json['minutes'] as num).toInt(),
+        chargeMinorUnits: json['chargeMinorUnits'] == null ? null : (json['chargeMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] == null ? null : json['currencyCode'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        'sessionId': sessionId,
+        'occurredAtUtc': occurredAtUtc.toIso8601String(),
+        'shiftId': shiftId,
+        'seatId': seatId,
+        'deviceId': deviceId,
+        'tariffRuleVersionId': tariffRuleVersionId,
+        'minutes': minutes,
+        'chargeMinorUnits': chargeMinorUnits,
+        'currencyCode': currencyCode,
+      };
+}
+
+/// Что сервер сделал с записью: принял, уже принимал раньше или отказал (с кодом).
+///
+/// Контракт: Sessions/OfflineJournalContracts.cs
+class OfflineJournalRecordResultDto {
+  const OfflineJournalRecordResultDto({
+    required this.id,
+    required this.status,
+    this.code,
+  });
+
+  final String id;
+  final String status;
+  final String? code;
+
+  factory OfflineJournalRecordResultDto.fromJson(Map<String, dynamic> json) => OfflineJournalRecordResultDto(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        code: json['code'] == null ? null : json['code'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status,
+        'code': code,
+      };
+}
+
+/// Контракт: Sessions/OfflineJournalContracts.cs
+class OfflineJournalUploadRequest {
+  const OfflineJournalUploadRequest({
+    required this.records,
+  });
+
+  final List<OfflineJournalRecordDto> records;
+
+  factory OfflineJournalUploadRequest.fromJson(Map<String, dynamic> json) => OfflineJournalUploadRequest(
+        records: (json['records'] as List<dynamic>).map((item) => OfflineJournalRecordDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'records': records.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Контракт: Sessions/OfflineJournalContracts.cs
+class OfflineJournalUploadResponse {
+  const OfflineJournalUploadResponse({
+    required this.results,
+  });
+
+  final List<OfflineJournalRecordResultDto> results;
+
+  factory OfflineJournalUploadResponse.fromJson(Map<String, dynamic> json) => OfflineJournalUploadResponse(
+        results: (json['results'] as List<dynamic>).map((item) => OfflineJournalRecordResultDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'results': results.map((item) => item.toJson()).toList(),
       };
 }
 

@@ -675,6 +675,37 @@ export const MediaPurposeNames = {
 } as const;
 export type MediaPurposeName = (typeof MediaPurposeNames)[keyof typeof MediaPurposeNames];
 
+/** Словарь: Sessions/OfflineJournalContracts.cs */
+export const OfflineJournalKindNames = {
+  SessionStarted: 'session_started',
+  SessionExtended: 'session_extended',
+  SessionEnded: 'session_ended',
+} as const;
+export type OfflineJournalKindName = (typeof OfflineJournalKindNames)[keyof typeof OfflineJournalKindNames];
+
+/** Словарь: Sessions/OfflineJournalContracts.cs */
+export const OfflineJournalRejectionNames = {
+  /** Смену, в которую брали деньги, уже закрыли: задним числом в неё не пишем. */
+  ShiftClosed: 'offline_shift_closed',
+  /** Место, ПК, смена или сессия — не из этого филиала или их нет. */
+  UnknownTarget: 'offline_unknown_target',
+  /** Запись не по правилам: вид, минуты, сумма, валюта. */
+  Invalid: 'offline_record_invalid',
+} as const;
+export type OfflineJournalRejectionName = (typeof OfflineJournalRejectionNames)[keyof typeof OfflineJournalRejectionNames];
+
+/** Словарь: Sessions/OfflineJournalContracts.cs */
+export const OfflineJournalStatusNames = {
+  Applied: 'applied',
+  Duplicate: 'duplicate',
+  /**
+   * Отказ окончательный: повтор не поможет. Запись всё равно хранится у сервера целиком — деньги,
+   * взятые без связи, не теряются, их видит владелец.
+   */
+  Rejected: 'rejected',
+} as const;
+export type OfflineJournalStatusName = (typeof OfflineJournalStatusNames)[keyof typeof OfflineJournalStatusNames];
+
 /** Словарь: Sessions/OfflineLeaseContracts.cs */
 export const OfflineLeaseKeyErrorCodeNames = {
   /** Имя ключа занято другим ключом в этом филиале. */
@@ -1426,6 +1457,11 @@ export const SessionOriginNames = {
   SelfService: 'self_service',
   /** Сессия выросла из брони: человек пришёл на забронированное время. */
   Reservation: 'reservation',
+  /**
+   * Посадил администратор без интернета: Панель открыла ПК офлайн-арендой, а сервер узнал о сессии
+   * из журнала кассы, когда связь вернулась (docs/roadmap/offline-front-desk.md).
+   */
+  Offline: 'offline',
 } as const;
 export type SessionOriginName = (typeof SessionOriginNames)[keyof typeof SessionOriginNames];
 
@@ -4811,6 +4847,48 @@ export interface NotificationRecipient {
   staffUserId?: Guid | null;
   playerAccountId?: Guid | null;
   telegramChatId?: string | null;
+}
+
+/**
+ * Запись журнала кассы, который Панель вела без интернета (docs/roadmap/offline-front-desk.md). Одна
+ * запись — одна операция у стойки: посадить гостя, продлить, закончить. Деньги — как их взяли
+ * на самом деле, время — когда это было.
+ *
+ * Контракт: Sessions/OfflineJournalContracts.cs
+ */
+export interface OfflineJournalRecordDto {
+  id: string;
+  kind: string;
+  sessionId: Guid;
+  occurredAtUtc: IsoDateTime;
+  shiftId: Guid;
+  seatId?: Guid | null;
+  deviceId?: Guid | null;
+  tariffRuleVersionId?: string | null;
+  minutes?: number;
+  chargeMinorUnits?: number;
+  currencyCode?: string | null;
+}
+
+/**
+ * Что сервер сделал с записью: принял, уже принимал раньше или отказал (с кодом).
+ *
+ * Контракт: Sessions/OfflineJournalContracts.cs
+ */
+export interface OfflineJournalRecordResultDto {
+  id: string;
+  status: string;
+  code: string | null;
+}
+
+/** Контракт: Sessions/OfflineJournalContracts.cs */
+export interface OfflineJournalUploadRequest {
+  records: OfflineJournalRecordDto[];
+}
+
+/** Контракт: Sessions/OfflineJournalContracts.cs */
+export interface OfflineJournalUploadResponse {
+  results: OfflineJournalRecordResultDto[];
 }
 
 /**
