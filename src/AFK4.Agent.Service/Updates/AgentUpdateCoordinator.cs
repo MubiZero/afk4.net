@@ -82,6 +82,13 @@ public sealed class AgentUpdateCoordinator(
             try
             {
                 var deltaResult = await TryDeltaAsync(instruction, installedVersion, cancellationToken);
+                if (deltaResult is { Deferred: true })
+                {
+                    await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Deferred, deltaResult.Message, cancellationToken);
+                    ClearAttempted(instruction.UpdateRolloutId);
+                    continue;
+                }
+
                 if (deltaResult is not null)
                 {
                     if (deltaResult.Succeeded)
@@ -122,6 +129,13 @@ public sealed class AgentUpdateCoordinator(
                         UpdateStatusNames.Failed,
                         verification.Message,
                         cancellationToken);
+                    continue;
+                }
+
+                if (SeatTakenDuringDownload(instruction) is { } taken)
+                {
+                    await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Deferred, taken.Message, cancellationToken);
+                    ClearAttempted(instruction.UpdateRolloutId);
                     continue;
                 }
 
@@ -258,10 +272,27 @@ public sealed class AgentUpdateCoordinator(
             UpdateStatusNames.Downloaded,
             $"Changed files downloaded: {preparation.Plan.ToFetch.Count} files, {preparation.Plan.DownloadBytes} bytes.",
             cancellationToken);
+        if (SeatTakenDuringDownload(instruction) is { } taken)
+        {
+            return taken;
+        }
+
         await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Installing, "Replacing changed files.", cancellationToken);
         return await GateShellAsync(
             instruction,
             () => deltaInstaller.ApplyAsync(instruction, preparation, installedVersion, cancellationToken));
+    }
+
+    /// <summary>
+    /// Место проверяли до скачивания, а целый пакет на сети клуба качается минутами: за это время за ПК
+    /// мог сесть гость, и установка перезапустила бы ему экран в начале оплаченного часа. Поэтому место
+    /// проверяется ещё раз прямо перед установкой. Скачанное не пропадает: следующая проверка
+    /// переиспользует его по размеру и хешу.
+    /// </summary>
+    private UpdateInstallResult? SeatTakenDuringDownload(ComponentUpdateInstructionDto instruction)
+    {
+        var seat = guestSeatGuard.Evaluate(instruction.Component);
+        return seat.CanInstall ? null : UpdateInstallResult.SeatTaken(seat.Message);
     }
 
     private bool TryMarkAttempted(Guid rolloutId)

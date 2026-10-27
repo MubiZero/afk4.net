@@ -1,7 +1,13 @@
 ﻿namespace AFK4.Agent.Service.Updates;
 
-public sealed record UpdateInstallResult(bool Succeeded, string Message, bool RestartPending = false)
+public sealed record UpdateInstallResult(bool Succeeded, string Message, bool RestartPending = false, bool Deferred = false)
 {
+    /// <summary>Не ставили: пока качали, за ПК сел гость. Скачанное остаётся и пригодится в следующий раз.</summary>
+    public static UpdateInstallResult SeatTaken(string message)
+    {
+        return new UpdateInstallResult(false, message, Deferred: true);
+    }
+
     public static UpdateInstallResult Success(string message)
     {
         return new UpdateInstallResult(true, message);
