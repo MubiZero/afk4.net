@@ -81,6 +81,30 @@ public sealed class SessionEnforcementCoordinatorTests
         Assert.Equal(1, lockController.LockCount);
     }
 
+    // Команда конца прошлой сессии опоздала, а за ПК уже следующий гость: его не выгоняем.
+    [Fact]
+    public async Task LockAsync_ForASessionThatIsNoLongerRunning_LeavesTheNextGuestAlone()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var directory = TemporaryDirectory.Create();
+        var lease = CreateSignedLease(key, sequence: 1);
+        var leaseStore = new FileSessionLeaseStore(directory.Path, new FixedTimeProvider(Now));
+        var runtimeStore = new AgentRuntimeStateStore(directory.Path, new FixedTimeProvider(Now));
+        var lockController = new RecordingWorkstationLockController();
+        var coordinator = CreateCoordinator(key, leaseStore, runtimeStore, lockController);
+        leaseStore.Save(lease);
+        runtimeStore.MarkActive(lease, Now);
+
+        var stale = await coordinator.LockAsync(Guid.NewGuid(), CancellationToken.None);
+        Assert.Equal(DeviceCommandOutcomeNames.SessionNotRunning, stale.Outcome);
+        Assert.Equal(0, lockController.LockCount);
+        Assert.NotNull(leaseStore.Current);
+
+        // Без номера сессии — запереть как есть (оператор запирает ПК, а не сессию).
+        await coordinator.LockAsync(null, CancellationToken.None);
+        Assert.Equal(1, lockController.LockCount);
+    }
+
     // После сессии ПК убирают: игры закрываются, следы стираются, и оператор читает итог в ответе.
     [Fact]
     public async Task LockAsync_AfterASession_CleansUp_FromWhenThePcOpened()

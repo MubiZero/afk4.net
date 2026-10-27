@@ -233,6 +233,9 @@ abstract final class DeviceCommandOutcomeNames {
   static const String leaseRefreshed = 'lease-refreshed';
   /// Машина заперта.
   static const String workstationLocked = 'workstation-locked';
+  /// «Запереть» относилось к сессии, которая на этом ПК уже не идёт: за ним сидит следующий гость.
+  /// Его не трогаем; для сервера та сессия окончена.
+  static const String sessionNotRunning = 'session-not-running';
   /// Агент не смог применить машинные политики: на самой машине ничего не изменилось. Раньше
   /// такой исход сообщался как обычный успех — оператор видел «заблокировано» там, где
   /// диспетчер задач остался доступен.

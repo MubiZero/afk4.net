@@ -8,6 +8,7 @@ const OUTCOME_LABELS: Record<string, MessageKey> = {
   'lease-accepted': 'op.helper.cmdOutcome.leaseAccepted',
   'lease-refreshed': 'op.helper.cmdOutcome.leaseRefreshed',
   'workstation-locked': 'op.helper.cmdOutcome.workstationLocked',
+  'session-not-running': 'op.helper.cmdOutcome.sessionNotRunning',
   'machine-policies-unavailable': 'op.helper.cmdOutcome.machinePoliciesUnavailable',
   'warning-shown': 'op.helper.cmdOutcome.warningShown',
   'warning-reason-unknown': 'op.helper.cmdOutcome.warningReasonUnknown',

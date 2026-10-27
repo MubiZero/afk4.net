@@ -1703,6 +1703,7 @@ export const tg = {
   "op.helper.cmdOutcome.warningReasonUnknown": "Сабаби огоҳӣ ба агент маълум нест — бозигар ҳеҷ чиз надид",
   "op.helper.cmdOutcome.warningShown": "Ба бозигар огоҳӣ нишон дода шуд",
   "op.helper.cmdOutcome.workstationLocked": "ПК қулф карда шуд",
+  "op.helper.cmdOutcome.sessionNotRunning": "Сессия аллакай тамом шуда буд — меҳмони навбатӣ дар ҷояш монд",
   "op.helper.command.failed": "Фармон иҷро нашуд",
   "op.helper.command.idle": "Фармоне нест",
   "op.helper.command.leased": "Сессия тасдиқ шуд",
