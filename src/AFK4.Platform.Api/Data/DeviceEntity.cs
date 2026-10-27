@@ -108,4 +108,9 @@ public sealed class DeviceEntity
 
     /// <summary>Видел ли ПК кеш игр клуба при последней проверке; null — кеш не задан или агент о нём не сообщает.</summary>
     public bool? GameCacheReachable { get; set; }
+
+    /// <summary>Встроенный кеш игр на этом ПК (ПК администратора) поднят; null — агент о нём не сообщает.</summary>
+    public bool? GameCacheServing { get; set; }
+
+    public long? GameCacheStoredBytes { get; set; }
 }

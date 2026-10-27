@@ -18,7 +18,8 @@ public static class HeartbeatPayloadFactory
         ISessionLeaseStore? leaseStore,
         NetworkIdentity? network = null,
         bool? kioskInstalled = null,
-        bool? gameCacheReachable = null)
+        bool? gameCacheReachable = null,
+        GameCacheServer? gameCacheServer = null)
     {
         var lease = leaseStore?.Current;
 
@@ -40,6 +41,8 @@ public static class HeartbeatPayloadFactory
             NetworkAddress: network?.Address,
             ActiveSessionLeaseOffline: lease is null ? null : OfflineLeaseSigning.TryGetKeyId(lease.SignatureAlgorithm, out _),
             KioskInstalled: kioskInstalled,
-            GameCacheReachable: gameCacheReachable);
+            GameCacheReachable: gameCacheReachable,
+            GameCacheServing: gameCacheServer?.Serving,
+            GameCacheStoredBytes: gameCacheServer is { Serving: true } ? gameCacheServer.StoredBytes : null);
     }
 }

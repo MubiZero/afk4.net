@@ -582,6 +582,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(15)
                         .HasColumnType("character varying(15)");
 
+                    b.Property<bool>("GameCacheDisabled")
+                        .HasColumnType("boolean");
+
                     b.Property<int?>("GraceLeaseMinutes")
                         .HasColumnType("integer");
 
@@ -1186,6 +1189,12 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<bool?>("GameCacheReachable")
                         .HasColumnType("boolean");
+
+                    b.Property<bool?>("GameCacheServing")
+                        .HasColumnType("boolean");
+
+                    b.Property<long?>("GameCacheStoredBytes")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("IsLocked")
                         .HasColumnType("boolean");

@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Games;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Games;
 using AFK4.Shared.Contracts.Identity;
@@ -9,8 +10,8 @@ using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 namespace AFK4.Platform.Api.Endpoints;
 
 /// <summary>
-/// Кеш игр клуба (docs/operations/game-cache-lancache.md): адрес LANCache в сети филиала и сколько ПК его
-/// видят. Право — то же, что у библиотеки игр: кто решает, что на ПК запускается, решает и откуда это качать.
+/// Кеш игр клуба (docs/operations/game-cache-lancache.md): включён ли, где он (встроенный на ПК администратора
+/// или свой сервер LANCache клуба) и сколько ПК его видят. Право — то же, что у библиотеки игр: кто решает, что на ПК запускается, решает и откуда это качать.
 /// Поддержка платформы адрес видит, но не меняет: он ведёт загрузки всех ПК клуба.
 /// </summary>
 internal static class GameCacheEndpoints
@@ -52,9 +53,10 @@ internal static class GameCacheEndpoints
                 candidate => candidate.BranchId == branchId && candidate.OrganizationId == staff.OrganizationId, ct);
             if (branch is null) return Results.NotFound();
 
-            if (branch.GameCacheAddress != address)
+            if (branch.GameCacheAddress != address || branch.GameCacheDisabled == request.Enabled)
             {
                 branch.GameCacheAddress = address;
+                branch.GameCacheDisabled = !request.Enabled;
                 // Прежняя отметка «видит кеш» была о другом адресе: пусть ПК проверят новый.
                 foreach (var device in await dbContext.Devices.Where(device => device.BranchId == branchId && device.GameCacheReachable != null).ToListAsync(ct))
                 {
@@ -65,18 +67,20 @@ internal static class GameCacheEndpoints
             }
 
             await WriteAuditAsync(auditRecordWriter, staff.OrganizationId, branchId, staff.StaffUserId,
-                AuditActionNames.UpdateGameCache, "Branch", branchId.ToString("D"), AuditOutcome.Succeeded, new { address }, ct);
+                AuditActionNames.UpdateGameCache, "Branch", branchId.ToString("D"), AuditOutcome.Succeeded, new { address, request.Enabled }, ct);
             return Results.Ok(await ReadAsync(dbContext, staff.OrganizationId, branchId, ct));
         });
     }
 
     private static async Task<BranchGameCacheDto?> ReadAsync(PlatformDbContext dbContext, Guid organizationId, Guid branchId, CancellationToken ct)
     {
-        var address = await dbContext.Branches.AsNoTracking()
-            .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
-            .Select(branch => new { branch.GameCacheAddress })
+        var branch = await dbContext.Branches.AsNoTracking()
+            .Where(candidate => candidate.BranchId == branchId && candidate.OrganizationId == organizationId)
+            .Select(candidate => new { candidate.GameCacheAddress, candidate.GameCacheDisabled })
             .SingleOrDefaultAsync(ct);
-        if (address is null) return null;
+        if (branch is null) return null;
+
+        var host = branch.GameCacheDisabled || branch.GameCacheAddress is not null ? null : await BranchGameCache.HostAsync(dbContext, branchId, ct);
 
         var reports = await dbContext.Devices.AsNoTracking()
             .Where(device => device.BranchId == branchId && device.GameCacheReachable != null)
@@ -84,8 +88,12 @@ internal static class GameCacheEndpoints
             .Select(group => new { Reachable = group.Key, Count = group.Count() })
             .ToListAsync(ct);
         return new BranchGameCacheDto(
-            address.GameCacheAddress,
+            branch.GameCacheAddress,
             reports.Where(row => row.Reachable == true).Sum(row => row.Count),
-            reports.Sum(row => row.Count));
+            reports.Sum(row => row.Count),
+            Enabled: !branch.GameCacheDisabled,
+            HostName: host?.MachineName,
+            EffectiveAddress: branch.GameCacheDisabled ? null : branch.GameCacheAddress ?? host?.NetworkAddress,
+            StoredBytes: host?.GameCacheStoredBytes ?? 0);
     }
 }

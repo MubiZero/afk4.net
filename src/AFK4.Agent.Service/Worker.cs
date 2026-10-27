@@ -43,7 +43,8 @@ public sealed class Worker(
     AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null,
     IMachineRegistry? machineRegistry = null,
     TrustedOfflineKeys? offlineKeys = null,
-    GameCacheService? gameCache = null) : BackgroundService
+    GameCacheService? gameCache = null,
+    GameCacheServer? gameCacheServer = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -152,7 +153,8 @@ public sealed class Worker(
                 networkIdentity?.Current,
                 // Где Windows-политик нет (разработка на другой ОС), агент о киоске не судит.
                 machineRegistry is { IsSupported: true } ? machineRegistry.HasPlayerAccount : null,
-                gameCache?.Reachable);
+                gameCache?.Reachable,
+                gameCacheServer);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -187,6 +189,7 @@ public sealed class Worker(
                 }
 
                 gameCache?.Configure(heartbeat.GameCacheAddress);
+                gameCacheServer?.Configure(heartbeat.GameCacheHost);
 
                 // Код для монитора, оформление клуба и интервал, по которому оболочка судит о
                 // связи, — всё приезжает с сердцебиением. Канал отдаст их экрану сразу, не дожидаясь

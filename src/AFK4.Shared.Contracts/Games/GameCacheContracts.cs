@@ -4,16 +4,29 @@ using System.Net.Sockets;
 namespace AFK4.Shared.Contracts.Games;
 
 /// <summary>
-/// Кеш игр клуба (LANCache, lancache.net): сервер в сети клуба, который качает игру из интернета один раз
-/// и раздаёт её остальным ПК по локальной сети. Агент направляет к нему ПК через файл hosts — роутер клуба
-/// перенастраивать не нужно (docs/operations/game-cache-lancache.md).
+/// Кеш игр клуба: качает игру из интернета один раз и раздаёт её остальным ПК по локальной сети. По умолчанию
+/// он встроен в агента ПК администратора — клубу ничего не ставить; большой клуб может указать свой сервер
+/// LANCache. Агент направляет к кешу ПК через файл hosts — роутер клуба не трогаем
+/// (docs/operations/game-cache-lancache.md).
 /// </summary>
-/// <param name="Address">IPv4 кеш-сервера в сети клуба; null — кеша нет.</param>
+/// <param name="Address">Свой сервер LANCache клуба (IPv4 в сети клуба); null — кеш встроенный, на ПК администратора.</param>
 /// <param name="DevicesSeeing">Сколько ПК филиала при последней проверке достучались до кеша.</param>
 /// <param name="DevicesReporting">Сколько ПК вообще сообщили о проверке (агенты прежних версий молчат).</param>
-public sealed record BranchGameCacheDto(string? Address, int DevicesSeeing, int DevicesReporting);
+/// <param name="Enabled">Кеш включён. По умолчанию — да: клубу ничего настраивать не нужно.</param>
+/// <param name="HostName">Имя ПК администратора со встроенным кешем; null — такого ПК на связи нет или задан свой сервер.</param>
+/// <param name="EffectiveAddress">Куда сейчас идут игровые ПК; null — некуда, качают напрямую.</param>
+/// <param name="StoredBytes">Сколько лежит во встроенном кеше.</param>
+public sealed record BranchGameCacheDto(
+    string? Address,
+    int DevicesSeeing,
+    int DevicesReporting,
+    bool Enabled = true,
+    string? HostName = null,
+    string? EffectiveAddress = null,
+    long StoredBytes = 0);
 
-public sealed record UpdateBranchGameCacheRequest(string? Address);
+/// <param name="Address">Свой сервер LANCache клуба; null — встроенный кеш на ПК администратора.</param>
+public sealed record UpdateBranchGameCacheRequest(string? Address, bool Enabled = true);
 
 public static class GameCacheNames
 {
