@@ -229,21 +229,21 @@
 /* ── Отчёты в Telegram: QR рядом с подсказкой ── */
 .account-telegram-qr {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: center;
 }
 
+/* Белое поле вокруг кода рисует сам генератор QR: камера телефона читает его и в тёмной теме. */
 .account-telegram-qr-image {
   flex: none;
   width: 132px;
   height: 132px;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
 }
 
 .account-telegram-qr-text {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
 }
