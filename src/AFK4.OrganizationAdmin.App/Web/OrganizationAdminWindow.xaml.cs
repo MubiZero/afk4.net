@@ -543,11 +543,21 @@ public partial class OrganizationAdminWindow : Window
         Action? requestShutdown = app is null
             ? null
             : () => app.Dispatcher.BeginInvoke(new Action(app.Shutdown));
+        // Ключ офлайн-аренд создаётся при первом обращении, а не на старте: Панели без связи он нужен
+        // не каждый день, и окно не должно ждать DPAPI. ПК в зале отвечает по сети клуба за миллисекунды —
+        // пять секунд хватает, а дольше кассир ждать не должен.
+        var offlineKey = new Lazy<AFK4.OrganizationAdmin.App.Offline.OfflineDeskKey>(
+            () => AFK4.OrganizationAdmin.App.Offline.OfflineDeskKey.LoadOrCreate(AFK4.OrganizationAdmin.App.Offline.OfflineDeskKey.DefaultPath()));
+        var offlineDesk = new AFK4.OrganizationAdmin.App.Offline.OfflineDesk(
+            () => offlineKey.Value,
+            new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) });
         return new OrganizationAdminWebHostBridge(
             new ProtectedDataOrganizationAdminConnectionStore(),
             activityState,
             app?.UpdateAcknowledgementStore,
-            requestShutdown);
+            requestShutdown,
+            offlineDesk,
+            new AFK4.OrganizationAdmin.App.Offline.OfflineJournal(AFK4.OrganizationAdmin.App.Offline.OfflineJournal.DefaultPath()));
     }
 
     // DWM window-attribute ids (Windows 11 22000+): 33 = corner preference, 34 = border colour.
