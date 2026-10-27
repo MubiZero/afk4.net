@@ -63,6 +63,11 @@ public static class NotificationTemplateKeys
 
     public const string TelegramLinkExpired = "telegram.link_expired";
 
+    /// <summary>Итоги закрытой смены и сводка филиала за вчера — в Telegram тем, кто подключил отчёты.</summary>
+    public const string ShiftClosed = "shift.closed";
+
+    public const string BranchDailySummary = "branch.daily_summary";
+
     /// <summary>Platform announcement (severity warning or above) delivered to the organization owner (Wave D §3).</summary>
     public const string PlatformAnnouncement = "platform.announcement";
 
@@ -94,5 +99,5 @@ public static class NotificationTemplateKeys
     public const string PlayerReviewReplied = "player.review_replied";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied, TelegramLinked, TelegramUnlinked, TelegramLinkExpired];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied, TelegramLinked, TelegramUnlinked, TelegramLinkExpired, ShiftClosed, BranchDailySummary];
 }

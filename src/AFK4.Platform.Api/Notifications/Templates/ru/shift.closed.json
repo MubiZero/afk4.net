@@ -1,0 +1,5 @@
+{
+  "subject": "Смена закрыта — {{branchName}}: заработано {{earnedTotal}}",
+  "bodyText": "Смена в «{{branchName}}» закрыта ({{period}}, закрыл(а) {{closedBy}}). Заработано {{earnedTotal}}: время {{earnedTime}}, товары {{earnedGoods}}. Поступило наличными {{cashIn}}, безналично {{nonCashIn}}. Касса: ожидалось {{expectedCash}}, посчитано {{countedCash}}, разница {{difference}}.",
+  "bodyHtml": "<p>{{period}} · закрыл(а) {{closedBy}}</p><p>Заработано <strong>{{earnedTotal}}</strong></p><ul><li>Время: {{earnedTime}}</li><li>Товары: {{earnedGoods}}</li></ul><p>Поступило</p><ul><li>Наличными: {{cashIn}}</li><li>Безналично: {{nonCashIn}}</li></ul><p>Касса</p><ul><li>Ожидалось: {{expectedCash}}</li><li>Посчитано: {{countedCash}}</li><li>Разница: <strong>{{difference}}</strong></li></ul>"
+}

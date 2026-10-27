@@ -536,6 +536,21 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         return new OperatorActionReportResultDto(rows, limit, auditRecords.Count);
     }
 
+    public async Task<ShiftRevenueDto?> GetShiftRevenueAsync(
+        Guid organizationId, Guid branchId, Guid shiftId, CancellationToken cancellationToken)
+    {
+        var shift = await dbContext.Shifts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(s => s.OrganizationId == organizationId && s.BranchId == branchId && s.ShiftId == shiftId, cancellationToken);
+        if (shift is null)
+        {
+            return null;
+        }
+
+        var data = await LoadShiftRevenueSourcesAsync(organizationId, branchId, new HashSet<Guid> { shift.ShiftId }, cancellationToken);
+        return BuildShiftRevenue(shift, data);
+    }
+
     public async Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(
         Guid organizationId, Guid branchId, CancellationToken cancellationToken)
     {

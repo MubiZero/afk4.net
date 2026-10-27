@@ -1,0 +1,5 @@
+{
+  "subject": "Баст пӯшида шуд — {{branchName}}: ба даст омад {{earnedTotal}}",
+  "bodyText": "Баст дар «{{branchName}}» пӯшида шуд ({{period}}, пӯшид {{closedBy}}). Ба даст омад {{earnedTotal}}: вақт {{earnedTime}}, молҳо {{earnedGoods}}. Ворид шуд нақд {{cashIn}}, ғайринақд {{nonCashIn}}. Касса: интизор буд {{expectedCash}}, ҳисоб шуд {{countedCash}}, фарқ {{difference}}.",
+  "bodyHtml": "<p>{{period}} · пӯшид {{closedBy}}</p><p>Ба даст омад <strong>{{earnedTotal}}</strong></p><ul><li>Вақт: {{earnedTime}}</li><li>Молҳо: {{earnedGoods}}</li></ul><p>Ворид шуд</p><ul><li>Нақд: {{cashIn}}</li><li>Ғайринақд: {{nonCashIn}}</li></ul><p>Касса</p><ul><li>Интизор буд: {{expectedCash}}</li><li>Ҳисоб шуд: {{countedCash}}</li><li>Фарқ: <strong>{{difference}}</strong></li></ul>"
+}

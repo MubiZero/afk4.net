@@ -388,7 +388,7 @@ public sealed class EfShiftService(
             // participates in this transaction, so a rolled-back close never leaks an alert.
             if (discrepancyNotifier is not null)
             {
-                await discrepancyNotifier.NotifyIfOverToleranceAsync(shift, cancellationToken);
+                await discrepancyNotifier.NotifyShiftClosedAsync(shift, cancellationToken);
             }
 
             var response = ToDto(shift);

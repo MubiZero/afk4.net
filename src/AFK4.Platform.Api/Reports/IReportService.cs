@@ -38,6 +38,13 @@ public interface IReportService
     Task<ShiftRevenueListDto> GetShiftRevenueAsync(
         Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken);
 
+    /// <summary>Выручка и касса одной смены в любом состоянии — для итогов смены в Telegram.</summary>
+    Task<ShiftRevenueDto?> GetShiftRevenueAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid shiftId,
+        CancellationToken cancellationToken);
+
     Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(
         Guid organizationId, Guid branchId, CancellationToken cancellationToken);
 }

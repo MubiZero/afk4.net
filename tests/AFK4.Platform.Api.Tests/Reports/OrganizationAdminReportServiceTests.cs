@@ -251,6 +251,7 @@ public sealed class OrganizationAdminReportServiceTests
         public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ShiftRevenueListDto> GetShiftRevenueAsync(Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ShiftRevenueDto?> GetShiftRevenueAsync(Guid organizationId, Guid branchId, Guid shiftId, CancellationToken cancellationToken) => throw new NotSupportedException();
         private static MoneyDto Money(long value) => new("TJS", value);
     }
 }

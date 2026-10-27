@@ -1,0 +1,5 @@
+{
+  "subject": "{{branchName}} барои {{date}}: даромад {{revenue}}",
+  "bodyText": "Натиҷаҳои «{{branchName}}» барои {{date}}: даромад {{revenue}} (бозӣ {{gameplay}}, молҳо {{goods}}), бозӣ шуд {{playedHours}} соат. Диққат лозим: {{attentionCount}}.",
+  "bodyHtml": "<p>Даромад <strong>{{revenue}}</strong></p><ul><li>Бозӣ: {{gameplay}}</li><li>Молҳо: {{goods}}</li><li>Бозӣ шуд: {{playedHours}} соат</li></ul><p>Диққат лозим: {{attentionCount}} — тафсилот дар Панел, қисми «Ҳисоботҳо».</p>"
+}

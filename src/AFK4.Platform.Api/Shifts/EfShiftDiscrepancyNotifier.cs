@@ -1,6 +1,7 @@
 using System.Globalization;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Notifications.Telegram;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -16,15 +17,40 @@ public sealed class EfShiftDiscrepancyNotifier(
     IOrganizationOwnerResolver ownerResolver,
     INotificationService notifications,
     PlatformDbContext dbContext,
-    IOptions<NotificationOptions> options)
+    IOptions<NotificationOptions> options,
+    TelegramReports? telegramReports = null)
 {
     private readonly NotificationOptions options = options.Value;
+
+    /// <summary>
+    /// Всё, что уходит людям при закрытии смены: итоги в Telegram и, если касса не сошлась сверх
+    /// допуска, тревога — владельцу на почту и в Telegram тем, кто его подключил. Очередь пишется в
+    /// транзакции закрытия: откат закрытия не оставит отправленного отчёта.
+    /// </summary>
+    public async Task NotifyShiftClosedAsync(ShiftEntity shift, CancellationToken cancellationToken)
+    {
+        if (telegramReports is not null)
+        {
+            await telegramReports.ShiftClosedAsync(shift, cancellationToken);
+        }
+
+        await NotifyIfOverToleranceAsync(shift, cancellationToken);
+    }
 
     public async Task NotifyIfOverToleranceAsync(ShiftEntity shift, CancellationToken cancellationToken)
     {
         if (Math.Abs(shift.DifferenceMinorUnits) <= options.ShiftDiscrepancyToleranceMinorUnits)
         {
             return;
+        }
+
+        if (telegramReports is not null)
+        {
+            var organizationName = await dbContext.Organizations
+                .Where(org => org.OrganizationId == shift.OrganizationId)
+                .Select(org => org.Name)
+                .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+            await telegramReports.DiscrepancyAsync(shift, organizationName, cancellationToken);
         }
 
         var recipient = await ownerResolver.ResolveAsync(shift.OrganizationId, cancellationToken);
