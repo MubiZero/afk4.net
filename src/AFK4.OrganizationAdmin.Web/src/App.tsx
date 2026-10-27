@@ -48,6 +48,7 @@ import { usePlayersPreload } from './usePlayersPreload';
 import { useOperatorConnection } from './useOperatorConnection';
 import { usePostAuthShiftGate } from './usePostAuthShiftGate';
 import { useFloorMap } from './useFloorMap';
+import { floorActionsEnabled } from './floorMapState';
 import { ToastProvider } from './operatorToast';
 import { useHotkeys } from './useHotkeys';
 import type {
@@ -434,7 +435,7 @@ function AppInner() {
   const hasContextContent = workspace === 'map' && selectedSeat !== null;
   // Панель места — Inspector кита: его ширина и отступ 10px справа от края окна.
   const contextCol = hasContextContent ? 'calc(var(--inspector-w) + 10px)' : '0px';
-  const actionsEnabled = floorMap.source === 'backend' && floorMap.loadStatus === 'ready';
+  const actionsEnabled = floorActionsEnabled(floorMap);
   // Сессия поддержки приходит с именем, которое сервер записал по-русски («Поддержка
   // платформы»): в английском и таджикском окне оно оставалось русской строкой в трёх местах
   // сразу — в рельсе, в панели аккаунта и в строке состояния.
