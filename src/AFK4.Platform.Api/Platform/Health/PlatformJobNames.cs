@@ -37,6 +37,9 @@ public static class PlatformJobNames
     /// <summary>Сверка онлайн-оплат Eskhata с банком: зачисление тех, о ком не дошёл вебхук.</summary>
     public const string EskhataReconciliation = "eskhata_reconciliation";
 
+    /// <summary>Сообщения боту AFK4.NET в Telegram: привязка чатов к отчётам.</summary>
+    public const string TelegramUpdates = "telegram_updates";
+
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
 
@@ -63,6 +66,7 @@ public static class PlatformJobNames
         ReputationSnapshot,
         BirthdayGifts,
         OrphanMediaSweep,
-        EskhataReconciliation
+        EskhataReconciliation,
+        TelegramUpdates
     ];
 }

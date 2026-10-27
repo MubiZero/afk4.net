@@ -17,7 +17,7 @@ namespace AFK4.Platform.Api.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -5401,6 +5401,19 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("PhoneVerifiedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long?>("TelegramChatId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("TelegramLinkCodeExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TelegramLinkCodeHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("TelegramLinkedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -5411,6 +5424,13 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("NormalizedPhone")
                         .IsUnique()
                         .HasFilter("\"NormalizedPhone\" IS NOT NULL AND \"PhoneVerifiedAtUtc\" IS NOT NULL AND \"IsActive\"");
+
+                    b.HasIndex("TelegramChatId")
+                        .HasFilter("\"TelegramChatId\" IS NOT NULL");
+
+                    b.HasIndex("TelegramLinkCodeHash")
+                        .IsUnique()
+                        .HasFilter("\"TelegramLinkCodeHash\" IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "NormalizedUserName")
                         .IsUnique();

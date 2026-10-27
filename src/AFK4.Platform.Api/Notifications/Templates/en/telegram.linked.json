@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4.net reports connected",
+  "bodyText": "{{displayName}}, this chat now receives AFK4.NET reports: shift results, the daily summary and cash alerts. To stop, send /stop or disconnect in the Panel.",
+  "bodyHtml": "<p><b>{{displayName}}</b>, this chat now receives AFK4.NET reports.</p><p>Shift results, the daily summary and cash alerts will arrive here.</p><p>To stop, send /stop or disconnect in the AFK4.NET Panel.</p>"
+}

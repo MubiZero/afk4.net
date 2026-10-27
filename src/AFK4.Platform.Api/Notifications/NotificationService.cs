@@ -140,6 +140,9 @@ public sealed class NotificationService(
             NotificationChannel.Push => recipient.PlayerAccountId is null
                 ? (null, "Push notifications are addressed to a player account.")
                 : (null, null),
+            NotificationChannel.Telegram => string.IsNullOrWhiteSpace(recipient.TelegramChatId)
+                ? (null, "The recipient has not linked Telegram.")
+                : (recipient.TelegramChatId, null),
             _ => (null, $"Unsupported channel '{channel}'."),
         };
 }

@@ -19,6 +19,7 @@ using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Notifications.Telegram;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Analytics;
@@ -261,6 +262,17 @@ builder.Services.AddSingleton<ISmsTransport>(provider =>
         smsOptions.SenderName);
 });
 builder.Services.AddSingleton<INotificationChannel, SmsChannel>();
+builder.Services.Configure<TelegramOptions>(
+    builder.Configuration.GetSection(TelegramOptions.SectionName));
+// Токен бота стоит в пути запроса Bot API — журнал запросов фабрики записал бы его в лог.
+builder.Services.AddHttpClient(TelegramClientRegistration.HttpClientName, (provider, http) =>
+        http.Timeout = TimeSpan.FromSeconds(provider.GetRequiredService<IOptions<TelegramOptions>>().Value.TimeoutSeconds))
+    .RemoveAllLoggers();
+builder.Services.AddSingleton<ITelegramBotApi, TelegramBotApi>();
+builder.Services.AddSingleton<INotificationChannel, TelegramChannel>();
+builder.Services.AddScoped<TelegramLinks>();
+builder.Services.AddScoped<TelegramBotDialog>();
+builder.Services.AddHostedService<TelegramUpdatesJob>();
 builder.Services.Configure<PushOptions>(
     builder.Configuration.GetSection(PushOptions.SectionName));
 builder.Services.AddHttpClient(PushClientRegistration.HttpClientName, (provider, http) =>
@@ -661,6 +673,7 @@ var organizations = app.MapGroup("/api/organizations/{organizationId:guid}")
 app.MapHealthEndpoints();
 organizations.MapFloorMapEndpoints();
 organizations.MapBranchSettingsEndpoints();
+organizations.MapStaffTelegramEndpoints();
 app.MapProtectionProfileEndpoints(organizations);
 app.MapInstallCodeEndpoints(organizations);
 app.MapGameLibraryEndpoints(organizations);

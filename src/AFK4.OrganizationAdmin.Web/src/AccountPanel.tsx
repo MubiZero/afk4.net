@@ -1,15 +1,18 @@
 import { useI18n } from '@afk4/i18n';
 import { PhoneVerificationCard, type PhoneVerificationBackend } from './PhoneVerificationCard';
+import { TelegramReportsCard } from './TelegramReportsCard';
 import { initialsOf } from './RailAccount';
 import { CloseButton } from '@afk4/ui/react';
 
 interface Props {
   backend: PhoneVerificationBackend;
   displayName: string;
+  /** Отчёты о выручке в Telegram — только тем, кто видит отчёты в Панели. */
+  canReceiveReports: boolean;
   onClose: () => void;
 }
 
-export function AccountPanel({ backend, displayName, onClose }: Props) {
+export function AccountPanel({ backend, displayName, canReceiveReports, onClose }: Props) {
   const { t } = useI18n();
   return (
     <div className="account-panel-overlay" onClick={onClose}>
@@ -29,6 +32,7 @@ export function AccountPanel({ backend, displayName, onClose }: Props) {
           </div>
         </header>
         <PhoneVerificationCard backend={backend} />
+        {canReceiveReports && <TelegramReportsCard backend={backend} />}
       </div>
     </div>
   );

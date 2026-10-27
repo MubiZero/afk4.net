@@ -15,6 +15,9 @@ public static class NotificationTemplateTokens
         new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
             [NotificationTemplateKeys.Test] = [],
+            [NotificationTemplateKeys.TelegramLinked] = ["displayName"],
+            [NotificationTemplateKeys.TelegramUnlinked] = [],
+            [NotificationTemplateKeys.TelegramLinkExpired] = [],
             [NotificationTemplateKeys.InvoiceIssued] = InvoiceTokens,
             [NotificationTemplateKeys.InvoicePaid] = InvoiceTokens,
             [NotificationTemplateKeys.InvoiceOverdue] = InvoiceTokens,
