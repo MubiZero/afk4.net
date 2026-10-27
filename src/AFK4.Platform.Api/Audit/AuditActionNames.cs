@@ -380,6 +380,9 @@ public static class AuditActionNames
 
     public const string ReorderBranchGames = "games.library.reorder";
 
+    /// <summary>Клуб задал или убрал адрес кеша игр (LANCache) филиала.</summary>
+    public const string UpdateGameCache = "games.cache.update";
+
     /// <summary>Гости перенесены из прежней программы с начальными остатками.</summary>
     public const string ImportPlayers = "players.import";
 

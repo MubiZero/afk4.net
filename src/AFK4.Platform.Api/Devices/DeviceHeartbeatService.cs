@@ -68,6 +68,8 @@ public sealed class DeviceHeartbeatService(
                 device.NetworkAddress = request.NetworkAddress;
             }
 
+            device.GameCacheReachable = request.GameCacheReachable;
+
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -177,6 +179,7 @@ public sealed class DeviceHeartbeatService(
             {
                 branch.GraceLeaseMinutes,
                 branch.PreferredTimeZone,
+                branch.GameCacheAddress,
                 // Версия профиля защиты — тем же запросом: число, которое меняется раз в неделю.
                 PolicyProfileVersion = dbContext.BranchProtectionProfiles
                     .Where(profile => profile.BranchId == branch.BranchId)
@@ -304,7 +307,9 @@ public sealed class DeviceHeartbeatService(
             LiveSession: liveSession is null
                 ? null
                 : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc, hold),
-            OfflineLeaseKeys: offlineLeaseKeys);
+            OfflineLeaseKeys: offlineLeaseKeys,
+            // Незаверенному ПК кеш не называем: hosts всех машин меняет только принятый клубом ПК.
+            GameCacheAddress: allowOperationalCommands ? branchInfo?.GameCacheAddress ?? string.Empty : string.Empty);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

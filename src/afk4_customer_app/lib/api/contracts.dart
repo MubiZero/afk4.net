@@ -399,6 +399,15 @@ abstract final class FriendshipStateNames {
   static const String declined = 'declined';
 }
 
+/// Словарь: Games/GameCacheContracts.cs
+abstract final class GameCacheNames {
+  /// По этому имени Steam сам находит кеш в сети клуба; если кеш не отвечает, качает из интернета.
+  static const String steamDiscoveryHost = 'lancache.steamcontent.com';
+  /// Проверка живости LANCache (контейнер monolithic): отвечает 204 и заголовком X-LanCache-Processed-By.
+  static const String heartbeatPath = '/lancache-heartbeat';
+  static const String heartbeatHeader = 'X-LanCache-Processed-By';
+}
+
 /// Чем запускается игра (спека оболочки, §6.6). Путь к лаунчеру на каждом ПК свой — его находит
 /// агент; сервер хранит только что запускать.
 ///
@@ -2791,6 +2800,38 @@ class BranchDynamicsDto {
         'daysWithUnknownAgent': daysWithUnknownAgent,
         'missingDayCount': missingDayCount,
         'days': days.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Кеш игр клуба (LANCache, lancache.net): сервер в сети клуба, который качает игру из интернета один раз
+/// и раздаёт её остальным ПК по локальной сети. Агент направляет к нему ПК через файл hosts — роутер клуба
+/// перенастраивать не нужно (docs/operations/game-cache-lancache.md).
+/// <param name="Address">IPv4 кеш-сервера в сети клуба; null — кеша нет.</param>
+/// <param name="DevicesSeeing">Сколько ПК филиала при последней проверке достучались до кеша.</param>
+/// <param name="DevicesReporting">Сколько ПК вообще сообщили о проверке (агенты прежних версий молчат).</param>
+///
+/// Контракт: Games/GameCacheContracts.cs
+class BranchGameCacheDto {
+  const BranchGameCacheDto({
+    this.address,
+    required this.devicesSeeing,
+    required this.devicesReporting,
+  });
+
+  final String? address;
+  final int devicesSeeing;
+  final int devicesReporting;
+
+  factory BranchGameCacheDto.fromJson(Map<String, dynamic> json) => BranchGameCacheDto(
+        address: json['address'] == null ? null : json['address'] as String,
+        devicesSeeing: (json['devicesSeeing'] as num).toInt(),
+        devicesReporting: (json['devicesReporting'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'address': address,
+        'devicesSeeing': devicesSeeing,
+        'devicesReporting': devicesReporting,
       };
 }
 
@@ -6598,6 +6639,7 @@ class DeviceHeartbeatRequest {
     this.kioskInstalled,
     this.networkAddress,
     this.activeSessionLeaseOffline,
+    this.gameCacheReachable,
   });
 
   final String organizationId;
@@ -6635,6 +6677,10 @@ class DeviceHeartbeatRequest {
   /// аренда не кончилась, — иначе гость, севший без связи, вылетел бы, едва связь вернулась.
   final bool? activeSessionLeaseOffline;
 
+  /// Достучался ли ПК до кеша игр клуба при последней проверке. null — кеш не задан или агент прежней
+  /// версии: Панель такой ПК не считает.
+  final bool? gameCacheReachable;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6653,6 +6699,7 @@ class DeviceHeartbeatRequest {
         kioskInstalled: json['kioskInstalled'] == null ? null : json['kioskInstalled'] as bool,
         networkAddress: json['networkAddress'] == null ? null : json['networkAddress'] as String,
         activeSessionLeaseOffline: json['activeSessionLeaseOffline'] == null ? null : json['activeSessionLeaseOffline'] as bool,
+        gameCacheReachable: json['gameCacheReachable'] == null ? null : json['gameCacheReachable'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6673,6 +6720,7 @@ class DeviceHeartbeatRequest {
         'kioskInstalled': kioskInstalled,
         'networkAddress': networkAddress,
         'activeSessionLeaseOffline': activeSessionLeaseOffline,
+        'gameCacheReachable': gameCacheReachable,
       };
 }
 
@@ -6698,6 +6746,7 @@ class DeviceHeartbeatResponse {
     this.gameLibraryVersion,
     this.liveSession,
     this.offlineLeaseKeys,
+    this.gameCacheAddress,
   });
 
   final DateTime serverTimeUtc;
@@ -6763,6 +6812,10 @@ class DeviceHeartbeatResponse {
   /// null — сервер прежней версии, список не трогаем; пустой — доверенных ключей нет.
   final List<OfflineLeaseKeyDto>? offlineLeaseKeys;
 
+  /// Кеш игр клуба (GameCacheNames): IPv4 сервера в сети клуба. Пусто — кеша нет, агент убирает свои
+  /// строки из hosts; null — сервер прежней версии, hosts не трогаем.
+  final String? gameCacheAddress;
+
   factory DeviceHeartbeatResponse.fromJson(Map<String, dynamic> json) => DeviceHeartbeatResponse(
         serverTimeUtc: DateTime.parse(json['serverTimeUtc'] as String),
         heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
@@ -6783,6 +6836,7 @@ class DeviceHeartbeatResponse {
         gameLibraryVersion: json['gameLibraryVersion'] == null ? null : (json['gameLibraryVersion'] as num).toInt(),
         liveSession: json['liveSession'] == null ? null : DeviceLiveSessionDto.fromJson(json['liveSession'] as Map<String, dynamic>),
         offlineLeaseKeys: json['offlineLeaseKeys'] == null ? null : (json['offlineLeaseKeys'] as List<dynamic>).map((item) => OfflineLeaseKeyDto.fromJson(item as Map<String, dynamic>)).toList(),
+        gameCacheAddress: json['gameCacheAddress'] == null ? null : json['gameCacheAddress'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6805,6 +6859,7 @@ class DeviceHeartbeatResponse {
         'gameLibraryVersion': gameLibraryVersion,
         'liveSession': liveSession?.toJson(),
         'offlineLeaseKeys': offlineLeaseKeys?.map((item) => item.toJson()).toList(),
+        'gameCacheAddress': gameCacheAddress,
       };
 }
 
@@ -21457,6 +21512,23 @@ class UpdateBranchBookingSettingsRequest {
         'regularAfterVisits': regularAfterVisits,
         'holdSeatAfterStartMinutes': holdSeatAfterStartMinutes,
         'keepPrepaymentOnNoShow': keepPrepaymentOnNoShow,
+      };
+}
+
+/// Контракт: Games/GameCacheContracts.cs
+class UpdateBranchGameCacheRequest {
+  const UpdateBranchGameCacheRequest({
+    this.address,
+  });
+
+  final String? address;
+
+  factory UpdateBranchGameCacheRequest.fromJson(Map<String, dynamic> json) => UpdateBranchGameCacheRequest(
+        address: json['address'] == null ? null : json['address'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'address': address,
       };
 }
 

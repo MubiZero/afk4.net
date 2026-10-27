@@ -27,6 +27,7 @@ import {
   type GameForm,
   type LaunchKind
 } from './gamesModel';
+import { GameCacheCard } from './GameCacheCard';
 
 // Пределы полей — те же, что у сервера (GameLibraryLimits): длинное имя уходило и получало отказ.
 const GAME_LIMITS = { name: 120, genre: 60, launchTarget: 200, path: 512, arguments: 512 } as const;
@@ -393,6 +394,7 @@ export function GamesDestination({ backend, session, onDirtyChange }: Destinatio
 
   return (
     <ManagementScreen title={t('op.management.dest.games')} contentWidth="full">
+      {client !== null && branchId !== null && <GameCacheCard client={client} branchId={branchId} canManage={canManage} />}
       {content()}
     </ManagementScreen>
   );

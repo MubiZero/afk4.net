@@ -105,4 +105,7 @@ public sealed class DeviceEntity
 
     /// <summary>IPv4 ПК в сети клуба: по нему Панель без интернета передаёт офлайн-аренду.</summary>
     public string? NetworkAddress { get; set; }
+
+    /// <summary>Видел ли ПК кеш игр клуба при последней проверке; null — кеш не задан или агент о нём не сообщает.</summary>
+    public bool? GameCacheReachable { get; set; }
 }

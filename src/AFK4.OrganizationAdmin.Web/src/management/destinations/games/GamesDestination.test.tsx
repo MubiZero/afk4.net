@@ -30,7 +30,9 @@ const games = {
   }),
   update: mock(async () => libraryGame()),
   remove: mock(async () => { library = []; }),
-  reorder: mock(async () => library)
+  reorder: mock(async () => library),
+  cache: mock(async () => ({ address: null, devicesSeeing: 0, devicesReporting: 0 })),
+  setCache: mock(async () => ({ address: null, devicesSeeing: 0, devicesReporting: 0 }))
 };
 
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;

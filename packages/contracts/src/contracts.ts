@@ -488,6 +488,16 @@ export const FriendshipStateNames = {
 } as const;
 export type FriendshipStateName = (typeof FriendshipStateNames)[keyof typeof FriendshipStateNames];
 
+/** Словарь: Games/GameCacheContracts.cs */
+export const GameCacheNames = {
+  /** По этому имени Steam сам находит кеш в сети клуба; если кеш не отвечает, качает из интернета. */
+  SteamDiscoveryHost: 'lancache.steamcontent.com',
+  /** Проверка живости LANCache (контейнер monolithic): отвечает 204 и заголовком X-LanCache-Processed-By. */
+  HeartbeatPath: '/lancache-heartbeat',
+  HeartbeatHeader: 'X-LanCache-Processed-By',
+} as const;
+export type GameCacheName = (typeof GameCacheNames)[keyof typeof GameCacheNames];
+
 /**
  * Чем запускается игра (спека оболочки, §6.6). Путь к лаунчеру на каждом ПК свой — его находит
  * агент; сервер хранит только что запускать.
@@ -2371,6 +2381,22 @@ export interface BranchDynamicsDto {
 }
 
 /**
+ * Кеш игр клуба (LANCache, lancache.net): сервер в сети клуба, который качает игру из интернета один раз
+ * и раздаёт её остальным ПК по локальной сети. Агент направляет к нему ПК через файл hosts — роутер клуба
+ * перенастраивать не нужно (docs/operations/game-cache-lancache.md).
+ * <param name="Address">IPv4 кеш-сервера в сети клуба; null — кеша нет.</param>
+ * <param name="DevicesSeeing">Сколько ПК филиала при последней проверке достучались до кеша.</param>
+ * <param name="DevicesReporting">Сколько ПК вообще сообщили о проверке (агенты прежних версий молчат).</param>
+ *
+ * Контракт: Games/GameCacheContracts.cs
+ */
+export interface BranchGameCacheDto {
+  address: string | null;
+  devicesSeeing: number;
+  devicesReporting: number;
+}
+
+/**
  * Игра в библиотеке филиала — то, что увидит игрок на ПК.
  *
  * Контракт: Games/GameLibraryContracts.cs
@@ -3655,6 +3681,11 @@ export interface DeviceHeartbeatRequest {
    * аренда не кончилась, — иначе гость, севший без связи, вылетел бы, едва связь вернулась.
    */
   activeSessionLeaseOffline?: boolean | null;
+  /**
+   * Достучался ли ПК до кеша игр клуба при последней проверке. null — кеш не задан или агент прежней
+   * версии: Панель такой ПК не считает.
+   */
+  gameCacheReachable?: boolean | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -3725,6 +3756,11 @@ export interface DeviceHeartbeatResponse {
    * null — сервер прежней версии, список не трогаем; пустой — доверенных ключей нет.
    */
   offlineLeaseKeys?: OfflineLeaseKeyDto[] | null;
+  /**
+   * Кеш игр клуба (GameCacheNames): IPv4 сервера в сети клуба. Пусто — кеша нет, агент убирает свои
+   * строки из hosts; null — сервер прежней версии, hosts не трогаем.
+   */
+  gameCacheAddress?: GameCacheName | null;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -8794,6 +8830,11 @@ export interface UpdateBranchBookingSettingsRequest {
   regularAfterVisits: number;
   holdSeatAfterStartMinutes: number;
   keepPrepaymentOnNoShow: boolean;
+}
+
+/** Контракт: Games/GameCacheContracts.cs */
+export interface UpdateBranchGameCacheRequest {
+  address: string | null;
 }
 
 /** Контракт: Branches/UpdateBranchProfileRequest.cs */
