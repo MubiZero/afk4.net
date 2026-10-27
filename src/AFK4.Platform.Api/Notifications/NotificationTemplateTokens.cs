@@ -18,6 +18,11 @@ public static class NotificationTemplateTokens
             [NotificationTemplateKeys.TelegramLinked] = ["displayName"],
             [NotificationTemplateKeys.TelegramUnlinked] = [],
             [NotificationTemplateKeys.TelegramLinkExpired] = [],
+            [NotificationTemplateKeys.ShiftClosed] =
+                ["branchName", "closedBy", "period", "earnedTotal", "earnedTime", "earnedGoods", "cashIn", "nonCashIn",
+                 "expectedCash", "countedCash", "difference"],
+            [NotificationTemplateKeys.BranchDailySummary] =
+                ["branchName", "date", "revenue", "gameplay", "goods", "playedHours", "attentionCount"],
             [NotificationTemplateKeys.InvoiceIssued] = InvoiceTokens,
             [NotificationTemplateKeys.InvoicePaid] = InvoiceTokens,
             [NotificationTemplateKeys.InvoiceOverdue] = InvoiceTokens,

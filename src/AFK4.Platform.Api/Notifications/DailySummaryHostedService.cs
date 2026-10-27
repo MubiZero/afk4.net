@@ -26,6 +26,8 @@ public sealed class DailySummaryHostedService(
         var runner = scopedServices.GetRequiredService<IDailySummaryRunner>();
         var now = GetUtcNow();
         var sent = await runner.RunAsync(now, cancellationToken);
+        // Сводка филиала в Telegram — тем же тиком: и та и другая про «вчера», и обе идемпотентны.
+        sent += await scopedServices.GetRequiredService<Telegram.TelegramReports>().DailyDigestAsync(now, cancellationToken);
         if (sent > 0)
         {
             logger.LogInformation("Daily owner-summary tick enqueued {Count} summary(ies).", sent);

@@ -1,0 +1,5 @@
+{
+  "subject": "Shift closed — {{branchName}}: earned {{earnedTotal}}",
+  "bodyText": "The shift at {{branchName}} is closed ({{period}}, closed by {{closedBy}}). Earned {{earnedTotal}}: time {{earnedTime}}, goods {{earnedGoods}}. Received in cash {{cashIn}}, non-cash {{nonCashIn}}. Cash: expected {{expectedCash}}, counted {{countedCash}}, difference {{difference}}.",
+  "bodyHtml": "<p>{{period}} · closed by {{closedBy}}</p><p>Earned <strong>{{earnedTotal}}</strong></p><ul><li>Time: {{earnedTime}}</li><li>Goods: {{earnedGoods}}</li></ul><p>Received</p><ul><li>Cash: {{cashIn}}</li><li>Non-cash: {{nonCashIn}}</li></ul><p>Cash drawer</p><ul><li>Expected: {{expectedCash}}</li><li>Counted: {{countedCash}}</li><li>Difference: <strong>{{difference}}</strong></li></ul>"
+}

@@ -272,6 +272,7 @@ builder.Services.AddSingleton<ITelegramBotApi, TelegramBotApi>();
 builder.Services.AddSingleton<INotificationChannel, TelegramChannel>();
 builder.Services.AddScoped<TelegramLinks>();
 builder.Services.AddScoped<TelegramBotDialog>();
+builder.Services.AddScoped<TelegramReports>();
 builder.Services.AddHostedService<TelegramUpdatesJob>();
 builder.Services.Configure<PushOptions>(
     builder.Configuration.GetSection(PushOptions.SectionName));

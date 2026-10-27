@@ -1,0 +1,5 @@
+{
+  "subject": "{{branchName}} for {{date}}: revenue {{revenue}}",
+  "bodyText": "{{branchName}} for {{date}}: revenue {{revenue}} (gameplay {{gameplay}}, goods {{goods}}), {{playedHours}} h played. Needs attention: {{attentionCount}}.",
+  "bodyHtml": "<p>Revenue <strong>{{revenue}}</strong></p><ul><li>Gameplay: {{gameplay}}</li><li>Goods: {{goods}}</li><li>Played: {{playedHours}} h</li></ul><p>Needs attention: {{attentionCount}} — details in the Panel, Reports.</p>"
+}
