@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { hydrateFloorMapStateFromCache, mapFloorMapDtoToState, offlineBannerText } from './floorMapState';
+import { floorActionsEnabled, hydrateFloorMapStateFromCache, mapFloorMapDtoToState, offlineBannerText } from './floorMapState';
 import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto } from './operatorApiClients';
 
@@ -63,6 +63,15 @@ describe('offline mirror state', () => {
     expect(banner).not.toBeNull();
     expect(banner).toContain('Офлайн');
     expect(banner).toContain('только просмотр');
+  });
+
+  // Карта из кэша «готова», и раньше «посадить», «продлить», «рассчитать» оставались живыми и
+  // падали сетевой ошибкой. Без связи они выключены со строкой «Нет связи с сервером».
+  it('turns server actions off while offline and back on when connected', () => {
+    const entry: FloorMapCacheEntry = { floorMap: floorMap('Cached Branch'), cachedAtMs: 1_000 };
+
+    expect(floorActionsEnabled(hydrateFloorMapStateFromCache(entry, branchId, t))).toBe(false);
+    expect(floorActionsEnabled(mapFloorMapDtoToState(floorMap('Demo Branch'), t, 0))).toBe(true);
   });
 
   it('stays silent while connected — no stale-snapshot noise for the admin', () => {

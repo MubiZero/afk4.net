@@ -60,7 +60,7 @@ export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, loadedAtMs 
 }
 
 // Hydrate a degraded, read-only floor map from the last-known-good cache when the platform is unreachable
-// (spec §6.5). Seats render from the cached snapshot; billing actions are gated off elsewhere (D2).
+// (spec §6.5). Seats render from the cached snapshot; billing actions are gated off by floorActionsEnabled.
 export function hydrateFloorMapStateFromCache(
   entry: FloorMapCacheEntry,
   branchId: string,
@@ -77,6 +77,15 @@ export function hydrateFloorMapStateFromCache(
     isOffline: true,
     cachedAtMs: entry.cachedAtMs
   };
+}
+
+/**
+ * Можно ли сейчас сажать, продлевать, рассчитывать — всё, что идёт через сервер. Карта из кэша
+ * без связи тоже «готова», и раньше кнопки оставались живыми: кассир сажал гостя, а получал сетевую
+ * ошибку. Запереть и открыть ПК от этого не зависят — они без связи встают в очередь.
+ */
+export function floorActionsEnabled(state: OperatorFloorMapState): boolean {
+  return state.source === 'backend' && state.loadStatus === 'ready' && !state.isOffline;
 }
 
 // Баннер показываем ТОЛЬКО при настоящем обрыве связи: данные заморожены, режим «только
