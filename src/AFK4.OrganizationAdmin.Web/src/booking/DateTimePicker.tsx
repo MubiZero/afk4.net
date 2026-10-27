@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useI18n } from '@afk4/i18n';
+import { activeLocaleTag, useI18n } from '@afk4/i18n';
 import { toDateTimeInputValue } from '../operatorHelpers';
 import { PanelSelect } from '../PanelSelect';
 import { formatDateParts } from '@afk4/formatting';
 
-const LOCALE_TAG: Record<string, string> = { ru: 'ru-RU', en: 'en-US', tg: 'tg' };
 const MINUTE_STEPS = [0, 15, 30, 45];
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -34,8 +33,8 @@ export function DateTimePicker({
   ariaLabel: string;
   onChange: (value: string) => void;
 }) {
-  const { t, locale } = useI18n();
-  const tag = LOCALE_TAG[locale] ?? 'ru-RU';
+  const { t } = useI18n();
+  const tag = activeLocaleTag();
   const selected = parse(value);
   // Таджикские месяцы — из общего форматтера: Intl браузера пишет их по-английски.
   const formatDay = (date: Date) => formatDateParts(date, tag, { day: 'numeric', month: 'long' });

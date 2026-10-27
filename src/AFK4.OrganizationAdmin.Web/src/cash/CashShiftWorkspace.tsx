@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { ArrowRightLeft, Banknote, ChevronRight, Clock3, MoreHorizontal, ReceiptText } from 'lucide-react';
-import { createAuthenticatedOperatorClients, downloadTextFile } from '../operatorHelpers';
+import { createAuthenticatedOperatorClients, downloadTextFile, formatShortDate, formatTime } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
 import { EmptyState, Money, PartialLoadFailure } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -35,8 +35,8 @@ function formatOpenedAt(openedAtUtc: string, todayLabel: string): string {
   const sameDay = opened.getFullYear() === now.getFullYear()
     && opened.getMonth() === now.getMonth()
     && opened.getDate() === now.getDate();
-  const time = opened.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  return sameDay ? `${todayLabel}, ${time}` : `${opened.toLocaleDateString('ru-RU')}, ${time}`;
+  const time = formatTime(openedAtUtc);
+  return sameDay ? `${todayLabel}, ${time}` : `${formatShortDate(openedAtUtc)}, ${time}`;
 }
 
 function closedShifts(shifts: ShiftRevenueDto[]): ShiftRevenueDto[] {
@@ -192,7 +192,7 @@ export function CashShiftWorkspace({
             <section className="cash-shift-history-panel">
               <header><h2>{t('op.cash.shift.pastShifts')}</h2>{historyError === null && <span>{history.length}</span>}</header>
               {historyError !== null ? <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError.detail })} failure={historyError} onRetry={retryHistory} /> : history.length === 0 ? <EmptyState inline className="cash-shift-empty-note" title={t('op.cash.shift.historyEmpty')} next={{ kind: 'calm', hint: t('op.cash.shift.historyEmptyHint') }} /> : <CashRegisterRows rows={history.slice(0, 8)} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.pastShifts')} renderRow={(shift) => <div className="cash-shift-history-row">
-                <span>{new Date(shift.openedAtUtc).toLocaleDateString('ru-RU')}</span>
+                <span>{formatShortDate(shift.openedAtUtc)}</span>
                 <span><small>{t('op.shifts.earned')}</small><strong><Money minorUnits={shift.earned.total.minorUnits} currencyCode={currencyCode} /></strong></span>
                 <span className={shift.cash.difference?.minorUnits ? 'attention' : ''}><small>{t('op.cash.shift.difference')}</small><strong>{shift.cash.difference ? <Money minorUnits={shift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</strong></span>
                 <ChevronRight size={16} aria-hidden="true" />
@@ -221,7 +221,7 @@ export function CashShiftWorkspace({
           }</p>
           {historyError !== null && <PartialLoadFailure text={t('op.cash.shift.historyFailed', { reason: historyError.detail })} failure={historyError} onRetry={retryHistory} />}
           <div className="cash-shift-no-open-actions">{exportMenu}</div>
-          {selectedShift ? <div className="cash-shift-last-closed"><span>{t('op.cash.shift.lastClosed')}</span><strong>{new Date(selectedShift.openedAtUtc).toLocaleDateString('ru-RU')}</strong><b><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></b></div> : null}
+          {selectedShift ? <div className="cash-shift-last-closed"><span>{t('op.cash.shift.lastClosed')}</span><strong>{formatShortDate(selectedShift.openedAtUtc)}</strong><b><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></b></div> : null}
         </section>
       )}
     </main>

@@ -56,6 +56,9 @@
     "packages/money": {
       "name": "@afk4/money",
       "version": "0.1.0",
+      "dependencies": {
+        "@afk4/formatting": "workspace:*",
+      },
     },
     "packages/tokens": {
       "name": "@afk4/tokens",

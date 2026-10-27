@@ -7,6 +7,7 @@ import {
   cashReasonLabel,
   createAuthenticatedOperatorClients,
   downloadTextFile,
+  formatDateTime,
   formatTime
 } from '../operatorHelpers';
 import { projectOperatorError, type OperatorErrorProjection } from '../apiErrors';
@@ -147,7 +148,7 @@ export function CashOperationsLedger({
           <strong><Money minorUnits={selected.cashImpact.minorUnits} currencyCode={currencyCode} signed /></strong>
           <dl>
             <div><dt>{t('op.cash.journal.operationId')}</dt><dd>{selected.operationId}</dd></div>
-            <div><dt>{t('op.cash.journal.createdAt')}</dt><dd>{new Date(selected.createdAtUtc).toLocaleString('ru-RU')}</dd></div>
+            <div><dt>{t('op.cash.journal.createdAt')}</dt><dd>{formatDateTime(selected.createdAtUtc)}</dd></div>
             <div><dt>{t('op.cash.journal.actor')}</dt><dd>{selected.createdByDisplayName || '—'}</dd></div>
             {selected.sourceType ? <div><dt>{t('op.cash.journal.source')}</dt><dd>{selected.sourceType}</dd></div> : null}
           </dl>

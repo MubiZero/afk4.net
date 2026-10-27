@@ -1,3 +1,5 @@
+import { formatNumber } from '@afk4/formatting';
+
 /** Backend stores money as integer minor units (e.g. kopecks). These helpers
  * convert to/from the major units shown in and entered through the UI. */
 export function minorToMajor(minorUnits: number): number {
@@ -33,10 +35,10 @@ export function currencySymbol(currencyCode: string): string {
  */
 export function formatMoney(minorUnits: number, currencyCode: string, locale = 'ru-RU'): string {
   const majorUnits = minorToMajor(minorUnits);
-  const formatted = new Intl.NumberFormat(locale, {
+  const formatted = formatNumber(majorUnits, locale, {
     maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
     minimumFractionDigits: 0
-  }).format(majorUnits);
+  });
   // Настоящий минус, а не дефис, который отдаёт Intl: «−50 с.» рядом с «+50 с.» одной ширины, и
   // сумма не выглядит переносом строки.
   return `${formatted.replace('-', '\u2212')} ${currencySymbol(currencyCode)}`;

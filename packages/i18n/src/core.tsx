@@ -24,6 +24,16 @@ const LOCALE_TAG: Record<Locale, string> = { ru: 'ru-RU', en: 'en-US', tg: 'tg-T
 const LOCALE_FALLBACK: Record<Locale, readonly Locale[]> = { ru: [], en: [], tg: ['ru'] };
 const DEFAULT_LOCALE: Locale = 'ru';
 
+// Язык интерфейса для форматирования вне React: суммы и время в помощниках Панели вызываются из
+// сотни мест, и протаскивать в каждое язык из useI18n — шум без пользы. Язык один на приложение;
+// провайдер обновляет его при каждой отрисовке, а смена языка перерисовывает всё дерево.
+let activeLocale: Locale = DEFAULT_LOCALE;
+
+/** BCP-47 тег языка интерфейса — для `@afk4/formatting` и `@afk4/money` вне компонентов. */
+export function activeLocaleTag(): string {
+  return LOCALE_TAG[activeLocale];
+}
+
 // Compiled ICU messages cached by locale-tag + raw message text (a given key+locale
 // resolves to a stable string, so this never goes stale within a session).
 const icuCache = new Map<string, IntlMessageFormat>();
@@ -111,6 +121,7 @@ export function I18nCatalogProvider({
     if (typeof document !== 'undefined') document.documentElement.lang = locale;
   }, [locale]);
 
+  activeLocale = locale;
   const t = useMemo(() => createCatalogTranslator(catalog, locale), [catalog, locale]);
 
   const formatNumber = useCallback((n: number) => fmtNumber(n, LOCALE_TAG[locale]), [locale]);

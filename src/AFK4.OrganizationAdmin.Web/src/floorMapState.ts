@@ -1,5 +1,6 @@
 import { minorToMajor } from '@afk4/money';
 import { formatNumber as formatLocaleNumber } from '@afk4/formatting';
+import { activeLocaleTag } from '@afk4/i18n';
 import { formatMinorUnits } from './currencyFormat';
 import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
@@ -264,7 +265,7 @@ function accruedCostText(minorUnits: number | null, currencyCode: string | null,
 
   return currencyCode
     ? `≈ ${formatMinorUnits(minorUnits, currencyCode)}`
-    : `≈ ${formatLocaleNumber(minorToMajor(minorUnits), 'ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
+    : `≈ ${formatLocaleNumber(minorToMajor(minorUnits), activeLocaleTag(), { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
 }
 
 function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedDto, t: TFn): SeatSummary {

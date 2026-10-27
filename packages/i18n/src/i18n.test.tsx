@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider, useI18n } from './I18nProvider';
+import { activeLocaleTag } from './core';
 
 function Probe() {
   const { t, locale, setLocale, formatCurrency } = useI18n();
@@ -50,3 +51,14 @@ function MissingProbe() {
   const { t } = useI18n();
   return <span>out:{t('does.not.exist' as never)}</span>;
 }
+
+// Суммы и время в помощниках Панели форматируются вне React и берут язык отсюда: раньше там стоял
+// ru-RU, и английский и таджикский интерфейсы показывали даты по-русски.
+describe('activeLocaleTag', () => {
+  it('follows the language the provider renders', () => {
+    render(<I18nProvider initialLocale="en"><Probe /></I18nProvider>);
+    expect(activeLocaleTag()).toBe('en-US');
+    render(<I18nProvider initialLocale="tg"><Probe /></I18nProvider>);
+    expect(activeLocaleTag()).toBe('tg-TJ');
+  });
+});
