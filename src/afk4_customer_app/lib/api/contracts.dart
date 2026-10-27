@@ -555,6 +555,18 @@ abstract final class MediaPurposeNames {
   static const String productImage = 'product-image';
 }
 
+/// Словарь: Sessions/OfflineLeaseContracts.cs
+abstract final class OfflineLeaseKeyErrorCodeNames {
+  /// Имя ключа занято другим ключом в этом филиале.
+  static const String conflict = 'offline_key_conflict';
+  /// Ключ с этим именем отозван — Панель создаёт новый.
+  static const String revoked = 'offline_key_revoked';
+  /// Не ключ P-256 в PEM или имя не по правилам.
+  static const String invalid = 'offline_key_invalid';
+  /// Действующих ключей в филиале слишком много: старые надо отозвать.
+  static const String limit = 'offline_key_limit';
+}
+
 /// Машинные имена отказов при подключении админки клуба к клубу.
 /// Этот экран человек видит раньше всего остального — до входа, до языка интерфейса он уже
 /// выбран. Английская фраза сервера («OrganizationSlug must contain only lowercase letters…»)
@@ -2821,6 +2833,35 @@ class BranchGameDto {
         'isEnabled': isEnabled,
         'sortOrder': sortOrder,
         'launchOnSessionStart': launchOnSessionStart,
+      };
+}
+
+/// Контракт: Sessions/OfflineLeaseContracts.cs
+class BranchOfflineLeaseKeyDto {
+  const BranchOfflineLeaseKeyDto({
+    required this.keyId,
+    required this.registeredByStaffUserId,
+    required this.registeredAtUtc,
+    this.revokedAtUtc,
+  });
+
+  final String keyId;
+  final String registeredByStaffUserId;
+  final DateTime registeredAtUtc;
+  final DateTime? revokedAtUtc;
+
+  factory BranchOfflineLeaseKeyDto.fromJson(Map<String, dynamic> json) => BranchOfflineLeaseKeyDto(
+        keyId: json['keyId'] as String,
+        registeredByStaffUserId: json['registeredByStaffUserId'] as String,
+        registeredAtUtc: DateTime.parse(json['registeredAtUtc'] as String),
+        revokedAtUtc: json['revokedAtUtc'] == null ? null : DateTime.parse(json['revokedAtUtc'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'keyId': keyId,
+        'registeredByStaffUserId': registeredByStaffUserId,
+        'registeredAtUtc': registeredAtUtc.toIso8601String(),
+        'revokedAtUtc': revokedAtUtc?.toIso8601String(),
       };
 }
 
@@ -6517,6 +6558,7 @@ class DeviceHeartbeatRequest {
     this.networkBroadcastAddress,
     this.kioskInstalled,
     this.networkAddress,
+    this.activeSessionLeaseOffline,
   });
 
   final String organizationId;
@@ -6549,6 +6591,11 @@ class DeviceHeartbeatRequest {
   /// офлайн-аренду (docs/roadmap/offline-front-desk.md). Пусто — агент прежней версии.
   final String? networkAddress;
 
+  /// Аренда, которую держит ПК, подписана ключом ПК администратора, а не платформой: её выдала
+  /// Панель без интернета, и сервер этой сессии ещё не знает. Такой ПК сервер не запирает, пока
+  /// аренда не кончилась, — иначе гость, севший без связи, вылетел бы, едва связь вернулась.
+  final bool? activeSessionLeaseOffline;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6566,6 +6613,7 @@ class DeviceHeartbeatRequest {
         networkBroadcastAddress: json['networkBroadcastAddress'] == null ? null : json['networkBroadcastAddress'] as String,
         kioskInstalled: json['kioskInstalled'] == null ? null : json['kioskInstalled'] as bool,
         networkAddress: json['networkAddress'] == null ? null : json['networkAddress'] as String,
+        activeSessionLeaseOffline: json['activeSessionLeaseOffline'] == null ? null : json['activeSessionLeaseOffline'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6585,6 +6633,7 @@ class DeviceHeartbeatRequest {
         'networkBroadcastAddress': networkBroadcastAddress,
         'kioskInstalled': kioskInstalled,
         'networkAddress': networkAddress,
+        'activeSessionLeaseOffline': activeSessionLeaseOffline,
       };
 }
 
@@ -16380,6 +16429,29 @@ class RefundPosSaleRequest {
       };
 }
 
+/// Панель регистрирует ключ своего ПК, пока связь есть: потом сервер раздаст его агентам филиала.
+///
+/// Контракт: Sessions/OfflineLeaseContracts.cs
+class RegisterOfflineLeaseKeyRequest {
+  const RegisterOfflineLeaseKeyRequest({
+    required this.keyId,
+    required this.publicKeyPem,
+  });
+
+  final String keyId;
+  final String publicKeyPem;
+
+  factory RegisterOfflineLeaseKeyRequest.fromJson(Map<String, dynamic> json) => RegisterOfflineLeaseKeyRequest(
+        keyId: json['keyId'] as String,
+        publicKeyPem: json['publicKeyPem'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'keyId': keyId,
+        'publicKeyPem': publicKeyPem,
+      };
+}
+
 /// Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
 /// `ios`, локаль — язык приложения на этом устройстве.
 /// Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
@@ -17583,6 +17655,7 @@ class SeatStatusDto {
     this.sessionBillingMode,
     this.isKioskAbsent,
     this.hasPlayerAccount,
+    this.deviceNetworkAddress,
   });
 
   final String seatId;
@@ -17655,6 +17728,10 @@ class SeatStatusDto {
   /// безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
   final bool? hasPlayerAccount;
 
+  /// IPv4 ПК в сети клуба: по нему Панель без интернета передаёт офлайн-аренду. Пусто — агент
+  /// прежней версии или адрес ещё не приходил.
+  final String? deviceNetworkAddress;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -17685,6 +17762,7 @@ class SeatStatusDto {
         sessionBillingMode: json['sessionBillingMode'] == null ? null : json['sessionBillingMode'] as String,
         isKioskAbsent: json['isKioskAbsent'] == null ? null : json['isKioskAbsent'] as bool,
         hasPlayerAccount: json['hasPlayerAccount'] == null ? null : json['hasPlayerAccount'] as bool,
+        deviceNetworkAddress: json['deviceNetworkAddress'] == null ? null : json['deviceNetworkAddress'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -17717,6 +17795,7 @@ class SeatStatusDto {
         'sessionBillingMode': sessionBillingMode,
         'isKioskAbsent': isKioskAbsent,
         'hasPlayerAccount': hasPlayerAccount,
+        'deviceNetworkAddress': deviceNetworkAddress,
       };
 }
 

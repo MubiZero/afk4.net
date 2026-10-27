@@ -65,6 +65,7 @@ public sealed class DeviceHeartbeatService(
                 device.NetworkMacAddress = request.NetworkMacAddress;
                 device.NetworkSubnet = request.NetworkSubnet;
                 device.NetworkBroadcastAddress = request.NetworkBroadcastAddress;
+                device.NetworkAddress = request.NetworkAddress;
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -254,6 +255,16 @@ public sealed class DeviceHeartbeatService(
             ? await featureSnapshot.GetEnabledAsync(request.OrganizationId, cancellationToken)
             : null;
 
+        // Ключи ПК администраторов филиала: по ним без интернета придёт офлайн-аренда. Незаверенному ПК
+        // ключей не даём — пустой список, а не null: агент забудет и прежние.
+        var offlineLeaseKeys = allowOperationalCommands
+            ? await dbContext.OfflineLeaseKeys.AsNoTracking()
+                .Where(key => key.BranchId == request.BranchId && key.OrganizationId == request.OrganizationId && key.RevokedAtUtc == null)
+                .OrderBy(key => key.RegisteredAtUtc)
+                .Select(key => new OfflineLeaseKeyDto(key.KeyId, key.PublicKeyPem))
+                .ToListAsync(cancellationToken)
+            : [];
+
         // Заявку на вход с телефона ПК получает по SignalR; сердцебиение — страховка на обрыв.
         var pendingSignInClaim = allowOperationalCommands && !inMaintenance
             ? await signInClaims.PendingForDeviceAsync(deviceId, cancellationToken)
@@ -292,7 +303,8 @@ public sealed class DeviceHeartbeatService(
             GameLibraryVersion: allowOperationalCommands ? branchInfo?.GameLibraryVersion ?? 0 : 0,
             LiveSession: liveSession is null
                 ? null
-                : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc, hold));
+                : new DeviceLiveSessionDto(liveSession.SessionId, liveSession.StartedAtUtc, liveSession.EndsAtUtc, hold),
+            OfflineLeaseKeys: offlineLeaseKeys);
     }
 
     private sealed record SeatOfDevice(Guid SeatId, string? Label, string? ZoneName);

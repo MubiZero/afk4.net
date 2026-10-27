@@ -199,6 +199,7 @@ public sealed class EfFloorMapReadService(
             LastFailedCommandType: device is not null && lastFailedCommands.TryGetValue(device.DeviceId, out var failedType) ? failedType : null,
             SessionBillingMode: string.IsNullOrEmpty(activeSession?.BillingMode) ? null : activeSession.BillingMode,
             IsKioskAbsent: device?.KioskAbsentSinceUtc is not null,
+            DeviceNetworkAddress: device?.NetworkAddress,
             HasPlayerAccount: activeSession?.PlayerAccountId is not null);
     }
 

@@ -48,3 +48,27 @@ public static class OfflineLeaseSigning
         return keyId.Length > 0;
     }
 }
+
+/// <summary>Панель регистрирует ключ своего ПК, пока связь есть: потом сервер раздаст его агентам филиала.</summary>
+public sealed record RegisterOfflineLeaseKeyRequest(string KeyId, string PublicKeyPem);
+
+public sealed record BranchOfflineLeaseKeyDto(
+    string KeyId,
+    Guid RegisteredByStaffUserId,
+    DateTimeOffset RegisteredAtUtc,
+    DateTimeOffset? RevokedAtUtc);
+
+public static class OfflineLeaseKeyErrorCodeNames
+{
+    /// <summary>Имя ключа занято другим ключом в этом филиале.</summary>
+    public const string Conflict = "offline_key_conflict";
+
+    /// <summary>Ключ с этим именем отозван — Панель создаёт новый.</summary>
+    public const string Revoked = "offline_key_revoked";
+
+    /// <summary>Не ключ P-256 в PEM или имя не по правилам.</summary>
+    public const string Invalid = "offline_key_invalid";
+
+    /// <summary>Действующих ключей в филиале слишком много: старые надо отозвать.</summary>
+    public const string Limit = "offline_key_limit";
+}

@@ -1209,6 +1209,10 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("MaintenanceSinceUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("NetworkAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
                     b.Property<string>("NetworkBroadcastAddress")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -2029,6 +2033,45 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("StaffUserId", "Category", "Channel");
 
                     b.ToTable("notification_preferences", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OfflineLeaseKeyEntity", b =>
+                {
+                    b.Property<Guid>("OfflineLeaseKeyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("KeyId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PublicKeyPem")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset>("RegisteredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RegisteredByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OfflineLeaseKeyId");
+
+                    b.HasIndex("BranchId", "KeyId")
+                        .IsUnique();
+
+                    b.ToTable("offline_lease_keys", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationBirthdayGiftSettingsEntity", b =>

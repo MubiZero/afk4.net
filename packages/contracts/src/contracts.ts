@@ -675,6 +675,19 @@ export const MediaPurposeNames = {
 } as const;
 export type MediaPurposeName = (typeof MediaPurposeNames)[keyof typeof MediaPurposeNames];
 
+/** Словарь: Sessions/OfflineLeaseContracts.cs */
+export const OfflineLeaseKeyErrorCodeNames = {
+  /** Имя ключа занято другим ключом в этом филиале. */
+  Conflict: 'offline_key_conflict',
+  /** Ключ с этим именем отозван — Панель создаёт новый. */
+  Revoked: 'offline_key_revoked',
+  /** Не ключ P-256 в PEM или имя не по правилам. */
+  Invalid: 'offline_key_invalid',
+  /** Действующих ключей в филиале слишком много: старые надо отозвать. */
+  Limit: 'offline_key_limit',
+} as const;
+export type OfflineLeaseKeyErrorCodeName = (typeof OfflineLeaseKeyErrorCodeNames)[keyof typeof OfflineLeaseKeyErrorCodeNames];
+
 /**
  * Машинные имена отказов при подключении админки клуба к клубу.
  * Этот экран человек видит раньше всего остального — до входа, до языка интерфейса он уже
@@ -2336,6 +2349,14 @@ export interface BranchGameDto {
   launchOnSessionStart?: boolean;
 }
 
+/** Контракт: Sessions/OfflineLeaseContracts.cs */
+export interface BranchOfflineLeaseKeyDto {
+  keyId: string;
+  registeredByStaffUserId: Guid;
+  registeredAtUtc: IsoDateTime;
+  revokedAtUtc: IsoDateTime | null;
+}
+
 /**
  * Одно фото зала. MediaId нужен, чтобы удалить объект из хранилища вместе со
  * строкой галереи; у фото, добавленного ссылкой, его нет.
@@ -3580,6 +3601,12 @@ export interface DeviceHeartbeatRequest {
    * офлайн-аренду (docs/roadmap/offline-front-desk.md). Пусто — агент прежней версии.
    */
   networkAddress?: string | null;
+  /**
+   * Аренда, которую держит ПК, подписана ключом ПК администратора, а не платформой: её выдала
+   * Панель без интернета, и сервер этой сессии ещё не знает. Такой ПК сервер не запирает, пока
+   * аренда не кончилась, — иначе гость, севший без связи, вылетел бы, едва связь вернулась.
+   */
+  activeSessionLeaseOffline?: boolean | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -6972,6 +6999,16 @@ export interface RefundPosSaleRequest {
 }
 
 /**
+ * Панель регистрирует ключ своего ПК, пока связь есть: потом сервер раздаст его агентам филиала.
+ *
+ * Контракт: Sessions/OfflineLeaseContracts.cs
+ */
+export interface RegisterOfflineLeaseKeyRequest {
+  keyId: string;
+  publicKeyPem: string;
+}
+
+/**
  * Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — `android` или
  * `ios`, локаль — язык приложения на этом устройстве.
  * Язык здесь не спрашивается: пуш уходит на языке аккаунта (PlayerAccount.PreferredLocale),
@@ -7464,6 +7501,11 @@ export interface SeatStatusDto {
    * безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
    */
   hasPlayerAccount?: boolean;
+  /**
+   * IPv4 ПК в сети клуба: по нему Панель без интернета передаёт офлайн-аренду. Пусто — агент
+   * прежней версии или адрес ещё не приходил.
+   */
+  deviceNetworkAddress?: string | null;
 }
 
 /**

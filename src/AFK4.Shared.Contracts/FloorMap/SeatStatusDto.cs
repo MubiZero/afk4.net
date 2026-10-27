@@ -55,4 +55,7 @@ public sealed record SeatStatusDto(
     bool IsKioskAbsent = false,
     // За местом сидит игрок со счётом клуба — даже если имя в его карточке пусто. Без этого признака
     // безымянный игрок на карте и в окне расчёта выглядел гостем, а это другие деньги и другие права.
-    bool HasPlayerAccount = false);
+    bool HasPlayerAccount = false,
+    // IPv4 ПК в сети клуба: по нему Панель без интернета передаёт офлайн-аренду. Пусто — агент
+    // прежней версии или адрес ещё не приходил.
+    string? DeviceNetworkAddress = null);

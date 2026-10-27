@@ -222,6 +222,11 @@ public static class AuditActionNames
 
     public const string UnlinkStaffTelegram = "identity.staff.telegram.unlink";
 
+    /// <summary>Ключ ПК администратора для офлайн-аренд зарегистрирован или отозван.</summary>
+    public const string RegisterOfflineLeaseKey = "devices.offline_lease_key.register";
+
+    public const string RevokeOfflineLeaseKey = "devices.offline_lease_key.revoke";
+
     public const string UpdateStaffRoles = "identity.staff.roles.update";
 
     public const string UpdateStaffState = "identity.staff.state.update";

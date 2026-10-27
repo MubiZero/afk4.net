@@ -39,6 +39,27 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
         Assert.Empty(db.SessionEvents);
     }
 
+    // Сессию открыла Панель без интернета офлайн-арендой, сервер её ещё не знает. Запереть такой ПК —
+    // выгнать гостя, едва связь вернулась; агент запрётся сам в конце аренды.
+    [Fact]
+    public async Task PlanAsync_WithAnOfflineLeaseTheServerDoesNotKnow_LeavesThePcAlone_UntilTheLeaseEnds()
+    {
+        await using var db = CreateDbContext();
+        var planner = CreatePlanner(db);
+
+        var running = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: SessionId, activeSessionLeaseExpiresAtUtc: Now.AddHours(1)) with { ActiveSessionLeaseOffline = true },
+            CancellationToken.None);
+        var lapsed = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: SessionId, activeSessionLeaseExpiresAtUtc: Now.AddMinutes(-1)) with { ActiveSessionLeaseOffline = true },
+            CancellationToken.None);
+
+        Assert.Empty(running);
+        Assert.Equal(DeviceCommandTypeNames.Lock, Assert.Single(lapsed).Command.Type);
+    }
+
     [Fact]
     public async Task PlanAsync_WithActiveCloudSessionAndMissingLocalLease_IssuesUnlockWithFreshLease()
     {
