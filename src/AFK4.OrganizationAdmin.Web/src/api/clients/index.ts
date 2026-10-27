@@ -37,6 +37,7 @@ import { createDcTopUpClient } from './dcTopUps';
 import { createDcConfigClient } from './dcConfig';
 import { createReportsClient } from './reports';
 import { createSearchClient } from './search';
+import { createOfflineDeskClient } from './offlineDesk';
 import { withCriticalUpdateActivity } from '../../updateActivity';
 
 export function createOperatorApiClients(api: PlatformApiClient, organizationId: string) {
@@ -79,6 +80,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     media: createMediaClient(organizationApi),
     dcTopUps: createDcTopUpClient(organizationApi),
     dcConfig: createDcConfigClient(organizationApi),
-    reports: createReportsClient(organizationApi)
+    reports: createReportsClient(organizationApi),
+    offlineDesk: createOfflineDeskClient(organizationApi)
   };
 }
