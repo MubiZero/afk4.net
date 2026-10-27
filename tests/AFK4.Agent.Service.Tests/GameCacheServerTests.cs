@@ -80,7 +80,8 @@ public sealed class GameCacheServerTests : IAsyncDisposable
             new StubFactory(_ => { Interlocked.Increment(ref upstreamCalls); return null!; }) { Body = () => currentBody },
             NullLogger<GameCacheServer>.Instance,
             root,
-            $"http://+:{port}/");
+            $"http://+:{port}/",
+            fixedQuotaBytes: GameCacheStore.MinUsefulQuotaBytes);
         await server.StartAsync(stop.Token);
         server.Configure(host: true);
         for (var attempt = 0; attempt < 50 && !server.Serving; attempt++) await Task.Delay(20);
