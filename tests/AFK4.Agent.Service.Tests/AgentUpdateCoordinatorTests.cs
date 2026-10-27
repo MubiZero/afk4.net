@@ -319,11 +319,105 @@ public sealed class AgentUpdateCoordinatorTests
         }
     }
 
+    // Место проверялось только до скачивания, а целый пакет на сети клуба качается минутами. Гость,
+    // севший за ПК за это время, получал перезапуск экрана в начале оплаченного часа.
+    [Fact]
+    public async Task GuestSitsDownWhileTheMsiDownloads_TheUpdateWaitsAndRetriesLater()
+    {
+        var instruction = CreateInstruction() with { Component = UpdateComponentNames.PlayerShell };
+        var updateClient = new RecordingAgentUpdateClient([instruction]);
+        var installer = new RecordingUpdateInstaller(UpdateInstallResult.Success("installed"));
+        var coordinator = new AgentUpdateCoordinator(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            updateClient,
+            new AgentComponentVersionProvider(Options.Create(CreateOptions())),
+            new RecordingUpdateArtifactDownloader(),
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("verified")),
+            installer,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new InMemoryUpdateAttemptLedger(),
+            SeatTakenAfterFirstLook());
+
+        var first = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+        var second = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.Empty(installer.InstalledInstructions);
+        Assert.Equal(0, first.FailedCount);
+        Assert.Equal(UpdateStatusNames.Deferred, updateClient.ReportedStatuses[^1].Status);
+        Assert.DoesNotContain(updateClient.ReportedStatuses, status => status.Status == UpdateStatusNames.Installing);
+        // Отложенное не сгорает: на следующей проверке обновление предлагается снова.
+        Assert.Equal(1, second.OfferedCount);
+    }
+
+    [Fact]
+    public async Task GuestSitsDownWhileTheDeltaDownloads_NoFileIsReplaced()
+    {
+        using var kit = new DeltaTestKit();
+        var temp = Path.Combine(Path.GetTempPath(), $"afk4-coordinator-delta-{Guid.NewGuid():N}");
+        try
+        {
+            var service = Directory.CreateDirectory(Path.Combine(temp, "service")).FullName;
+            await File.WriteAllTextAsync(Path.Combine(service, "App.dll"), "app-v1");
+            var (instruction, bytes) = kit.SignedInstruction([DeltaTestKit.Entry("agent-service", "App.dll", "app-v2")]);
+            var updateClient = new RecordingAgentUpdateClient([instruction]);
+            var downloader = new RecordingUpdateArtifactDownloader();
+            var installer = new RecordingUpdateInstaller(UpdateInstallResult.Success("MSI installed."));
+            var coordinator = CreateDeltaCoordinator(
+                updateClient, downloader, installer,
+                CreateDeltaInstaller(kit, new DeltaTestKit.Store().WithManifest(bytes).WithBlobs("app-v2"), service, temp),
+                SeatTakenAfterFirstLook());
+
+            var result = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+            Assert.Equal(0, result.AppliedCount);
+            Assert.Equal(0, result.FailedCount);
+            Assert.Equal("app-v1", await File.ReadAllTextAsync(Path.Combine(service, "App.dll")));
+            // И не скатывается в целый MSI: дело не в дельте, а в госте.
+            Assert.Empty(downloader.DownloadedInstructions);
+            Assert.Empty(installer.InstalledInstructions);
+            Assert.Equal(UpdateStatusNames.Deferred, updateClient.ReportedStatuses[^1].Status);
+        }
+        finally
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+    }
+
+    /// <summary>Свободно при первой проверке места, занято гостем при всех следующих.</summary>
+    private static GuestSeatUpdateGuard SeatTakenAfterFirstLook() => new(new GuestArrivesStateStore());
+
+    private sealed class GuestArrivesStateStore : IAgentRuntimeStateStore
+    {
+        private readonly SeatRuntimeStateStore busy = new(isLocked: false);
+        private bool looked;
+
+        public AgentRuntimeState Current
+        {
+            get
+            {
+                if (looked)
+                {
+                    return busy.Current;
+                }
+
+                looked = true;
+                return AgentRuntimeState.Locked(DateTimeOffset.Parse("2026-05-14T15:00:00Z"));
+            }
+        }
+
+        public void Save(AgentRuntimeState state) { }
+
+        public void MarkLocked(DateTimeOffset observedAtUtc) { }
+
+        public void MarkActive(SessionLeaseDto lease, DateTimeOffset observedAtUtc) { }
+    }
+
     private static AgentUpdateCoordinator CreateDeltaCoordinator(
         RecordingAgentUpdateClient updateClient,
         RecordingUpdateArtifactDownloader downloader,
         RecordingUpdateInstaller installer,
-        AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller deltaInstaller) => new(
+        AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller deltaInstaller,
+        GuestSeatUpdateGuard? seatGuard = null) => new(
             NullLogger<AgentUpdateCoordinator>.Instance,
             updateClient,
             new AgentComponentVersionProvider(Options.Create(CreateOptions())),
@@ -332,7 +426,7 @@ public sealed class AgentUpdateCoordinatorTests
             installer,
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
             new InMemoryUpdateAttemptLedger(),
-            FreeSeatGuard(),
+            seatGuard ?? FreeSeatGuard(),
             deltaInstaller: deltaInstaller);
 
     private static AFK4.Agent.Service.Updates.Delta.UpdateDeltaInstaller CreateDeltaInstaller(
