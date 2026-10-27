@@ -1,7 +1,9 @@
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.OrganizationAdmin.App.Connection;
+using AFK4.OrganizationAdmin.App.Offline;
 using AFK4.OrganizationAdmin.App.Updates;
 
 namespace AFK4.OrganizationAdmin.Web;
@@ -12,7 +14,9 @@ public sealed class OrganizationAdminWebHostBridge(
     IOrganizationAdminConnectionStore connectionStore,
     OrganizationAdminActivityState? updateActivityState = null,
     IOrganizationAdminShutdownAcknowledgementStore? shutdownAcknowledgementStore = null,
-    Action? requestShutdown = null)
+    Action? requestShutdown = null,
+    OfflineDesk? offlineDesk = null,
+    OfflineJournal? offlineJournal = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -57,6 +61,11 @@ public sealed class OrganizationAdminWebHostBridge(
         if (request.Type == "update:restartAndInstall")
         {
             return await RestartAndInstallAsync(request, cancellationToken);
+        }
+
+        if (request.Type.StartsWith("offline:", StringComparison.Ordinal))
+        {
+            return await HandleOfflineAsync(request, cancellationToken);
         }
 
         if (!request.Type.StartsWith("connection:", StringComparison.Ordinal)) return null;
@@ -119,6 +128,58 @@ public sealed class OrganizationAdminWebHostBridge(
         {
             return CreateResponse(request.RequestId!, false, null,
                 new OrganizationAdminWebBridgeError("update_failed", "The update restart request could not be saved."));
+        }
+    }
+
+    // Офлайн у стойки (docs/roadmap/offline-front-desk.md): ключ этого ПК, передача подписанной аренды ПК
+    // в зале и журнал кассы на диске. Без хоста (в браузере) Панель офлайн-действий не предлагает.
+    private async Task<string> HandleOfflineAsync(OrganizationAdminWebBridgeRequest request, CancellationToken cancellationToken)
+    {
+        if (offlineDesk is null || offlineJournal is null)
+        {
+            return CreateResponse(request.RequestId!, false, null,
+                new OrganizationAdminWebBridgeError("offline_unavailable", "Offline desk is not available in this host."));
+        }
+
+        try
+        {
+            object payload;
+            switch (request.Type)
+            {
+                case "offline:key":
+                    var (keyId, publicKeyPem) = offlineDesk.PublicKey();
+                    payload = new { keyId, publicKeyPem };
+                    break;
+                case "offline:sendLease":
+                    var send = DeserializePayload<OfflineSendLeasePayload>(request.Payload);
+                    payload = await offlineDesk.SendLeaseAsync(send.Address, send.Lease, cancellationToken);
+                    break;
+                case "offline:journalAppend":
+                    offlineJournal.Append(DeserializePayload<OfflineJournalAppendPayload>(request.Payload).Record);
+                    payload = new { appended = true };
+                    break;
+                case "offline:journalRead":
+                    payload = new { records = offlineJournal.Read() };
+                    break;
+                case "offline:journalAck":
+                    var ack = DeserializePayload<OfflineJournalAckPayload>(request.Payload);
+                    payload = new { remaining = offlineJournal.Acknowledge(ack.Ids.ToHashSet(StringComparer.Ordinal)) };
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.");
+            }
+
+            return CreateResponse(request.RequestId!, true, payload, null);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or TimeoutException)
+        {
+            return CreateResponse(request.RequestId!, false, null,
+                new OrganizationAdminWebBridgeError("offline_pc_unreachable", "The PC did not answer over the club network."));
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            return CreateResponse(request.RequestId!, false, null,
+                new OrganizationAdminWebBridgeError("offline_failed", exception.Message));
         }
     }
 
@@ -237,6 +298,12 @@ public sealed class OrganizationAdminWebHostBridge(
     private sealed record OrganizationAdminRestartAndInstallPayload(
         string? UpdateRolloutId,
         string? UpdatePackageId);
+
+    private sealed record OfflineSendLeasePayload(string Address, AFK4.Shared.Contracts.Sessions.SessionLeaseDto Lease);
+
+    private sealed record OfflineJournalAppendPayload(JsonElement Record);
+
+    private sealed record OfflineJournalAckPayload(IReadOnlyList<string> Ids);
 
     private sealed record OrganizationAdminWebStoredConnection(
         Guid OrganizationId,
