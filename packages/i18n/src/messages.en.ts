@@ -1703,6 +1703,7 @@ export const en = {
   "op.helper.cmdOutcome.warningReasonUnknown": "The agent does not know this warning reason — the player saw nothing",
   "op.helper.cmdOutcome.warningShown": "The player was warned",
   "op.helper.cmdOutcome.workstationLocked": "PC locked",
+  "op.helper.cmdOutcome.sessionNotRunning": "That session had ended — the next guest was left alone",
   "op.helper.command.failed": "Command failed",
   "op.helper.command.idle": "No commands",
   "op.helper.command.leased": "Session confirmed",

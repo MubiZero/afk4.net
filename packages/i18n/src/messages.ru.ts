@@ -1703,6 +1703,7 @@ export const ru = {
   "op.helper.cmdOutcome.warningReasonUnknown": "Причина предупреждения агенту неизвестна — игрок ничего не увидел",
   "op.helper.cmdOutcome.warningShown": "Предупреждение показано игроку",
   "op.helper.cmdOutcome.workstationLocked": "ПК заблокирован",
+  "op.helper.cmdOutcome.sessionNotRunning": "Сессия уже не шла — следующего гостя не тронули",
   "op.helper.command.failed": "Команда не выполнена",
   "op.helper.command.idle": "Команд нет",
   "op.helper.command.leased": "Сессия подтверждена",
