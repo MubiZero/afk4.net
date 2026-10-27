@@ -32,6 +32,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
+    public DbSet<OfflineLeaseKeyEntity> OfflineLeaseKeys => Set<OfflineLeaseKeyEntity>();
+
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
 
     public DbSet<StaffAccessTokenEntity> StaffAccessTokens => Set<StaffAccessTokenEntity>();
@@ -465,6 +467,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasFilter("\"TelegramChatId\" IS NOT NULL");
         });
 
+        modelBuilder.Entity<OfflineLeaseKeyEntity>(entity =>
+        {
+            entity.ToTable("offline_lease_keys");
+            entity.HasKey(key => key.OfflineLeaseKeyId);
+            entity.Property(key => key.KeyId).HasMaxLength(64).IsRequired();
+            entity.Property(key => key.PublicKeyPem).HasMaxLength(1024).IsRequired();
+            entity.HasIndex(key => new { key.BranchId, key.KeyId }).IsUnique();
+        });
+
         modelBuilder.Entity<StaffRoleAssignmentEntity>(entity =>
         {
             entity.ToTable("staff_role_assignments");
@@ -583,6 +594,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(device => device.NetworkMacAddress).HasMaxLength(17);
             entity.Property(device => device.NetworkSubnet).HasMaxLength(64);
             entity.Property(device => device.NetworkBroadcastAddress).HasMaxLength(64);
+            entity.Property(device => device.NetworkAddress).HasMaxLength(45);
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId, device.EnrollmentState });
         });

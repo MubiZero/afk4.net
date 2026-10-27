@@ -1,5 +1,6 @@
 using AFK4.Agent.Service.Network;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Agent.Service;
 
@@ -36,6 +37,7 @@ public static class HeartbeatPayloadFactory
             NetworkSubnet: network?.Subnet,
             NetworkBroadcastAddress: network?.BroadcastAddress,
             NetworkAddress: network?.Address,
+            ActiveSessionLeaseOffline: lease is null ? null : OfflineLeaseSigning.TryGetKeyId(lease.SignatureAlgorithm, out _),
             KioskInstalled: kioskInstalled);
     }
 }

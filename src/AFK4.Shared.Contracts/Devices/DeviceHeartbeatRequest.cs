@@ -24,4 +24,8 @@ public sealed record DeviceHeartbeatRequest(
     bool? KioskInstalled = null,
     // IPv4 этого адаптера в сети клуба («192.168.1.23»): по нему Панель без интернета передаёт ПК
     // офлайн-аренду (docs/roadmap/offline-front-desk.md). Пусто — агент прежней версии.
-    string? NetworkAddress = null);
+    string? NetworkAddress = null,
+    // Аренда, которую держит ПК, подписана ключом ПК администратора, а не платформой: её выдала
+    // Панель без интернета, и сервер этой сессии ещё не знает. Такой ПК сервер не запирает, пока
+    // аренда не кончилась, — иначе гость, севший без связи, вылетел бы, едва связь вернулась.
+    bool? ActiveSessionLeaseOffline = null);

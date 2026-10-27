@@ -675,6 +675,7 @@ app.MapHealthEndpoints();
 organizations.MapFloorMapEndpoints();
 organizations.MapBranchSettingsEndpoints();
 organizations.MapStaffTelegramEndpoints();
+organizations.MapOfflineLeaseKeyEndpoints();
 app.MapProtectionProfileEndpoints(organizations);
 app.MapInstallCodeEndpoints(organizations);
 app.MapGameLibraryEndpoints(organizations);

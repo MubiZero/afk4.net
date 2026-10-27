@@ -55,6 +55,16 @@ public sealed class EfHeartbeatSessionCommandPlanner(
 
         if (session is null)
         {
+            // Сессию открыла Панель без интернета офлайн-арендой, и сервер её ещё не знает: запереть
+            // такой ПК значило бы выгнать гостя, едва связь вернулась. Агент запрётся сам в конце
+            // аренды, а журнал кассы Панель досылает отдельно.
+            if (heartbeat.ActiveSessionLeaseOffline == true
+                && heartbeat.ActiveSessionLeaseExpiresAtUtc is { } offlineLeaseEnd
+                && offlineLeaseEnd > timeProvider.GetUtcNow())
+            {
+                return [];
+            }
+
             return heartbeat.ActiveSessionId is null
                 ? []
                 : await PlanLockAsync(

@@ -102,4 +102,7 @@ public sealed class DeviceEntity
 
     /// <summary>Широковещательный адрес подсети — куда сосед шлёт волшебный пакет.</summary>
     public string? NetworkBroadcastAddress { get; set; }
+
+    /// <summary>IPv4 ПК в сети клуба: по нему Панель без интернета передаёт офлайн-аренду.</summary>
+    public string? NetworkAddress { get; set; }
 }
