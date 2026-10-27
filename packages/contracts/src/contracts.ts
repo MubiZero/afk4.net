@@ -3575,6 +3575,11 @@ export interface DeviceHeartbeatRequest {
    * зала. null — агент этого не сообщает (прежняя версия): признак не трогаем.
    */
   kioskInstalled?: boolean | null;
+  /**
+   * IPv4 этого адаптера в сети клуба («192.168.1.23»): по нему Панель без интернета передаёт ПК
+   * офлайн-аренду (docs/roadmap/offline-front-desk.md). Пусто — агент прежней версии.
+   */
+  networkAddress?: string | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -3640,6 +3645,11 @@ export interface DeviceHeartbeatResponse {
   gameLibraryVersion?: number;
   /** Идущая сессия: начало и конец для отсчёта на экране. null — сессии нет. */
   liveSession?: DeviceLiveSessionDto | null;
+  /**
+   * Ключи ПК администраторов этого филиала, которыми Панель без интернета подписывает офлайн-аренды.
+   * null — сервер прежней версии, список не трогаем; пустой — доверенных ключей нет.
+   */
+  offlineLeaseKeys?: OfflineLeaseKeyDto[] | null;
 }
 
 /** Контракт: Devices/DeviceInventoryItemDto.cs */
@@ -4774,6 +4784,29 @@ export interface NotificationRecipient {
   staffUserId?: Guid | null;
   playerAccountId?: Guid | null;
   telegramChatId?: string | null;
+}
+
+/**
+ * Публичный ключ ПК администратора, которым тот подписывает офлайн-аренды.
+ *
+ * Контракт: Sessions/OfflineLeaseContracts.cs
+ */
+export interface OfflineLeaseKeyDto {
+  keyId: string;
+  publicKeyPem: string;
+}
+
+/**
+ * Что ПК ответил Панели на офлайн-аренду, присланную по сети клуба.
+ *
+ * Контракт: Sessions/OfflineLeaseContracts.cs
+ */
+export interface OfflineSeatResponse {
+  accepted: boolean;
+  reason: string | null;
+  isLocked: boolean;
+  activeSessionId: Guid | null;
+  leaseExpiresAtUtc: IsoDateTime | null;
 }
 
 /** Контракт: Shifts/OpenShiftRequest.cs */

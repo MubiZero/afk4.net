@@ -4,8 +4,11 @@ using System.Net.Sockets;
 
 namespace AFK4.Agent.Service.Network;
 
-/// <summary>Сетевой адрес этого ПК: по нему выключенную машину будит сосед (спека оболочки, §5.8).</summary>
-public sealed record NetworkIdentity(string MacAddress, string Subnet, string BroadcastAddress);
+/// <summary>
+/// Сетевой адрес этого ПК: по нему выключенную машину будит сосед (спека оболочки, §5.8), а Панель без
+/// интернета передаёт офлайн-аренду (<see cref="Address"/>).
+/// </summary>
+public sealed record NetworkIdentity(string MacAddress, string Subnet, string BroadcastAddress, string? Address = null);
 
 public interface INetworkIdentityProvider
 {
@@ -98,7 +101,7 @@ public sealed class SystemNetworkIdentityProvider(TimeProvider timeProvider, ILo
                 }
 
                 var (subnet, broadcast) = NetworkMath.Describe(unicast.Address, unicast.IPv4Mask);
-                return new NetworkIdentity(NetworkMath.FormatMac(mac), subnet, broadcast);
+                return new NetworkIdentity(NetworkMath.FormatMac(mac), subnet, broadcast, unicast.Address.ToString());
             }
         }
         catch (Exception exception) when (exception is NetworkInformationException or PlatformNotSupportedException)

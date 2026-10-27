@@ -122,6 +122,15 @@ public sealed class AgentOptions
 
     public int UpdateCheckIntervalSeconds { get; init; } = 300;
 
+    /// <summary>
+    /// Порт, на котором агент принимает офлайн-аренды от Панели по сети клуба (docs/roadmap/offline-front-desk.md).
+    /// 0 — не слушать.
+    /// </summary>
+    public int OfflineLanPort { get; init; } = AFK4.Shared.Contracts.Sessions.OfflineLeaseSigning.AgentLanPort;
+
+    /// <summary>Хост префикса HttpListener: «http://+» — все адреса машины; тесты слушают только петлю.</summary>
+    public string OfflineLanPrefixHost { get; init; } = "http://+";
+
     public string UpdateStateDirectory { get; init; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "AFK4",
