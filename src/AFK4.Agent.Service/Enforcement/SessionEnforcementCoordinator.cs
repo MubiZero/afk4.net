@@ -86,6 +86,17 @@ public sealed class SessionEnforcementCoordinator(
         }
 
         var ended = runtimeStateStore.Current;
+
+        // «Запереть» с номером сессии — про эту сессию. Если на ПК уже идёт другая (команда конца
+        // опоздала, или пришла из журнала офлайн-кассы), запирать нельзя: это выгнало бы следующего
+        // гостя посреди оплаченного времени. Без номера — запереть как есть.
+        if (sessionId is { } target && ended.SessionRuns && ended.ActiveSessionId is { } running && running != target)
+        {
+            return SessionEnforcementResult.Accepted(
+                $"Session {target:D} is not running here; session {running:D} keeps the PC.",
+                DeviceCommandOutcomeNames.SessionNotRunning);
+        }
+
         leaseStore.Clear(sessionId);
         runtimeStateStore.MarkLocked(timeProvider.GetUtcNow());
         var lockOutcome = await workstationLockController.LockAsync(cancellationToken);

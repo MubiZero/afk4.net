@@ -25,6 +25,12 @@ public static class DeviceCommandOutcomeNames
     public const string WorkstationLocked = "workstation-locked";
 
     /// <summary>
+    /// «Запереть» относилось к сессии, которая на этом ПК уже не идёт: за ним сидит следующий гость.
+    /// Его не трогаем; для сервера та сессия окончена.
+    /// </summary>
+    public const string SessionNotRunning = "session-not-running";
+
+    /// <summary>
     /// Агент не смог применить машинные политики: на самой машине ничего не изменилось. Раньше
     /// такой исход сообщался как обычный успех — оператор видел «заблокировано» там, где
     /// диспетчер задач остался доступен.
