@@ -4,15 +4,24 @@
  * number, fraction digits, date granularity — all stay the caller's choice; only
  * the `Intl.*Format` construction is centralised (and testable) here. */
 
+/**
+ * Язык, по которому пишутся числа и суммы. Таджикский пишет их как русский («1 234,5»), а WebView2
+ * таджикского не знает и сводит `tg-TJ` к американскому «1,234.5» — у кассы и на экране игрока
+ * такая сумма читается как «одна целая двести тридцать четыре». Поэтому числа для tg — по ru-RU.
+ */
+export function numberLocale(locale: string): string {
+  return isTajikLocale(locale) ? 'ru-RU' : locale;
+}
+
 /** Format a number with the given locale and options (default: locale defaults). */
 export function formatNumber(value: number, locale: string, options?: Intl.NumberFormatOptions): string {
-  return new Intl.NumberFormat(locale, options).format(value);
+  return new Intl.NumberFormat(numberLocale(locale), options).format(value);
 }
 
 /** Format a major-unit amount as a localised currency string (`style: 'currency'`,
  * no fractional digits — the project convention shared by the platform i18n provider). */
 export function formatCurrency(amount: number, currencyCode: string, locale: string): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(numberLocale(locale), {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: 0,

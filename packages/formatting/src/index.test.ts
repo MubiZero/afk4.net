@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { displayPhone, formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, groupCode, isTajikLocale, localPhoneDigits } from './index';
+import { displayPhone, formatCurrency, formatDateParts, formatLocal, formatNumber, fullPhoneDigits, groupCode, isTajikLocale, localPhoneDigits, numberLocale } from './index';
 
 it('formats numbers with locale grouping and options', () => {
   // ru-RU groups thousands with a non-breaking space (U+00A0); normalise any
@@ -89,4 +89,14 @@ it('делит шестизначный код тройками, остальн�
   expect(groupCode('418207')).toBe('418 207');
   expect(groupCode('41820')).toBe('41820');
   expect(groupCode('AB12CD')).toBe('AB12CD');
+});
+
+// WebView2 таджикского не знает и пишет `tg-TJ` по-американски: «1,200.5 с.» у кассы и на экране
+// игрока читалось как «одна целая две десятых». Таджикский пишет числа как русский.
+it('числа и суммы для таджикского — как по-русски, для английского — по-английски', () => {
+  expect(numberLocale('tg-TJ')).toBe('ru-RU');
+  expect(numberLocale('tg')).toBe('ru-RU');
+  expect(numberLocale('en-US')).toBe('en-US');
+  expect(formatNumber(1234.5, 'tg-TJ')).toBe(formatNumber(1234.5, 'ru-RU'));
+  expect(formatNumber(1234.5, 'en-US')).toBe('1,234.5');
 });

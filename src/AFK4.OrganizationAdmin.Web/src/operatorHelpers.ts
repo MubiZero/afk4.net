@@ -1,6 +1,7 @@
 import { CashMovementReasonNames } from '@afk4/contracts';
 import { minorToMajor, majorToMinor } from '@afk4/money';
 import { formatDateParts } from '@afk4/formatting';
+import { activeLocaleTag } from '@afk4/i18n';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
@@ -1105,10 +1106,24 @@ export function formatTime(value: unknown): string {
     return value;
   }
 
-  return formatDateParts(date, 'ru-RU', {
+  return formatDateParts(date, activeLocaleTag(), {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+/** Дата без времени: «27.10.2026». */
+export function formatShortDate(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return formatDateParts(date, activeLocaleTag(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export function formatDateTime(value: unknown): string {
@@ -1121,7 +1136,7 @@ export function formatDateTime(value: unknown): string {
     return value;
   }
 
-  return formatDateParts(date, 'ru-RU', {
+  return formatDateParts(date, activeLocaleTag(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
