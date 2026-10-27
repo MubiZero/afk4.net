@@ -1595,7 +1595,7 @@
   "op.games.cache.enabled": "Game cache is on",
   "op.games.cache.off": "Cache is off — PCs download games directly.",
   "op.games.cache.ownServer": "Cache on the club's own server {address}",
-  "op.games.cache.noHost": "The admin PC is offline — gaming PCs download directly.",
+  "op.games.cache.noHost": "The built-in cache is not running: the admin PC is offline or has less than 20 GB free beyond its reserve. Gaming PCs download directly.",
   "op.games.cache.builtIn": "Cache on the admin PC {name}, holding {size} GB",
   "op.hardware.accept": "Accept as normal",
   "op.hardware.acceptHint": "You changed it — accept, and the mark goes away. You did not — then a part was removed or swapped.",

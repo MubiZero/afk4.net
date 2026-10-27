@@ -18,7 +18,8 @@ public sealed class GameCacheServer(
     IHttpClientFactory httpClientFactory,
     ILogger<GameCacheServer> logger,
     string? cacheRoot = null,
-    string listenPrefix = "http://+:80/") : BackgroundService
+    string listenPrefix = "http://+:80/",
+    long? fixedQuotaBytes = null) : BackgroundService
 {
     public const string UpstreamClientName = "game-cache-upstream";
     private const string FirewallRuleName = "AFK4.NET Agent (game cache)";
@@ -70,7 +71,16 @@ public sealed class GameCacheServer(
             .Where(path => !path.EndsWith(".part", StringComparison.Ordinal))
             .Sum(path => new FileInfo(path).Length);
         var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(directory))!);
-        quotaBytes = GameCacheStore.QuotaBytes(drive.TotalSize, drive.AvailableFreeSpace, StoredBytes);
+        quotaBytes = fixedQuotaBytes ?? GameCacheStore.QuotaBytes(drive.TotalSize, drive.AvailableFreeSpace, StoredBytes);
+        if (quotaBytes < GameCacheStore.MinUsefulQuotaBytes)
+        {
+            // Кеш на пару гигабайт вытеснял бы каждый кусок сразу, а игровые ПК ходили бы через этот ПК без
+            // всякой пользы: лучше не подниматься, пусть качают напрямую. Место могут освободить — проверим позже.
+            logger.LogWarning("Game cache not started: only {Quota} bytes may be used on {Drive}.", quotaBytes, drive.Name);
+            Serving = false;
+            await enabledChanged.WaitAsync(TimeSpan.FromHours(1), stoppingToken);
+            return;
+        }
 
         if (OperatingSystem.IsWindows() && cacheRoot is null) EnsureFirewallRule();
         using var listener = new HttpListener();
@@ -326,6 +336,9 @@ public sealed class GameCacheServer(
 public static class GameCacheStore
 {
     private const long GiB = 1024L * 1024 * 1024;
+
+    /// <summary>Меньше этого кеш не поднимается: одна крупная игра — уже десятки гигабайт.</summary>
+    public const long MinUsefulQuotaBytes = 20 * GiB;
 
     /// <summary>
     /// Ключ — как у LANCache (cache_key «$cacheidentifier$uri»): клиент Steam качает одни и те же куски с
