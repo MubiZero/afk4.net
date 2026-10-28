@@ -402,14 +402,16 @@ public sealed class UpdateHelperScriptTests
         var script = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1"));
 
         // Все четыре программы идут через один цикл публикации; флага «по проекту» нет, чтобы одну
-        // из них нельзя было тихо вернуть на общий рантайм (его в пакетах больше нет).
+        // из них нельзя было тихо вернуть на общий рантайм (его в пакетах больше нет). Публикуется
+        // вариант .NET 10: сборка под .NET Framework 4.8 — для Windows 7 (docs/roadmap/windows7.md).
         var projects = System.Text.RegularExpressions.Regex
-            .Matches(script, @"@\{ Name = '(?<name>[^']+)'; Path = '[^']+' \}")
+            .Matches(script, @"@\{ Name = '(?<name>[^']+)'; Path = '[^']+'; Framework = 'net10\.0(-windows)?' \}")
             .Select(match => match.Groups["name"].Value)
             .Order(StringComparer.Ordinal)
             .ToList();
         Assert.Equal(["agent-service", "organization-admin", "player-shell", "setup-wizard"], projects);
         Assert.Contains("--self-contained true `", script, StringComparison.Ordinal);
+        Assert.Contains("-f $project.Framework `", script, StringComparison.Ordinal);
         Assert.DoesNotContain("--self-contained false", script, StringComparison.Ordinal);
         Assert.DoesNotContain("SelfContained", script, StringComparison.Ordinal);
 
