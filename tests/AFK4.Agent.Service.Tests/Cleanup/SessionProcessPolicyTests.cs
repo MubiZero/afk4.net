@@ -9,7 +9,7 @@ public sealed class SessionProcessPolicyTests
     private static readonly string Afk4 = Path.Combine(Path.GetTempPath(), "Program Files", "AFK4");
     private static readonly string Games = Path.Combine(Path.GetTempPath(), "Games");
     private static readonly IReadOnlyList<string> Protected = [Windows, Afk4];
-    private static readonly IReadOnlySet<string> Launchers = new HashSet<string>(["steam.exe"], StringComparer.OrdinalIgnoreCase);
+    private static readonly ISet<string> Launchers = new HashSet<string>(["steam.exe"], StringComparer.OrdinalIgnoreCase);
 
     private static SessionProcess Process(string directory, string image, DateTimeOffset? startedAt) =>
         new(42, image, Path.Combine(directory, image), startedAt);

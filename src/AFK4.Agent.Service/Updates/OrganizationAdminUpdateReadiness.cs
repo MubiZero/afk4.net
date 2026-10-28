@@ -72,7 +72,12 @@ public sealed class OrganizationAdminUpdateReadiness(
 
     public static bool IsInsideWindow(OrganizationAdminUpdatePreferenceDto preference, DateTimeOffset utcNow)
     {
+#if NETFRAMEWORK
+        // Пояс клуба приходит именем IANA («Asia/Dushanbe»); .NET Framework знает только имена Windows.
+        var zone = TimeZoneConverter.TZConvert.GetTimeZoneInfo(preference.TimeZone);
+#else
         var zone = TimeZoneInfo.FindSystemTimeZoneById(preference.TimeZone);
+#endif
         var localTime = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(utcNow, zone).DateTime);
         var start = preference.MaintenanceWindowStart;
         var end = preference.MaintenanceWindowEnd;

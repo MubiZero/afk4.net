@@ -45,7 +45,7 @@ public sealed class Sha256UpdatePackageVerifier(IOptions<AgentOptions> options) 
             return UpdatePackageVerificationResult.Invalid("Downloaded update artifact size does not match package metadata.");
         }
 
-        await using var stream = File.OpenRead(artifact.FilePath);
+        using var stream = File.OpenRead(artifact.FilePath);
         var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
         var hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
         if (!string.Equals(hash, instruction.Sha256.Trim(), StringComparison.OrdinalIgnoreCase))

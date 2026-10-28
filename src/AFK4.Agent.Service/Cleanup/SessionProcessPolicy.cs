@@ -22,7 +22,7 @@ public static class SessionProcessPolicy
     public static bool ShouldClose(
         SessionProcess process,
         DateTimeOffset? sessionStartedAtUtc,
-        IReadOnlySet<string> alwaysClose,
+        ISet<string> alwaysClose,
         IReadOnlyList<string> protectedRoots)
     {
         // Чей exe не прочитался — того не трогаем: закрыть наугад хуже, чем оставить.

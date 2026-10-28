@@ -154,7 +154,7 @@ public sealed class SessionCleanup(
     private async Task<int> CloseAppsAsync(
         PlayerSessionUser user,
         DateTimeOffset? sessionStartedAtUtc,
-        IReadOnlySet<string> alwaysClose,
+        ISet<string> alwaysClose,
         CancellationToken cancellationToken)
     {
         var protectedRoots = host.ProtectedRoots;

@@ -24,7 +24,7 @@ public sealed class LaunchedApps(IPlayerSessionHost host, Func<DateTimeOffset>? 
 
     private static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(1);
 
-    private static readonly IReadOnlySet<string> LauncherImages = SessionTraceCatalog.ProcessesToClose(SessionTraceNames.All);
+    private static readonly ISet<string> LauncherImages = SessionTraceCatalog.ProcessesToClose(SessionTraceNames.All);
 
     private sealed record Launch(Guid Id, string AppId, string DisplayName, int? RootProcessId, DateTimeOffset At);
 

@@ -189,7 +189,7 @@ public sealed class GameCacheServer(
             return false;
         }
 
-        await using (file)
+        using (file)
         {
             // Отметка «брали недавно»: вытеснение уберёт то, что давно никто не качал.
             try { File.SetLastWriteTimeUtc(path, DateTime.UtcNow); } catch (IOException) { }
@@ -225,7 +225,7 @@ public sealed class GameCacheServer(
             if (length is { } known) response.ContentLength64 = known;
             response.AddHeader("X-Cache-Status", "MISS");
 
-            await using var body = await answer.Content.ReadAsStreamAsync(cancellationToken);
+            using var body = await answer.Content.ReadAsStreamAsync(cancellationToken);
             if (!cacheable || answer.StatusCode != HttpStatusCode.OK || length is not ({ } size and > 0 and <= MaxCachedObjectBytes))
             {
                 await body.CopyToAsync(response.OutputStream, cancellationToken);
@@ -234,7 +234,7 @@ public sealed class GameCacheServer(
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var part = path + ".part";
-            await using (var file = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            using (var file = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
             {
                 var buffer = new byte[81920];
                 int read;

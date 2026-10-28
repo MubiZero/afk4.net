@@ -72,9 +72,9 @@ public sealed class UpdateBlobFetcher(IHttpClientFactory httpClientFactory, IOpt
 
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             long written = 0;
-            await using (var compressed = await response.Content.ReadAsStreamAsync(stall.Token))
-            await using (var brotli = new BrotliStream(compressed, CompressionMode.Decompress))
-            await using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            using (var compressed = await response.Content.ReadAsStreamAsync(stall.Token))
+            using (var brotli = new BrotliStream(compressed, CompressionMode.Decompress))
+            using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
             {
                 var buffer = new byte[81920];
                 int read;
@@ -118,7 +118,7 @@ public sealed class UpdateBlobFetcher(IHttpClientFactory httpClientFactory, IOpt
             return false;
         }
 
-        await using var stream = File.OpenRead(stagedPath);
+        using var stream = File.OpenRead(stagedPath);
         return string.Equals(
             Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken)),
             file.Sha256,

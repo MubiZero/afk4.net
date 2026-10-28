@@ -50,7 +50,7 @@ public static class SessionTraceCatalog
     /// с утра Steam держит <c>loginusers.vdf</c> и перепишет его при выходе, а вход в нём — уже
     /// следующего игрока.
     /// </summary>
-    public static IReadOnlySet<string> ProcessesToClose(IEnumerable<string> items)
+    public static ISet<string> ProcessesToClose(IEnumerable<string> items)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in items)

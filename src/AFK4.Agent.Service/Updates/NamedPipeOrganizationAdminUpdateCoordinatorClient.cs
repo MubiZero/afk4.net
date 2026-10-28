@@ -28,7 +28,7 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
         if (string.IsNullOrWhiteSpace(request.Secret))
             return new(LocalUpdateCoordinationStatuses.NotRunning, "Organization Admin coordination is not configured.");
 
-        await using var pipe = new NamedPipeClientStream(".", options.Value.OrganizationAdminUpdateCoordinationPipeName,
+        using var pipe = new NamedPipeClientStream(".", options.Value.OrganizationAdminUpdateCoordinationPipeName,
             PipeDirection.InOut, PipeOptions.Asynchronous);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(options.Value.OrganizationAdminUpdateCoordinationTimeoutMilliseconds);

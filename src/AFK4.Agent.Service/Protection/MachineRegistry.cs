@@ -25,7 +25,7 @@ public interface IMachineRegistry
     void Remove(RegistryWrite write);
 }
 
-public sealed partial class WindowsMachineRegistry(IOptions<AgentOptions> options) : IMachineRegistry
+public sealed class WindowsMachineRegistry(IOptions<AgentOptions> options) : IMachineRegistry
 {
     public bool IsSupported => OperatingSystem.IsWindows();
 
@@ -37,10 +37,9 @@ public sealed partial class WindowsMachineRegistry(IOptions<AgentOptions> option
     public bool PlayerSignedIn => OperatingSystem.IsWindows() && PlayerSid is { } sid && PlayerHiveLoaded(sid);
 
     private static string? SecurityIdentifierOrNull(string? value) =>
-        value is not null && SidShape().IsMatch(value.Trim()) ? value.Trim() : null;
+        value is not null && SidShape.IsMatch(value.Trim()) ? value.Trim() : null;
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"^S-1-\d+(-\d+)+$")]
-    private static partial System.Text.RegularExpressions.Regex SidShape();
+    private static readonly System.Text.RegularExpressions.Regex SidShape = new(@"^S-1-\d+(-\d+)+$");
 
     [SupportedOSPlatform("windows")]
     private static bool PlayerHiveLoaded(string sid)

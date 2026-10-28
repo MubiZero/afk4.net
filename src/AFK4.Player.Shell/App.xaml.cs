@@ -20,6 +20,9 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+#if NETFRAMEWORK
+        NetFrameworkCompat.UseTls12OnWindows7();
+#endif
         singleInstance = new Mutex(initiallyOwned: true, SingleInstanceName, out var first);
         if (!first)
         {

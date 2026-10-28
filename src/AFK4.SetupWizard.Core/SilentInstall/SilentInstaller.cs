@@ -118,6 +118,9 @@ public sealed class SilentInstaller(
         }
     }
 
+    // 429 по имени есть только с .NET 5; мастер собирается и под .NET Framework 4.8.
+    private const HttpStatusCode TooManyRequests = (HttpStatusCode)429;
+
     /// <summary>
     /// Платформа ответила отказом: с машинным кодом или без него — клуб приостановлен теперь
     /// тоже отвечает структурно (403 OrganizationSuspended со статусом и причиной, тот же
@@ -129,7 +132,7 @@ public sealed class SilentInstaller(
     {
         SetupWizardApiException => true,
         HttpRequestException { StatusCode: { } status } =>
-            (int)status is >= 400 and < 500 && status != HttpStatusCode.TooManyRequests,
+            (int)status is >= 400 and < 500 && status != TooManyRequests,
         _ => false
     };
 
@@ -141,7 +144,7 @@ public sealed class SilentInstaller(
     {
         SetupWizardApiException => false,
         HttpRequestException { StatusCode: null } => true,
-        HttpRequestException { StatusCode: var status } => status == HttpStatusCode.TooManyRequests || (int)status! >= 500,
+        HttpRequestException { StatusCode: var status } => status == TooManyRequests || (int)status! >= 500,
         TaskCanceledException => true,
         _ => false
     };

@@ -16,6 +16,9 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+#if NETFRAMEWORK
+        NetFrameworkCompat.UseTls12OnWindows7();
+#endif
         // Backstop for anything that escapes the per-message guards (e.g. an unexpected failure
         // during enrollment). Log it and show a message instead of a raw .NET crash dialog.
         DispatcherUnhandledException += OnDispatcherUnhandledException;

@@ -43,8 +43,8 @@ public static class CachedImages
         var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var target = File.Create(temporary))
+            using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+            using (var target = File.Create(temporary))
             {
                 var buffer = new byte[81920];
                 long total = 0;
@@ -70,7 +70,7 @@ public static class CachedImages
     }
 
     /// <summary>Убирает из папки всё, чего нет в списке нужного: уехавшие картинки не копятся на диске.</summary>
-    public static void Prune(string folder, IReadOnlySet<string> wanted)
+    public static void Prune(string folder, ISet<string> wanted)
     {
         foreach (var stale in Directory.EnumerateFiles(folder).Where(file => !wanted.Contains(Path.GetFileName(file))).ToList())
         {

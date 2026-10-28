@@ -88,7 +88,7 @@ public static class UpdateDeltaApplier
         UpdateDeltaJournal? journal;
         try
         {
-            await using var stream = File.OpenRead(journalPath);
+            using var stream = File.OpenRead(journalPath);
             journal = await JsonSerializer.DeserializeAsync<UpdateDeltaJournal>(stream, JsonOptions, cancellationToken);
         }
         catch (JsonException)

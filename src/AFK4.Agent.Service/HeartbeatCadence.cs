@@ -33,13 +33,16 @@ public static class HeartbeatCadence
     {
         if (!lastHeartbeatSucceeded && IsLeaseNearOrPastExpiry(lease, nowUtc))
         {
-            return EscalatedBase + EscalatedJitterMax * Math.Clamp(jitterFraction, 0, 1);
+            return EscalatedBase + Scale(EscalatedJitterMax, Math.Clamp(jitterFraction, 0, 1));
         }
 
         var normal = TimeSpan.FromSeconds(normalIntervalSeconds);
 
-        return normal + normal * NormalJitterShare * Math.Clamp(jitterFraction, 0, 1);
+        return normal + Scale(normal, NormalJitterShare * Math.Clamp(jitterFraction, 0, 1));
     }
+
+    // TimeSpan * double есть только с .NET Core 2.0; программа на ПК собирается и под .NET Framework 4.8.
+    private static TimeSpan Scale(TimeSpan span, double factor) => TimeSpan.FromTicks((long)(span.Ticks * factor));
 
     private static bool IsLeaseNearOrPastExpiry(SessionLeaseDto? lease, DateTimeOffset nowUtc) =>
         lease is not null && lease.ExpiresAtUtc - nowUtc <= RefreshThreshold;

@@ -38,7 +38,7 @@ public sealed class UpdateManifestClient(IHttpClientFactory httpClientFactory, I
                 .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, stall.Token);
             response.EnsureSuccessStatusCode();
 
-            await using var source = await response.Content.ReadAsStreamAsync(stall.Token);
+            using var source = await response.Content.ReadAsStreamAsync(stall.Token);
             using var buffer = new MemoryStream((int)manifest.SizeBytes);
             var chunk = new byte[81920];
             int read;
