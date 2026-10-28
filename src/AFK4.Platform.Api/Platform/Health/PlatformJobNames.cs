@@ -40,6 +40,9 @@ public static class PlatformJobNames
     /// <summary>Сообщения боту AFK4.NET в Telegram: привязка чатов к отчётам.</summary>
     public const string TelegramUpdates = "telegram_updates";
 
+    /// <summary>Расписание ПК клуба: включить по сети к открытию, выключить свободные к ночи.</summary>
+    public const string PcSchedule = "pc_schedule";
+
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
 
@@ -67,6 +70,7 @@ public static class PlatformJobNames
         BirthdayGifts,
         OrphanMediaSweep,
         EskhataReconciliation,
-        TelegramUpdates
+        TelegramUpdates,
+        PcSchedule
     ];
 }

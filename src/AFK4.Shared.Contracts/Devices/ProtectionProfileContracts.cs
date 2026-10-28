@@ -27,7 +27,11 @@ public sealed record ProtectionProfileDto(
     /// Выключить свободный ПК, за которым столько минут никого нет; null — не выключать.
     int? IdleShutdownMinutes = null,
     /// Правила клуба на экране ПК — текст клуба как есть, на его языке.
-    string? ClubRules = null);
+    string? ClubRules = null,
+    /// Расписание ПК по времени филиала, минуты от полуночи (docs/operations/pc-health.md): включать все ПК
+    /// по сети в это время; выключать свободные. null — не включать / не выключать по расписанию.
+    int? WakeAtMinuteOfDay = null,
+    int? ShutdownAtMinuteOfDay = null);
 
 /// <summary>
 /// Профиль филиала, который ни разу не сохраняли: разумный набор сразу, а не голый киоск. Из игры
@@ -101,13 +105,16 @@ public sealed record UpdateBranchProtectionProfileRequest(
     IReadOnlyList<BlockedWindowRuleDto> BlockedWindows,
     IReadOnlyList<string> ClearAfterSession,
     int? IdleShutdownMinutes = null,
-    string? ClubRules = null);
+    string? ClubRules = null,
+    int? WakeAtMinuteOfDay = null,
+    int? ShutdownAtMinuteOfDay = null);
 
 public static class ProtectionProfileLimits
 {
     public const int MinIdleShutdownMinutes = 5;
     public const int MaxIdleShutdownMinutes = 720;
     public const int MaxClubRulesLength = 2000;
+    public const int MinutesPerDay = 24 * 60;
 }
 
 public static class ProtectionProfileErrorCodeNames

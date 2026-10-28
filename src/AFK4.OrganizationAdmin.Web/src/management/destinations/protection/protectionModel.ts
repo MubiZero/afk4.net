@@ -36,6 +36,23 @@ export interface ProtectionForm {
   /** Минуты простоя до выключения; '' — не выключать. */
   idleShutdownMinutes: string;
   clubRules: string;
+  /** Расписание ПК по времени филиала, «ЧЧ:ММ»; '' — не включать / не выключать. */
+  wakeAt: string;
+  shutdownAt: string;
+}
+
+/** «09:30» ↔ минута дня: так время хранит сервер, а человек видит часы. */
+export function minuteToTime(minute: number | null | undefined): string {
+  if (minute === null || minute === undefined) return '';
+  return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+}
+
+export function timeToMinute(time: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
 }
 
 /** Что предложить в «выключать свободный ПК»: чаще получаса — лишние включения, реже двух часов — нет смысла. */
@@ -60,7 +77,9 @@ export const protectionDefaults: ProtectionForm = {
   // Следующий игрок не входит в чужой Steam потому, что клуб не открыл эту страницу.
   clearAfterSession: [...sessionTraces],
   idleShutdownMinutes: '',
-  clubRules: ''
+  clubRules: '',
+  wakeAt: '',
+  shutdownAt: ''
 };
 
 export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionForm {
@@ -80,7 +99,9 @@ export function protectionToForm(dto: BranchProtectionProfileDto): ProtectionFor
     compoundWindows: profile.blockedWindows.filter((rule) => rule.titleContains && rule.className),
     clearAfterSession: [...profile.clearAfterSession],
     idleShutdownMinutes: profile.idleShutdownMinutes == null ? '' : String(profile.idleShutdownMinutes),
-    clubRules: profile.clubRules ?? ''
+    clubRules: profile.clubRules ?? '',
+    wakeAt: minuteToTime(profile.wakeAtMinuteOfDay),
+    shutdownAt: minuteToTime(profile.shutdownAtMinuteOfDay)
   };
 }
 
@@ -106,7 +127,9 @@ export function buildProtectionRequest(organizationId: string, form: ProtectionF
     blockedWindows: windows,
     clearAfterSession: sessionTraces.filter((item) => form.clearAfterSession.includes(item)),
     idleShutdownMinutes: form.idleShutdownMinutes === '' ? null : Number(form.idleShutdownMinutes),
-    clubRules: form.clubRules.trim() === '' ? null : form.clubRules.trim()
+    clubRules: form.clubRules.trim() === '' ? null : form.clubRules.trim(),
+    wakeAtMinuteOfDay: timeToMinute(form.wakeAt),
+    shutdownAtMinuteOfDay: timeToMinute(form.shutdownAt)
   };
 }
 

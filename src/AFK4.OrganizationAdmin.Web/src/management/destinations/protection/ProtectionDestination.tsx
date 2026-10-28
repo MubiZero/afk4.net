@@ -314,6 +314,32 @@ export function ProtectionDestination({ backend, onDirtyChange }: DestinationPro
 
           <div className="payset-divider" />
 
+          {/* Расписание: к открытию ПК стоят включёнными, к ночи свободные гаснут. Пусто — не трогать. */}
+          <div className="payset-field">
+            <label htmlFor="protection-wake-at">{t('op.protection.wakeAt')}</label>
+            <input
+              id="protection-wake-at"
+              type="time"
+              value={form.wakeAt}
+              disabled={disabled}
+              onChange={(event) => onField('wakeAt', event.currentTarget.value)}
+            />
+            <p className="payset-field-hint">{t('op.protection.wakeAt.hint')}</p>
+          </div>
+          <div className="payset-field">
+            <label htmlFor="protection-shutdown-at">{t('op.protection.shutdownAt')}</label>
+            <input
+              id="protection-shutdown-at"
+              type="time"
+              value={form.shutdownAt}
+              disabled={disabled}
+              onChange={(event) => onField('shutdownAt', event.currentTarget.value)}
+            />
+            <p className="payset-field-hint">{t('op.protection.shutdownAt.hint')}</p>
+          </div>
+
+          <div className="payset-divider" />
+
           <div className="payset-field protect-list">
             <label htmlFor="protection-rules">{t('op.protection.rules')}</label>
             <textarea

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { buildProtectionRequest, lines, protectionDefaults, protectionToForm, toggleDrive, toggleTrace } from './protectionModel';
+import { buildProtectionRequest, lines, minuteToTime, protectionDefaults, protectionToForm, timeToMinute, toggleDrive, toggleTrace } from './protectionModel';
 
 const dto = {
   organizationId: 'o1',
@@ -42,7 +42,9 @@ describe('protectionModel', () => {
       ],
       clearAfterSession: ['steam', 'messengers'],
       idleShutdownMinutes: 30,
-      clubRules: 'Не есть за ПК.'
+      clubRules: 'Не есть за ПК.',
+      wakeAtMinuteOfDay: null,
+      shutdownAtMinuteOfDay: null
     });
   });
 
@@ -83,5 +85,17 @@ describe('protectionModel', () => {
   it('toggles a drive letter and keeps the letters in order', () => {
     expect(toggleDrive(['E'], 'D')).toEqual(['D', 'E']);
     expect(toggleDrive(['D', 'E'], 'D')).toEqual(['E']);
+  });
+
+  // Расписание ПК: сервер хранит минуту дня, человек видит часы; пустое поле — расписания нет.
+  it('turns the PC schedule into minutes of the day and back', () => {
+    expect(minuteToTime(9 * 60 + 5)).toBe('09:05');
+    expect(minuteToTime(null)).toBe('');
+    expect(timeToMinute('23:30')).toBe(23 * 60 + 30);
+    expect(timeToMinute('')).toBeNull();
+    expect(timeToMinute('25:00')).toBeNull();
+    const request = buildProtectionRequest('o1', { ...protectionDefaults, wakeAt: '09:00', shutdownAt: '' });
+    expect(request.wakeAtMinuteOfDay).toBe(540);
+    expect(request.shutdownAtMinuteOfDay).toBeNull();
   });
 });

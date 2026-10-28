@@ -12,7 +12,8 @@ const health: DeviceHealthDto = {
   boardTemperatureC: null,
   gpus: [{ name: 'NVIDIA GeForce RTX 3060', temperatureC: 96, fanPercent: 100, loadPercent: 98 }],
   disks: [{ model: 'Samsung SSD 980 1TB', health: DiskHealthNames.Healthy, temperatureC: 41, wearPercent: 7, powerOnHours: 5200, readErrorsUncorrected: 0 }],
-  volumes: [{ name: 'C:', freeGb: 120, sizeGb: 476, isSystem: true }]
+  volumes: [{ name: 'C:', freeGb: 120, sizeGb: 476, isSystem: true }],
+  wakeOnLan: { fastStartupOff: true, nicWakeEnabled: false }
 };
 
 describe('здоровье ПК', () => {
@@ -25,5 +26,7 @@ describe('здоровье ПК', () => {
     expect(screen.getByText('свободно 120 из 476 ГБ')).toBeDefined();
     // Датчика платы нет — и строки нет, а не «—».
     expect(screen.queryByText('Плата (ACPI)')).toBeNull();
+    // Сетевая карта не умеет будить — так и сказано, а не «готово».
+    expect(screen.getByText('не готово: сетевая карта не умеет будить ПК')).toBeDefined();
   });
 });
