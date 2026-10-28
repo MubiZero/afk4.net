@@ -1,0 +1,5 @@
+{
+  "subject": "{{pcName}}: GPU overheating — {{branchName}}",
+  "bodyText": "At {{branchName}}, the GPU in {{pcName}} reached {{detail}}. At this temperature it throttles and then shuts the PC down mid-game. Check the fans and dust.",
+  "bodyHtml": "<p>At {{branchName}}, the GPU in <strong>{{pcName}}</strong> reached <strong>{{detail}}</strong>.</p><p>At this temperature it throttles and then shuts the PC down mid-game. Check the fans and dust.</p>"
+}

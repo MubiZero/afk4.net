@@ -1,0 +1,5 @@
+{
+  "subject": "{{pcName}}: disk failing — {{branchName}}",
+  "bodyText": "At {{branchName}}, the disk in {{pcName}} reports a fault ({{detail}}). Replace it before the PC stops booting: games and Windows on it can be lost at any moment.",
+  "bodyHtml": "<p>At {{branchName}}, the disk in <strong>{{pcName}}</strong> reports a fault ({{detail}}).</p><p>Replace it before the PC stops booting: games and Windows on it can be lost at any moment.</p>"
+}

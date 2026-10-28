@@ -40,6 +40,7 @@ public sealed class Worker(
     GameLibraryService? games = null,
     AFK4.Agent.Service.Power.IdleShutdownMonitor? idleShutdown = null,
     AFK4.Agent.Service.Hardware.HardwareReporter? hardware = null,
+    AFK4.Agent.Service.Hardware.HealthReporter? health = null,
     AFK4.Agent.Service.Showcase.ShowcaseService? showcase = null,
     AFK4.Agent.Service.Showcase.IShowcaseImpressions? impressions = null,
     IMachineRegistry? machineRegistry = null,
@@ -597,6 +598,8 @@ public sealed class Worker(
             await TryStepAsync("Game library", () => games?.SyncAsync(gameLibraryVersion, cancellationToken), cancellationToken);
             // Железо — раз в несколько часов; своё расписание у отправителя.
             await TryStepAsync("Hardware report", () => hardware?.ReportIfDueAsync(cancellationToken), cancellationToken);
+            // Здоровье — раз в пять минут: температуры, диски, место.
+            await TryStepAsync("Health report", () => health?.ReportIfDueAsync(cancellationToken), cancellationToken);
             // Витрина — раз в 10 минут по ETag; своё расписание у витрины.
             await TryStepAsync("Showcase", () => showcase?.SyncIfDueAsync(cancellationToken), cancellationToken);
             // Показы рекламы — пачкой раз в час.

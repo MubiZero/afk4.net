@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Notifications.Telegram;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
@@ -93,6 +94,56 @@ internal static class DeviceHardwareEndpoints
             return Results.NoContent();
         });
 
+        // Здоровье ПК раз в пять минут (docs/operations/pc-health.md): показатели — на устройство, худшая
+        // проблема — для карты и Панели; в критичную беду — одно сообщение владельцу.
+        app.MapPost("/api/devices/{deviceId:guid}/health/report", async (
+            Guid deviceId,
+            DeviceHealthReportRequest request,
+            HttpContext httpContext,
+            IDeviceCredentialValidator credentialValidator,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            TelegramReports? telegramReports,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var device = await dbContext.Devices.SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var now = timeProvider.GetUtcNow();
+            var issue = DeviceHealthRules.WorstIssue(request.Health);
+            var wasCritical = DeviceHealthIssueNames.IsCritical(device.HealthIssue);
+            if (issue != device.HealthIssue)
+            {
+                device.HealthIssueSinceUtc = issue is null ? null : now;
+            }
+
+            device.HealthIssue = issue;
+            device.HealthJson = JsonSerializer.Serialize(request.Health, Json);
+            device.HealthReportedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (DeviceHealthIssueNames.IsCritical(issue) && !wasCritical && telegramReports is not null)
+            {
+                await telegramReports.DeviceHealthAsync(device, issue!, DeviceHealth.Detail(request.Health, issue!), cancellationToken);
+            }
+
+            return Results.NoContent();
+        });
+
         organizations.MapGet("devices/{deviceId:guid}/hardware", async (
             Guid deviceId,
             StaffAuthorizationService authorizationService,
@@ -114,7 +165,12 @@ internal static class DeviceHardwareEndpoints
             }
 
             var entity = await dbContext.DeviceHardware.AsNoTracking().SingleOrDefaultAsync(row => row.DeviceId == deviceId, cancellationToken);
-            return Results.Ok(ToDto(entity));
+            return Results.Ok(ToDto(entity) with
+            {
+                Health = ReadHealth(device.HealthJson),
+                HealthReportedAtUtc = device.HealthReportedAtUtc,
+                HealthIssue = device.HealthIssue
+            });
         }).AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapPost("devices/{deviceId:guid}/hardware/accept", async (
@@ -194,6 +250,18 @@ internal static class DeviceHardwareEndpoints
             entity.AcceptedAtUtc,
             entity.AcceptedByName,
             DeviceHardware.Diff(accepted, current));
+    }
+
+    private static DeviceHealthDto? ReadHealth(string? json)
+    {
+        try
+        {
+            return json is null ? null : JsonSerializer.Deserialize<DeviceHealthDto>(json, Json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static HardwareSnapshotDto? Read(string json)

@@ -1,10 +1,11 @@
-import { Ban, BellRing, Hourglass, PauseCircle, Plus, TrendingUp, TriangleAlert, Wrench, WifiOff } from 'lucide-react';
+import { Ban, BellRing, Hourglass, PauseCircle, Plus, Thermometer, TrendingUp, TriangleAlert, Wrench, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
 import { formatDurationCompact } from './floorMapState';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 import { useLiveSeat } from './useLiveSeat';
+import { healthIssueKey } from './management/destinations/halls/DeviceHealthReadings';
 
 // Иконка типа проблемы для мест без сессии — настоящий сигнификатор «что не так», по тону.
 // На занятом месте рядом с именем ПК показываем клиента (реальное имя из floor-map DTO или «Гость»),
@@ -110,6 +111,10 @@ export function SeatTile({
         )}
         {sessionOffline && (
           <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />
+        )}
+        {/* ПК болен (перегрев, диск, место): знак на плитке, подробность — в карточке места. */}
+        {seat.healthIssue && (
+          <Thermometer className="seat-health-mark" size={13} aria-label={t(healthIssueKey(seat.healthIssue))} />
         )}
       </header>
       {/* Кто за местом — своей строкой под именем ПК. В шапке рядом с колокольчиком, паузой или

@@ -1196,6 +1196,19 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<long?>("GameCacheStoredBytes")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("HealthIssue")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("HealthIssueSinceUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HealthJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("HealthReportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsLocked")
                         .HasColumnType("boolean");
 

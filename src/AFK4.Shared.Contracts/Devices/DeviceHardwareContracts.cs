@@ -76,7 +76,12 @@ public sealed record DeviceHardwareDto(
     DateTimeOffset? AcceptedAtUtc,
     /// Кто принял; null — первый снимок, принятый сам.
     string? AcceptedByName,
-    IReadOnlyList<HardwareChangeDto> Changes);
+    IReadOnlyList<HardwareChangeDto> Changes,
+    /// Здоровье ПК: последние показатели (раз в пять минут), когда пришли и худшая проблема
+    /// (<see cref="DeviceHealthIssueNames"/>). null — агент прежней версии или отчёта ещё не было.
+    DeviceHealthDto? Health = null,
+    DateTimeOffset? HealthReportedAtUtc = null,
+    string? HealthIssue = null);
 
 public static class DeviceHardwareRoutes
 {

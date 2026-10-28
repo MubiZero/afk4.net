@@ -410,6 +410,23 @@ export const DeviceEnrollmentStateNames = {
 } as const;
 export type DeviceEnrollmentStateName = (typeof DeviceEnrollmentStateNames)[keyof typeof DeviceEnrollmentStateNames];
 
+/**
+ * Худшая проблема ПК: код для карты и Панели, уровень — звать ли владельца.
+ *
+ * Словарь: Devices/DeviceHealthContracts.cs
+ */
+export const DeviceHealthIssueNames = {
+  DiskFailing: 'disk_failing',
+  DiskWarning: 'disk_warning',
+  DiskHot: 'disk_hot',
+  DiskWorn: 'disk_worn',
+  GpuOverheating: 'gpu_overheating',
+  GpuHot: 'gpu_hot',
+  BoardHot: 'board_hot',
+  LowDiskSpace: 'low_disk_space',
+} as const;
+export type DeviceHealthIssueName = (typeof DeviceHealthIssueNames)[keyof typeof DeviceHealthIssueNames];
+
 /** Словарь: Devices/DeviceShellContextContracts.cs */
 export const DeviceLiveSessionHoldNames = {
   /** Администратор поставил сессию на паузу. */
@@ -478,6 +495,14 @@ export const DeviceWarnReasonNames = {
   LowBalance: 'low-balance',
 } as const;
 export type DeviceWarnReasonName = (typeof DeviceWarnReasonNames)[keyof typeof DeviceWarnReasonNames];
+
+/** Словарь: Devices/DeviceHealthContracts.cs */
+export const DiskHealthNames = {
+  Healthy: 'healthy',
+  Warning: 'warning',
+  Unhealthy: 'unhealthy',
+} as const;
+export type DiskHealthName = (typeof DiskHealthNames)[keyof typeof DiskHealthNames];
 
 /**
  * Что с дружбой прямо сейчас.
@@ -3660,6 +3685,13 @@ export interface DeviceHardwareDto {
   /** Кто принял; null — первый снимок, принятый сам. */
   acceptedByName: string | null;
   changes: HardwareChangeDto[];
+  /**
+   * Здоровье ПК: последние показатели (раз в пять минут), когда пришли и худшая проблема
+   * (DeviceHealthIssueNames). null — агент прежней версии или отчёта ещё не было.
+   */
+  health?: DeviceHealthDto | null;
+  healthReportedAtUtc?: IsoDateTime | null;
+  healthIssue?: string | null;
 }
 
 /** Контракт: Devices/DeviceHardwareContracts.cs */
@@ -3669,6 +3701,32 @@ export interface DeviceHardwareReportRequest {
   deviceId: Guid;
   collectedAtUtc: IsoDateTime;
   snapshot: HardwareSnapshotDto;
+}
+
+/**
+ * Здоровье ПК (docs/operations/pc-health.md): то, что Windows отдаёт без драйвера ядра. Точной температуры
+ * процессора и оборотов корпусных вентиляторов среди этого нет — для них нужен драйвер, а его Defender
+ * помечает как уязвимый; ставить такое на ПК клубов не будем. Любое поле null — не прочиталось на этом ПК.
+ *
+ * Контракт: Devices/DeviceHealthContracts.cs
+ */
+export interface DeviceHealthDto {
+  cpuLoadPercent: number | null;
+  memoryUsedPercent: number | null;
+  /** Самая горячая тепловая зона ACPI — датчик платы, у многих ПК близкий к процессору; у многих его нет. */
+  boardTemperatureC: number | null;
+  gpus: GpuHealthDto[];
+  disks: DiskHealthDto[];
+  volumes: VolumeSpaceDto[];
+}
+
+/** Контракт: Devices/DeviceHealthContracts.cs */
+export interface DeviceHealthReportRequest {
+  organizationId: Guid;
+  branchId: Guid;
+  deviceId: Guid;
+  observedAtUtc: IsoDateTime;
+  health: DeviceHealthDto;
 }
 
 /** Контракт: Devices/DeviceHeartbeatRequest.cs */
@@ -4092,6 +4150,20 @@ export interface DeviceUpdateStatusSnapshotDto {
 }
 
 /**
+ * <param name="Health">Оценка самой Windows (DiskHealthNames); null — не знает.</param>
+ *
+ * Контракт: Devices/DeviceHealthContracts.cs
+ */
+export interface DiskHealthDto {
+  model: string;
+  health: string | null;
+  temperatureC: number | null;
+  wearPercent: number | null;
+  powerOnHours: number | null;
+  readErrorsUncorrected: number | null;
+}
+
+/**
  * Чем смена заработала: проданным временем, товаром и удержанной за неявку предоплатой.
  * NoShow стоит отдельно от Time намеренно: удержание — это
  * не проданное время, и сложить их значит показать кассе наигранные часы, которых не было.
@@ -4272,6 +4344,18 @@ export interface GameplayTimeReportRowDto {
   startedAtUtc: IsoDateTime | null;
   endedAtUtc: IsoDateTime | null;
   endsAtUtc: IsoDateTime | null;
+}
+
+/**
+ * Видеокарта NVIDIA (через NVML драйвера). AMD и встроенная графика пока не читаются.
+ *
+ * Контракт: Devices/DeviceHealthContracts.cs
+ */
+export interface GpuHealthDto {
+  name: string;
+  temperatureC: number | null;
+  fanPercent: number | null;
+  loadPercent: number | null;
 }
 
 /** Контракт: Players/GuestImportContracts.cs */
@@ -7703,6 +7787,8 @@ export interface SeatStatusDto {
    * гостя возвращено, он мог уйти переждать.
    */
   sessionPauseReason?: SessionPauseReasonName | null;
+  /** Худшая проблема здоровья ПК (DeviceHealthIssueNames): перегрев, отказывающий диск, мало места. Пусто — порядок. */
+  healthIssue?: DeviceHealthIssueName | null;
 }
 
 /**
@@ -9504,6 +9590,18 @@ export interface VoidPosSaleRequest {
   organizationId: Guid;
   reason: string;
   idempotencyKey: string;
+}
+
+/**
+ * <param name="Name">Буква тома: «C:».</param>
+ *
+ * Контракт: Devices/DeviceHealthContracts.cs
+ */
+export interface VolumeSpaceDto {
+  name: string;
+  freeGb: number;
+  sizeGb: number;
+  isSystem: boolean;
 }
 
 /**

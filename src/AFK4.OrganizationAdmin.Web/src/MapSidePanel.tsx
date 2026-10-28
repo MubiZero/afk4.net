@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { BellRing, Check, Loader2, Plus, TriangleAlert, Wifi, WifiOff } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { healthIssueKey } from './management/destinations/halls/DeviceHealthReadings';
 import { Button, Inspector, Money, StatusBadge, useBlockedReason, type Fact, type RowAction, type StatusTone } from '@afk4/ui/react';
 import { projectOperatorError } from './apiErrors';
 import { formatBilledDuration } from './checkoutState';
@@ -688,6 +689,8 @@ export function MapSidePanel({
           {retryButton(false)}
         </div>
       )}
+
+      {seat.healthIssue && <p className="ui-blocked-reason seat-health-line" role="status">{t(healthIssueKey(seat.healthIssue))}</p>}
 
       {state === 'pending' ? (
         <p className="seat-pending-line" role="status">

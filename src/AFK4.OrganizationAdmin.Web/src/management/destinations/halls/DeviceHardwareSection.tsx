@@ -4,6 +4,7 @@ import { HardwareComponentNames, type DeviceHardwareDto, type HardwareSnapshotDt
 import { Skeleton } from '../../../operatorPrimitives';
 import { projectOperatorError } from '../../../apiErrors';
 import type { createAuthenticatedOperatorClients } from '../../../operatorHelpers';
+import { DeviceHealthReadings } from './DeviceHealthReadings';
 
 type Clients = ReturnType<typeof createAuthenticatedOperatorClients>;
 
@@ -83,6 +84,9 @@ export function DeviceHardwareSection({ clients, deviceId, canAccept, onAccepted
           )}
           <p className="mgmt-drawer-hint">{t('op.hardware.acceptHint')}</p>
         </div>
+      )}
+      {hardware.health && (
+        <DeviceHealthReadings health={hardware.health} reportedAtUtc={hardware.healthReportedAtUtc ?? null} issue={hardware.healthIssue ?? null} />
       )}
       <HardwareList snapshot={hardware.current} />
       <p className="mgmt-drawer-hint">

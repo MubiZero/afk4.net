@@ -61,4 +61,6 @@ public sealed record SeatStatusDto(
     string? DeviceNetworkAddress = null,
     // Почему сессия на паузе, если не по кнопке (SessionPauseReasonNames): «power» — отключали свет, время
     // гостя возвращено, он мог уйти переждать.
-    string? SessionPauseReason = null);
+    string? SessionPauseReason = null,
+    // Худшая проблема здоровья ПК (DeviceHealthIssueNames): перегрев, отказывающий диск, мало места. Пусто — порядок.
+    string? HealthIssue = null);

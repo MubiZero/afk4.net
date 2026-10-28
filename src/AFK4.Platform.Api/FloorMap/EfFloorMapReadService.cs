@@ -201,7 +201,8 @@ public sealed class EfFloorMapReadService(
             IsKioskAbsent: device?.KioskAbsentSinceUtc is not null,
             DeviceNetworkAddress: device?.NetworkAddress,
             HasPlayerAccount: activeSession?.PlayerAccountId is not null,
-            SessionPauseReason: activeSession?.PauseReason);
+            SessionPauseReason: activeSession?.PauseReason,
+            HealthIssue: device?.HealthIssue);
     }
 
     // Команды, которые администратор шлёт ПК сам и может повторить той же кнопкой. Служебные
