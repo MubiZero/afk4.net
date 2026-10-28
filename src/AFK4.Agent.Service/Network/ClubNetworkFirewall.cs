@@ -18,9 +18,12 @@ public static class ClubNetworkFirewall
     /// <summary>Пересоздаёт правило при каждом старте: порт мог смениться, а правило — быть правлено руками.</summary>
     public static bool EnsureRule(string ruleName, int port)
     {
-        Netsh($"advfirewall firewall delete rule name=\"{ruleName}\"");
+        RemoveRule(ruleName);
         return Netsh(AddRuleArguments(ruleName, port));
     }
+
+    /// <summary>Правила нет — netsh отвечает ошибкой; для удаления это тот же итог.</summary>
+    public static void RemoveRule(string ruleName) => Netsh($"advfirewall firewall delete rule name=\"{ruleName}\"");
 
     private static bool Netsh(string arguments)
     {

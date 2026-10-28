@@ -17,7 +17,7 @@ public sealed class OfflineLanListener(
     IOptions<AgentOptions> options,
     ILogger<OfflineLanListener> logger) : BackgroundService
 {
-    private const string FirewallRuleName = "AFK4.NET Agent (club network)";
+    internal const string FirewallRuleName = "AFK4.NET Agent (club network)";
     private const int MaxBodyBytes = 16 * 1024;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly TaskCompletionSource<bool> listening = new(TaskCreationOptions.RunContinuationsAsynchronously);

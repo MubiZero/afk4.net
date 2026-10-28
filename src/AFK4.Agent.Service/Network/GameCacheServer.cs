@@ -21,7 +21,7 @@ public sealed class GameCacheServer(
     long? fixedQuotaBytes = null) : BackgroundService
 {
     public const string UpstreamClientName = "game-cache-upstream";
-    private const string FirewallRuleName = "AFK4.NET Agent (game cache)";
+    internal const string FirewallRuleName = "AFK4.NET Agent (game cache)";
 
     /// <summary>Кусок Steam — около мегабайта, Epic — тоже; больше этого в кеш не кладём, просто отдаём.</summary>
     private const long MaxCachedObjectBytes = 64L * 1024 * 1024;

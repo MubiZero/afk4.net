@@ -20,6 +20,13 @@ public partial class App : Application
         // during enrollment). Log it and show a message instead of a raw .NET crash dialog.
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        if (e.Args.Contains(RemoveKioskArgument))
+        {
+            silent = true;
+            Shutdown(RemoveKiosk());
+            return;
+        }
+
         var silentInstall = SilentInstallOptions.Parse(e.Args);
         if (silentInstall.Requested)
         {
@@ -69,6 +76,26 @@ public partial class App : Application
 
         LaunchWebShell(bridge, machine.Info, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// Удаление агента: установщик зовёт <c>--remove-kiosk</c> от имени системы, и мастер без окна снимает
+    /// киоск — без агента и оболочки ПК иначе входил бы в учётку игрока с пустым экраном.
+    /// </summary>
+    private const string RemoveKioskArgument = "--remove-kiosk";
+
+    private static int RemoveKiosk()
+    {
+        try
+        {
+            new WizardMachine().Kiosk.Remove();
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            SetupWizardStartupLog.Write("Kiosk removal during uninstall failed.", exception);
+            return 1;
+        }
     }
 
     /// <summary>

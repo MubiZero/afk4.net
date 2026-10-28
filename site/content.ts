@@ -127,10 +127,10 @@ export const content: Record<Lang, Content> = {
       dataBody: 'Только на сервер AFK4.NET, с которым работает клуб: состояние ПК, сессии и оплаты, описание железа и его показатели (температуры, диски), список установленных программ. Подробно в политике конфиденциальности.',
       uninstallTitle: 'Как удалить',
       uninstallSteps: [
-        'На игровом ПК запустите «Мастер установки AFK4.NET» и нажмите «Снять киоск»: учётная запись игрока удалится, вход в Windows станет прежним.',
-        'Откройте «Параметры» → «Приложения» и удалите все программы с AFK4.NET в названии: AFK4.NET Agent, AFK4.NET Player Shell, Панель AFK4.NET, AFK4.NET и AFK4.NET Setup Payload.'
+        'Откройте «Параметры» → «Приложения» и удалите AFK4.NET. Если в списке остались AFK4.NET Agent, AFK4.NET Player Shell, Панель AFK4.NET или AFK4.NET Setup Payload, удалите и их.',
+        'При удалении AFK4.NET Agent программа сама снимает киоск (учётка игрока удаляется, вход в Windows становится прежним), правила брандмауэра, блок «AFK4 game cache» в hosts и запреты Windows, а «быстрый запуск» включает обратно, если выключала его сама.'
       ],
-      uninstallLeftovers: 'После удаления могут остаться правила брандмауэра «AFK4.NET Agent (…)», блок «AFK4 game cache» в файле hosts и выключенный «быстрый запуск». Их убирают командами от имени администратора: netsh advfirewall firewall delete rule name="AFK4.NET Agent (club network)", то же для «(game cache)», а блок в C:\\Windows\\System32\\drivers\\etc\\hosts удаляется вручную. «Быстрый запуск» включается в «Электропитании».'
+      uninstallLeftovers: 'Остаются разрешение сетевой карте будить ПК по сети (оно ничего не открывает) и папка C:\\ProgramData\\AFK4 с журналами и ключом ПК: с ней переустановка не требует новой регистрации. Если ПК уходит из клуба, удалите эту папку.'
     },
     signing: {
       title: 'Code signing policy',
@@ -157,7 +157,7 @@ export const content: Record<Lang, Content> = {
       title: 'Политика конфиденциальности',
       updated: 'Действует с 29.10.2026.',
       sections: [
-        { title: 'Кто отвечает', body: 'Платформу AFK4.NET ведёт Мубинджон Мухамедов (Таджикистан). Вопросы о данных: postmaster@afk4.net.' },
+        { title: 'Кто отвечает', body: 'Платформу AFK4.NET ведёт Мубинджон Мухамедов (Таджикистан). Вопросы о данных: hello@afk4.net.' },
         { title: 'Какие данные', body: 'Сотрудники клуба: имя, номер телефона, роль. Гости с учётной записью: номер телефона, имя, по желанию дата рождения, баланс и посещения. Сессии, оплаты, касса и склад клуба. С ПК клуба: имя компьютера, адрес в сети клуба, описание железа и его показатели (температуры, диски, место), список установленных программ, события защиты.' },
         { title: 'Зачем', body: 'Только чтобы клуб работал: открывать ПК по оплате, считать деньги, показывать владельцу отчёты и предупреждать о неисправных ПК. Данные не продаются и не передаются для рекламы.' },
         { title: 'Где хранятся', body: 'На серверах AFK4.NET. Резервные копии базы шифруются при хранении в Cloudflare R2 и хранятся 30 дней. SMS отправляет местный оператор, сообщения в Telegram уходят тем, кто сам подключил отчёты.' },
@@ -235,10 +235,10 @@ export const content: Record<Lang, Content> = {
       dataBody: 'Танҳо ба сервери AFK4.NET, ки клуб бо он кор мекунад: ҳолати ПК, сессияҳо ва пардохтҳо, тавсифи сахтафзор ва нишондиҳандаҳои он (ҳарорат, дискҳо), рӯйхати барномаҳои насбшуда. Муфассал дар сиёсати махфият.',
       uninstallTitle: 'Чӣ тавр нест кардан',
       uninstallSteps: [
-        'Дар ПК-и бозӣ «Устоди насби AFK4.NET»-ро оғоз кунед ва «Киоскро бардоштан»-ро пахш кунед: ҳисоби бозингар нест мешавад, воридшавӣ ба Windows ба ҳолати пешина бармегардад.',
-        '«Танзимот» → «Барномаҳо»-ро кушоед ва ҳамаи барномаҳоеро, ки дар номашон AFK4.NET доранд, нест кунед: AFK4.NET Agent, AFK4.NET Player Shell, Панели AFK4.NET, AFK4.NET ва AFK4.NET Setup Payload.'
+        '«Танзимот» → «Барномаҳо»-ро кушоед ва AFK4.NET-ро нест кунед. Агар дар рӯйхат AFK4.NET Agent, AFK4.NET Player Shell, Панели AFK4.NET ё AFK4.NET Setup Payload монда бошанд, онҳоро ҳам нест кунед.',
+        'Ҳангоми нест кардани AFK4.NET Agent барнома худаш киоскро мебардорад (ҳисоби бозингар нест мешавад, воридшавӣ ба Windows ба ҳолати пешина бармегардад), қоидаҳои девори оташ, блоки «AFK4 game cache» дар hosts ва манъҳои Windows-ро нест мекунад, «оғози тез»-ро бошад, агар худаш хомӯш карда бошад, боз фаъол мекунад.'
       ],
-      uninstallLeftovers: 'Пас аз нест кардан метавонанд қоидаҳои девори оташи «AFK4.NET Agent (…)», блоки «AFK4 game cache» дар файли hosts ва «оғози тез»-и хомӯш монанд. Онҳоро бо фармонҳо аз номи маъмур нест мекунанд: netsh advfirewall firewall delete rule name="AFK4.NET Agent (club network)", ҳамин тавр барои «(game cache)», блок дар C:\\Windows\\System32\\drivers\\etc\\hosts дастӣ нест карда мешавад. «Оғози тез» дар «Таъминоти барқ» фаъол карда мешавад.'
+      uninstallLeftovers: 'Иҷозати корти шабака барои бедор кардани ПК тавассути шабака (он чизе намекушояд) ва ҷузвдони C:\\ProgramData\\AFK4 бо маҷаллаҳо ва калиди ПК мемонанд: бо он насби дубора бақайдгирии навро талаб намекунад. Агар ПК аз клуб баравад, ин ҷузвдонро нест кунед.'
     },
     signing: {
       title: 'Code signing policy',
@@ -265,7 +265,7 @@ export const content: Record<Lang, Content> = {
       title: 'Сиёсати махфият',
       updated: 'Аз 29.10.2026 амал мекунад.',
       sections: [
-        { title: 'Кӣ ҷавобгар аст', body: 'Платформаи AFK4.NET-ро Мубинҷон Муҳамедов (Тоҷикистон) пеш мебарад. Саволҳо дар бораи маълумот: postmaster@afk4.net.' },
+        { title: 'Кӣ ҷавобгар аст', body: 'Платформаи AFK4.NET-ро Мубинҷон Муҳамедов (Тоҷикистон) пеш мебарад. Саволҳо дар бораи маълумот: hello@afk4.net.' },
         { title: 'Кадом маълумот', body: 'Кормандони клуб: ном, рақами телефон, нақш. Меҳмонон бо ҳисоб: рақами телефон, ном, бо хоҳиш санаи таваллуд, баланс ва ташрифҳо. Сессияҳо, пардохтҳо, касса ва анбори клуб. Аз ПК-ҳои клуб: номи компютер, суроға дар шабакаи клуб, тавсифи сахтафзор ва нишондиҳандаҳои он (ҳарорат, дискҳо, ҷой), рӯйхати барномаҳои насбшуда, ҳодисаҳои ҳифз.' },
         { title: 'Барои чӣ', body: 'Танҳо барои кори клуб: кушодани ПК аз рӯи пардохт, ҳисоб кардани пул, нишон додани ҳисоботҳо ба соҳиб ва огоҳӣ дар бораи ПК-ҳои вайрон. Маълумот фурӯхта намешавад ва барои реклама дода намешавад.' },
         { title: 'Дар куҷо нигоҳ дошта мешавад', body: 'Дар серверҳои AFK4.NET. Нусхаҳои эҳтиётии базаи маълумот ҳангоми нигоҳдорӣ дар Cloudflare R2 рамзгузорӣ мешаванд ва 30 рӯз нигоҳ дошта мешаванд. SMS-ро оператори маҳаллӣ мефиристад, паёмҳо дар Telegram ба онҳое мераванд, ки худашон ҳисоботҳоро пайваст кардаанд.' },
@@ -343,10 +343,10 @@ export const content: Record<Lang, Content> = {
       dataBody: 'Only to the AFK4.NET server the club uses: PC state, sessions and payments, a hardware description and its readings (temperatures, disks) and the list of installed programs. Details in the privacy policy.',
       uninstallTitle: 'How to uninstall',
       uninstallSteps: [
-        'On a gaming PC, run the AFK4.NET setup wizard and choose \u201cRemove the kiosk\u201d: the player account is deleted and Windows sign-in goes back to how it was.',
-        'Open Settings \u2192 Apps and uninstall every program with AFK4.NET in its name: AFK4.NET Agent, AFK4.NET Player Shell, the AFK4.NET Panel, AFK4.NET and AFK4.NET Setup Payload.'
+        'Open Settings \u2192 Apps and uninstall AFK4.NET. If AFK4.NET Agent, AFK4.NET Player Shell, the AFK4.NET Panel or AFK4.NET Setup Payload are still listed, uninstall them too.',
+        'Uninstalling AFK4.NET Agent removes the kiosk (the player account is deleted and Windows sign-in goes back to how it was), the firewall rules, the \u201cAFK4 game cache\u201d block in hosts and the Windows restrictions, and turns Fast Startup back on if the software turned it off.'
       ],
-      uninstallLeftovers: 'Firewall rules \u201cAFK4.NET Agent (\u2026)\u201d, the \u201cAFK4 game cache\u201d block in the hosts file and the disabled Fast Startup may remain. Remove them from an administrator prompt: netsh advfirewall firewall delete rule name="AFK4.NET Agent (club network)", the same for \u201c(game cache)\u201d, and delete the block in C:\\Windows\\System32\\drivers\\etc\\hosts by hand. Fast Startup is re-enabled in Power Options.'
+      uninstallLeftovers: 'What stays: the network card\u2019s permission to wake the PC over the network (it opens nothing) and the C:\\ProgramData\\AFK4 folder with logs and the PC key, so a reinstall does not need a new enrollment. If the PC leaves the club, delete that folder.'
     },
     signing: {
       title: 'Code signing policy',
@@ -373,7 +373,7 @@ export const content: Record<Lang, Content> = {
       title: 'Privacy policy',
       updated: 'Effective 29 October 2026.',
       sections: [
-        { title: 'Who is responsible', body: 'The AFK4.NET platform is run by Mubinjon Mukhamedov (Tajikistan). Questions about data: postmaster@afk4.net.' },
+        { title: 'Who is responsible', body: 'The AFK4.NET platform is run by Mubinjon Mukhamedov (Tajikistan). Questions about data: hello@afk4.net.' },
         { title: 'What data', body: 'Club staff: name, phone number, role. Guests with an account: phone number, name, optional birth date, balance and visits. The club\u2019s sessions, payments, cash desk and stock. From club PCs: computer name, address on the club network, a hardware description and its readings (temperatures, disks, free space), the list of installed programs and protection events.' },
         { title: 'Why', body: 'Only to run the club: open PCs for paid time, keep the books, show the owner reports and warn about failing PCs. Data is not sold and not shared for advertising.' },
         { title: 'Where it is kept', body: 'On AFK4.NET servers. Database backups are encrypted at rest in Cloudflare R2 and kept for 30 days. SMS goes through a local operator; Telegram messages go only to people who connected reports themselves.' },
@@ -392,5 +392,5 @@ export const links = {
   demo: 'https://demo.afk4.net',
   signpath: 'https://signpath.io',
   signpathFoundation: 'https://signpath.org',
-  email: 'mailto:postmaster@afk4.net'
+  email: 'mailto:hello@afk4.net'
 };

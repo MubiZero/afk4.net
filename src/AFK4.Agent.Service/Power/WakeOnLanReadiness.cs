@@ -20,6 +20,10 @@ public static class WakeOnLanReadiness
     private const string PowerKey = @"SYSTEM\CurrentControlSet\Control\Session Manager\Power";
     private const string NetClassKey = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
 
+    // Пометка «быстрый запуск выключили мы»: при удалении агент вернёт только то, что менял сам.
+    private const string AgentKey = @"SOFTWARE\AFK4\Agent";
+    private const string FastStartupTurnedOff = "FastStartupTurnedOff";
+
     /// <param name="macAddress">MAC сетевой карты клуба в виде «AA-BB-CC-DD-EE-FF».</param>
     public static WakeOnLanReadinessDto Ensure(string? macAddress)
     {
@@ -56,8 +60,37 @@ public static class WakeOnLanReadiness
             return true;
         }
 
+        using (var agent = Registry.LocalMachine.CreateSubKey(AgentKey, writable: true))
+        {
+            agent.SetValue(FastStartupTurnedOff, 1, RegistryValueKind.DWord);
+        }
+
         key.SetValue("HiberbootEnabled", 0, RegistryValueKind.DWord);
         return true;
+    }
+
+    /// <summary>
+    /// Удаление агента: включить «быстрый запуск» обратно, если его выключил агент. Разрешение сетевой карте
+    /// будить ПК остаётся: оно ничего не открывает, а прежнее значение драйвера не записано.
+    /// </summary>
+    public static void RestoreFastStartup()
+    {
+        using (var agent = Registry.LocalMachine.OpenSubKey(AgentKey, writable: true))
+        {
+            if (agent?.GetValue(FastStartupTurnedOff) is not int turnedOff || turnedOff != 1)
+            {
+                return;
+            }
+
+            using (var power = Registry.LocalMachine.OpenSubKey(PowerKey, writable: true))
+            {
+                power?.SetValue("HiberbootEnabled", 1, RegistryValueKind.DWord);
+            }
+
+            agent.DeleteValue(FastStartupTurnedOff, throwOnMissingValue: false);
+        }
+
+        Registry.LocalMachine.DeleteSubKey(AgentKey, throwOnMissingSubKey: false);
     }
 
     private static (string PnpDeviceId, string Guid)? FindAdapter(string macAddress)
