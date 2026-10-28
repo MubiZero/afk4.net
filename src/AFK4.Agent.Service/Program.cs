@@ -193,13 +193,17 @@ builder.Services.AddSingleton<SessionAutostart>();
 if (OperatingSystem.IsWindows())
 {
     builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareSnapshotCollector, AFK4.Agent.Service.Hardware.WindowsHardwareSnapshotCollector>();
+    // Здоровье ПК: WMI, NVML, системные вызовы — без драйвера ядра (docs/operations/pc-health.md).
+    builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHealthCollector, AFK4.Agent.Service.Hardware.WindowsHealthCollector>();
 }
 else
 {
     builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHardwareSnapshotCollector, AFK4.Agent.Service.Hardware.UnsupportedHardwareSnapshotCollector>();
+    builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.IHealthCollector, AFK4.Agent.Service.Hardware.UnsupportedHealthCollector>();
 }
 
 builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.HardwareReporter>();
+builder.Services.AddSingleton<AFK4.Agent.Service.Hardware.HealthReporter>();
 
 // Выключение свободного ПК после простоя (настройки ПК клуба).
 builder.Services.AddSingleton<AFK4.Agent.Service.Power.PlayerPresence>();

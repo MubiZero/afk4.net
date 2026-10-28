@@ -622,6 +622,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(device => device.NetworkSubnet).HasMaxLength(64);
             entity.Property(device => device.NetworkBroadcastAddress).HasMaxLength(64);
             entity.Property(device => device.NetworkAddress).HasMaxLength(45);
+            entity.Property(device => device.HealthIssue).HasMaxLength(32);
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId, device.EnrollmentState });
         });

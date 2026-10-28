@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Reports;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -204,6 +205,42 @@ public sealed class TelegramReports(
                 PreferredChannels: [NotificationChannel.Telegram],
                 OrganizationId: organizationId,
                 BranchId: branchId), cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// ПК критично болен (docs/operations/pc-health.md): диск отказывает или видеокарта перегревается. Одно
+    /// сообщение на переход в эту беду — ключ повтора по её началу.
+    /// </summary>
+    public async Task DeviceHealthAsync(DeviceEntity device, string issue, string detail, CancellationToken cancellationToken)
+    {
+        var recipients = await RecipientsAsync(device.OrganizationId, device.BranchId, cancellationToken);
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        var branch = await db.Branches.AsNoTracking().SingleAsync(row => row.BranchId == device.BranchId, cancellationToken);
+        var template = issue == DeviceHealthIssueNames.DiskFailing
+            ? NotificationTemplateKeys.DeviceDiskFailing
+            : NotificationTemplateKeys.DeviceGpuOverheating;
+        var pcName = string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName;
+        foreach (var recipient in recipients)
+        {
+            await notifications.SendAsync(new NotificationRequest(
+                TemplateKey: template,
+                Category: NotificationCategory.Operational,
+                Recipient: Recipient(recipient, branch.PreferredLocale),
+                Tokens: new Dictionary<string, string>
+                {
+                    ["branchName"] = branch.Name,
+                    ["pcName"] = pcName,
+                    ["detail"] = detail,
+                },
+                IdempotencyKey: $"device-health:{device.DeviceId:N}:{issue}:{device.HealthIssueSinceUtc?.ToUnixTimeSeconds()}:{recipient.StaffUserId:N}",
+                PreferredChannels: [NotificationChannel.Telegram],
+                OrganizationId: device.OrganizationId,
+                BranchId: device.BranchId), cancellationToken);
         }
     }
 

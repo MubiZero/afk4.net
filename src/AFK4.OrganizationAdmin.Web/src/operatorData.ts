@@ -89,6 +89,8 @@ export interface SeatSummary {
   sessionState?: string | null;
   /** Почему пауза, если не по кнопке: 'power' — отключали свет, время гостя сохранено. */
   sessionPauseReason?: string | null;
+  /** Худшая проблема здоровья ПК (DeviceHealthIssueNames): перегрев, отказывающий диск, мало места. */
+  healthIssue?: string | null;
   // Как оплачена идущая сессия (BillingModeName). У гостя, заплатившего наличными, «+15 мин» — новая
   // оплата у стойки, и кнопка называет сумму, а не продлевает молча.
   sessionBillingMode?: string | null;

@@ -261,6 +261,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     sessionState: dto.state,
     sessionBillingMode: dto.sessionBillingMode ?? null,
     sessionPauseReason: dto.sessionPauseReason ?? null,
+    healthIssue: dto.healthIssue ?? null,
     deviceNetworkAddress: dto.deviceNetworkAddress ?? null,
     isConsole,
     isOutsidePlan,

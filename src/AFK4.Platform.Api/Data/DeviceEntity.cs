@@ -116,4 +116,15 @@ public sealed class DeviceEntity
 
     /// <summary>С какого момента ПК сообщает, что работает от батареи ИБП; null — от сети или не сообщает.</summary>
     public DateTimeOffset? OnBatterySinceUtc { get; set; }
+
+    /// <summary>Последние показатели здоровья (JSON <c>DeviceHealthDto</c>), раз в пять минут.</summary>
+    public string? HealthJson { get; set; }
+
+    public DateTimeOffset? HealthReportedAtUtc { get; set; }
+
+    /// <summary>Худшая проблема по последним показателям (<c>DeviceHealthIssueNames</c>); null — порядок.</summary>
+    public string? HealthIssue { get; set; }
+
+    /// <summary>С какого момента держится эта проблема: владелец узнаёт о критичной один раз, а не каждые пять минут.</summary>
+    public DateTimeOffset? HealthIssueSinceUtc { get; set; }
 }

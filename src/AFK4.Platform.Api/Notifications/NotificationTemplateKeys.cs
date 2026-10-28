@@ -71,6 +71,11 @@ public static class NotificationTemplateKeys
     /// <summary>В клубе отключали свет: ПК выключились разом, гостям вернули время (Telegram).</summary>
     public const string PowerOutage = "branch.power_outage";
 
+    /// <summary>ПК критично болен (docs/operations/pc-health.md): диск отказывает или видеокарта перегревается.</summary>
+    public const string DeviceDiskFailing = "device.disk_failing";
+
+    public const string DeviceGpuOverheating = "device.gpu_overheating";
+
     /// <summary>Platform announcement (severity warning or above) delivered to the organization owner (Wave D §3).</summary>
     public const string PlatformAnnouncement = "platform.announcement";
 
@@ -102,5 +107,5 @@ public static class NotificationTemplateKeys
     public const string PlayerReviewReplied = "player.review_replied";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied, TelegramLinked, TelegramUnlinked, TelegramLinkExpired, ShiftClosed, BranchDailySummary, PowerOutage];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerReservationConfirmed, PlayerReservationRejected, PlayerBirthdayGift, PlayerReviewReplied, TelegramLinked, TelegramUnlinked, TelegramLinkExpired, ShiftClosed, BranchDailySummary, PowerOutage, DeviceDiskFailing, DeviceGpuOverheating];
 }

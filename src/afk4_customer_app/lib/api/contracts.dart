@@ -335,6 +335,20 @@ abstract final class DeviceEnrollmentStateNames {
   static const String removed = 'removed';
 }
 
+/// Худшая проблема ПК: код для карты и Панели, уровень — звать ли владельца.
+///
+/// Словарь: Devices/DeviceHealthContracts.cs
+abstract final class DeviceHealthIssueNames {
+  static const String diskFailing = 'disk_failing';
+  static const String diskWarning = 'disk_warning';
+  static const String diskHot = 'disk_hot';
+  static const String diskWorn = 'disk_worn';
+  static const String gpuOverheating = 'gpu_overheating';
+  static const String gpuHot = 'gpu_hot';
+  static const String boardHot = 'board_hot';
+  static const String lowDiskSpace = 'low_disk_space';
+}
+
 /// Словарь: Devices/DeviceShellContextContracts.cs
 abstract final class DeviceLiveSessionHoldNames {
   /// Администратор поставил сессию на паузу.
@@ -389,6 +403,13 @@ abstract final class DeviceWarnReasonNames {
   static const String timeAlmostUp = 'time-almost-up';
   static const String creditLimit = 'credit-limit';
   static const String lowBalance = 'low-balance';
+}
+
+/// Словарь: Devices/DeviceHealthContracts.cs
+abstract final class DiskHealthNames {
+  static const String healthy = 'healthy';
+  static const String warning = 'warning';
+  static const String unhealthy = 'unhealthy';
 }
 
 /// Что с дружбой прямо сейчас.
@@ -6589,6 +6610,9 @@ class DeviceHardwareDto {
     this.acceptedAtUtc,
     this.acceptedByName,
     required this.changes,
+    this.health,
+    this.healthReportedAtUtc,
+    this.healthIssue,
   });
 
   final HardwareSnapshotDto? current;
@@ -6600,6 +6624,12 @@ class DeviceHardwareDto {
   final String? acceptedByName;
   final List<HardwareChangeDto> changes;
 
+  /// Здоровье ПК: последние показатели (раз в пять минут), когда пришли и худшая проблема
+  /// (DeviceHealthIssueNames). null — агент прежней версии или отчёта ещё не было.
+  final DeviceHealthDto? health;
+  final DateTime? healthReportedAtUtc;
+  final String? healthIssue;
+
   factory DeviceHardwareDto.fromJson(Map<String, dynamic> json) => DeviceHardwareDto(
         current: json['current'] == null ? null : HardwareSnapshotDto.fromJson(json['current'] as Map<String, dynamic>),
         reportedAtUtc: json['reportedAtUtc'] == null ? null : DateTime.parse(json['reportedAtUtc'] as String),
@@ -6607,6 +6637,9 @@ class DeviceHardwareDto {
         acceptedAtUtc: json['acceptedAtUtc'] == null ? null : DateTime.parse(json['acceptedAtUtc'] as String),
         acceptedByName: json['acceptedByName'] == null ? null : json['acceptedByName'] as String,
         changes: (json['changes'] as List<dynamic>).map((item) => HardwareChangeDto.fromJson(item as Map<String, dynamic>)).toList(),
+        health: json['health'] == null ? null : DeviceHealthDto.fromJson(json['health'] as Map<String, dynamic>),
+        healthReportedAtUtc: json['healthReportedAtUtc'] == null ? null : DateTime.parse(json['healthReportedAtUtc'] as String),
+        healthIssue: json['healthIssue'] == null ? null : json['healthIssue'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6616,6 +6649,9 @@ class DeviceHardwareDto {
         'acceptedAtUtc': acceptedAtUtc?.toIso8601String(),
         'acceptedByName': acceptedByName,
         'changes': changes.map((item) => item.toJson()).toList(),
+        'health': health?.toJson(),
+        'healthReportedAtUtc': healthReportedAtUtc?.toIso8601String(),
+        'healthIssue': healthIssue,
       };
 }
 
@@ -6649,6 +6685,82 @@ class DeviceHardwareReportRequest {
         'deviceId': deviceId,
         'collectedAtUtc': collectedAtUtc.toIso8601String(),
         'snapshot': snapshot.toJson(),
+      };
+}
+
+/// Здоровье ПК (docs/operations/pc-health.md): то, что Windows отдаёт без драйвера ядра. Точной температуры
+/// процессора и оборотов корпусных вентиляторов среди этого нет — для них нужен драйвер, а его Defender
+/// помечает как уязвимый; ставить такое на ПК клубов не будем. Любое поле null — не прочиталось на этом ПК.
+///
+/// Контракт: Devices/DeviceHealthContracts.cs
+class DeviceHealthDto {
+  const DeviceHealthDto({
+    this.cpuLoadPercent,
+    this.memoryUsedPercent,
+    this.boardTemperatureC,
+    required this.gpus,
+    required this.disks,
+    required this.volumes,
+  });
+
+  final int? cpuLoadPercent;
+  final int? memoryUsedPercent;
+
+  /// Самая горячая тепловая зона ACPI — датчик платы, у многих ПК близкий к процессору; у многих его нет.
+  final int? boardTemperatureC;
+  final List<GpuHealthDto> gpus;
+  final List<DiskHealthDto> disks;
+  final List<VolumeSpaceDto> volumes;
+
+  factory DeviceHealthDto.fromJson(Map<String, dynamic> json) => DeviceHealthDto(
+        cpuLoadPercent: json['cpuLoadPercent'] == null ? null : (json['cpuLoadPercent'] as num).toInt(),
+        memoryUsedPercent: json['memoryUsedPercent'] == null ? null : (json['memoryUsedPercent'] as num).toInt(),
+        boardTemperatureC: json['boardTemperatureC'] == null ? null : (json['boardTemperatureC'] as num).toInt(),
+        gpus: (json['gpus'] as List<dynamic>).map((item) => GpuHealthDto.fromJson(item as Map<String, dynamic>)).toList(),
+        disks: (json['disks'] as List<dynamic>).map((item) => DiskHealthDto.fromJson(item as Map<String, dynamic>)).toList(),
+        volumes: (json['volumes'] as List<dynamic>).map((item) => VolumeSpaceDto.fromJson(item as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'cpuLoadPercent': cpuLoadPercent,
+        'memoryUsedPercent': memoryUsedPercent,
+        'boardTemperatureC': boardTemperatureC,
+        'gpus': gpus.map((item) => item.toJson()).toList(),
+        'disks': disks.map((item) => item.toJson()).toList(),
+        'volumes': volumes.map((item) => item.toJson()).toList(),
+      };
+}
+
+/// Контракт: Devices/DeviceHealthContracts.cs
+class DeviceHealthReportRequest {
+  const DeviceHealthReportRequest({
+    required this.organizationId,
+    required this.branchId,
+    required this.deviceId,
+    required this.observedAtUtc,
+    required this.health,
+  });
+
+  final String organizationId;
+  final String branchId;
+  final String deviceId;
+  final DateTime observedAtUtc;
+  final DeviceHealthDto health;
+
+  factory DeviceHealthReportRequest.fromJson(Map<String, dynamic> json) => DeviceHealthReportRequest(
+        organizationId: json['organizationId'] as String,
+        branchId: json['branchId'] as String,
+        deviceId: json['deviceId'] as String,
+        observedAtUtc: DateTime.parse(json['observedAtUtc'] as String),
+        health: DeviceHealthDto.fromJson(json['health'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'organizationId': organizationId,
+        'branchId': branchId,
+        'deviceId': deviceId,
+        'observedAtUtc': observedAtUtc.toIso8601String(),
+        'health': health.toJson(),
       };
 }
 
@@ -7755,6 +7867,45 @@ class DeviceUpdateStatusSnapshotDto {
       };
 }
 
+/// <param name="Health">Оценка самой Windows (DiskHealthNames); null — не знает.</param>
+///
+/// Контракт: Devices/DeviceHealthContracts.cs
+class DiskHealthDto {
+  const DiskHealthDto({
+    required this.model,
+    this.health,
+    this.temperatureC,
+    this.wearPercent,
+    this.powerOnHours,
+    this.readErrorsUncorrected,
+  });
+
+  final String model;
+  final String? health;
+  final int? temperatureC;
+  final int? wearPercent;
+  final int? powerOnHours;
+  final int? readErrorsUncorrected;
+
+  factory DiskHealthDto.fromJson(Map<String, dynamic> json) => DiskHealthDto(
+        model: json['model'] as String,
+        health: json['health'] == null ? null : json['health'] as String,
+        temperatureC: json['temperatureC'] == null ? null : (json['temperatureC'] as num).toInt(),
+        wearPercent: json['wearPercent'] == null ? null : (json['wearPercent'] as num).toInt(),
+        powerOnHours: json['powerOnHours'] == null ? null : (json['powerOnHours'] as num).toInt(),
+        readErrorsUncorrected: json['readErrorsUncorrected'] == null ? null : (json['readErrorsUncorrected'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'model': model,
+        'health': health,
+        'temperatureC': temperatureC,
+        'wearPercent': wearPercent,
+        'powerOnHours': powerOnHours,
+        'readErrorsUncorrected': readErrorsUncorrected,
+      };
+}
+
 /// Чем смена заработала: проданным временем, товаром и удержанной за неявку предоплатой.
 /// NoShow стоит отдельно от Time намеренно: удержание — это
 /// не проданное время, и сложить их значит показать кассе наигранные часы, которых не было.
@@ -8292,6 +8443,37 @@ class GameplayTimeReportRowDto {
         'startedAtUtc': startedAtUtc?.toIso8601String(),
         'endedAtUtc': endedAtUtc?.toIso8601String(),
         'endsAtUtc': endsAtUtc?.toIso8601String(),
+      };
+}
+
+/// Видеокарта NVIDIA (через NVML драйвера). AMD и встроенная графика пока не читаются.
+///
+/// Контракт: Devices/DeviceHealthContracts.cs
+class GpuHealthDto {
+  const GpuHealthDto({
+    required this.name,
+    this.temperatureC,
+    this.fanPercent,
+    this.loadPercent,
+  });
+
+  final String name;
+  final int? temperatureC;
+  final int? fanPercent;
+  final int? loadPercent;
+
+  factory GpuHealthDto.fromJson(Map<String, dynamic> json) => GpuHealthDto(
+        name: json['name'] as String,
+        temperatureC: json['temperatureC'] == null ? null : (json['temperatureC'] as num).toInt(),
+        fanPercent: json['fanPercent'] == null ? null : (json['fanPercent'] as num).toInt(),
+        loadPercent: json['loadPercent'] == null ? null : (json['loadPercent'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'temperatureC': temperatureC,
+        'fanPercent': fanPercent,
+        'loadPercent': loadPercent,
       };
 }
 
@@ -17985,6 +18167,7 @@ class SeatStatusDto {
     this.hasPlayerAccount,
     this.deviceNetworkAddress,
     this.sessionPauseReason,
+    this.healthIssue,
   });
 
   final String seatId;
@@ -18065,6 +18248,9 @@ class SeatStatusDto {
   /// гостя возвращено, он мог уйти переждать.
   final String? sessionPauseReason;
 
+  /// Худшая проблема здоровья ПК (DeviceHealthIssueNames): перегрев, отказывающий диск, мало места. Пусто — порядок.
+  final String? healthIssue;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -18097,6 +18283,7 @@ class SeatStatusDto {
         hasPlayerAccount: json['hasPlayerAccount'] == null ? null : json['hasPlayerAccount'] as bool,
         deviceNetworkAddress: json['deviceNetworkAddress'] == null ? null : json['deviceNetworkAddress'] as String,
         sessionPauseReason: json['sessionPauseReason'] == null ? null : json['sessionPauseReason'] as String,
+        healthIssue: json['healthIssue'] == null ? null : json['healthIssue'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -18131,6 +18318,7 @@ class SeatStatusDto {
         'hasPlayerAccount': hasPlayerAccount,
         'deviceNetworkAddress': deviceNetworkAddress,
         'sessionPauseReason': sessionPauseReason,
+        'healthIssue': healthIssue,
       };
 }
 
@@ -23601,6 +23789,37 @@ class VoidPosSaleRequest {
         'organizationId': organizationId,
         'reason': reason,
         'idempotencyKey': idempotencyKey,
+      };
+}
+
+/// <param name="Name">Буква тома: «C:».</param>
+///
+/// Контракт: Devices/DeviceHealthContracts.cs
+class VolumeSpaceDto {
+  const VolumeSpaceDto({
+    required this.name,
+    required this.freeGb,
+    required this.sizeGb,
+    required this.isSystem,
+  });
+
+  final String name;
+  final int freeGb;
+  final int sizeGb;
+  final bool isSystem;
+
+  factory VolumeSpaceDto.fromJson(Map<String, dynamic> json) => VolumeSpaceDto(
+        name: json['name'] as String,
+        freeGb: (json['freeGb'] as num).toInt(),
+        sizeGb: (json['sizeGb'] as num).toInt(),
+        isSystem: json['isSystem'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'freeGb': freeGb,
+        'sizeGb': sizeGb,
+        'isSystem': isSystem,
       };
 }
 
