@@ -54,6 +54,7 @@ function layout(lang: Lang, page: Page, title: string, description: string, main
       <nav class="langs" aria-label="Language">${switcher}</nav>
     </div>
   </header>
+  <!--email_off--><!-- Cloudflare иначе прячет адрес за скриптом: без JS видно «[email protected]». -->
   <main id="main">
 ${main}
   </main>
@@ -70,6 +71,7 @@ ${main}
         <a href="${links.repo}">${escape(c.footer.license)}</a>
         <a href="${links.email}">${escape(c.footer.contact)}: ${links.email.replace('mailto:', '')}</a>
       </nav>
+      <!--/email_off-->
     </div>
   </footer>
 </body>
