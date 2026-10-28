@@ -122,4 +122,16 @@ public sealed class GameCacheServerTests : IAsyncDisposable
             }
         }
     }
+
+    // Сеть клуба нередко числится у Windows «Общедоступной»: правило агента действует при любом профиле,
+    // но только для локальной подсети — ждать смены профиля значит остаться без кеша и без офлайн-кассы.
+    [Fact]
+    public void TheClubNetworkRule_HoldsOnAnyProfile_ButOnlyForTheLocalSubnet()
+    {
+        var arguments = ClubNetworkFirewall.AddRuleArguments("AFK4.NET Agent (game cache)", 80);
+
+        Assert.Contains("profile=any", arguments);
+        Assert.Contains("remoteip=localsubnet", arguments);
+        Assert.Contains("localport=80", arguments);
+    }
 }

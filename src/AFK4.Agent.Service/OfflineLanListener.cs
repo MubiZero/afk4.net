@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Network;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.Extensions.Options;
 
@@ -10,7 +10,7 @@ namespace AFK4.Agent.Service;
 /// <summary>
 /// Приём офлайн-аренд от Панели по сети клуба. Подпись ключом ПК администратора и есть авторизация:
 /// без него никто в сети ПК не откроет (проверяет <see cref="OfflineSeatCommands"/>). Порт открыт
-/// в брандмауэре только для частной сети и локальной подсети.
+/// в брандмауэре для локальной подсети при любом профиле сети (<see cref="ClubNetworkFirewall"/>).
 /// </summary>
 public sealed class OfflineLanListener(
     OfflineSeatCommands commands,
@@ -143,39 +143,9 @@ public sealed class OfflineLanListener(
 
     private void EnsureFirewallRule(int port)
     {
-        // Пересоздаём правило при каждом старте: порт мог смениться, а профиль — быть правлен руками.
-        RunNetsh($"advfirewall firewall delete rule name=\"{FirewallRuleName}\"");
-        var added = RunNetsh(
-            $"advfirewall firewall add rule name=\"{FirewallRuleName}\" dir=in action=allow protocol=TCP " +
-            $"localport={port} profile=private,domain remoteip=localsubnet");
-        if (!added)
+        if (!ClubNetworkFirewall.EnsureRule(FirewallRuleName, port))
         {
             logger.LogWarning("Could not open TCP {Port} for the club network; the Panel may not reach this PC offline.", port);
-        }
-    }
-
-    private static bool RunNetsh(string arguments)
-    {
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo("netsh", arguments)
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            });
-            if (process is null)
-            {
-                return false;
-            }
-
-            process.WaitForExit(10_000);
-            return process.HasExited && process.ExitCode == 0;
-        }
-        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            return false;
         }
     }
 }
