@@ -1,0 +1,41 @@
+name: Public Site
+
+# Публичный сайт afk4.net (docs/operations/public-site.md): лендинг, загрузка, Code signing policy и политика
+# конфиденциальности — то, что SignPath Foundation требует видеть на сайте проекта. Статика из site/ на
+# Cloudflare Pages: Pages этого репозитория на GitHub уже занят демо-Панелью (demo.afk4.net).
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - .github/workflows/public-site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-site
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Build
+        run: bun site/build.ts
+
+      # Токен узкий: только Cloudflare Pages этого аккаунта.
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: bunx wrangler@4.150.0 pages deploy site/dist --project-name afk4-site --branch main --commit-dirty=true
