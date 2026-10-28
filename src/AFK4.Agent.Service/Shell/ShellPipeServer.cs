@@ -50,7 +50,7 @@ public sealed class ShellPipeServer(
         {
             try
             {
-                await using var pipe = CreatePipe(options.Value);
+                using var pipe = CreatePipe(options.Value);
                 await pipe.WaitForConnectionAsync(stoppingToken);
                 await ServeAsync(pipe, stoppingToken);
             }

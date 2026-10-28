@@ -91,6 +91,20 @@ builder.Services.AddSingleton<TimeProvider>(provider => provider.GetRequiredServ
 // Канал к платформе на плохой сети клуба: просим сжатие (Cloudflare отдаёт Brotli/gzip только тем,
 // кто его заявил), HTTP/2 с откатом на 1.1, пинги живости для долгих соединений и пересоздание
 // пула, чтобы смена адреса за Cloudflare не держала мёртвые соединения.
+#if NETFRAMEWORK
+// .NET Framework 4.8 (Windows 7–11): HTTP/1.1 через SChannel. Windows 7 сама предлагает только TLS 1.0, а
+// Cloudflare требует 1.2 — просим его явно; на Windows 8 и новее версию выбирает система (там и TLS 1.3).
+if (Environment.OSVersion.Version < new Version(6, 2))
+{
+    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+}
+
+builder.Services.AddHttpClient("platform")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+    });
+#else
 builder.Services.AddHttpClient("platform", client =>
     {
         client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
@@ -105,6 +119,7 @@ builder.Services.AddHttpClient("platform", client =>
         KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests
     });
+#endif
 // Artifact downloads stream large MSIs: a whole-transfer timeout would abort slow but healthy
 // downloads, so the client has none and the downloader bounds silence instead (UpdateDownloadStallTimeout).
 builder.Services.AddHttpClient("updates", client => client.Timeout = Timeout.InfiniteTimeSpan);

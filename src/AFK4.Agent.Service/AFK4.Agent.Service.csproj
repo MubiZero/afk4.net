@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net48</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-AFK4.Agent.Service-bba71a9f-dd34-4bb8-9f4c-6785a235b934</UserSecretsId>
@@ -12,7 +12,16 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="System.Management" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Management" />
+    <Reference Include="System.ServiceProcess" />
+    <PackageReference Include="BrotliSharpLib" Version="0.3.3" />
   </ItemGroup>
 
   <ItemGroup>

@@ -48,8 +48,8 @@ public sealed class HttpUpdateArtifactDownloader(
                 stall.Token);
             response.EnsureSuccessStatusCode();
 
-            await using (var source = await response.Content.ReadAsStreamAsync(stall.Token))
-            await using (var target = new FileStream(
+            using (var source = await response.Content.ReadAsStreamAsync(stall.Token))
+            using (var target = new FileStream(
                 tempPath,
                 FileMode.CreateNew,
                 FileAccess.Write,

@@ -72,14 +72,17 @@ public sealed class HttpPlayerSignInClient(
         // (например, ключ ПК не принят), и игроку его надо показать как «нет связи с клубом».
         var errorCode = await ReadErrorCodeAsync(response, cancellationToken);
         return errorCode is null
-            ? throw new HttpRequestException($"Sign-in failed with {(int)response.StatusCode}.", null, response.StatusCode)
+            ? throw new HttpRequestException($"Sign-in failed with {(int)response.StatusCode}.")
             : PlayerSignInOutcome.Refused(errorCode);
     }
+
+    // 429 по имени есть только с .NET 5; программа на ПК собирается и под .NET Framework 4.8.
+    private const HttpStatusCode TooManyRequests = (HttpStatusCode)429;
 
     private static async Task<string?> ReadErrorCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.StatusCode is not (HttpStatusCode.Unauthorized or HttpStatusCode.Conflict
-            or HttpStatusCode.TooManyRequests or HttpStatusCode.NotFound))
+            or TooManyRequests or HttpStatusCode.NotFound))
         {
             return null;
         }

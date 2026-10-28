@@ -53,7 +53,7 @@ public sealed class OfflineJournal(string path)
     }
 
     /// <summary>Убрать записи, которые сервер принял. Остальные остаются в том же порядке.</summary>
-    public int Acknowledge(IReadOnlySet<string> ids)
+    public int Acknowledge(ISet<string> ids)
     {
         lock (syncRoot)
         {

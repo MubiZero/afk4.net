@@ -84,7 +84,7 @@ public static class UpdateDeltaPlanner
                 return false;
             }
 
-            await using var stream = new FileStream(
+            using var stream = new FileStream(
                 path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 81920, useAsync: true);
             var hash = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken));
             return string.Equals(hash, file.Sha256, StringComparison.OrdinalIgnoreCase);

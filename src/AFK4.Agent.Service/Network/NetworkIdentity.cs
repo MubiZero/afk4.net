@@ -28,7 +28,7 @@ public static class NetworkMath
         var netmask = ToUInt32(mask);
         var network = ip & netmask;
         var broadcast = network | ~netmask;
-        var prefix = System.Numerics.BitOperations.PopCount(netmask);
+        var prefix = Convert.ToString(netmask, 2).Count(bit => bit == '1');
         return ($"{FromUInt32(network)}/{prefix}", FromUInt32(broadcast).ToString());
     }
 

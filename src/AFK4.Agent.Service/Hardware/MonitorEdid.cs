@@ -109,7 +109,7 @@ public static class MonitorEdid
     private static string? Manufacturer(ushort packed)
     {
         Span<char> letters = [Letter(packed >> 10), Letter(packed >> 5), Letter(packed)];
-        return letters.Contains('\0') ? null : new string(letters);
+        return letters.Contains('\0') ? null : letters.ToString();
     }
 
     private static char Letter(int bits) => (bits & 0x1F) is var value and >= 1 and <= 26 ? (char)('A' + value - 1) : '\0';

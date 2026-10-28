@@ -414,13 +414,16 @@ public sealed class Worker(
         }
     }
 
+    // 429 по имени есть только с .NET 5; программа на ПК собирается и под .NET Framework 4.8.
+    private const HttpStatusCode TooManyRequests = (HttpStatusCode)429;
+
     /// <summary>
     /// Отказ, который не пройдёт и в следующий раз: платформа поняла запрос и отвергла его.
     /// Перегрузка и просроченный ключ сюда не относятся — их стоит повторить.
     /// </summary>
     private static bool IsPermanentRejection(HttpStatusCode statusCode)
     {
-        if (statusCode is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests
+        if (statusCode is HttpStatusCode.RequestTimeout or TooManyRequests
             or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
             return false;
