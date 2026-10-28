@@ -41,6 +41,12 @@ public static class DeviceLiveSessionHoldNames
     /// <summary>Администратор поставил сессию на паузу.</summary>
     public const string Paused = "paused";
 
+    /// <summary>
+    /// В клубе отключали свет дольше получаса: время гостя возвращено, сессия ждёт его на паузе — продолжит
+    /// администратор.
+    /// </summary>
+    public const string PowerPaused = "power-paused";
+
     /// <summary>Администратор заблокировал ПК посреди сессии.</summary>
     public const string Operator = "operator";
 }

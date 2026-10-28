@@ -250,6 +250,8 @@ public sealed class EfSessionCommandService(
                 ? request.TariffRuleVersionId
                 : billingValidation.TariffRuleVersionId;
             session.EndsAtUtc = (session.EndsAtUtc ?? now).AddMinutes(request.AdditionalMinutes);
+            var wasAutoLocked = session.AutoLockedAtUtc is not null;
+            SessionDeadline.MovedLater(session, now);
             session.UpdatedAtUtc = now;
             session.Version += 1;
 
@@ -277,9 +279,9 @@ public sealed class EfSessionCommandService(
             var command = await deviceCommandDispatchService.EnqueueAsync(
                 session.DeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: session.AutoLockedAtUtc is null
-                        ? DeviceCommandTypeNames.RefreshSessionLease
-                        : DeviceCommandTypeNames.Unlock,
+                    Type: wasAutoLocked
+                        ? DeviceCommandTypeNames.Unlock
+                        : DeviceCommandTypeNames.RefreshSessionLease,
                     Payload: LeasePayload(session.SessionId, lease, "session-extend")),
                 cancellationToken);
             deviceIdToNotify = session.DeviceId;
@@ -622,6 +624,7 @@ public sealed class EfSessionCommandService(
 
             session.TotalPausedSeconds += (int)Math.Round(pausedFor.TotalSeconds);
             session.PausedAtUtc = null;
+            session.PauseReason = null;
             session.State = SessionStateNames.Active;
 
             // Оплаченное время возвращается: у фиксированной сессии конец уезжает ровно на простой.
@@ -632,6 +635,7 @@ public sealed class EfSessionCommandService(
                 session.EndsAtUtc = endsAtUtc + pausedFor;
             }
 
+            SessionDeadline.MovedLater(session, now);
             session.UpdatedAtUtc = now;
             session.Version += 1;
 
@@ -673,6 +677,74 @@ public sealed class EfSessionCommandService(
         }
 
         return result;
+    }
+
+    public async Task<PowerRestore?> RestoreAfterPowerLossAsync(
+        Guid deviceId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken)
+    {
+        var lost = toUtc - fromUtc;
+        // Только фиксированное время, которое к отключению ещё не вышло: за открытый счёт гость платит за
+        // прошедшее, а сессия, чьё время кончилось до отключения, ничего не потеряла.
+        var session = await dbContext.Sessions.SingleOrDefaultAsync(
+            candidate => candidate.DeviceId == deviceId
+                && candidate.State == SessionStateNames.Active
+                && candidate.StartedAtUtc < fromUtc
+                && candidate.EndsAtUtc > fromUtc,
+            cancellationToken);
+        if (session is null || lost <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        var paused = lost > PowerRestore.LongOutage;
+        var returnedMinutes = (int)Math.Ceiling(lost.TotalMinutes);
+        DeviceCommandDto? commandToNotify = null;
+        var result = await ExecuteVersionedMutationAsync(session.SessionId, async () =>
+        {
+            var now = timeProvider.GetUtcNow();
+            session.EndsAtUtc = session.EndsAtUtc!.Value + lost;
+            SessionDeadline.MovedLater(session, now);
+            session.UpdatedAtUtc = now;
+            session.Version += 1;
+            var key = $"power:{deviceId:N}:{fromUtc.ToUnixTimeSeconds()}";
+
+            if (paused)
+            {
+                // ПК только что включился и заперт; на паузе он таким и останется, пока администратор не продолжит.
+                session.State = SessionStateNames.Paused;
+                session.PausedAtUtc = now;
+                session.PauseReason = SessionPauseReasonNames.Power;
+                AddEvent(session, "session-power-paused", SystemActorIds.AutoProtection, deviceId, now);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return SessionCommandServiceResult.Ok(CreateResponse(key, session, null, [], now));
+            }
+
+            var lease = await IssueNextLeaseAsync(session, now, cancellationToken);
+            AddEvent(session, "session-power-restored", SystemActorIds.AutoProtection, deviceId, now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            // Unlock, а не обновление аренды: пока ПК был обесточен, автозащита могла уже запереть его по времени.
+            commandToNotify = await deviceCommandDispatchService.EnqueueAsync(
+                deviceId,
+                new CreateDeviceCommandRequest(DeviceCommandTypeNames.Unlock, LeasePayload(session.SessionId, lease, "power-restored")),
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return SessionCommandServiceResult.Ok(CreateResponse(key, session, lease, [commandToNotify], now));
+        }, IsolationLevel.Serializable, cancellationToken);
+
+        if (!result.Succeeded)
+        {
+            return null;
+        }
+
+        if (commandToNotify is not null)
+        {
+            await deviceCommandDispatchService.NotifyAsync(deviceId, commandToNotify, cancellationToken);
+        }
+
+        return new PowerRestore(session.SessionId, returnedMinutes, paused);
     }
 
     public async Task<SessionCommandServiceResult> EndSessionAsync(

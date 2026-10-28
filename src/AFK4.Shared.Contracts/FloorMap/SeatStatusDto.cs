@@ -58,4 +58,7 @@ public sealed record SeatStatusDto(
     bool HasPlayerAccount = false,
     // IPv4 ПК в сети клуба: по нему Панель без интернета передаёт офлайн-аренду. Пусто — агент
     // прежней версии или адрес ещё не приходил.
-    string? DeviceNetworkAddress = null);
+    string? DeviceNetworkAddress = null,
+    // Почему сессия на паузе, если не по кнопке (SessionPauseReasonNames): «power» — отключали свет, время
+    // гостя возвращено, он мог уйти переждать.
+    string? SessionPauseReason = null);

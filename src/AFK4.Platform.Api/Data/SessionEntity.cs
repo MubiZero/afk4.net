@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Sessions;
 namespace AFK4.Platform.Api.Data;
 
 public sealed class SessionEntity
@@ -57,6 +58,12 @@ public sealed class SessionEntity
 
     /// <summary>Сколько всего секунд сессия простояла на паузах, которые уже сняты.</summary>
     public int TotalPausedSeconds { get; set; }
+
+    /// <summary>
+    /// Почему сессия на паузе, если не по кнопке администратора: <see cref="SessionPauseReasonNames"/>.
+    /// Null — обычная пауза.
+    /// </summary>
+    public string? PauseReason { get; set; }
 
     public DateTimeOffset? AutoWarnedAtUtc { get; set; }
 

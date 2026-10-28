@@ -1,4 +1,5 @@
 using AFK4.Agent.Service.Network;
+using AFK4.Agent.Service.Power;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 
@@ -19,7 +20,9 @@ public static class HeartbeatPayloadFactory
         NetworkIdentity? network = null,
         bool? kioskInstalled = null,
         bool? gameCacheReachable = null,
-        GameCacheServer? gameCacheServer = null)
+        GameCacheServer? gameCacheServer = null,
+        PowerLossTracker? powerLoss = null,
+        bool? onBatteryPower = null)
     {
         var lease = leaseStore?.Current;
 
@@ -43,6 +46,9 @@ public static class HeartbeatPayloadFactory
             KioskInstalled: kioskInstalled,
             GameCacheReachable: gameCacheReachable,
             GameCacheServing: gameCacheServer?.Serving,
-            GameCacheStoredBytes: gameCacheServer is { Serving: true } ? gameCacheServer.StoredBytes : null);
+            GameCacheStoredBytes: gameCacheServer is { Serving: true } ? gameCacheServer.StoredBytes : null,
+            PowerLostFromUtc: powerLoss?.PowerLostFromUtc,
+            UptimeSeconds: powerLoss?.PowerLostFromUtc is null ? null : powerLoss.UptimeSeconds,
+            OnBatteryPower: onBatteryPower);
     }
 }

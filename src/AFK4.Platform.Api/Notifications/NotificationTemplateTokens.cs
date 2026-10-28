@@ -21,6 +21,7 @@ public static class NotificationTemplateTokens
             [NotificationTemplateKeys.ShiftClosed] =
                 ["branchName", "closedBy", "period", "earnedTotal", "earnedTime", "earnedGoods", "cashIn", "nonCashIn",
                  "expectedCash", "countedCash", "difference"],
+            [NotificationTemplateKeys.PowerOutage] = ["branchName", "time", "pcCount"],
             [NotificationTemplateKeys.BranchDailySummary] =
                 ["branchName", "date", "revenue", "gameplay", "goods", "playedHours", "attentionCount"],
             [NotificationTemplateKeys.InvoiceIssued] = InvoiceTokens,

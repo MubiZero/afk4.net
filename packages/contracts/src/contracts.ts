@@ -414,6 +414,11 @@ export type DeviceEnrollmentStateName = (typeof DeviceEnrollmentStateNames)[keyo
 export const DeviceLiveSessionHoldNames = {
   /** Администратор поставил сессию на паузу. */
   Paused: 'paused',
+  /**
+   * В клубе отключали свет дольше получаса: время гостя возвращено, сессия ждёт его на паузе — продолжит
+   * администратор.
+   */
+  PowerPaused: 'power-paused',
   /** Администратор заблокировал ПК посреди сессии. */
   Operator: 'operator',
 } as const;
@@ -1486,6 +1491,20 @@ export const SessionOriginNames = {
   Offline: 'offline',
 } as const;
 export type SessionOriginName = (typeof SessionOriginNames)[keyof typeof SessionOriginNames];
+
+/**
+ * Почему сессия на паузе, если не по кнопке администратора.
+ *
+ * Словарь: Sessions/SessionStateNames.cs
+ */
+export const SessionPauseReasonNames = {
+  /**
+   * В клубе отключали свет дольше получаса: время гостя возвращено, сессия ждёт его. Такую паузу не
+   * закрывает правило долгой паузы — гость мог уйти переждать.
+   */
+  Power: 'power',
+} as const;
+export type SessionPauseReasonName = (typeof SessionPauseReasonNames)[keyof typeof SessionPauseReasonNames];
 
 /** Словарь: Sessions/SessionStateNames.cs */
 export const SessionStateNames = {
@@ -3698,6 +3717,18 @@ export interface DeviceHeartbeatRequest {
   /** Встроенный кеш игр на этом ПК поднят и сколько в нём лежит. null — ПК не кеш или агент прежней версии. */
   gameCacheServing?: boolean | null;
   gameCacheStoredBytes?: number | null;
+  /**
+   * ПК был обесточен: до этого момента (часы платформы) агент последний раз был жив, а потом машина
+   * включилась заново без нормального выключения. Когда включилась — сервер считает сам: его «сейчас»
+   * минус UptimeSeconds. Шлётся, пока сердцебиение не дойдёт. null — обесточивания не было.
+   */
+  powerLostFromUtc?: IsoDateTime | null;
+  uptimeSeconds?: number | null;
+  /**
+   * ПК работает от батареи ИБП (Windows видит ИБП как батарею): в клубе пропал свет. null — агент
+   * прежней версии или ИБП Windows не видит.
+   */
+  onBatteryPower?: boolean | null;
 }
 
 /** Контракт: Devices/DeviceHeartbeatResponse.cs */
@@ -7667,6 +7698,11 @@ export interface SeatStatusDto {
    * прежней версии или адрес ещё не приходил.
    */
   deviceNetworkAddress?: string | null;
+  /**
+   * Почему сессия на паузе, если не по кнопке (SessionPauseReasonNames): «power» — отключали свет, время
+   * гостя возвращено, он мог уйти переждать.
+   */
+  sessionPauseReason?: SessionPauseReasonName | null;
 }
 
 /**

@@ -212,6 +212,7 @@ public sealed class OfflineJournalIngest(
         // её продолжает — продлили до того, как время вышло, просто сервер узнал об этом позже.
         var endedByTime = session.State == SessionStateNames.Ended && session.EndedAtUtc >= session.EndsAtUtc;
         session.EndsAtUtc = (session.EndsAtUtc ?? record.OccurredAtUtc).AddMinutes(record.Minutes);
+        SessionDeadline.MovedLater(session, clock.GetUtcNow());
         if (endedByTime || session.State != SessionStateNames.Ended)
         {
             await SettleByTimeAsync(session, cancellationToken);

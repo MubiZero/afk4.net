@@ -1,0 +1,5 @@
+{
+  "subject": "Power outage — {{branchName}}",
+  "bodyText": "At {{branchName}}, {{pcCount}} PCs went off at once around {{time}}. It looks like a power outage. Guests whose play was cut off got their time back automatically. If the outage lasted over 30 minutes, their sessions are paused — resume them in the Panel when the guest is back.",
+  "bodyHtml": "<p>At {{branchName}}, {{pcCount}} PCs went off at once around <strong>{{time}}</strong>. It looks like a power outage.</p><p>Guests whose play was cut off got their time back automatically. If the outage lasted over 30 minutes, their sessions are paused — resume them in the Panel when the guest is back.</p>"
+}

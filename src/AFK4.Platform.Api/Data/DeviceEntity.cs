@@ -113,4 +113,7 @@ public sealed class DeviceEntity
     public bool? GameCacheServing { get; set; }
 
     public long? GameCacheStoredBytes { get; set; }
+
+    /// <summary>С какого момента ПК сообщает, что работает от батареи ИБП; null — от сети или не сообщает.</summary>
+    public DateTimeOffset? OnBatterySinceUtc { get; set; }
 }

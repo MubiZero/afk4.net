@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Games;
 using AFK4.Agent.Service.Network;
+using AFK4.Agent.Service.Power;
 using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
@@ -44,7 +45,8 @@ public sealed class Worker(
     IMachineRegistry? machineRegistry = null,
     TrustedOfflineKeys? offlineKeys = null,
     GameCacheService? gameCache = null,
-    GameCacheServer? gameCacheServer = null) : BackgroundService
+    GameCacheServer? gameCacheServer = null,
+    PowerLossTracker? powerLoss = null) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -109,6 +111,8 @@ public sealed class Worker(
         while (!stoppingToken.IsCancellationRequested)
         {
             _ = realtimeClient.EnsureConnectedAsync(stoppingToken);
+            // «Жив сейчас» — по ней после включения видно, с какого момента ПК был обесточен.
+            powerLoss?.MarkAlive(timeProvider.GetUtcNow());
             await TryEnforceGraceModeAsync(stoppingToken);
             await TryReportInstalledAppsOnScheduleAsync(stoppingToken);
             var outcome = await TrySendHeartbeatAsync(client, stoppingToken);
@@ -154,7 +158,9 @@ public sealed class Worker(
                 // Где Windows-политик нет (разработка на другой ОС), агент о киоске не судит.
                 machineRegistry is { IsSupported: true } ? machineRegistry.HasPlayerAccount : null,
                 gameCache?.Reachable,
-                gameCacheServer);
+                gameCacheServer,
+                powerLoss,
+                UpsPowerSource.OnBattery());
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -181,6 +187,7 @@ public sealed class Worker(
                 // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
                 var agentNowUtc = timeProvider.GetUtcNow();
                 offlineGraceState.RecordSuccessfulContact(agentNowUtc, heartbeat.EffectiveGraceMinutes);
+                powerLoss?.Reported();
                 // Ключи ПК администраторов: по ним без интернета придёт офлайн-аренда. Сервер прежней
                 // версии их не шлёт — тогда помним последний список.
                 if (heartbeat.OfflineLeaseKeys is { } trustedKeys)
@@ -623,6 +630,8 @@ public sealed class Worker(
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        // Windows выключается или служба обновляется — это не пропажа света.
+        powerLoss?.MarkCleanStop(timeProvider.GetUtcNow());
         await realtimeClient.DisposeAsync();
         await base.StopAsync(cancellationToken);
     }

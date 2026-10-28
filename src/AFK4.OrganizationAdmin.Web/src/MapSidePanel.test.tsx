@@ -486,6 +486,15 @@ describe('MapSidePanel: одна главная кнопка по положен
     expect(onSeatAction.mock.calls[0][0]).toMatchObject({ type: 'resume' });
   });
 
+  // После отключения света сессия ждёт гостя на паузе — кассир видит причину и снимает паузу той же кнопкой.
+  it('пауза после отключения света — причина названа, снимается той же кнопкой', async () => {
+    const onSeatAction = mock(async (_request: SeatActionRequest) => ({}));
+    renderWith(seat({ sessionState: 'Paused', sessionPauseReason: 'power', remainingSeconds: 1800 }), { onSeatAction });
+    expect(screen.getByText('Пауза: отключали свет — время гостя сохранено')).toBeInTheDocument();
+    fireEvent.click(primaryButton()!);
+    await waitFor(() => expect(onSeatAction.mock.calls[0]?.[0]).toMatchObject({ type: 'resume' }));
+  });
+
   // Пока ПК не ответил на прошлую команду, вторая либо продублирует её, либо ударит по
   // неподтверждённому состоянию — поэтому кнопки нет, есть строка, чего ждём.
   it('ожидает ответа ПК — главной кнопки нет, есть строка, что ушло', () => {
