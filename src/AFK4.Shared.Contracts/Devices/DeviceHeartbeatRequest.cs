@@ -34,4 +34,12 @@ public sealed record DeviceHeartbeatRequest(
     bool? GameCacheReachable = null,
     // Встроенный кеш игр на этом ПК поднят и сколько в нём лежит. null — ПК не кеш или агент прежней версии.
     bool? GameCacheServing = null,
-    long? GameCacheStoredBytes = null);
+    long? GameCacheStoredBytes = null,
+    // ПК был обесточен: до этого момента (часы платформы) агент последний раз был жив, а потом машина
+    // включилась заново без нормального выключения. Когда включилась — сервер считает сам: его «сейчас»
+    // минус UptimeSeconds. Шлётся, пока сердцебиение не дойдёт. null — обесточивания не было.
+    DateTimeOffset? PowerLostFromUtc = null,
+    long? UptimeSeconds = null,
+    // ПК работает от батареи ИБП (Windows видит ИБП как батарею): в клубе пропал свет. null — агент
+    // прежней версии или ИБП Windows не видит.
+    bool? OnBatteryPower = null);

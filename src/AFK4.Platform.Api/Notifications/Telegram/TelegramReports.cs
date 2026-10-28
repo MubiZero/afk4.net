@@ -174,6 +174,39 @@ public sealed class TelegramReports(
         return sent;
     }
 
+    /// <summary>
+    /// В клубе отключали свет (docs/roadmap/power-outage-resume.md): сколько ПК выключились разом и что время
+    /// гостям возвращено. Одно сообщение на отключение — ключ повтора по его началу.
+    /// </summary>
+    public async Task PowerOutageAsync(Guid organizationId, Guid branchId, DateTimeOffset startedAtUtc, int pcCount, CancellationToken cancellationToken)
+    {
+        var recipients = await RecipientsAsync(organizationId, branchId, cancellationToken);
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        var branch = await db.Branches.AsNoTracking().SingleAsync(row => row.BranchId == branchId, cancellationToken);
+        var zone = BranchLocalTime.ResolveZone(branch.PreferredTimeZone);
+        foreach (var recipient in recipients)
+        {
+            await notifications.SendAsync(new NotificationRequest(
+                TemplateKey: NotificationTemplateKeys.PowerOutage,
+                Category: NotificationCategory.Operational,
+                Recipient: Recipient(recipient, branch.PreferredLocale),
+                Tokens: new Dictionary<string, string>
+                {
+                    ["branchName"] = branch.Name,
+                    ["time"] = LocalTime(startedAtUtc, zone),
+                    ["pcCount"] = pcCount.ToString(CultureInfo.InvariantCulture),
+                },
+                IdempotencyKey: $"power-outage:{branchId:N}:{startedAtUtc.ToUnixTimeSeconds() / 600}:{recipient.StaffUserId:N}",
+                PreferredChannels: [NotificationChannel.Telegram],
+                OrganizationId: organizationId,
+                BranchId: branchId), cancellationToken);
+        }
+    }
+
     private async Task<IReadOnlyList<StaffUserEntity>> RecipientsAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken) =>
         await (
             from assignment in db.StaffRoleAssignments

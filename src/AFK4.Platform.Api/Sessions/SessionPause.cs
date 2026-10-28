@@ -14,6 +14,11 @@ public static class SessionPause
     /// <summary>Умолчание платформы, когда филиал своего не поставил.</summary>
     public static readonly TimeSpan DefaultMaxPause = TimeSpan.FromMinutes(20);
 
+    /// <summary>Пауза после отключения света (<see cref="AFK4.Shared.Contracts.Sessions.SessionPauseReasonNames.Power"/>): гость ушёл переждать — ждём до конца дня, а не 20 минут.</summary>
+
+    public static readonly TimeSpan MaxPowerPause = TimeSpan.FromHours(12);
+
+
     public static TimeSpan ResolveMaxPause(int? branchMaxPauseMinutes) =>
         branchMaxPauseMinutes is { } minutes && minutes > 0
             ? TimeSpan.FromMinutes(minutes)

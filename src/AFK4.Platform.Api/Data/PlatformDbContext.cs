@@ -35,6 +35,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<OfflineLeaseKeyEntity> OfflineLeaseKeys => Set<OfflineLeaseKeyEntity>();
 
     public DbSet<OfflineJournalRecordEntity> OfflineJournalRecords => Set<OfflineJournalRecordEntity>();
+    public DbSet<DevicePowerLossEntity> DevicePowerLosses => Set<DevicePowerLossEntity>();
 
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
 
@@ -483,6 +484,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(record => record.SessionId);
         });
 
+        modelBuilder.Entity<DevicePowerLossEntity>(entity =>
+        {
+            entity.ToTable("device_power_losses");
+            entity.HasKey(loss => loss.DevicePowerLossId);
+            entity.HasIndex(loss => new { loss.DeviceId, loss.FromUtc }).IsUnique();
+            entity.HasIndex(loss => new { loss.BranchId, loss.FromUtc });
+            // Возврат времени забирает запись этим флагом: второй ПК, включившийся в ту же секунду, получит конфликт.
+            entity.Property(loss => loss.Compensated).IsConcurrencyToken();
+        });
+
         modelBuilder.Entity<OfflineLeaseKeyEntity>(entity =>
         {
             entity.ToTable("offline_lease_keys");
@@ -666,6 +677,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.ToTable("sessions");
             entity.HasKey(session => session.SessionId);
+            entity.Property(session => session.PauseReason).HasMaxLength(32);
             entity.Property(session => session.PlayerKind).HasMaxLength(32).IsRequired();
             entity.Property(session => session.TariffRuleVersionId).HasMaxLength(128).IsRequired();
             entity.Property(session => session.BillingMode).HasMaxLength(32).IsRequired().HasDefaultValue(string.Empty);

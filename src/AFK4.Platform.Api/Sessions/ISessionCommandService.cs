@@ -49,6 +49,14 @@ public sealed record SessionCommandServiceResult(
 
 public interface ISessionCommandService
 {
+    /// <summary>
+    /// В клубе отключали свет, и этот ПК был обесточен с <paramref name="fromUtc"/> по <paramref name="toUtc"/>
+    /// (docs/roadmap/power-outage-resume.md): гость за это время не играл — конец сессии сдвигается на весь
+    /// простой. Отключение дольше <see cref="PowerRestore.LongOutage"/> оставляет сессию на паузе «свет»: гость
+    /// мог уйти переждать, продолжит администратор. null — на ПК не шла сессия с оставшимся временем.
+    /// </summary>
+    Task<PowerRestore?> RestoreAfterPowerLossAsync(Guid deviceId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken);
+
     /// <param name="origin">
     /// Откуда взялась сессия (<see cref="SessionOriginNames"/>) — решает маршрут, а не запрос.
     /// Без умолчания намеренно: см. <see cref="ISessionStartWorkflow.StageAsync"/>.
@@ -94,4 +102,11 @@ public interface ISessionCommandService
         Guid actorStaffUserId,
         EndSessionRequest request,
         CancellationToken cancellationToken);
+}
+
+/// <summary>Что вернули гостю после отключения света.</summary>
+public sealed record PowerRestore(Guid SessionId, int ReturnedMinutes, bool Paused)
+{
+    /// <summary>Дольше этого гость, скорее всего, ушёл переждать: сессия ждёт его на паузе, а не идёт сама.</summary>
+    public static readonly TimeSpan LongOutage = TimeSpan.FromMinutes(30);
 }

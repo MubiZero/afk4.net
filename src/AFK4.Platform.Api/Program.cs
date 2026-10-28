@@ -377,6 +377,7 @@ builder.Services.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
 builder.Services.AddScoped<IShopOrderNotifier, SignalRShopOrderNotifier>();
 builder.Services.AddScoped<ISessionStartWorkflow, EfSessionStartWorkflow>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
+builder.Services.AddScoped<AFK4.Platform.Api.Devices.PowerOutage>();
 builder.Services.AddScoped<EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());
 builder.Services.AddSingleton(new ReservationNoShowOptions());

@@ -105,6 +105,9 @@ builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
 builder.Services.AddSingleton<IDeviceCredentialStore, FileDeviceCredentialStore>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<TrustedOfflineKeys>();
+// Свет пропал — сессия не пропала: агент замечает, что ПК был обесточен (docs/roadmap/power-outage-resume.md).
+builder.Services.AddSingleton(provider => new AFK4.Agent.Service.Power.PowerLossTracker(
+    provider.GetRequiredService<IOptions<AgentOptions>>().Value.StateDirectory));
 // Кеш игр клуба: hosts ведёт одна служба, сердцебиение только сообщает ей адрес.
 builder.Services.AddHttpClient(GameCacheService.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
 builder.Services.AddSingleton(provider => new GameCacheService(

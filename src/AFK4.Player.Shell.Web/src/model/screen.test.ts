@@ -19,6 +19,7 @@ describe('selectScreen — таблица экранов §3', () => {
     ['связь пропала посреди сессии', { state: state(PlayerShellStateNames.Grace), signedIn: false, approached: false }, 'grace'],
     ['заперт и без связи', { state: state(PlayerShellStateNames.Offline), signedIn: false, approached: true }, 'offline'],
     ['пауза чужой сессии — не витрина', { state: { ...state(PlayerShellStateNames.Locked), holdKind: DeviceLiveSessionHoldNames.Paused }, signedIn: false, approached: false }, 'paused'],
+    ['после отключения света сессия ждёт гостя', { state: { ...state(PlayerShellStateNames.Locked), holdKind: DeviceLiveSessionHoldNames.PowerPaused }, signedIn: false, approached: true }, 'powerPaused'],
     ['блокировка администратора — не витрина', { state: { ...state(PlayerShellStateNames.Locked), holdKind: DeviceLiveSessionHoldNames.Operator }, signedIn: false, approached: false }, 'held'],
     ['обслуживание', { state: state(PlayerShellStateNames.Maintenance), signedIn: true, approached: true }, 'maintenance'],
     ['сбой', { state: state(PlayerShellStateNames.Error), signedIn: false, approached: false }, 'error']

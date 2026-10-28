@@ -1241,6 +1241,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<DateTimeOffset?>("OnBatterySinceUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
@@ -1369,6 +1372,50 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "DeviceId");
 
                     b.ToTable("device_installed_apps", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.DevicePowerLossEntity", b =>
+                {
+                    b.Property<Guid>("DevicePowerLossId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Compensated")
+                        .IsConcurrencyToken()
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("FromUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ReturnedMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ToUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DevicePowerLossId");
+
+                    b.HasIndex("BranchId", "FromUtc");
+
+                    b.HasIndex("DeviceId", "FromUtc")
+                        .IsUnique();
+
+                    b.ToTable("device_power_losses", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceSeatAssignmentEntity", b =>
@@ -4841,6 +4888,10 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasDefaultValue("");
+
+                    b.Property<string>("PauseReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTimeOffset?>("PausedAtUtc")
                         .HasColumnType("timestamp with time zone");

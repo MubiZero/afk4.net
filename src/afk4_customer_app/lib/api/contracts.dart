@@ -339,6 +339,9 @@ abstract final class DeviceEnrollmentStateNames {
 abstract final class DeviceLiveSessionHoldNames {
   /// Администратор поставил сессию на паузу.
   static const String paused = 'paused';
+  /// В клубе отключали свет дольше получаса: время гостя возвращено, сессия ждёт его на паузе — продолжит
+  /// администратор.
+  static const String powerPaused = 'power-paused';
   /// Администратор заблокировал ПК посреди сессии.
   static const String operator = 'operator';
 }
@@ -1233,6 +1236,15 @@ abstract final class SessionOriginNames {
   /// Посадил администратор без интернета: Панель открыла ПК офлайн-арендой, а сервер узнал о сессии
   /// из журнала кассы, когда связь вернулась (docs/roadmap/offline-front-desk.md).
   static const String offline = 'offline';
+}
+
+/// Почему сессия на паузе, если не по кнопке администратора.
+///
+/// Словарь: Sessions/SessionStateNames.cs
+abstract final class SessionPauseReasonNames {
+  /// В клубе отключали свет дольше получаса: время гостя возвращено, сессия ждёт его. Такую паузу не
+  /// закрывает правило долгой паузы — гость мог уйти переждать.
+  static const String power = 'power';
 }
 
 /// Словарь: Sessions/SessionStateNames.cs
@@ -6663,6 +6675,9 @@ class DeviceHeartbeatRequest {
     this.gameCacheReachable,
     this.gameCacheServing,
     this.gameCacheStoredBytes,
+    this.powerLostFromUtc,
+    this.uptimeSeconds,
+    this.onBatteryPower,
   });
 
   final String organizationId;
@@ -6708,6 +6723,16 @@ class DeviceHeartbeatRequest {
   final bool? gameCacheServing;
   final int? gameCacheStoredBytes;
 
+  /// ПК был обесточен: до этого момента (часы платформы) агент последний раз был жив, а потом машина
+  /// включилась заново без нормального выключения. Когда включилась — сервер считает сам: его «сейчас»
+  /// минус UptimeSeconds. Шлётся, пока сердцебиение не дойдёт. null — обесточивания не было.
+  final DateTime? powerLostFromUtc;
+  final int? uptimeSeconds;
+
+  /// ПК работает от батареи ИБП (Windows видит ИБП как батарею): в клубе пропал свет. null — агент
+  /// прежней версии или ИБП Windows не видит.
+  final bool? onBatteryPower;
+
   factory DeviceHeartbeatRequest.fromJson(Map<String, dynamic> json) => DeviceHeartbeatRequest(
         organizationId: json['organizationId'] as String,
         branchId: json['branchId'] as String,
@@ -6729,6 +6754,9 @@ class DeviceHeartbeatRequest {
         gameCacheReachable: json['gameCacheReachable'] == null ? null : json['gameCacheReachable'] as bool,
         gameCacheServing: json['gameCacheServing'] == null ? null : json['gameCacheServing'] as bool,
         gameCacheStoredBytes: json['gameCacheStoredBytes'] == null ? null : (json['gameCacheStoredBytes'] as num).toInt(),
+        powerLostFromUtc: json['powerLostFromUtc'] == null ? null : DateTime.parse(json['powerLostFromUtc'] as String),
+        uptimeSeconds: json['uptimeSeconds'] == null ? null : (json['uptimeSeconds'] as num).toInt(),
+        onBatteryPower: json['onBatteryPower'] == null ? null : json['onBatteryPower'] as bool,
       );
 
   Map<String, dynamic> toJson() => {
@@ -6752,6 +6780,9 @@ class DeviceHeartbeatRequest {
         'gameCacheReachable': gameCacheReachable,
         'gameCacheServing': gameCacheServing,
         'gameCacheStoredBytes': gameCacheStoredBytes,
+        'powerLostFromUtc': powerLostFromUtc?.toIso8601String(),
+        'uptimeSeconds': uptimeSeconds,
+        'onBatteryPower': onBatteryPower,
       };
 }
 
@@ -17953,6 +17984,7 @@ class SeatStatusDto {
     this.isKioskAbsent,
     this.hasPlayerAccount,
     this.deviceNetworkAddress,
+    this.sessionPauseReason,
   });
 
   final String seatId;
@@ -18029,6 +18061,10 @@ class SeatStatusDto {
   /// прежней версии или адрес ещё не приходил.
   final String? deviceNetworkAddress;
 
+  /// Почему сессия на паузе, если не по кнопке (SessionPauseReasonNames): «power» — отключали свет, время
+  /// гостя возвращено, он мог уйти переждать.
+  final String? sessionPauseReason;
+
   factory SeatStatusDto.fromJson(Map<String, dynamic> json) => SeatStatusDto(
         seatId: json['seatId'] as String,
         seatName: json['seatName'] as String,
@@ -18060,6 +18096,7 @@ class SeatStatusDto {
         isKioskAbsent: json['isKioskAbsent'] == null ? null : json['isKioskAbsent'] as bool,
         hasPlayerAccount: json['hasPlayerAccount'] == null ? null : json['hasPlayerAccount'] as bool,
         deviceNetworkAddress: json['deviceNetworkAddress'] == null ? null : json['deviceNetworkAddress'] as String,
+        sessionPauseReason: json['sessionPauseReason'] == null ? null : json['sessionPauseReason'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -18093,6 +18130,7 @@ class SeatStatusDto {
         'isKioskAbsent': isKioskAbsent,
         'hasPlayerAccount': hasPlayerAccount,
         'deviceNetworkAddress': deviceNetworkAddress,
+        'sessionPauseReason': sessionPauseReason,
       };
 }
 

@@ -16,6 +16,7 @@ export type ShellScreen =
   | 'grace'
   | 'offline'
   | 'paused'
+  | 'powerPaused'
   | 'held'
   | 'maintenance'
   | 'error';
@@ -50,6 +51,8 @@ export function selectScreen({ state, signedIn, approached, ended = false }: Scr
     default:
       // Запертый ПК с чужой сессией — не свободное место: ни витрины, ни входа, ни выбора времени.
       if (state.holdKind === DeviceLiveSessionHoldNames.Paused) return 'paused';
+      // Отключали свет дольше получаса: время гостя сохранено, сессию продолжит администратор.
+      if (state.holdKind === DeviceLiveSessionHoldNames.PowerPaused) return 'powerPaused';
       if (state.holdKind === DeviceLiveSessionHoldNames.Operator) return 'held';
       // Заперт: вставший раньше видит итог, вошедший выбирает время, подошедший — входит,
       // остальным крутится витрина.

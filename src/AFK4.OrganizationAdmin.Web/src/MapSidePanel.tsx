@@ -653,7 +653,9 @@ export function MapSidePanel({
   const callingForSeconds = seat.assistanceRequestedAtUtc
     ? Math.max(0, Math.round((Date.now() - new Date(seat.assistanceRequestedAtUtc).getTime()) / 1000))
     : null;
-  const statusLabel = state === 'paused' ? t('op.map.panel.pausedStatus') : seat.stateLabel;
+  const statusLabel = state === 'paused'
+    ? t(seat.sessionPauseReason === 'power' ? 'op.map.panel.powerPausedStatus' : 'op.map.panel.pausedStatus')
+    : seat.stateLabel;
 
   return (
     <Inspector

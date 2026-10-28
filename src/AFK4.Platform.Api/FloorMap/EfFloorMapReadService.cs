@@ -200,7 +200,8 @@ public sealed class EfFloorMapReadService(
             SessionBillingMode: string.IsNullOrEmpty(activeSession?.BillingMode) ? null : activeSession.BillingMode,
             IsKioskAbsent: device?.KioskAbsentSinceUtc is not null,
             DeviceNetworkAddress: device?.NetworkAddress,
-            HasPlayerAccount: activeSession?.PlayerAccountId is not null);
+            HasPlayerAccount: activeSession?.PlayerAccountId is not null,
+            SessionPauseReason: activeSession?.PauseReason);
     }
 
     // Команды, которые администратор шлёт ПК сам и может повторить той же кнопкой. Служебные

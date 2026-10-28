@@ -171,6 +171,9 @@ public sealed class EfAutoProtectionRunnerTests
         public Task<SessionCommandServiceResult> ResumeSessionAsync(Guid sessionId, Guid actorStaffUserId, ResumeSessionRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<PowerRestore?> RestoreAfterPowerLossAsync(Guid deviceId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<SessionCommandServiceResult> EndSessionAsync(Guid sessionId, Guid actorStaffUserId, EndSessionRequest request, CancellationToken cancellationToken)
         {
             Ended.Add((sessionId, actorStaffUserId, request.Reason));

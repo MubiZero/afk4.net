@@ -27,7 +27,8 @@ public sealed class DeviceHeartbeatService(
     EfDeviceBoundPlayerTokens deviceTokens,
     CachedOrganizationFeatures featureSnapshot,
     PlayerSignInClaimService signInClaims,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    PowerOutage? powerOutage = null)
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -124,6 +125,12 @@ public sealed class DeviceHeartbeatService(
                 .SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
         }
 
+        // Свет вернулся: время гостям — раньше, чем планировщик решит, что делать с сессией этого ПК.
+        if (device is not null && allowOperationalCommands && powerOutage is not null)
+        {
+            await powerOutage.RecordAsync(device, request, cancellationToken);
+        }
+
         if (device is not null && allowOperationalCommands)
         {
             var plannedCommands = await sessionCommandPlanner.PlanAsync(deviceId, request, cancellationToken);
@@ -217,6 +224,7 @@ public sealed class DeviceHeartbeatService(
             {
                 session.SessionId,
                 session.State,
+                session.PauseReason,
                 session.StartedAtUtc,
                 session.EndsAtUtc,
                 session.PlayerAccountId,
@@ -235,7 +243,9 @@ public sealed class DeviceHeartbeatService(
         string? hold = null;
         if (liveSession?.State == SessionStateNames.Paused)
         {
-            hold = DeviceLiveSessionHoldNames.Paused;
+            hold = liveSession.PauseReason == SessionPauseReasonNames.Power
+                ? DeviceLiveSessionHoldNames.PowerPaused
+                : DeviceLiveSessionHoldNames.Paused;
         }
         else if (liveSession?.State == SessionStateNames.Active
             && await SessionLockHold.IsHeldAsync(dbContext, request.DeviceId, liveSession.SessionId, cancellationToken))

@@ -110,7 +110,10 @@ public sealed class AutoProtectionRunner(
         foreach (var session in paused)
         {
             maxPauseByBranch.TryGetValue(session.BranchId, out var configuredMinutes);
-            var maxPause = SessionPause.ResolveMaxPause(configuredMinutes);
+            // Пауза «отключали свет» ждёт гостя дольше: он ушёл переждать, а не бросил место. Но не вечно.
+            var maxPause = session.PauseReason == SessionPauseReasonNames.Power
+                ? SessionPause.MaxPowerPause
+                : SessionPause.ResolveMaxPause(configuredMinutes);
             if (!SessionPause.IsPauseExpired(session, now, maxPause))
             {
                 continue;
