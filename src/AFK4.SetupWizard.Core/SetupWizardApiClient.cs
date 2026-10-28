@@ -171,7 +171,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         string? accentColor,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Patch, BrandingRoutes.Organization(organizationId))
+        using var request = new HttpRequestMessage(new HttpMethod("PATCH"), BrandingRoutes.Organization(organizationId))
         {
             Content = JsonContent.Create(
                 new UpdateOrganizationBrandingRequest(logoUrl, accentColor), options: JsonOptions),
@@ -217,7 +217,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
     {
         // Файл читается потоком: картинка клуба мелкая, но держать её целиком в памяти незачем,
         // а размер и тип проверит сервер — он же и отклонит всё, что не картинка.
-        await using var file = File.OpenRead(filePath);
+        using var file = File.OpenRead(filePath);
         using var content = new MultipartFormDataContent
         {
             { new StringContent(MediaPurposeNames.OrganizationLogo), "purpose" },
@@ -358,7 +358,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
                 failure.RemainingAttempts);
         }
 
-        response.EnsureSuccessStatusCode();
+        throw HttpFailure.For(response.StatusCode, $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).");
     }
 
     private readonly record struct ApiFailure(string? Code, int? RemainingAttempts);

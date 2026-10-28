@@ -9,11 +9,12 @@
 
   <!-- В 4.8 библиотека .NET без пометок о null: те же проверки уже идут в сборке под net10.0. -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PolyArgumentExceptions>true</PolyArgumentExceptions>
     <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8619;CS8620;CS8625;CA1416</NoWarn>
   </PropertyGroup>
 
   <!--
-    Программы на ПК клуба собираются ещё и под .NET Framework 4.8 (docs/roadmap/netfx48.md): он встроен в
+    Программы на ПК клуба собираются ещё и под .NET Framework 4.8 (docs/roadmap/windows7.md): он встроен в
     Windows 10 и 11 и ставится на Windows 7, поэтому установщику не нужно возить свой .NET. Недостающее в
     4.8 добирают пакеты-заплатки на уровне исходников (Polyfill) и библиотеки, которые сами ходят на 4.8.
   -->
@@ -27,6 +28,7 @@
     <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="10.0.13" />
     <Reference Include="System.Net.Http" />
     <Using Include="System.Net.Http" />
+    <Using Include="Polyfills" />
     <Compile Include="$(MSBuildThisFileDirectory)src/Compat/*.cs" Link="Compat/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

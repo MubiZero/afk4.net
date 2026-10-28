@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace System;
 
-// DateOnly и TimeOnly появились в .NET 6; программам на ПК под .NET Framework 4.8 (docs/roadmap/netfx48.md)
+// DateOnly и TimeOnly появились в .NET 6; программам на ПК под .NET Framework 4.8 (docs/roadmap/windows7.md)
 // нужны те же контракты. Здесь — ровно то, чем пользуются клиенты, и тот же JSON, что у .NET:
 // «yyyy-MM-dd» и «HH:mm:ss[.fffffff]». Публичные: тип поля контракта должен быть одним на все сборки ПК.
 
@@ -69,7 +69,7 @@ public readonly record struct TimeOnly : IComparable<TimeOnly>
     public static bool operator >=(TimeOnly left, TimeOnly right) => left.ticks >= right.ticks;
 
     public override string ToString() =>
-        ToTimeSpan().ToString(ticks % TimeSpan.TicksPerSecond == 0 ? "hh\\:mm\\:ss" : "hh\\:mm\\:ss\\.FFFFFFF", CultureInfo.InvariantCulture);
+        ToTimeSpan().ToString(ticks % TimeSpan.TicksPerSecond == 0 ? "hh\\:mm\\:ss" : "hh\\:mm\\:ss\\.fffffff", CultureInfo.InvariantCulture);
 }
 
 internal sealed class DateOnlyJsonConverter : JsonConverter<DateOnly>

@@ -92,12 +92,8 @@ builder.Services.AddSingleton<TimeProvider>(provider => provider.GetRequiredServ
 // кто его заявил), HTTP/2 с откатом на 1.1, пинги живости для долгих соединений и пересоздание
 // пула, чтобы смена адреса за Cloudflare не держала мёртвые соединения.
 #if NETFRAMEWORK
-// .NET Framework 4.8 (Windows 7–11): HTTP/1.1 через SChannel. Windows 7 сама предлагает только TLS 1.0, а
-// Cloudflare требует 1.2 — просим его явно; на Windows 8 и новее версию выбирает система (там и TLS 1.3).
-if (Environment.OSVersion.Version < new Version(6, 2))
-{
-    System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
-}
+// .NET Framework 4.8 (Windows 7–11): HTTP/1.1 через SChannel.
+NetFrameworkCompat.UseTls12OnWindows7();
 
 builder.Services.AddHttpClient("platform")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler

@@ -326,11 +326,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $setupWizardWebDist 'index.html'))) 
 # Every program is published self-contained: the .NET runtime sits in its own folder, so no PC needs
 # a .NET install and the installer never asks for one. Each MSI harvests the whole publish directory
 # (Files Include="...\**"), so the several hundred runtime files travel without being listed by hand.
+# The programs also target .NET Framework 4.8 for Windows 7 (docs/roadmap/windows7.md); this build is
+# the .NET 10 one, so the framework is named explicitly.
 $projects = @(
-    @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj' },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj' },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj' },
-    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj' }
+    @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; Framework = 'net10.0-windows' },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; Framework = 'net10.0' },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; Framework = 'net10.0-windows' },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; Framework = 'net10.0-windows' }
 )
 
 foreach ($project in $projects) {
@@ -346,6 +348,7 @@ foreach ($project in $projects) {
     }
 
     & $DotnetPath publish (Join-Path $repoRoot $project.Path) `
+        -f $project.Framework `
         -c $Configuration `
         -r $Runtime `
         --self-contained true `

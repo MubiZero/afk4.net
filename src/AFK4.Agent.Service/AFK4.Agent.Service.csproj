@@ -22,6 +22,7 @@
     <Reference Include="System.Management" />
     <Reference Include="System.ServiceProcess" />
     <PackageReference Include="BrotliSharpLib" Version="0.3.3" />
+    <PackageReference Include="TimeZoneConverter" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

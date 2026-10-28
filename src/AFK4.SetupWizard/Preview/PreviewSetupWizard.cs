@@ -127,7 +127,7 @@ internal static class PreviewSetupWizard
                 EnrollmentState: DeviceEnrollmentStateNames.Approved,
                 ApiBaseUrl: "https://preview.local",
                 UpdateChannel: "stable",
-                EnrolledAtUtc: DateTimeOffset.UnixEpoch));
+                EnrolledAtUtc: DateTimeOffset.FromUnixTimeSeconds(0)));
 
         private static readonly Guid OrgId = new("00000000-0000-0000-0000-0000000000aa");
         private static readonly Guid BranchId = new("00000000-0000-0000-0000-0000000000bb");

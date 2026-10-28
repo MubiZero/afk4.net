@@ -81,7 +81,7 @@ public sealed class KioskKeyboardHook : IDisposable
                     AppsHotkeyPressed?.Invoke();
                 }
 
-                return 1;
+                return (nint)1;
             }
         }
 

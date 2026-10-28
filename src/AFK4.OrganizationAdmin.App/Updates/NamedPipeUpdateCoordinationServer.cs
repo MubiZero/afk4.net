@@ -53,7 +53,7 @@ public sealed class NamedPipeUpdateCoordinationServer(
         {
             try
             {
-                await using (pipe)
+                using (pipe)
                 {
                     await pipe.WaitForConnectionAsync(cancellationToken);
                     var request = await ReadAsync(pipe, cancellationToken);

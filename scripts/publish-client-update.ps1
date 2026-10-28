@@ -76,7 +76,13 @@ if (Test-Path -LiteralPath $publishRoot) {
     Remove-Item -LiteralPath $publishRoot -Recurse -Force
 }
 
+# Программы на ПК собираются под .NET 10 и под .NET Framework 4.8 (Windows 7); этот путь — .NET 10, первая цель проекта.
+$projectXml = [xml](Get-Content -LiteralPath $ProjectPath -Raw)
+$frameworks = @($projectXml.Project.PropertyGroup | ForEach-Object { $_.TargetFrameworks, $_.TargetFramework } | Where-Object { $_ })
+$framework = ($frameworks[0] -split ';')[0]
+
 & $DotnetPath publish $ProjectPath `
+    -f $framework `
     -c $Configuration `
     -r $Runtime `
     --self-contained true `

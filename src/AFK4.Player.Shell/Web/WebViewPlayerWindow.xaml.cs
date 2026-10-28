@@ -513,7 +513,10 @@ public partial class WebViewPlayerWindow : Window
             Browser.Visibility = Visibility.Hidden;
             if (core is not null)
             {
+#if !NETFRAMEWORK
+                // Уровень памяти — WebView2 SDK 1.0.1661+; сборка для Windows 7 стоит на 1.0.1518.
                 core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
+#endif
                 await core.TrySuspendAsync();
             }
 
@@ -523,7 +526,9 @@ public partial class WebViewPlayerWindow : Window
         if (core is not null)
         {
             core.Resume();
+#if !NETFRAMEWORK
             core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Normal;
+#endif
         }
 
         Browser.Visibility = Visibility.Visible;

@@ -141,7 +141,7 @@ public sealed class ShellPipeClient(PlayerShellOptions options, bool verifyAgent
 
     private async Task<SessionOutcome> ConnectAndServeAsync(CancellationToken cancellationToken)
     {
-        await using var pipe = new NamedPipeClientStream(".", options.ShellPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        using var pipe = new NamedPipeClientStream(".", options.ShellPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         await pipe.ConnectAsync(options.ConnectTimeoutMilliseconds, cancellationToken);
         if (verifyAgentSession)
         {

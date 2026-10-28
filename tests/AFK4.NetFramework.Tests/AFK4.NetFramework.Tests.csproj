@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Программы на ПК для Windows 7 собираются под .NET Framework 4.8 (docs/roadmap/windows7.md). Здесь — то, что в 4.8
+    сделано своими руками (src/Compat, DateOnly/TimeOnly контрактов, Brotli, пояса IANA), против эталонов .NET 10.
+    Запускается только на Windows: в CI его подхватывает задача «Build And Test Windows».
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AFK4.Shared.Contracts\AFK4.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\AFK4.Agent.Service\AFK4.Agent.Service.csproj" />
+  </ItemGroup>
+
+</Project>
