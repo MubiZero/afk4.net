@@ -111,7 +111,7 @@ p { margin: 0 0 var(--space-4); max-width: 66ch; }
 .changes dt { font-weight: 700; margin-top: var(--space-4); }
 .changes dd { margin: var(--space-1) 0 0; color: var(--text-muted); max-width: 66ch; }
 
-.callout { border-left: 3px solid var(--accent); background: var(--surface-raised); padding: var(--space-4) var(--space-6); border-radius: 0 var(--radius) var(--radius) 0; }
+.callout { border: 1px solid var(--border); background: var(--surface-raised); padding: var(--space-4) var(--space-6); border-radius: var(--radius); }
 .link { color: var(--accent-text); text-underline-offset: 3px; }
 .link:hover { color: var(--accent-hover); }
 
