@@ -60,9 +60,13 @@ wildcard-сертификата не требуется.
 
 ### Ещё не заведено
 
-`afk4.net` и `www.afk4.net` — лендинга пока нет, а имя, ведущее на сервер без маршрута,
-отдаёт чужую заглушку и не получает сертификат. `status.afk4.net` — монитор доступности
-сейчас пишет в Telegram, показывать нечего.
+`status.afk4.net` — монитор доступности сейчас пишет в Telegram, показывать нечего.
+
+### Публичный сайт (с 29.10.2026)
+
+`afk4.net` и `www.afk4.net` — CNAME на `afk4-site.pages.dev` через прокси Cloudflare, проект Cloudflare Pages
+`afk4-site` (docs/operations/public-site.md). Для его сертификата в CAA зоны рядом с `letsencrypt.org` добавлен
+`pki.goog`: Pages выпускает сертификат через Google Trust Services.
 
 ## Что двигалось вместе с адресами
 

@@ -49,3 +49,4 @@ graphify-out/
 
 # Конфигурация Firebase для iOS. Появится вместе с iOS-сборкой.
 src/afk4_customer_app/ios/Runner/GoogleService-Info.plist
+site/dist/
