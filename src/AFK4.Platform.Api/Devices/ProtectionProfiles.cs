@@ -29,7 +29,9 @@ public static class ProtectionProfiles
                 JsonSerializer.Deserialize<List<BlockedWindowRuleDto>>(entity.BlockedWindowsJson, Json) ?? [],
                 JsonSerializer.Deserialize<List<string>>(entity.ClearAfterSessionJson, Json) ?? [],
                 entity.IdleShutdownMinutes,
-                entity.ClubRules);
+                entity.ClubRules,
+                entity.WakeAtMinuteOfDay,
+                entity.ShutdownAtMinuteOfDay);
 
     public static async Task<ProtectionProfileDto> ResolveAsync(
         PlatformDbContext dbContext, Guid branchId, CancellationToken cancellationToken) =>
@@ -67,6 +69,12 @@ public static class ProtectionProfiles
         if (request.IdleShutdownMinutes is < ProtectionProfileLimits.MinIdleShutdownMinutes or > ProtectionProfileLimits.MaxIdleShutdownMinutes)
         {
             return $"IdleShutdownMinutes is between {ProtectionProfileLimits.MinIdleShutdownMinutes} and {ProtectionProfileLimits.MaxIdleShutdownMinutes}, or empty.";
+        }
+
+        if (request.WakeAtMinuteOfDay is < 0 or >= ProtectionProfileLimits.MinutesPerDay
+            || request.ShutdownAtMinuteOfDay is < 0 or >= ProtectionProfileLimits.MinutesPerDay)
+        {
+            return "WakeAtMinuteOfDay and ShutdownAtMinuteOfDay are minutes of the day (0–1439), or empty.";
         }
 
         if (request.ClubRules?.Trim().Length > ProtectionProfileLimits.MaxClubRulesLength)
@@ -148,6 +156,8 @@ public static class ProtectionProfiles
             SessionTraceNames.All.Where(request.ClearAfterSession.Contains).ToList(), Json);
         entity.IdleShutdownMinutes = request.IdleShutdownMinutes;
         entity.ClubRules = Blank(request.ClubRules);
+        entity.WakeAtMinuteOfDay = request.WakeAtMinuteOfDay;
+        entity.ShutdownAtMinuteOfDay = request.ShutdownAtMinuteOfDay;
         entity.UpdatedAtUtc = now;
         entity.UpdatedByStaffUserId = staffUserId;
 

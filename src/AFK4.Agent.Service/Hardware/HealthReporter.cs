@@ -82,7 +82,9 @@ public sealed class UnsupportedHealthCollector : IHealthCollector
 /// Каждый источник читается отдельно: не нашёлся один — остальные всё равно приходят.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class WindowsHealthCollector(ILogger<WindowsHealthCollector> logger) : IHealthCollector
+public sealed class WindowsHealthCollector(
+    ILogger<WindowsHealthCollector> logger,
+    AFK4.Agent.Service.Network.INetworkIdentityProvider? network = null) : IHealthCollector
 {
     private (ulong Idle, ulong Busy)? previousCpu;
 
@@ -92,7 +94,9 @@ public sealed class WindowsHealthCollector(ILogger<WindowsHealthCollector> logge
         BoardTemperatureC: Safe(BoardTemperature),
         Gpus: Safe(NvidiaGpus.Read) ?? [],
         Disks: Safe(Disks) ?? [],
-        Volumes: Volumes());
+        Volumes: Volumes(),
+        // Включение по сети: агент сам держит ПК готовым и докладывает, что вышло.
+        WakeOnLan: AFK4.Agent.Service.Power.WakeOnLanReadiness.Ensure(network?.Current?.MacAddress));
 
     private int? CpuLoad()
     {

@@ -104,7 +104,9 @@ describe('ProtectionDestination', () => {
       blockedWindows: [{ titleContains: 'Командная строка', className: null }],
       clearAfterSession: ['steam', 'browsers', 'launchers', 'messengers'],
       idleShutdownMinutes: null,
-      clubRules: null
+      clubRules: null,
+      wakeAtMinuteOfDay: null,
+      shutdownAtMinuteOfDay: null
     });
     expect(await screen.findByRole('button', { name: 'Диск D' })).toHaveAttribute('aria-pressed', 'true');
   });

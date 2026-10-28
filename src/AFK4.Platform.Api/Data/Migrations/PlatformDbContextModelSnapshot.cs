@@ -837,6 +837,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("ShutdownAtMinuteOfDay")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -849,6 +852,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("WakeAtMinuteOfDay")
                         .HasColumnType("integer");
 
                     b.HasKey("BranchId");

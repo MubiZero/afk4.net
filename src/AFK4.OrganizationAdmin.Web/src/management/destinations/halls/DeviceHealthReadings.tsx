@@ -18,6 +18,19 @@ const DISK_HEALTH_KEYS: Record<string, MessageKey> = {
   [DiskHealthNames.Unhealthy]: 'op.health.disk.unhealthy'
 };
 
+/**
+ * Включение по сети: агент сам выключает «быстрый запуск» и разрешает сетевой карте будить ПК. Не вышло —
+ * говорим, что именно; вышло — напоминаем о BIOS: его агент не видит.
+ */
+function wakeReadiness(health: DeviceHealthDto, t: ReturnType<typeof useI18n>['t']): string | null {
+  const wake = health.wakeOnLan;
+  if (!wake) return null;
+  if (wake.fastStartupOff === false) return t('op.health.wake.fastStartup');
+  if (wake.nicWakeEnabled === false) return t('op.health.wake.nic');
+  if (wake.fastStartupOff && wake.nicWakeEnabled) return t('op.health.wake.ready');
+  return t('op.health.wake.unknown');
+}
+
 /** Что сказать стойке о проблеме ПК: словами и с подсказкой, что делать. Неизвестный код — общая фраза. */
 export function healthIssueKey(issue: string): MessageKey {
   return ISSUE_KEYS[issue] ?? 'op.health.issue.other';
@@ -51,7 +64,8 @@ export function DeviceHealthReadings({ health, reportedAtUtc, issue }: {
       celsius(disk.temperatureC),
       disk.wearPercent === null || disk.wearPercent === undefined ? null : t('op.health.wear', { percent: disk.wearPercent })
     ])]),
-    ...health.volumes.map((volume): [string, string | null] => [volume.name, t('op.health.space', { free: volume.freeGb, size: volume.sizeGb })])
+    ...health.volumes.map((volume): [string, string | null] => [volume.name, t('op.health.space', { free: volume.freeGb, size: volume.sizeGb })]),
+    [t('op.health.wake'), wakeReadiness(health, t)]
   ];
 
   return (

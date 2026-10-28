@@ -6701,6 +6701,7 @@ class DeviceHealthDto {
     required this.gpus,
     required this.disks,
     required this.volumes,
+    this.wakeOnLan,
   });
 
   final int? cpuLoadPercent;
@@ -6712,6 +6713,9 @@ class DeviceHealthDto {
   final List<DiskHealthDto> disks;
   final List<VolumeSpaceDto> volumes;
 
+  /// Готов ли ПК включаться по сети; null — агент прежней версии.
+  final WakeOnLanReadinessDto? wakeOnLan;
+
   factory DeviceHealthDto.fromJson(Map<String, dynamic> json) => DeviceHealthDto(
         cpuLoadPercent: json['cpuLoadPercent'] == null ? null : (json['cpuLoadPercent'] as num).toInt(),
         memoryUsedPercent: json['memoryUsedPercent'] == null ? null : (json['memoryUsedPercent'] as num).toInt(),
@@ -6719,6 +6723,7 @@ class DeviceHealthDto {
         gpus: (json['gpus'] as List<dynamic>).map((item) => GpuHealthDto.fromJson(item as Map<String, dynamic>)).toList(),
         disks: (json['disks'] as List<dynamic>).map((item) => DiskHealthDto.fromJson(item as Map<String, dynamic>)).toList(),
         volumes: (json['volumes'] as List<dynamic>).map((item) => VolumeSpaceDto.fromJson(item as Map<String, dynamic>)).toList(),
+        wakeOnLan: json['wakeOnLan'] == null ? null : WakeOnLanReadinessDto.fromJson(json['wakeOnLan'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -6728,6 +6733,7 @@ class DeviceHealthDto {
         'gpus': gpus.map((item) => item.toJson()).toList(),
         'disks': disks.map((item) => item.toJson()).toList(),
         'volumes': volumes.map((item) => item.toJson()).toList(),
+        'wakeOnLan': wakeOnLan?.toJson(),
       };
 }
 
@@ -16321,6 +16327,8 @@ class ProtectionProfileDto {
     required this.clearAfterSession,
     this.idleShutdownMinutes,
     this.clubRules,
+    this.wakeAtMinuteOfDay,
+    this.shutdownAtMinuteOfDay,
   });
 
   final int version;
@@ -16355,6 +16363,11 @@ class ProtectionProfileDto {
   /// Правила клуба на экране ПК — текст клуба как есть, на его языке.
   final String? clubRules;
 
+  /// Расписание ПК по времени филиала, минуты от полуночи (docs/operations/pc-health.md): включать все ПК
+  /// по сети в это время; выключать свободные. null — не включать / не выключать по расписанию.
+  final int? wakeAtMinuteOfDay;
+  final int? shutdownAtMinuteOfDay;
+
   factory ProtectionProfileDto.fromJson(Map<String, dynamic> json) => ProtectionProfileDto(
         version: (json['version'] as num).toInt(),
         blockRemovableStorage: json['blockRemovableStorage'] as bool,
@@ -16367,6 +16380,8 @@ class ProtectionProfileDto {
         clearAfterSession: (json['clearAfterSession'] as List<dynamic>).map((item) => item as String).toList(),
         idleShutdownMinutes: json['idleShutdownMinutes'] == null ? null : (json['idleShutdownMinutes'] as num).toInt(),
         clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
+        wakeAtMinuteOfDay: json['wakeAtMinuteOfDay'] == null ? null : (json['wakeAtMinuteOfDay'] as num).toInt(),
+        shutdownAtMinuteOfDay: json['shutdownAtMinuteOfDay'] == null ? null : (json['shutdownAtMinuteOfDay'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -16381,6 +16396,8 @@ class ProtectionProfileDto {
         'clearAfterSession': clearAfterSession.map((item) => item).toList(),
         'idleShutdownMinutes': idleShutdownMinutes,
         'clubRules': clubRules,
+        'wakeAtMinuteOfDay': wakeAtMinuteOfDay,
+        'shutdownAtMinuteOfDay': shutdownAtMinuteOfDay,
       };
 }
 
@@ -21912,6 +21929,8 @@ class UpdateBranchProtectionProfileRequest {
     required this.clearAfterSession,
     this.idleShutdownMinutes,
     this.clubRules,
+    this.wakeAtMinuteOfDay,
+    this.shutdownAtMinuteOfDay,
   });
 
   final String organizationId;
@@ -21926,6 +21945,8 @@ class UpdateBranchProtectionProfileRequest {
   final List<String> clearAfterSession;
   final int? idleShutdownMinutes;
   final String? clubRules;
+  final int? wakeAtMinuteOfDay;
+  final int? shutdownAtMinuteOfDay;
 
   factory UpdateBranchProtectionProfileRequest.fromJson(Map<String, dynamic> json) => UpdateBranchProtectionProfileRequest(
         organizationId: json['organizationId'] as String,
@@ -21940,6 +21961,8 @@ class UpdateBranchProtectionProfileRequest {
         clearAfterSession: (json['clearAfterSession'] as List<dynamic>).map((item) => item as String).toList(),
         idleShutdownMinutes: json['idleShutdownMinutes'] == null ? null : (json['idleShutdownMinutes'] as num).toInt(),
         clubRules: json['clubRules'] == null ? null : json['clubRules'] as String,
+        wakeAtMinuteOfDay: json['wakeAtMinuteOfDay'] == null ? null : (json['wakeAtMinuteOfDay'] as num).toInt(),
+        shutdownAtMinuteOfDay: json['shutdownAtMinuteOfDay'] == null ? null : (json['shutdownAtMinuteOfDay'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -21955,6 +21978,8 @@ class UpdateBranchProtectionProfileRequest {
         'clearAfterSession': clearAfterSession.map((item) => item).toList(),
         'idleShutdownMinutes': idleShutdownMinutes,
         'clubRules': clubRules,
+        'wakeAtMinuteOfDay': wakeAtMinuteOfDay,
+        'shutdownAtMinuteOfDay': shutdownAtMinuteOfDay,
       };
 }
 
@@ -23820,6 +23845,30 @@ class VolumeSpaceDto {
         'freeGb': freeGb,
         'sizeGb': sizeGb,
         'isSystem': isSystem,
+      };
+}
+
+/// Готовность к включению по сети, которую агент наводит сам: «быстрый запуск» Windows выключен и сетевая карта
+/// вправе будить ПК. null — не удалось прочитать. Пробуждение в BIOS отсюда не видно.
+///
+/// Контракт: Devices/DeviceHealthContracts.cs
+class WakeOnLanReadinessDto {
+  const WakeOnLanReadinessDto({
+    this.fastStartupOff,
+    this.nicWakeEnabled,
+  });
+
+  final bool? fastStartupOff;
+  final bool? nicWakeEnabled;
+
+  factory WakeOnLanReadinessDto.fromJson(Map<String, dynamic> json) => WakeOnLanReadinessDto(
+        fastStartupOff: json['fastStartupOff'] == null ? null : json['fastStartupOff'] as bool,
+        nicWakeEnabled: json['nicWakeEnabled'] == null ? null : json['nicWakeEnabled'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'fastStartupOff': fastStartupOff,
+        'nicWakeEnabled': nicWakeEnabled,
       };
 }
 

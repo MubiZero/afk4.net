@@ -274,6 +274,8 @@ builder.Services.AddScoped<TelegramLinks>();
 builder.Services.AddScoped<TelegramBotDialog>();
 builder.Services.AddScoped<TelegramReports>();
 builder.Services.AddHostedService<TelegramUpdatesJob>();
+builder.Services.AddScoped<AFK4.Platform.Api.Devices.PcSchedule>();
+builder.Services.AddHostedService<AFK4.Platform.Api.Devices.PcScheduleHostedService>();
 builder.Services.Configure<PushOptions>(
     builder.Configuration.GetSection(PushOptions.SectionName));
 builder.Services.AddHttpClient(PushClientRegistration.HttpClientName, (provider, http) =>

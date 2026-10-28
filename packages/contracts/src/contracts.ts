@@ -3718,6 +3718,8 @@ export interface DeviceHealthDto {
   gpus: GpuHealthDto[];
   disks: DiskHealthDto[];
   volumes: VolumeSpaceDto[];
+  /** Готов ли ПК включаться по сети; null — агент прежней версии. */
+  wakeOnLan?: WakeOnLanReadinessDto | null;
 }
 
 /** Контракт: Devices/DeviceHealthContracts.cs */
@@ -7087,6 +7089,12 @@ export interface ProtectionProfileDto {
   idleShutdownMinutes?: number | null;
   /** Правила клуба на экране ПК — текст клуба как есть, на его языке. */
   clubRules?: string | null;
+  /**
+   * Расписание ПК по времени филиала, минуты от полуночи (docs/operations/pc-health.md): включать все ПК
+   * по сети в это время; выключать свободные. null — не включать / не выключать по расписанию.
+   */
+  wakeAtMinuteOfDay?: number | null;
+  shutdownAtMinuteOfDay?: number | null;
 }
 
 /**
@@ -9027,6 +9035,8 @@ export interface UpdateBranchProtectionProfileRequest {
   clearAfterSession: string[];
   idleShutdownMinutes?: number | null;
   clubRules?: string | null;
+  wakeAtMinuteOfDay?: number | null;
+  shutdownAtMinuteOfDay?: number | null;
 }
 
 /** Контракт: Branches/UpdateBranchSettingsRequest.cs */
@@ -9602,6 +9612,17 @@ export interface VolumeSpaceDto {
   freeGb: number;
   sizeGb: number;
   isSystem: boolean;
+}
+
+/**
+ * Готовность к включению по сети, которую агент наводит сам: «быстрый запуск» Windows выключен и сетевая карта
+ * вправе будить ПК. null — не удалось прочитать. Пробуждение в BIOS отсюда не видно.
+ *
+ * Контракт: Devices/DeviceHealthContracts.cs
+ */
+export interface WakeOnLanReadinessDto {
+  fastStartupOff: boolean | null;
+  nicWakeEnabled: boolean | null;
 }
 
 /**

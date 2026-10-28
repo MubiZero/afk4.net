@@ -14,7 +14,15 @@ public sealed record DeviceHealthDto(
     int? BoardTemperatureC,
     IReadOnlyList<GpuHealthDto> Gpus,
     IReadOnlyList<DiskHealthDto> Disks,
-    IReadOnlyList<VolumeSpaceDto> Volumes);
+    IReadOnlyList<VolumeSpaceDto> Volumes,
+    /// Готов ли ПК включаться по сети; null — агент прежней версии.
+    WakeOnLanReadinessDto? WakeOnLan = null);
+
+/// <summary>
+/// Готовность к включению по сети, которую агент наводит сам: «быстрый запуск» Windows выключен и сетевая карта
+/// вправе будить ПК. null — не удалось прочитать. Пробуждение в BIOS отсюда не видно.
+/// </summary>
+public sealed record WakeOnLanReadinessDto(bool? FastStartupOff, bool? NicWakeEnabled);
 
 /// <summary>Видеокарта NVIDIA (через NVML драйвера). AMD и встроенная графика пока не читаются.</summary>
 public sealed record GpuHealthDto(string Name, int? TemperatureC, int? FanPercent, int? LoadPercent);

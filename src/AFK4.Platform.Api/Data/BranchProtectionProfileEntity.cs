@@ -37,6 +37,12 @@ public sealed class BranchProtectionProfileEntity
     /// <summary>Правила клуба на экране ПК.</summary>
     public string? ClubRules { get; set; }
 
+    /// <summary>Включать ПК по сети в эту минуту дня по времени филиала; null — не включать.</summary>
+    public int? WakeAtMinuteOfDay { get; set; }
+
+    /// <summary>Выключать свободные ПК в эту минуту дня по времени филиала; null — не выключать.</summary>
+    public int? ShutdownAtMinuteOfDay { get; set; }
+
     public const string DefaultClearAfterSessionJson = "[\"steam\",\"browsers\",\"launchers\",\"messengers\"]";
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
