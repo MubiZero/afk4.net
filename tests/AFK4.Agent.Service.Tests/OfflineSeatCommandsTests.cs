@@ -157,6 +157,11 @@ public sealed class OfflineSeatCommandsTests : IDisposable
             var refused = await http.PostAsJsonAsync(url, Lease(Guid.NewGuid(), 1, Now.AddHours(1)));
             Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
             Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync(url)).StatusCode);
+
+            // Мусор из сети клуба (найдено на VM 28.10: «{}» ронял обработку в 500) — отказ, а не падение.
+            using var empty = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+            var garbage = await http.PostAsync(url, empty);
+            Assert.Equal(HttpStatusCode.Conflict, garbage.StatusCode);
         }
         finally
         {
