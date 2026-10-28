@@ -20,7 +20,7 @@ public sealed class GameCacheService(
     /// <summary>Как часто проверять кеш: сервер в клубе включают и выключают руками, минуты хватает.</summary>
     public static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(1);
 
-    private readonly string hostsFile = hostsPath ?? Path.Combine(Environment.SystemDirectory, "drivers", "etc", "hosts");
+    private readonly string hostsFile = hostsPath ?? GameCacheHosts.SystemPath;
     private readonly SemaphoreSlim changed = new(0, 1);
     private string? address;
     private bool configured;
@@ -109,6 +109,8 @@ public static class GameCacheHosts
 {
     public const string BeginMarker = "# AFK4 game cache begin (managed by AFK4 Agent)";
     public const string EndMarker = "# AFK4 game cache end";
+
+    public static string SystemPath => Path.Combine(Environment.SystemDirectory, "drivers", "etc", "hosts");
 
     /// <param name="address">Куда вести имена кеша; null — убрать блок.</param>
     public static string Rewrite(string hosts, string? address)

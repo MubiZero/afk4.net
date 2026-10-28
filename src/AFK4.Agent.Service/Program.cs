@@ -8,9 +8,17 @@ using AFK4.Agent.Service.Network;
 using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Agent.Service.Showcase;
+using AFK4.Agent.Service.Uninstall;
 using AFK4.Agent.Service.Updates;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Options;
+
+// Удаление агента: установщик зовёт уборку и ждёт её, служба при этом не запускается.
+if (OperatingSystem.IsWindows() && args.Contains(UninstallCleanup.Argument))
+{
+    Environment.ExitCode = UninstallCleanup.RunOnThisPc();
+    return;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -163,7 +163,31 @@
         HideTarget="yes"
         Impersonate="yes" />
 
+    <!--
+      Уборка при удалении (не при обновлении: старая версия тоже «удаляется», и киоск снялся бы на
+      каждом обновлении). От имени системы, после остановки службы и до удаления файлов: мастер снимает
+      киоск, агент — правила брандмауэра, блок в hosts, машинные запреты и «быстрый запуск». Return=ignore:
+      не вышедшая уборка не должна оставить ПК с наполовину удалённой программой — причина в журнале.
+    -->
+    <CustomAction
+        Id="RemoveKioskOnUninstall"
+        FileRef="SetupWizardExe"
+        ExeCommand="--remove-kiosk"
+        Execute="deferred"
+        Impersonate="no"
+        Return="ignore" />
+
+    <CustomAction
+        Id="AgentCleanupOnUninstall"
+        FileRef="AgentServiceExe"
+        ExeCommand="--uninstall-cleanup"
+        Execute="deferred"
+        Impersonate="no"
+        Return="ignore" />
+
     <InstallExecuteSequence>
+      <Custom Action="RemoveKioskOnUninstall" After="StopServices" Condition="REMOVE = &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="AgentCleanupOnUninstall" After="RemoveKioskOnUninstall" Condition="REMOVE = &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="LaunchSetupWizard" After="InstallFinalize" Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT AFK4_INSTALL_CODE AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)" />
       <Custom Action="LaunchSetupWizardSilently" After="InstallFinalize" Condition="AFK4_INSTALL_CODE AND NOT (REMOVE = &quot;ALL&quot;)" />
     </InstallExecuteSequence>

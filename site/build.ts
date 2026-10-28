@@ -68,7 +68,7 @@ ${main}
         ${nav('code-signing', c.nav.signing)}
         ${nav('privacy', c.nav.privacy)}
         <a href="${links.repo}">${escape(c.footer.license)}</a>
-        <a href="${links.email}">${escape(c.footer.contact)}: postmaster@afk4.net</a>
+        <a href="${links.email}">${escape(c.footer.contact)}: ${links.email.replace('mailto:', '')}</a>
       </nav>
     </div>
   </footer>
