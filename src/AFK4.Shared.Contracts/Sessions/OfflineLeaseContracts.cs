@@ -36,10 +36,13 @@ public static class OfflineLeaseSigning
 
     public static string Algorithm(string keyId) => AlgorithmPrefix + keyId;
 
-    public static bool TryGetKeyId(string signatureAlgorithm, out string keyId)
+    /// <param name="signatureAlgorithm">
+    /// Из присланной по сети аренды: поля может не быть вовсе (JSON без него даёт null), это не повод падать.
+    /// </param>
+    public static bool TryGetKeyId(string? signatureAlgorithm, out string keyId)
     {
         keyId = string.Empty;
-        if (!signatureAlgorithm.StartsWith(AlgorithmPrefix, StringComparison.Ordinal))
+        if (signatureAlgorithm is null || !signatureAlgorithm.StartsWith(AlgorithmPrefix, StringComparison.Ordinal))
         {
             return false;
         }

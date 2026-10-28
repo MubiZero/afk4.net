@@ -84,7 +84,8 @@ public sealed class GameCacheServerTests : IAsyncDisposable
             fixedQuotaBytes: GameCacheStore.MinUsefulQuotaBytes);
         await server.StartAsync(stop.Token);
         server.Configure(host: true);
-        for (var attempt = 0; attempt < 50 && !server.Serving; attempt++) await Task.Delay(20);
+        // Подъём слушателя на macOS бывает долгим (имя машины резолвится секунды): ждём до 15 с, не секунду.
+        for (var attempt = 0; attempt < 300 && !server.Serving; attempt++) await Task.Delay(50);
         Assert.True(server.Serving);
     }
 
