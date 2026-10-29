@@ -1,0 +1,37 @@
+name: AOT Probe
+
+# Проба Native AOT для Windows 7–11 (docs/roadmap/windows7.md). Живёт только в ветке probe/aot и в main не идёт.
+on:
+  push:
+    branches: [probe/aot]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        rid: [win-x64, win-x86]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Publish probes
+        shell: pwsh
+        run: |
+          foreach ($probe in 'AgentProbe', 'WindowProbe') {
+            dotnet publish "probes/aot/$probe/$probe.csproj" -c Release -r ${{ matrix.rid }} -p:NuGetAudit=false -o "out/$probe"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Get-ChildItem out -Recurse -File | Select-Object FullName, Length | Format-Table -AutoSize | Out-String -Width 200
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aot-probe-${{ matrix.rid }}
+          path: |
+            out/AgentProbe/AgentProbe.exe
+            out/WindowProbe/WindowProbe.exe
+          retention-days: 7

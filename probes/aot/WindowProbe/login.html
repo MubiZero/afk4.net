@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>AFK4 — вход</title>
+<style>
+  :root { --bg:#0b0f0e; --surface:#121816; --raised:#18201d; --border:#26302c; --text:#ecefee; --muted:#a8b2ae; --accent:#2cc592; --on-accent:#0a1a14; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:16px "Segoe UI", Tahoma, sans-serif; }
+  body { display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; padding:24px 40px; border-bottom:1px solid var(--border); }
+  .brand { font-size:22px; font-weight:700; letter-spacing:1px; } .brand span { color:var(--accent); }
+  .seat { margin-left:auto; color:var(--muted); }
+  main { flex:1; display:flex; align-items:center; gap:48px; padding:0 64px; }
+  .hero { flex:1; } .hero h1 { font-size:44px; line-height:1.15; margin:0 0 16px; } .hero p { color:var(--muted); font-size:18px; margin:0; }
+  .card { width:380px; padding:32px; background:var(--surface); border:1px solid var(--border); border-radius:16px; }
+  label { display:block; color:var(--muted); font-size:14px; margin-bottom:8px; }
+  input { box-sizing:border-box; width:100%; height:48px; padding:0 14px; font-size:20px; color:var(--text); background:var(--raised); border:1px solid var(--border); border-radius:10px; }
+  .pad { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0 8px; }
+  .pad button { height:52px; font-size:22px; color:var(--text); background:var(--raised); border:1px solid var(--border); border-radius:10px; }
+  .go { width:100%; height:52px; margin-top:8px; font-size:18px; font-weight:600; color:var(--on-accent); background:var(--accent); border:0; border-radius:10px; }
+  .answer { margin-top:16px; min-height:22px; color:var(--accent); }
+  footer { padding:12px 40px; color:var(--muted); font-size:13px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+  <header><div class="brand">AFK4<span>.</span>NET</div><div class="seat">ПК 07 · свободен</div></header>
+  <main>
+    <section class="hero"><h1>Добро пожаловать в клуб</h1><p>Войдите по номеру телефона, чтобы начать игру. Время и бонусы — в вашем профиле.</p></section>
+    <section class="card">
+      <label for="phone">Номер телефона</label>
+      <input id="phone" value="+992 ">
+      <div class="pad">
+        <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
+        <button>7</button><button>8</button><button>9</button><button>⌫</button><button>0</button><button>+</button>
+      </div>
+      <button id="go" class="go">Войти</button>
+      <div id="answer" class="answer"></div>
+    </section>
+  </main>
+  <footer>{{info}}</footer>
+<script>
+  var phone = document.getElementById("phone");
+  document.querySelectorAll(".pad button").forEach(function (key) {
+    key.addEventListener("click", function () {
+      phone.value = key.textContent === "⌫" ? phone.value.slice(0, -1) : phone.value + key.textContent;
+    });
+  });
+  document.getElementById("go").addEventListener("click", function () { window.chrome.webview.postMessage(phone.value); });
+  window.chrome.webview.addEventListener("message", function (event) { document.getElementById("answer").textContent = event.data.answer; });
+</script>
+</body>
+</html>

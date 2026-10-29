@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WebView2Aot" Version="1.7.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Загрузчик WebView2 из SDK 1.0.1518.46 — последнего, что поддерживает Windows 7. -->
+    <EmbeddedResource Include="runtimes\win-x64\native\WebView2Loader.dll" />
+    <EmbeddedResource Include="runtimes\win-x86\native\WebView2Loader.dll" />
+    <EmbeddedResource Include="login.html" LogicalName="login.html" />
+  </ItemGroup>
+</Project>
