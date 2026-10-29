@@ -39,12 +39,30 @@ internal sealed class ProbeWindow : Window
         InitializeWebView();
     }
 
+    private static readonly string LogPath = Path.Combine(Path.GetTempPath(), "afk4-windowprobe.log");
+
+    private static void Log(string text) => File.AppendAllText(LogPath, $"{DateTime.Now:HH:mm:ss.fff} {text}{Environment.NewLine}");
+
     private async void InitializeWebView()
     {
+        try
+        {
+            await InitializeWebViewCore();
+        }
+        catch (Exception exception)
+        {
+            Log("FAIL " + exception);
+        }
+    }
+
+    private async Task InitializeWebViewCore()
+    {
+        Log("start");
         using var environment = await WebView2.Functions.CreateCoreWebView2EnvironmentWithOptionsAsync(null, WebView2Utilities.GetDefaultUserDataFolder(), null)
             ?? throw new InvalidOperationException("WebView2 environment");
         controller = await environment.CreateCoreWebView2ControllerAsync(Handle) ?? throw new InvalidOperationException("WebView2 controller");
         controller.Bounds = ClientRect;
+        Log($"controller bounds {ClientRect.left},{ClientRect.top},{ClientRect.right},{ClientRect.bottom}");
         var webView = controller.CoreWebView2 ?? throw new InvalidOperationException("CoreWebView2");
 
         events = new CoreWebView2Events(webView.Object);
@@ -60,8 +78,9 @@ internal sealed class ProbeWindow : Window
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("login.html")!;
         var html = new StreamReader(stream).ReadToEnd()
             .Replace("{{info}}", $"{RuntimeInformation.OSDescription} · {RuntimeInformation.ProcessArchitecture} · AOT · WebView2 {browserVersion}");
+        Log($"html {html.Length} chars");
         var page = PWSTR.From(html);
-        try { webView.Object.NavigateToString(page); } finally { PWSTR.Dispose(ref page); }
+        try { Log("navigate hr " + webView.Object.NavigateToString(page)); } finally { PWSTR.Dispose(ref page); }
     }
 
     protected override bool OnResized(WindowResizedType type, SIZE size)
