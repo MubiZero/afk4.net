@@ -28,7 +28,7 @@ if (Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindows
     return;
 }
 
-Console.Write(await Probe.RunAsync(platform, "console"));
+await Probe.RunAsync(platform, "console");
 
 sealed class ProbeService(string platform) : BackgroundService
 {
@@ -46,19 +46,36 @@ static class Probe
     public static async Task<string> RunAsync(string platform, string mode)
     {
         var report = new StringBuilder();
-        async Task Step(string name, Func<Task<string>> step)
+        void Line(string text)
         {
-            try
+            report.AppendLine(text);
+            if (mode == "console")
             {
-                report.AppendLine($"{name}: ok {await step()}");
-            }
-            catch (Exception exception)
-            {
-                report.AppendLine($"{name}: FAIL {exception.GetType().Name}: {exception.Message}");
+                Console.WriteLine(text);
             }
         }
 
-        report.AppendLine($"mode {mode}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture}, AOT {!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported}");
+        async Task Step(string name, Func<Task<string>> step)
+        {
+            var started = DateTime.UtcNow;
+            try
+            {
+                var work = Task.Run(step);
+                if (await Task.WhenAny(work, Task.Delay(TimeSpan.FromSeconds(30))) != work)
+                {
+                    Line($"{name}: FAIL timeout 30 s");
+                    return;
+                }
+
+                Line($"{name}: ok {await work} ({(DateTime.UtcNow - started).TotalMilliseconds:0} ms)");
+            }
+            catch (Exception exception)
+            {
+                Line($"{name}: FAIL {exception.GetType().Name}: {exception.Message}");
+            }
+        }
+
+        Line($"mode {mode}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture}, AOT {!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported}");
         await Step("https platform", () => Fetch(platform));
         await Step("https site", () => Fetch("https://afk4.net/"));
         await Step("wmi", () => Task.FromResult(Wmi()));
