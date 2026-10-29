@@ -122,19 +122,36 @@ static class Probe
 
     private static async Task<string> PipeRoundTrip()
     {
-        var security = new PipeSecurity();
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.InteractiveSid, null), PipeAccessRights.ReadWrite, AccessControlType.Allow));
-        await using var server = NamedPipeServerStreamAcl.Create("afk4-aot-probe", PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, security);
-        var accept = server.WaitForConnectionAsync();
-        await using var client = new NamedPipeClientStream(".", "afk4-aot-probe", PipeDirection.InOut, PipeOptions.Asynchronous);
-        await client.ConnectAsync(5000);
-        await accept;
-        await client.WriteAsync("hello"u8.ToArray());
-        var buffer = new byte[5];
-        await server.ReadExactlyAsync(buffer);
-        return "echo " + Encoding.UTF8.GetString(buffer);
+        var trace = new StringBuilder();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        void Mark(string what) => trace.Append($"{what}@{watch.ElapsedMilliseconds} ");
+        try
+        {
+            var security = new PipeSecurity();
+            security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+            security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+            security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.InteractiveSid, null), PipeAccessRights.ReadWrite, AccessControlType.Allow));
+            var name = "afk4-aot-probe-" + Environment.ProcessId;
+            await using var server = NamedPipeServerStreamAcl.Create(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, security);
+            Mark("created");
+            var accept = server.WaitForConnectionAsync();
+            Mark("waiting");
+            await using var client = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
+            await client.ConnectAsync(5000).WaitAsync(TimeSpan.FromSeconds(8));
+            Mark("client-connected");
+            await accept.WaitAsync(TimeSpan.FromSeconds(8));
+            Mark("accepted");
+            await client.WriteAsync("hello"u8.ToArray()).AsTask().WaitAsync(TimeSpan.FromSeconds(8));
+            Mark("written");
+            var buffer = new byte[5];
+            await server.ReadExactlyAsync(buffer).AsTask().WaitAsync(TimeSpan.FromSeconds(8));
+            Mark("read");
+            return "echo " + Encoding.UTF8.GetString(buffer) + " · " + trace;
+        }
+        catch (Exception exception)
+        {
+            throw new IOException($"{exception.Message} · {trace}", exception);
+        }
     }
 
     // Хаб ПК требует ключ ПК: без него сервер отвечает 401. Проба проверяет, что клиент SignalR под AOT дошёл до
