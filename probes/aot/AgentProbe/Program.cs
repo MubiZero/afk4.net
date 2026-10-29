@@ -141,10 +141,12 @@ static class Probe
             Mark("client-connected");
             await accept.WaitAsync(TimeSpan.FromSeconds(8));
             Mark("accepted");
+            // Канал без буфера (как у агента): запись ждёт читателя, поэтому чтение начинается первым.
+            var buffer = new byte[5];
+            var read = server.ReadExactlyAsync(buffer).AsTask();
             await client.WriteAsync("hello"u8.ToArray()).AsTask().WaitAsync(TimeSpan.FromSeconds(8));
             Mark("written");
-            var buffer = new byte[5];
-            await server.ReadExactlyAsync(buffer).AsTask().WaitAsync(TimeSpan.FromSeconds(8));
+            await read.WaitAsync(TimeSpan.FromSeconds(8));
             Mark("read");
             return "echo " + Encoding.UTF8.GetString(buffer) + " · " + trace;
         }
