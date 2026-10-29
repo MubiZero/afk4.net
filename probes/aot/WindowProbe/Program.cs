@@ -71,16 +71,15 @@ internal sealed class ProbeWindow : Window
             args.TryGetWebMessageAsString(out var message);
             var phone = message.ToStringAndDispose();
             var reply = $"{{\"answer\":\"C# AOT принял вход {phone} в {DateTime.Now:HH:mm:ss}\"}}";
-            var json = PWSTR.From(reply);
-            try { webView.Object.PostWebMessageAsJson(json); } finally { PWSTR.Dispose(ref json); }
+            webView.PostWebMessageAsJson(reply);
         };
 
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("login.html")!;
         var html = new StreamReader(stream).ReadToEnd()
             .Replace("{{info}}", $"{RuntimeInformation.OSDescription} · {RuntimeInformation.ProcessArchitecture} · AOT · WebView2 {browserVersion}");
         Log($"html {html.Length} chars");
-        var page = PWSTR.From(html);
-        try { Log("navigate hr " + webView.Object.NavigateToString(page)); } finally { PWSTR.Dispose(ref page); }
+        // Строки — через обёртки библиотеки: PWSTR.From + Dispose освобождали память не тем распределителем (0xc0000374).
+        Log("navigate hr " + webView.NavigateToString(html));
     }
 
     protected override bool OnResized(WindowResizedType type, SIZE size)
