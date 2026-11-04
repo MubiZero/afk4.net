@@ -23,7 +23,7 @@ jobs:
       - name: Publish probes
         shell: pwsh
         run: |
-          foreach ($probe in 'AgentProbe', 'WindowProbe') {
+          foreach ($probe in 'AgentProbe', 'WindowProbe', 'BlinkProbe') {
             dotnet publish "probes/aot/$probe/$probe.csproj" -c Release -r ${{ matrix.rid }} -p:NuGetAudit=false -o "out/$probe"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
@@ -34,4 +34,5 @@ jobs:
           path: |
             out/AgentProbe/AgentProbe.exe
             out/WindowProbe/WindowProbe.exe
+            out/BlinkProbe/BlinkProbe.exe
           retention-days: 7
