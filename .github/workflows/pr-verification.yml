@@ -177,6 +177,14 @@ jobs:
             Write-Host "::endgroup::"
           }
 
+      # Агент для приёмки на стенде — отдельным маленьким архивом, а не в общем архиве пакетов на сотни МБ.
+      - name: Upload agent Native AOT
+        uses: actions/upload-artifact@v7
+        with:
+          name: aot-agent
+          path: artifacts/aot/*/AFK4.Agent.Service.exe
+          retention-days: 3
+
   # The Windows job above cannot host this: GitHub service containers are Linux-only, so the
   # Postgres-backed tests would skip themselves there — which is exactly what used to happen.
   # Linux is also where the API actually runs in production.
