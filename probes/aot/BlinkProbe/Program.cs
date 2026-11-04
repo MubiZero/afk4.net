@@ -69,11 +69,16 @@ static unsafe class Program
 
     // Мост сам себя проверяет: страница зовёт mbQuery, C# отвечает, ответ попадает в заголовок окна.
     private const string BridgeCheck =
-        "var d = Object.getOwnPropertyDescriptor(window, 'chrome'); var r = [];" +
-        "r.push('desc ' + (d ? 'w' + d.writable + ' c' + d.configurable + ' get' + (typeof d.get) : 'none'));" +
-        "r.push('ext ' + Object.isExtensible(window.chrome)); r.push('webview ' + typeof window.chrome.webview + ' afk4chrome.webview ' + typeof (window.afk4chrome && window.afk4chrome.webview));" +
-        "try { window.chrome.probe = 1; r.push('add ' + window.chrome.probe); } catch (e) { r.push('add err ' + e.message); }" +
-        "try { Object.defineProperty(window, 'chrome', { value: { x: 1 }, writable: true, configurable: true }); r.push('redefine ' + window.chrome.x); } catch (e) { r.push('redefine err ' + e.message); }" +
+        "var r = []; function t(n, f) { try { r.push(n + '=' + f()); } catch (e) { r.push(n + ' err ' + e.message); } }" +
+        "t('lang', function () { return navigator.language + '/' + navigator.languages; });" +
+        "t('default', function () { return Intl.DateTimeFormat().resolvedOptions().locale; });" +
+        "t('ru num', function () { return new Intl.NumberFormat('ru-RU').format(1480.5); });" +
+        "t('ru date', function () { return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' }).format(new Date(2026, 10, 6)); });" +
+        "t('tg date', function () { return new Intl.DateTimeFormat('tg', { month: 'long' }).format(new Date(2026, 10, 6)); });" +
+        "t('supported', function () { return Intl.DateTimeFormat.supportedLocalesOf(['ru', 'ru-RU', 'tg', 'en']); });" +
+        "t('plural', function () { return new Intl.PluralRules('ru').select(5); });" +
+        "t('rel', function () { return new Intl.RelativeTimeFormat('ru').format(-1, 'day'); });" +
+        "t('collator', function () { return ['б', 'а', 'я'].sort(new Intl.Collator('ru').compare); });" +
         "window.mbQuery(7, r.join(' ; '), function (code, answer) { document.title = 'bridge: ' + answer; });";
 
     // В Miniblink window.chrome — неизменяемый геттер, который каждый раз отдаёт новый объект: ни заменить его, ни
