@@ -39,7 +39,9 @@ static unsafe class Program
             mbOnTitleChanged(view, &OnTitle, IntPtr.Zero);
             mbOnDestroy(view, &OnDestroy, IntPtr.Zero);
             mbOnConsole(view, &OnConsole, IntPtr.Zero);
-            mbOnDidCreateScriptContext(view, &OnScriptContext, IntPtr.Zero);
+            mbOnLoadUrlBegin(view, &OnLoadBegin, IntPtr.Zero);
+            mbOnLoadUrlEnd(view, &OnLoadEnd, IntPtr.Zero);
+            PageUrl = url;
             Call(url, text => mbLoadURL(view, text));
             mbMoveToCenter(view);
             mbShowWindow(view, 1);
@@ -69,16 +71,44 @@ static unsafe class Program
         " + ' ; postMessage: ' + typeof (window.chrome && window.chrome.webview && window.chrome.webview.postMessage)," +
         " function (code, answer) { document.title = 'bridge: ' + answer; });";
 
-    // В Miniblink window.chrome только для чтения, и `window.chrome = {…}` молча не срабатывает. Программа делает его
-    // обычным свойством до скриптов страницы — так же она подставит и мост chrome.webview.
+    // В Miniblink window.chrome только для чтения, и `window.chrome = {…}` молча не срабатывает. Программа дописывает в
+    // HTML страницы свой скрипт, который делает его обычным свойством до скриптов страницы, — так же она подставит и мост
+    // chrome.webview: свои экраны программа отдаёт сама.
     private const string WritableChrome =
-        "Object.defineProperty(window, 'chrome', { value: {}, writable: true, configurable: true, enumerable: true });";
+        "<script>Object.defineProperty(window, 'chrome', { value: {}, writable: true, configurable: true, enumerable: true });</script>";
+
+    private static string PageUrl = string.Empty;
+    private static byte[]? patchedPage;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static void OnScriptContext(IntPtr view, IntPtr param, IntPtr frame, IntPtr context, int extensionGroup, int worldId)
+    private static int OnLoadBegin(IntPtr view, IntPtr param, byte* url, IntPtr job)
     {
-        Call(WritableChrome, text => mbRunJsSync(view, frame, text, 0));
-        Log($"script context world {worldId}");
+        if (Marshal.PtrToStringUTF8((IntPtr)url) == PageUrl)
+        {
+            mbNetHookRequest(job);
+            Log("hooked page");
+        }
+
+        return 0;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static void OnLoadEnd(IntPtr view, IntPtr param, byte* url, IntPtr job, byte* buffer, int length)
+    {
+        if (Marshal.PtrToStringUTF8((IntPtr)url) != PageUrl)
+        {
+            return;
+        }
+
+        var html = Encoding.UTF8.GetString(buffer, length);
+        var at = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
+        patchedPage = Encoding.UTF8.GetBytes(at < 0 ? WritableChrome + html : html.Insert(at + "<head>".Length, WritableChrome));
+        fixed (byte* data = patchedPage)
+        {
+            mbNetSetData(job, data, patchedPage.Length);
+        }
+
+        Log($"patched page {length} -> {patchedPage.Length} bytes");
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
@@ -133,9 +163,11 @@ static unsafe class Program
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbExitMessageLoop();
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern IntPtr mbWebFrameGetMainFrame(IntPtr view);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbRunJs(IntPtr view, IntPtr frame, byte* script, int isInClosure, void* callback, IntPtr param, IntPtr unused);
-    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern long mbRunJsSync(IntPtr view, IntPtr frame, byte* script, int isInClosure);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbOnConsole(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int, byte*, byte*, uint, byte*, void> callback, IntPtr param);
-    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbOnDidCreateScriptContext(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, IntPtr, int, int, void> callback, IntPtr param);
+    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbOnLoadUrlBegin(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, byte*, IntPtr, int> callback, IntPtr param);
+    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbOnLoadUrlEnd(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, byte*, IntPtr, byte*, int, void> callback, IntPtr param);
+    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbNetHookRequest(IntPtr job);
+    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbNetSetData(IntPtr job, byte* data, int length);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbResponseQuery(IntPtr view, long queryId, int customMessage, byte* response);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbOnJsQuery(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, long, int, byte*, void> callback, IntPtr param);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbOnDocumentReady(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, void> callback, IntPtr param);
