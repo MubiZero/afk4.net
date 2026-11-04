@@ -327,7 +327,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $setupWizardWebDist 'index.html'))) 
 # a .NET install and the installer never asks for one. Each MSI harvests the whole publish directory
 # (Files Include="...\**"), so the several hundred runtime files travel without being listed by hand.
 # The programs also target .NET Framework 4.8 for Windows 7 (docs/roadmap/windows7.md); this build is
-# the .NET 10 one, so the framework is named explicitly.
+# the .NET 10 one, so the framework is named explicitly. Debug symbols stay out of the packages: the
+# Native AOT agent's .pdb alone is 65 MB, four times the program, and no club PC ever reads it.
 $projects = @(
     @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; Framework = 'net10.0-windows' },
     @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; Framework = 'net10.0' },
@@ -353,6 +354,7 @@ foreach ($project in $projects) {
         -r $Runtime `
         --self-contained true `
         -o $output `
+        -p:DebugType=none `
         -p:NuGetAudit=false `
         -p:UseSharedCompilation=false `
         -p:AFK4PlatformBaseUrl="$platformBaseUrl" `

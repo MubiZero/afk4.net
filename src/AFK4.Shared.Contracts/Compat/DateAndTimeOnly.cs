@@ -72,7 +72,7 @@ public readonly record struct TimeOnly : IComparable<TimeOnly>
         ToTimeSpan().ToString(ticks % TimeSpan.TicksPerSecond == 0 ? "hh\\:mm\\:ss" : "hh\\:mm\\:ss\\.fffffff", CultureInfo.InvariantCulture);
 }
 
-internal sealed class DateOnlyJsonConverter : JsonConverter<DateOnly>
+public sealed class DateOnlyJsonConverter : JsonConverter<DateOnly>
 {
     public override DateOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         DateOnly.Parse(reader.GetString() ?? throw new JsonException("A date was expected."));
@@ -81,7 +81,7 @@ internal sealed class DateOnlyJsonConverter : JsonConverter<DateOnly>
         writer.WriteStringValue(value.ToString());
 }
 
-internal sealed class TimeOnlyJsonConverter : JsonConverter<TimeOnly>
+public sealed class TimeOnlyJsonConverter : JsonConverter<TimeOnly>
 {
     public override TimeOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         TimeOnly.Parse(reader.GetString() ?? throw new JsonException("A time of day was expected."));

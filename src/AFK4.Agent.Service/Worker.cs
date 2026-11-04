@@ -164,7 +164,7 @@ public sealed class Worker(
                 UpsPowerSource.OnBattery());
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
-                Content = JsonContent.Create(request)
+                Content = JsonContent.Create(request, AgentJson.Default.DeviceHeartbeatRequest)
             };
 
             var credentialSecret = credentialStore.Current;
@@ -176,7 +176,7 @@ public sealed class Worker(
             var response = await client.SendAsync(message, cancellationToken);
 
             response.EnsureSuccessStatusCode();
-            var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: cancellationToken);
+            var heartbeat = await response.Content.ReadFromJsonAsync(AgentJson.Default.DeviceHeartbeatResponse, cancellationToken);
             if (heartbeat is not null)
             {
                 // Сначала поправка часов: всё, что считается ниже по времени, должно считаться уже
@@ -286,15 +286,15 @@ public sealed class Worker(
                 Content = JsonContent.Create(new SelfRotateDeviceCredentialRequest(
                     agentOptions.OrganizationId,
                     agentOptions.BranchId,
-                    agentOptions.DeviceId))
+                    agentOptions.DeviceId), AgentJson.Default.SelfRotateDeviceCredentialRequest)
             };
             message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialStore.Current);
 
             var response = await client.SendAsync(message, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var rotated = await response.Content.ReadFromJsonAsync<RotateDeviceCredentialResponse>(
-                cancellationToken: cancellationToken);
+            var rotated = await response.Content.ReadFromJsonAsync(
+                AgentJson.Default.RotateDeviceCredentialResponse, cancellationToken);
             if (rotated is null || string.IsNullOrWhiteSpace(rotated.CredentialSecret))
             {
                 logger.LogWarning("Credential rotation returned no secret. Keeping the current credential.");
@@ -366,7 +366,7 @@ public sealed class Worker(
                     HttpMethod.Post,
                     $"/api/devices/{result.DeviceId}/commands/{result.CommandId}/result")
                 {
-                    Content = JsonContent.Create(result)
+                    Content = JsonContent.Create(result, AgentJson.Default.DeviceCommandResultDto)
                 };
 
                 var credentialSecret = credentialStore.Current;

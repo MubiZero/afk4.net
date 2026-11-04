@@ -31,7 +31,6 @@ public sealed class OfflineGraceState : IOfflineGraceState
     public const string StateFileName = "offline-grace.json";
     private const int DefaultGraceMinutes = 15;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string? stateFilePath;
     private DateTimeOffset? lastSuccessfulContactUtc;
@@ -87,7 +86,7 @@ public sealed class OfflineGraceState : IOfflineGraceState
 
         try
         {
-            AtomicFile.WriteAllText(stateFilePath, JsonSerializer.Serialize(new PersistedGrace(contactAtUtc, graceMinutes), JsonOptions));
+            AtomicFile.WriteAllText(stateFilePath, JsonSerializer.Serialize(new PersistedGrace(contactAtUtc, graceMinutes), AgentJson.Default.PersistedGrace));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -105,7 +104,7 @@ public sealed class OfflineGraceState : IOfflineGraceState
 
         try
         {
-            return JsonSerializer.Deserialize<PersistedGrace>(File.ReadAllText(path), JsonOptions);
+            return JsonSerializer.Deserialize(File.ReadAllText(path), AgentJson.Default.PersistedGrace);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -113,5 +112,5 @@ public sealed class OfflineGraceState : IOfflineGraceState
         }
     }
 
-    private sealed record PersistedGrace(DateTimeOffset? LastSuccessfulContactUtc, int EffectiveGraceMinutes);
+    internal sealed record PersistedGrace(DateTimeOffset? LastSuccessfulContactUtc, int EffectiveGraceMinutes);
 }

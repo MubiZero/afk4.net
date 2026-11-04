@@ -27,7 +27,6 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
 {
     public const string CredentialFileName = "device-credential.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string credentialFilePath;
     private readonly string provisionedSecret;
@@ -81,7 +80,7 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
             }
 
             using var stream = File.OpenRead(credentialFilePath);
-            var stored = JsonSerializer.Deserialize<StoredCredential>(stream, JsonOptions);
+            var stored = JsonSerializer.Deserialize(stream, AgentJson.Default.StoredCredential);
             return string.IsNullOrWhiteSpace(stored?.CredentialSecret) ? null : stored!.CredentialSecret;
         }
         catch (JsonException)
@@ -106,7 +105,7 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
         // файла и сужением прав есть окно, в котором ключ читает кто угодно. Переименование права сохраняет.
         AtomicFile.Write(
             credentialFilePath,
-            stream => JsonSerializer.Serialize(stream, new StoredCredential(credentialSecret), JsonOptions),
+            stream => JsonSerializer.Serialize(stream, new StoredCredential(credentialSecret), AgentJson.Default.StoredCredential),
             beforeReplace: path => DeviceSecretFile.RestrictAccess(path));
     }
 
@@ -127,5 +126,5 @@ public sealed class FileDeviceCredentialStore : IDeviceCredentialStore
         }
     }
 
-    private sealed record StoredCredential(string CredentialSecret);
+    internal sealed record StoredCredential(string CredentialSecret);
 }

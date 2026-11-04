@@ -19,7 +19,6 @@ public sealed class OfflineLanListener(
 {
     internal const string FirewallRuleName = "AFK4.NET Agent (club network)";
     private const int MaxBodyBytes = 16 * 1024;
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly TaskCompletionSource<bool> listening = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
@@ -95,7 +94,7 @@ public sealed class OfflineLanListener(
             SessionLeaseDto? lease;
             try
             {
-                lease = body is null ? null : JsonSerializer.Deserialize<SessionLeaseDto>(body, Json);
+                lease = body is null ? null : JsonSerializer.Deserialize(body, AgentJson.Default.SessionLeaseDto);
             }
             catch (JsonException)
             {
@@ -111,7 +110,7 @@ public sealed class OfflineLanListener(
             var result = await commands.ApplyAsync(lease, cancellationToken);
             response.StatusCode = result.Accepted ? (int)HttpStatusCode.OK : (int)HttpStatusCode.Conflict;
             response.ContentType = "application/json";
-            await JsonSerializer.SerializeAsync(response.OutputStream, result, Json, cancellationToken);
+            await JsonSerializer.SerializeAsync(response.OutputStream, result, AgentJson.Default.OfflineSeatResponse, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {

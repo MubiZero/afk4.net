@@ -24,7 +24,6 @@ public sealed class FileCommandResultOutbox : ICommandResultOutbox
     private const int PersistAttempts = 3;
     private const int PersistRetryDelayMilliseconds = 50;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string outboxFilePath;
     private readonly List<DeviceCommandResultDto> pending;
@@ -101,7 +100,7 @@ public sealed class FileCommandResultOutbox : ICommandResultOutbox
         try
         {
             using var stream = File.OpenRead(outboxFilePath);
-            var loaded = JsonSerializer.Deserialize<List<DeviceCommandResultDto>>(stream, JsonOptions);
+            var loaded = JsonSerializer.Deserialize(stream, AgentJson.Default.ListDeviceCommandResultDto);
             return loaded ?? [];
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -149,7 +148,7 @@ public sealed class FileCommandResultOutbox : ICommandResultOutbox
 
     private void PersistOnce()
     {
-        AtomicFile.Write(outboxFilePath, stream => JsonSerializer.Serialize(stream, pending, JsonOptions));
+        AtomicFile.Write(outboxFilePath, stream => JsonSerializer.Serialize(stream, pending, AgentJson.Default.ListDeviceCommandResultDto));
     }
 
     private static void TryDelete(string path)

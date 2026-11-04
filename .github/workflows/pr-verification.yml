@@ -164,6 +164,27 @@ jobs:
             Write-Host "::endgroup::"
           }
 
+      # Агент — Native AOT (docs/roadmap/windows7.md). Компилятор AOT есть только на Windows, и его
+      # предупреждения сборка видит лишь при публикации: обе разрядности, предупреждение — провал.
+      - name: Publish agent Native AOT
+        shell: pwsh
+        run: |
+          foreach ($runtime in 'win-x64', 'win-x86') {
+            Write-Host "::group::publish agent $runtime"
+            dotnet publish src/AFK4.Agent.Service -f net10.0 -r $runtime -c Release -o "artifacts/aot/$runtime" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Get-ChildItem "artifacts/aot/$runtime" -Filter *.exe | ForEach-Object { "{0} {1:N1} MB" -f $_.Name, ($_.Length / 1MB) }
+            Write-Host "::endgroup::"
+          }
+
+      # Агент для приёмки на стенде — отдельным маленьким архивом, а не в общем архиве пакетов на сотни МБ.
+      - name: Upload agent Native AOT
+        uses: actions/upload-artifact@v7
+        with:
+          name: aot-agent
+          path: artifacts/aot/*/AFK4.Agent.Service.exe
+          retention-days: 3
+
   # The Windows job above cannot host this: GitHub service containers are Linux-only, so the
   # Postgres-backed tests would skip themselves there — which is exactly what used to happen.
   # Linux is also where the API actually runs in production.

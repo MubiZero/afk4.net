@@ -28,7 +28,7 @@ public sealed class HttpMaintenanceReturnClient(
             Content = JsonContent.Create(new DeviceMaintenanceReturnRequest(
                 agentOptions.OrganizationId,
                 agentOptions.BranchId,
-                agentOptions.DeviceId))
+                agentOptions.DeviceId), AgentJson.Default.DeviceMaintenanceReturnRequest)
         };
 
         // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.

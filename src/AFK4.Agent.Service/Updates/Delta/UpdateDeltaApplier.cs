@@ -28,8 +28,6 @@ public static class UpdateDeltaApplier
     public const string OldSuffix = ".afk4old";
     public const string NewSuffix = ".afk4new";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public static async Task ApplyAsync(
         StagedUpdate staged,
         string component,
@@ -89,7 +87,7 @@ public static class UpdateDeltaApplier
         try
         {
             using var stream = File.OpenRead(journalPath);
-            journal = await JsonSerializer.DeserializeAsync<UpdateDeltaJournal>(stream, JsonOptions, cancellationToken);
+            journal = await JsonSerializer.DeserializeAsync(stream, AgentJson.Default.UpdateDeltaJournal, cancellationToken);
         }
         catch (JsonException)
         {
@@ -151,7 +149,7 @@ public static class UpdateDeltaApplier
     {
         Directory.CreateDirectory(Path.GetDirectoryName(journalPath)!);
         var temp = journalPath + ".tmp";
-        await File.WriteAllBytesAsync(temp, JsonSerializer.SerializeToUtf8Bytes(journal, JsonOptions), cancellationToken);
+        await File.WriteAllBytesAsync(temp, JsonSerializer.SerializeToUtf8Bytes(journal, AgentJson.Default.UpdateDeltaJournal), cancellationToken);
         File.Move(temp, journalPath, overwrite: true);
     }
 

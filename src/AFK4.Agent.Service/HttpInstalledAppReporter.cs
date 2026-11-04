@@ -23,7 +23,7 @@ public sealed class HttpInstalledAppReporter(
             HttpMethod.Post,
             $"/api/devices/{agentOptions.DeviceId:D}/installed-apps/report")
         {
-            Content = JsonContent.Create(report)
+            Content = JsonContent.Create(report, AgentJson.Default.InstalledAppReportRequest)
         };
 
         // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.

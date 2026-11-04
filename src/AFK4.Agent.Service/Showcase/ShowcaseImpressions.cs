@@ -176,15 +176,13 @@ public sealed class ShowcaseImpressions(
 
 public sealed class FileShowcaseImpressionStore(IOptions<AgentOptions> options) : IShowcaseImpressionStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private string FilePath => Path.Combine(options.Value.StateDirectory, "showcase-impressions.json");
 
     public ShowcaseImpressionLog? Load()
     {
         try
         {
-            return File.Exists(FilePath) ? JsonSerializer.Deserialize<ShowcaseImpressionLog>(File.ReadAllText(FilePath), Json) : null;
+            return File.Exists(FilePath) ? JsonSerializer.Deserialize(File.ReadAllText(FilePath), AgentJson.Default.ShowcaseImpressionLog) : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -198,7 +196,7 @@ public sealed class FileShowcaseImpressionStore(IOptions<AgentOptions> options) 
         var temporary = $"{FilePath}.{Guid.NewGuid():N}.tmp";
         try
         {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(log, Json));
+            File.WriteAllText(temporary, JsonSerializer.Serialize(log, AgentJson.Default.ShowcaseImpressionLog));
             File.Copy(temporary, FilePath, overwrite: true);
         }
         finally
@@ -221,7 +219,7 @@ public sealed class HttpShowcaseImpressionClient(
         using var message = new HttpRequestMessage(HttpMethod.Post, AdRoutes.DeviceImpressions(agentOptions.DeviceId))
         {
             Content = JsonContent.Create(new DeviceShowcaseImpressionsRequest(
-                agentOptions.OrganizationId, agentOptions.BranchId, agentOptions.DeviceId, batch.BatchId, batch.Items))
+                agentOptions.OrganizationId, agentOptions.BranchId, agentOptions.DeviceId, batch.BatchId, batch.Items), AgentJson.Default.DeviceShowcaseImpressionsRequest)
         };
         var credentialSecret = credentialStore.Current;
         if (!string.IsNullOrWhiteSpace(credentialSecret))

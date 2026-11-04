@@ -6,11 +6,6 @@ namespace AFK4.Agent.Service.Updates;
 
 public sealed class FileUpdateInstallStateStore(IOptions<AgentOptions> options) : IUpdateInstallStateStore
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     public async Task<UpdateInstallState> BeginInstallAsync(
         ComponentUpdateInstructionDto instruction,
         DownloadedUpdateArtifact artifact,
@@ -34,7 +29,7 @@ public sealed class FileUpdateInstallStateStore(IOptions<AgentOptions> options) 
         Directory.CreateDirectory(options.Value.UpdateStateDirectory);
         var path = GetStatePath(state.UpdateRolloutId, state.UpdatePackageId);
         var tempPath = $"{path}.tmp";
-        var json = JsonSerializer.Serialize(state, SerializerOptions);
+        var json = JsonSerializer.Serialize(state, AgentJsonIndented.Default.UpdateInstallState);
 
         await File.WriteAllTextAsync(tempPath, json, cancellationToken);
         // Move, а не Copy: копирование не атомарно, и выключение питания ровно в этот момент
@@ -53,7 +48,7 @@ public sealed class FileUpdateInstallStateStore(IOptions<AgentOptions> options) 
         try
         {
             var json = await File.ReadAllTextAsync(path, cancellationToken);
-            return JsonSerializer.Deserialize<LastKnownGoodUpdate>(json, SerializerOptions);
+            return JsonSerializer.Deserialize(json, AgentJsonIndented.Default.LastKnownGoodUpdate);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -68,7 +63,7 @@ public sealed class FileUpdateInstallStateStore(IOptions<AgentOptions> options) 
         Directory.CreateDirectory(options.Value.UpdateStateDirectory);
         var path = GetLastKnownGoodPath(lastKnownGood.Component);
         var tempPath = $"{path}.tmp";
-        await File.WriteAllTextAsync(tempPath, JsonSerializer.Serialize(lastKnownGood, SerializerOptions), cancellationToken);
+        await File.WriteAllTextAsync(tempPath, JsonSerializer.Serialize(lastKnownGood, AgentJsonIndented.Default.LastKnownGoodUpdate), cancellationToken);
         File.Move(tempPath, path, overwrite: true);
     }
 
@@ -87,7 +82,7 @@ public sealed class FileUpdateInstallStateStore(IOptions<AgentOptions> options) 
             try
             {
                 var json = await File.ReadAllTextAsync(path, cancellationToken);
-                state = JsonSerializer.Deserialize<UpdateInstallState>(json, SerializerOptions);
+                state = JsonSerializer.Deserialize(json, AgentJsonIndented.Default.UpdateInstallState);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
             {

@@ -45,7 +45,7 @@ public sealed class SessionReconciliationReporter(
             HttpMethod.Post,
             $"/api/devices/{agentOptions.DeviceId:D}/session-reconciliation")
         {
-            Content = JsonContent.Create(request)
+            Content = JsonContent.Create(request, AgentJson.Default.DeviceSessionSnapshotRequest)
         };
 
         // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.
@@ -58,7 +58,7 @@ public sealed class SessionReconciliationReporter(
         using var response = await client.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var reconciliation = await response.Content.ReadFromJsonAsync<SessionReconciliationResponse>(
+        var reconciliation = await response.Content.ReadFromJsonAsync(AgentJson.Default.SessionReconciliationResponse, 
             cancellationToken: cancellationToken);
 
         return reconciliation ?? throw new InvalidOperationException("Session reconciliation response was empty.");

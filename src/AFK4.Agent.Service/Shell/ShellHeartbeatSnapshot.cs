@@ -21,7 +21,6 @@ public sealed class ShellHeartbeatSnapshot
 {
     public const string FileName = "shell-place.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly Lock gate = new();
     private readonly string? path;
     private string? remembered;
@@ -47,7 +46,7 @@ public sealed class ShellHeartbeatSnapshot
         try
         {
             remembered = File.ReadAllText(path);
-            var place = JsonSerializer.Deserialize<RememberedPlace>(remembered, JsonOptions);
+            var place = JsonSerializer.Deserialize(remembered, AgentJson.Default.RememberedPlace);
             seat = place?.Seat;
             branding = place?.Branding;
             features = place?.Features;
@@ -164,7 +163,7 @@ public sealed class ShellHeartbeatSnapshot
             return;
         }
 
-        var json = JsonSerializer.Serialize(new RememberedPlace(seat, branding, features), JsonOptions);
+        var json = JsonSerializer.Serialize(new RememberedPlace(seat, branding, features), AgentJson.Default.RememberedPlace);
         if (json == remembered)
         {
             return;
@@ -181,5 +180,5 @@ public sealed class ShellHeartbeatSnapshot
         }
     }
 
-    private sealed record RememberedPlace(DeviceSeatDto? Seat, ShellBrandingDto? Branding, IReadOnlyList<string>? Features);
+    internal sealed record RememberedPlace(DeviceSeatDto? Seat, ShellBrandingDto? Branding, IReadOnlyList<string>? Features);
 }

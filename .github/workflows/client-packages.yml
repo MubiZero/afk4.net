@@ -124,7 +124,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  AFK4_SHIPPED_DOTNET_SDK: '10.0.402'
+  AFK4_SHIPPED_DOTNET_SDK: '10.0.403'
 
 jobs:
   build-client-packages:

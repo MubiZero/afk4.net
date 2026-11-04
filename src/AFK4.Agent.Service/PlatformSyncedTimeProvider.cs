@@ -85,7 +85,7 @@ public sealed class PlatformSyncedTimeProvider(
 
         try
         {
-            AtomicFile.WriteAllText(memoryPath, JsonSerializer.Serialize(memory));
+            AtomicFile.WriteAllText(memoryPath, JsonSerializer.Serialize(memory, AgentJsonDefaults.Default.PlatformClockMemory));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -103,7 +103,7 @@ public sealed class PlatformSyncedTimeProvider(
         try
         {
             var path = Path.Combine(stateDirectory, MemoryFileName);
-            return File.Exists(path) ? JsonSerializer.Deserialize<PlatformClockMemory>(File.ReadAllText(path)) : null;
+            return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), AgentJsonDefaults.Default.PlatformClockMemory) : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -111,5 +111,5 @@ public sealed class PlatformSyncedTimeProvider(
         }
     }
 
-    private sealed record PlatformClockMemory(DateTimeOffset PlatformUtc, long UptimeMilliseconds);
+    internal sealed record PlatformClockMemory(DateTimeOffset PlatformUtc, long UptimeMilliseconds);
 }

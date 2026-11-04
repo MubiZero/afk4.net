@@ -82,7 +82,7 @@ public sealed class HardwareReporter(
         using var message = new HttpRequestMessage(HttpMethod.Post, DeviceHardwareRoutes.Report(agentOptions.DeviceId))
         {
             Content = JsonContent.Create(new DeviceHardwareReportRequest(
-                agentOptions.OrganizationId, agentOptions.BranchId, agentOptions.DeviceId, now, snapshot))
+                agentOptions.OrganizationId, agentOptions.BranchId, agentOptions.DeviceId, now, snapshot), AgentJson.Default.DeviceHardwareReportRequest)
         };
         if (credentialStore.Current is { Length: > 0 } secret)
         {

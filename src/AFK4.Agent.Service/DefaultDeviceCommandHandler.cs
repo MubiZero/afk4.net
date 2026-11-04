@@ -17,8 +17,6 @@ public sealed class DefaultDeviceCommandHandler(
     IShellStateSignal? shellStateSignal = null,
     MachineCommandHandler? machineCommands = null) : IDeviceCommandHandler
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     /// <summary>
     /// Причина предупреждения с сервера — в вид, который оболочка умеет показать. Причина, которой
     /// здесь нет, до экрана не доедет: придумывать за сервер, чем именно пугать игрока, нельзя.
@@ -169,7 +167,7 @@ public sealed class DefaultDeviceCommandHandler(
 
         try
         {
-            var lease = JsonSerializer.Deserialize<SessionLeaseDto>(leaseJson, JsonOptions);
+            var lease = JsonSerializer.Deserialize(leaseJson, AgentJson.Default.SessionLeaseDto);
             if (lease is null)
             {
                 return (null, "Command sessionLease could not be read.", DeviceCommandOutcomeNames.LeaseUnreadable);
