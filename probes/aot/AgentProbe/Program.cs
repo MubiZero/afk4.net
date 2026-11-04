@@ -88,9 +88,22 @@ static class Probe
 
     private static async Task<string> Fetch(string url)
     {
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        using var client = new HttpClient(Handler()) { Timeout = TimeSpan.FromSeconds(20) };
         using var response = await client.GetAsync(url);
         return $"{(int)response.StatusCode} HTTP/{response.Version}";
+    }
+
+    // Windows 7 сама предлагает только TLS 1.0 (TLS 1.2 у клиента выключен по умолчанию), а Cloudflare требует 1.2:
+    // просим его явно. На Windows 8 и новее версию выбирает система, там и TLS 1.3.
+    private static SocketsHttpHandler Handler()
+    {
+        var handler = new SocketsHttpHandler();
+        if (Environment.OSVersion.Version < new Version(6, 2))
+        {
+            handler.SslOptions.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+        }
+
+        return handler;
     }
 
     private static string Wmi()
@@ -160,7 +173,9 @@ static class Probe
     // сервера и разобрал ответ, — 401 здесь и есть ожидаемый итог.
     private static async Task<string> SignalR(string platform)
     {
-        await using var connection = new HubConnectionBuilder().WithUrl(new Uri(new Uri(platform), "/hubs/devices")).Build();
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(new Uri(platform), "/hubs/devices"), options => options.HttpMessageHandlerFactory = _ => Handler())
+            .Build();
         try
         {
             await connection.StartAsync();
