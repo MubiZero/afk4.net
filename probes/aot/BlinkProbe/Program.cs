@@ -38,7 +38,6 @@ static unsafe class Program
             mbOnDocumentReady(view, &OnReady, IntPtr.Zero);
             mbOnTitleChanged(view, &OnTitle, IntPtr.Zero);
             mbOnDestroy(view, &OnDestroy, IntPtr.Zero);
-            mbOnConsole(view, &OnConsole, IntPtr.Zero);
             mbOnLoadUrlBegin(view, &OnLoadBegin, IntPtr.Zero);
             mbOnLoadUrlEnd(view, &OnLoadEnd, IntPtr.Zero);
             PageUrl = url;
