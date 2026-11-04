@@ -63,7 +63,9 @@ static unsafe class Program
 
     // Мост сам себя проверяет: страница зовёт mbQuery, C# отвечает, ответ попадает в заголовок окна.
     private const string BridgeCheck =
-        "window.mbQuery(7, 'ping ' + navigator.userAgent, function (code, answer) { document.title = 'bridge: ' + answer; });";
+        "window.mbQuery(7, 'ping ' + navigator.userAgent + ' | chrome.webview: ' + typeof (window.chrome && window.chrome.webview)" +
+        " + ' | postMessage: ' + typeof (window.chrome && window.chrome.webview && window.chrome.webview.postMessage)," +
+        " function (code, answer) { document.title = 'bridge: ' + answer; });";
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnReady(IntPtr view, IntPtr param, IntPtr frame)
