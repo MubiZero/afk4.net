@@ -3,6 +3,7 @@ import {
   HostBridgeRequestError,
   HostBridgeUnavailableError,
   hostBridgeTimeoutCode,
+  hostWebView,
   isHostBridgeAvailable,
   isHostBridgeUnavailableError,
   onHostMessage,
@@ -45,7 +46,25 @@ function silentHost() {
 
 afterEach(() => {
   delete window.chrome;
+  delete window.afk4Host;
   mock.restore();
+});
+
+// Программы на Miniblink подставляют мост под своим именем: window.chrome там не изменить.
+describe('hostWebView', () => {
+  it('берёт мост Miniblink раньше WebView2', async () => {
+    const miniblink = mock((_message: unknown) => {});
+    const webView2 = mock((_message: unknown) => {});
+    window.afk4Host = { postMessage: miniblink, addEventListener: () => {}, removeEventListener: () => {} };
+    window.chrome = { webview: { postMessage: webView2, addEventListener: () => {}, removeEventListener: () => {} } };
+
+    postHostWindowMessage({ type: 'window:minimize' });
+
+    expect(hostWebView()?.postMessage).toBe(miniblink);
+    expect(miniblink).toHaveBeenCalledWith({ type: 'window:minimize' });
+    expect(webView2).not.toHaveBeenCalled();
+    expect(isHostBridgeAvailable()).toBe(true);
+  });
 });
 
 describe('postHostRequest', () => {

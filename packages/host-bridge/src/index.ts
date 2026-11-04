@@ -65,12 +65,21 @@ export function isHostBridgeUnavailableError(error: unknown): boolean {
 }
 
 /**
+ * Мост к нативному хосту. Программы на ПК показывают экраны в Miniblink и подставляют `window.afk4Host`: там
+ * `window.chrome` неизменяем (docs/roadmap/windows7.md). `window.chrome.webview` — WebView2, пока не все программы
+ * переехали. Вид у обоих один: `postMessage` и событие `message`.
+ */
+export function hostWebView(): HostBridgeWebView | undefined {
+  return window.afk4Host ?? window.chrome?.webview;
+}
+
+/**
  * Тот же набор проверок, что делает `postHostRequest` перед отправкой. Нужен экранам, которые
  * предлагают действие самого приложения (перезапуск ради обновления): в браузере хоста нет, и
  * показывать кнопку, которая гарантированно откажет, — обещание, которое нечем выполнить.
  */
 export function isHostBridgeAvailable(): boolean {
-  const webview = window.chrome?.webview;
+  const webview = hostWebView();
   return Boolean(webview?.postMessage && webview?.addEventListener && webview?.removeEventListener);
 }
 
@@ -79,7 +88,7 @@ export function isHostBridgeAvailable(): boolean {
  * хостом, а не этим пакетом.
  */
 export function postHostWindowMessage(message: { type: string } & Record<string, unknown>): void {
-  window.chrome?.webview?.postMessage(message);
+  hostWebView()?.postMessage(message);
 }
 
 /** Запрос к хосту с ожиданием ответа. Таймаут задаёт приложение — у оболочек он разный. */
@@ -88,7 +97,7 @@ export function postHostRequest<TPayload>(
   payload: unknown,
   timeoutMs: number
 ): Promise<TPayload> {
-  const webview = window.chrome?.webview;
+  const webview = hostWebView();
   const postMessage = webview?.postMessage;
   const addEventListener = webview?.addEventListener;
   const removeEventListener = webview?.removeEventListener;
@@ -150,7 +159,7 @@ export function onHostMessage<TPayload>(
   type: string,
   handler: (payload: TPayload) => void
 ): () => void {
-  const webview = window.chrome?.webview;
+  const webview = hostWebView();
   const addEventListener = webview?.addEventListener;
   const removeEventListener = webview?.removeEventListener;
   if (!webview || !addEventListener || !removeEventListener) {
@@ -171,14 +180,17 @@ function createRequestId(): string {
   return window.crypto?.randomUUID?.() ?? `request-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+interface HostBridgeWebView {
+  postMessage(message: unknown): void;
+  addEventListener?(type: 'message', listener: (event: HostBridgeMessageEvent) => void): void;
+  removeEventListener?(type: 'message', listener: (event: HostBridgeMessageEvent) => void): void;
+}
+
 declare global {
   interface Window {
+    afk4Host?: HostBridgeWebView;
     chrome?: {
-      webview?: {
-        postMessage(message: unknown): void;
-        addEventListener?(type: 'message', listener: (event: HostBridgeMessageEvent) => void): void;
-        removeEventListener?(type: 'message', listener: (event: HostBridgeMessageEvent) => void): void;
-      };
+      webview?: HostBridgeWebView;
     };
   }
 }

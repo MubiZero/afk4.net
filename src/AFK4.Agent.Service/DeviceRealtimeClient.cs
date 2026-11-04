@@ -71,7 +71,7 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
 #else
                     .WithUrl(
                         new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"),
-                        connection => connection.HttpMessageHandlerFactory = Network.ClubTls.Apply)
+                        connection => connection.HttpMessageHandlerFactory = AFK4.Shared.Contracts.Net.ClubTls.Apply)
 #endif
                     // Native AOT: полезная нагрузка хаба — через сгенерированный JSON, без отражения.
                     .AddJsonProtocol(protocol => protocol.PayloadSerializerOptions.TypeInfoResolverChain.Insert(0, AgentJson.Default))

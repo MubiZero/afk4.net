@@ -251,7 +251,7 @@ export function closeWizard(): void {
 }
 
 export interface WizardBootstrapConfig {
-  runtime: 'webview2';
+  runtime: 'webview2' | 'miniblink';
   shellMode: string;
   machineName: string;
   isPreview: boolean;

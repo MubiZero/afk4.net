@@ -2,9 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AFK4.SetupWizard.Core\AFK4.SetupWizard.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\AFK4.WebHost\AFK4.WebHost.csproj" />
   </ItemGroup>
 
   <!-- Фронтенд мастера линкуется прямо из dist соседнего проекта — так же, как в оболочке
@@ -19,33 +17,22 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Светлая/тёмная иконка окна для рантайм-переключения при смене темы (см.
-         WebViewSetupWindow.TryHandleWindowMessage "window:theme") — отдельно от
-         ApplicationIcon, который лишь статичная иконка exe/ярлыка. -->
-    <Resource Include="Assets\afk4-icon-light.png" />
-    <Resource Include="Assets\afk4-icon-dark.png" />
-  </ItemGroup>
-
+  <!--
+    Мастер — один файл машинного кода без .NET на Windows 7–11, x86 и x64 (Native AOT), окно — Win32 + Miniblink
+    (AFK4.WebHost) вместо WPF и WebView2: docs/roadmap/windows7.md.
+  -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net10.0-windows;net48</TargetFrameworks>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot>true</PublishAot>
     <AssemblyName>AFK4.SetupWizard</AssemblyName>
-    <!-- Embeds the AFK4.NET logo into the exe so both the desktop/Start Menu shortcuts (which
-         target the exe) and the window/taskbar show the brand icon instead of the generic default. -->
+    <!-- Логотип AFK4.NET в exe: его показывают ярлыки, окно и панель задач. -->
     <ApplicationIcon>afk4-setupwizard.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- WebView2 SDK новее 1.0.1518 не запускается на Windows 7: сборка под .NET Framework 4.8 — для неё. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1518.46" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
-  </ItemGroup>
+  <Import Project="..\AFK4.WebHost\Miniblink.targets" />
 </Project>

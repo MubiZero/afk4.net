@@ -16,7 +16,7 @@ import { RoleScreen } from './RoleScreen';
 import { STEP_LABELS, Stepper, type WizardStep } from './Stepper';
 import { WizardErrorBoundary } from './WizardErrorBoundary';
 import { nextSetupStep, previousVisibleStep, visibleSteps } from './setupSteps';
-import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
+import { hostWebView, postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
   authenticatedInstallClient,
   brandingPresets,
@@ -203,7 +203,7 @@ export function App() {
   // Хост сообщает текущее состояние окна (развёрнуто/нет) — слушаем, чтобы иконка и подсказка
   // кнопки maximize всегда отражали реальность.
   useEffect(() => {
-    const webview = window.chrome?.webview;
+    const webview = hostWebView();
     if (!webview?.addEventListener || !webview.removeEventListener) return;
     const onMessage = (event: { data: unknown }) => {
       const data = event.data as { type?: string; maximized?: boolean } | undefined;
