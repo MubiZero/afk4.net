@@ -18,8 +18,6 @@ public sealed record UpdateManifestVerification(bool IsValid, string Message, Up
 /// </summary>
 public static class UpdateManifestVerifier
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public static UpdateManifestVerification Verify(
         ComponentUpdateInstructionDto instruction,
         UpdateManifestDto manifest,
@@ -57,7 +55,7 @@ public static class UpdateManifestVerifier
         UpdateManifestDocument? document;
         try
         {
-            document = JsonSerializer.Deserialize<UpdateManifestDocument>(manifestBytes, JsonOptions);
+            document = JsonSerializer.Deserialize(manifestBytes, AgentJson.Default.UpdateManifestDocument);
         }
         catch (JsonException)
         {

@@ -106,7 +106,7 @@ builder.Services.AddHttpClient("platform", client =>
         client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
-    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    .ConfigurePrimaryHttpMessageHandler(() => ClubTls.Apply(new SocketsHttpHandler
     {
         AutomaticDecompression = System.Net.DecompressionMethods.All,
         ConnectTimeout = TimeSpan.FromSeconds(15),
@@ -114,7 +114,10 @@ builder.Services.AddHttpClient("platform", client =>
         KeepAlivePingDelay = TimeSpan.FromSeconds(30),
         KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests
-    });
+    }));
+// Остальные клиенты (обновления, обложки, кеш игр) тоже ходят через Cloudflare.
+builder.Services.ConfigureHttpClientDefaults(client =>
+    client.ConfigurePrimaryHttpMessageHandler(() => ClubTls.Apply(new SocketsHttpHandler())));
 #endif
 // Artifact downloads stream large MSIs: a whole-transfer timeout would abort slow but healthy
 // downloads, so the client has none and the downloader bounds silence instead (UpdateDownloadStallTimeout).

@@ -23,7 +23,7 @@ public sealed class HttpAssistanceRequestReporter(
                 agentOptions.OrganizationId,
                 agentOptions.BranchId,
                 agentOptions.DeviceId,
-                requestedAtUtc))
+                requestedAtUtc), AgentJson.Default.DeviceAssistanceRequest)
         };
 
         // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.

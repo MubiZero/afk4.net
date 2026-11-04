@@ -10,8 +10,6 @@ namespace AFK4.Shared.Contracts.Shell;
 /// </summary>
 public static class ShellPipeCodec
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     /// <summary>
     /// Записать кадр. Без <c>Flush</c>: на канале Windows это <c>FlushFileBuffers</c>, и он ждёт,
     /// пока собеседник всё вычитает (#266). На постоянном соединении ждать незачем — данные уже
@@ -19,7 +17,7 @@ public static class ShellPipeCodec
     /// </summary>
     public static async Task WriteAsync(Stream stream, ShellPipeMessage message, CancellationToken cancellationToken)
     {
-        var body = JsonSerializer.SerializeToUtf8Bytes(message, JsonOptions);
+        var body = JsonSerializer.SerializeToUtf8Bytes(message, ShellPipeJson.Default.ShellPipeMessage);
         if (body.Length > ShellPipeProtocol.MaxFrameBytes)
         {
             throw new InvalidDataException(
@@ -58,7 +56,7 @@ public static class ShellPipeCodec
 
         var body = new byte[length];
         await stream.ReadExactlyAsync(body, cancellationToken);
-        return JsonSerializer.Deserialize<ShellPipeMessage>(body, JsonOptions)
+        return JsonSerializer.Deserialize(body, ShellPipeJson.Default.ShellPipeMessage)
             ?? throw new InvalidDataException("Shell pipe frame carried no message.");
     }
 }

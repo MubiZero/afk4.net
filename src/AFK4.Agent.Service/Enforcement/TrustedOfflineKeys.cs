@@ -12,7 +12,6 @@ public sealed class TrustedOfflineKeys
 {
     public const string StateFileName = "offline-lease-keys.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string? stateFilePath;
     private IReadOnlyList<OfflineLeaseKeyDto> keys = [];
@@ -34,7 +33,7 @@ public sealed class TrustedOfflineKeys
         {
             if (File.Exists(stateFilePath))
             {
-                keys = JsonSerializer.Deserialize<List<OfflineLeaseKeyDto>>(File.ReadAllText(stateFilePath), JsonOptions) ?? [];
+                keys = JsonSerializer.Deserialize(File.ReadAllText(stateFilePath), AgentJson.Default.ListOfflineLeaseKeyDto) ?? [];
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -71,7 +70,7 @@ public sealed class TrustedOfflineKeys
             keys = next.ToList();
             if (stateFilePath is not null)
             {
-                AtomicFile.WriteAllText(stateFilePath, JsonSerializer.Serialize(keys, JsonOptions));
+                AtomicFile.WriteAllText(stateFilePath, JsonSerializer.Serialize(keys, AgentJson.Default.ListOfflineLeaseKeyDto));
             }
         }
     }

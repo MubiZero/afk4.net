@@ -10,8 +10,6 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
     : IOrganizationAdminUpdateCoordinatorClient
 {
     private const int MaxPayloadBytes = 64 * 1024;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public Task<OrganizationAdminCoordinationResult> QueryStateAsync(CancellationToken cancellationToken) =>
         SendAsync(new(options.Value.OrganizationAdminUpdateCoordinationSecret,
             LocalUpdateCoordinationOperations.QueryState, null, null), cancellationToken);
@@ -58,9 +56,9 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
     /// админке. Отвечающая сторона — наоборот, дописывает перед закрытием канала: закрытый канал
     /// уносит с собой невычитанное.
     /// </summary>
-    internal static async Task WriteAsync<T>(Stream stream, T message, CancellationToken cancellationToken)
+    internal static async Task WriteAsync(Stream stream, LocalUpdateCoordinationRequest message, CancellationToken cancellationToken)
     {
-        var payload = JsonSerializer.SerializeToUtf8Bytes(message, JsonOptions);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(message, AgentJson.Default.LocalUpdateCoordinationRequest);
         if (payload.Length > MaxPayloadBytes) throw new InvalidDataException("Coordination payload is too large.");
         var prefix = new byte[4];
         BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
@@ -76,7 +74,7 @@ public sealed class NamedPipeOrganizationAdminUpdateCoordinatorClient(IOptions<A
         if (length is <= 0 or > MaxPayloadBytes) throw new InvalidDataException("Coordination payload length is invalid.");
         var payload = new byte[length];
         await stream.ReadExactlyAsync(payload, cancellationToken);
-        return JsonSerializer.Deserialize<LocalUpdateCoordinationResponse>(payload, JsonOptions)
+        return JsonSerializer.Deserialize(payload, AgentJson.Default.LocalUpdateCoordinationResponse)
             ?? throw new InvalidDataException("Coordination response is empty.");
     }
 }

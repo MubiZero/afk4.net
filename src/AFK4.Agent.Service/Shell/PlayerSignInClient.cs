@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization.Metadata;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -26,14 +27,13 @@ public sealed class HttpPlayerSignInClient(
     IOptions<AgentOptions> options,
     IDeviceCredentialStore credentialStore) : IPlayerSignInClient
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public Task<PlayerSignInOutcome> SignInWithPinAsync(string phone, string pin, CancellationToken cancellationToken)
     {
         var agentOptions = options.Value;
         return SendAsync(
             $"/api/devices/{agentOptions.DeviceId:D}/player-sign-in",
             new DevicePlayerSignInRequest(agentOptions.OrganizationId, agentOptions.BranchId, agentOptions.DeviceId, phone, pin),
+            AgentJson.Default.DevicePlayerSignInRequest,
             cancellationToken);
     }
 
@@ -43,15 +43,16 @@ public sealed class HttpPlayerSignInClient(
         return SendAsync(
             $"/api/devices/{agentOptions.DeviceId:D}/sign-in-claims/{claimId:D}/redeem",
             new DeviceRedeemSignInClaimRequest(agentOptions.OrganizationId, agentOptions.BranchId, agentOptions.DeviceId),
+            AgentJson.Default.DeviceRedeemSignInClaimRequest,
             cancellationToken);
     }
 
-    private async Task<PlayerSignInOutcome> SendAsync<TRequest>(string path, TRequest body, CancellationToken cancellationToken)
+    private async Task<PlayerSignInOutcome> SendAsync<TRequest>(string path, TRequest body, JsonTypeInfo<TRequest> bodyInfo, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = options.Value.PlatformBaseUrl;
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        using var message = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body, bodyInfo) };
         // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.
         var credentialSecret = credentialStore.Current;
         if (!string.IsNullOrWhiteSpace(credentialSecret))
@@ -62,7 +63,7 @@ public sealed class HttpPlayerSignInClient(
         using var response = await client.SendAsync(message, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
-            var session = await response.Content.ReadFromJsonAsync<PlatformPersonSessionResponse>(JsonOptions, cancellationToken);
+            var session = await response.Content.ReadFromJsonAsync(AgentJson.Default.PlatformPersonSessionResponse, cancellationToken);
             return session is null
                 ? throw new HttpRequestException("The platform answered a sign-in without a session.")
                 : new PlayerSignInOutcome(session, null);

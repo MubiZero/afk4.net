@@ -17,7 +17,7 @@ public sealed class OrganizationAdminProcessLauncher(
     IPlayerShellProcessStarter processStarter,
     IPlayerShellProcessQuery processQuery) : IOrganizationAdminProcessLauncher
 {
-    private sealed record PendingLaunch(Guid UpdateRolloutId, Guid UpdatePackageId, string Version);
+    internal sealed record PendingLaunch(Guid UpdateRolloutId, Guid UpdatePackageId, string Version);
 
     public async Task ScheduleAfterRestartAsync(ComponentUpdateInstructionDto instruction, CancellationToken cancellationToken)
     {
@@ -27,7 +27,8 @@ public sealed class OrganizationAdminProcessLauncher(
         try
         {
             await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(
-                new PendingLaunch(instruction.UpdateRolloutId, instruction.UpdatePackageId, instruction.Version)), cancellationToken);
+                new PendingLaunch(instruction.UpdateRolloutId, instruction.UpdatePackageId, instruction.Version),
+                AgentJsonDefaults.Default.PendingLaunch), cancellationToken);
             File.Move(temporaryPath, path, overwrite: true);
         }
         finally

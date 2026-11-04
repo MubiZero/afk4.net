@@ -369,8 +369,6 @@ public sealed class ProtectionEnforcer(
 
 public sealed class FileProtectionProfileStore(IOptions<AgentOptions> options) : IProtectionProfileStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private string FilePath => Path.Combine(options.Value.StateDirectory, "protection-profile.json");
 
     public ProtectionProfileDto? Load()
@@ -378,7 +376,7 @@ public sealed class FileProtectionProfileStore(IOptions<AgentOptions> options) :
         try
         {
             return File.Exists(FilePath)
-                ? JsonSerializer.Deserialize<ProtectionProfileDto>(File.ReadAllText(FilePath), Json)
+                ? JsonSerializer.Deserialize(File.ReadAllText(FilePath), AgentJson.Default.ProtectionProfileDto)
                 : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -390,7 +388,7 @@ public sealed class FileProtectionProfileStore(IOptions<AgentOptions> options) :
 
     public void Save(ProtectionProfileDto profile)
     {
-        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(profile, Json));
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(profile, AgentJson.Default.ProtectionProfileDto));
     }
 }
 
@@ -406,7 +404,7 @@ public sealed class HttpProtectionPlatformClient(
             HttpMethod.Get,
             DeviceProtectionRoutes.Profile(agentOptions.DeviceId, agentOptions.OrganizationId, agentOptions.BranchId));
         using var response = await SendAsync(message, cancellationToken);
-        return await response.Content.ReadFromJsonAsync<ProtectionProfileDto>(cancellationToken)
+        return await response.Content.ReadFromJsonAsync(AgentJson.Default.ProtectionProfileDto, cancellationToken)
             ?? throw new JsonException("The platform returned an empty protection profile.");
     }
 
@@ -414,7 +412,7 @@ public sealed class HttpProtectionPlatformClient(
     {
         using var message = new HttpRequestMessage(HttpMethod.Post, DeviceProtectionRoutes.Report(options.Value.DeviceId))
         {
-            Content = JsonContent.Create(report)
+            Content = JsonContent.Create(report, AgentJson.Default.DeviceProtectionReportRequest)
         };
         using var response = await SendAsync(message, cancellationToken);
     }

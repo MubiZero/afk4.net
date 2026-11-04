@@ -8,7 +8,6 @@ public sealed class FileSessionLeaseStore : ISessionLeaseStore
 {
     public const string LeaseFileName = "session-lease.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string leaseFilePath;
     private readonly TimeProvider timeProvider;
@@ -72,7 +71,7 @@ public sealed class FileSessionLeaseStore : ISessionLeaseStore
         try
         {
             using var stream = File.OpenRead(leaseFilePath);
-            var lease = JsonSerializer.Deserialize<SessionLeaseDto>(stream, JsonOptions);
+            var lease = JsonSerializer.Deserialize(stream, AgentJson.Default.SessionLeaseDto);
             if (lease is null || lease.ExpiresAtUtc <= timeProvider.GetUtcNow())
             {
                 TryDelete(leaseFilePath);
@@ -95,7 +94,7 @@ public sealed class FileSessionLeaseStore : ISessionLeaseStore
     }
 
     private void WriteAtomically(SessionLeaseDto lease) =>
-        AtomicFile.Write(leaseFilePath, stream => JsonSerializer.Serialize(stream, lease, JsonOptions));
+        AtomicFile.Write(leaseFilePath, stream => JsonSerializer.Serialize(stream, lease, AgentJson.Default.SessionLeaseDto));
 
     private static void TryDelete(string path)
     {

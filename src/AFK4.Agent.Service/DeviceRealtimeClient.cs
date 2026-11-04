@@ -1,6 +1,7 @@
 ﻿using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service;
@@ -65,7 +66,15 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
             commandResultOutbox,
             new SignalRDeviceHubConnection(
                 new HubConnectionBuilder()
+#if NETFRAMEWORK
                     .WithUrl(new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"))
+#else
+                    .WithUrl(
+                        new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"),
+                        connection => connection.HttpMessageHandlerFactory = Network.ClubTls.Apply)
+#endif
+                    // Native AOT: полезная нагрузка хаба — через сгенерированный JSON, без отражения.
+                    .AddJsonProtocol(protocol => protocol.PayloadSerializerOptions.TypeInfoResolverChain.Insert(0, AgentJson.Default))
                     .WithAutomaticReconnect(new RealtimeRetryPolicy())
                     // Короткий обрыв не теряет команды: сервер держит буфер для соединения и
                     // досылает пропущенное после переподключения (AllowStatefulReconnects на хабе).

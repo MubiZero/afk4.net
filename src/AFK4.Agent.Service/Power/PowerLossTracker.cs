@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization.Metadata;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
@@ -15,8 +16,6 @@ public sealed class PowerLossTracker
     private const string AliveFileName = "power-alive.json";
     private const string CleanStopFileName = "power-clean-stop.json";
     private const string PendingFileName = "power-loss.json";
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private readonly string alivePath;
     private readonly string cleanStopPath;
     private readonly string pendingPath;
@@ -28,7 +27,7 @@ public sealed class PowerLossTracker
         cleanStopPath = Path.Combine(stateDirectory, CleanStopFileName);
         pendingPath = Path.Combine(stateDirectory, PendingFileName);
         this.uptimeMilliseconds = uptimeMilliseconds ?? (() => Environment.TickCount64);
-        PowerLostFromUtc = Read<PendingLoss>(pendingPath)?.FromUtc ?? Detect();
+        PowerLostFromUtc = Read(pendingPath, AgentJson.Default.PendingLoss)?.FromUtc ?? Detect();
     }
 
     /// <summary>С какого момента ПК был обесточен; null — не был или сервер уже знает.</summary>
@@ -37,10 +36,10 @@ public sealed class PowerLossTracker
     public long UptimeSeconds => uptimeMilliseconds() / 1000;
 
     public void MarkAlive(DateTimeOffset nowUtc) =>
-        TryWrite(alivePath, new Alive(nowUtc, uptimeMilliseconds()));
+        TryWrite(alivePath, new Alive(nowUtc, uptimeMilliseconds()), AgentJson.Default.Alive);
 
     public void MarkCleanStop(DateTimeOffset nowUtc) =>
-        TryWrite(cleanStopPath, new CleanStop(nowUtc));
+        TryWrite(cleanStopPath, new CleanStop(nowUtc), AgentJson.Default.CleanStop);
 
     /// <summary>Сердцебиение с отметкой дошло: сервер её записал, больше не шлём.</summary>
     public void Reported()
@@ -63,28 +62,28 @@ public sealed class PowerLossTracker
 
     private DateTimeOffset? Detect()
     {
-        var alive = Read<Alive>(alivePath);
+        var alive = Read(alivePath, AgentJson.Default.Alive);
         if (alive is null || uptimeMilliseconds() >= alive.UptimeMilliseconds)
         {
             // Первый запуск или служба перезапустилась без перезагрузки машины — питание не пропадало.
             return null;
         }
 
-        var cleanStop = Read<CleanStop>(cleanStopPath);
+        var cleanStop = Read(cleanStopPath, AgentJson.Default.CleanStop);
         if (cleanStop is not null && cleanStop.StoppedUtc >= alive.AliveUtc)
         {
             return null;
         }
 
-        TryWrite(pendingPath, new PendingLoss(alive.AliveUtc));
+        TryWrite(pendingPath, new PendingLoss(alive.AliveUtc), AgentJson.Default.PendingLoss);
         return alive.AliveUtc;
     }
 
-    private static T? Read<T>(string path) where T : class
+    private static T? Read<T>(string path, JsonTypeInfo<T> typeInfo) where T : class
     {
         try
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<T>(File.ReadAllText(path), Json) : null;
+            return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), typeInfo) : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -92,11 +91,11 @@ public sealed class PowerLossTracker
         }
     }
 
-    private static void TryWrite<T>(string path, T value)
+    private static void TryWrite<T>(string path, T value, JsonTypeInfo<T> typeInfo)
     {
         try
         {
-            AtomicFile.WriteAllText(path, JsonSerializer.Serialize(value, Json));
+            AtomicFile.WriteAllText(path, JsonSerializer.Serialize(value, typeInfo));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -104,11 +103,11 @@ public sealed class PowerLossTracker
         }
     }
 
-    private sealed record Alive(DateTimeOffset AliveUtc, long UptimeMilliseconds);
+    internal sealed record Alive(DateTimeOffset AliveUtc, long UptimeMilliseconds);
 
-    private sealed record CleanStop(DateTimeOffset StoppedUtc);
+    internal sealed record CleanStop(DateTimeOffset StoppedUtc);
 
-    private sealed record PendingLoss(DateTimeOffset FromUtc);
+    internal sealed record PendingLoss(DateTimeOffset FromUtc);
 }
 
 /// <summary>

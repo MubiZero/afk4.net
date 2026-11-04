@@ -161,15 +161,13 @@ public sealed class GameLibraryService(
 
 public sealed class FileGameLibraryStore(IOptions<AgentOptions> options) : IGameLibraryStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private string FilePath => Path.Combine(options.Value.StateDirectory, "game-library.json");
 
     public DeviceGameLibraryDto? Load()
     {
         try
         {
-            return File.Exists(FilePath) ? JsonSerializer.Deserialize<DeviceGameLibraryDto>(File.ReadAllText(FilePath), Json) : null;
+            return File.Exists(FilePath) ? JsonSerializer.Deserialize(File.ReadAllText(FilePath), AgentJson.Default.DeviceGameLibraryDto) : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -180,7 +178,7 @@ public sealed class FileGameLibraryStore(IOptions<AgentOptions> options) : IGame
 
     public void Save(DeviceGameLibraryDto library)
     {
-        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(library, Json));
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(library, AgentJson.Default.DeviceGameLibraryDto));
     }
 }
 
@@ -205,7 +203,7 @@ public sealed class HttpGameLibraryClient(
 
         using var response = await client.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<DeviceGameLibraryDto>(cancellationToken)
+        return await response.Content.ReadFromJsonAsync(AgentJson.Default.DeviceGameLibraryDto, cancellationToken)
             ?? throw new JsonException("The platform returned an empty game library.");
     }
 }

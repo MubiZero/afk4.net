@@ -8,7 +8,6 @@ public sealed class AgentRuntimeStateStore : IAgentRuntimeStateStore
 {
     public const string StateFileName = "runtime-state.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string stateFilePath;
 
@@ -63,7 +62,7 @@ public sealed class AgentRuntimeStateStore : IAgentRuntimeStateStore
         try
         {
             using var stream = File.OpenRead(stateFilePath);
-            return JsonSerializer.Deserialize<AgentRuntimeState>(stream, JsonOptions) ??
+            return JsonSerializer.Deserialize(stream, AgentJson.Default.AgentRuntimeState) ??
                 AgentRuntimeState.Locked(now);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -74,7 +73,7 @@ public sealed class AgentRuntimeStateStore : IAgentRuntimeStateStore
     }
 
     private void WriteAtomically(AgentRuntimeState state) =>
-        AtomicFile.Write(stateFilePath, stream => JsonSerializer.Serialize(stream, state, JsonOptions));
+        AtomicFile.Write(stateFilePath, stream => JsonSerializer.Serialize(stream, state, AgentJson.Default.AgentRuntimeState));
 
     private static void TryDelete(string path)
     {

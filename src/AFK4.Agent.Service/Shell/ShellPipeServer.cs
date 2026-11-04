@@ -40,7 +40,6 @@ public sealed class ShellPipeServer(
     ShellPipeTimings? timings = null,
     ShellHostChannel? hostChannel = null) : BackgroundService
 {
-    private static readonly JsonSerializerOptions SignatureJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ShellPipeTimings timings = timings ?? ShellPipeTimings.Default;
     private readonly ShellHostChannel hostChannel = hostChannel ?? new ShellHostChannel();
 
@@ -270,7 +269,7 @@ public sealed class ShellPipeServer(
     /// сборки. Хост досчитывает их сам по сроку аренды — слать кадр ради тиканья незачем.
     /// </summary>
     private static string Signature(PlayerShellStateDto state) =>
-        JsonSerializer.Serialize(state with { RemainingSeconds = null, ObservedAtUtc = null }, SignatureJsonOptions);
+        JsonSerializer.Serialize(state with { RemainingSeconds = null, ObservedAtUtc = null }, AgentJson.Default.PlayerShellStateDto);
 
     private static NamedPipeServerStream CreatePipe(AgentOptions agentOptions)
     {

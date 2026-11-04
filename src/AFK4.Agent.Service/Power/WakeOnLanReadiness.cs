@@ -1,7 +1,7 @@
-using System.Management;
 using System.Runtime.Versioning;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.Win32;
+using WmiLight;
 
 namespace AFK4.Agent.Service.Power;
 
@@ -96,9 +96,9 @@ public static class WakeOnLanReadiness
     private static (string PnpDeviceId, string Guid)? FindAdapter(string macAddress)
     {
         var mac = macAddress.Replace('-', ':');
-        using var searcher = new ManagementObjectSearcher(
-            $"SELECT PNPDeviceID, GUID FROM Win32_NetworkAdapter WHERE MACAddress = '{mac}' AND PhysicalAdapter = TRUE");
-        foreach (var adapter in searcher.Get())
+        using var connection = new WmiConnection();
+        foreach (var adapter in connection.CreateQuery(
+            $"SELECT PNPDeviceID, GUID FROM Win32_NetworkAdapter WHERE MACAddress = '{mac}' AND PhysicalAdapter = TRUE"))
         {
             if (adapter["PNPDeviceID"] is string pnp && adapter["GUID"] is string guid)
             {
@@ -137,10 +137,9 @@ public static class WakeOnLanReadiness
 
     private static bool SetWmiFlag(string className, string property, string instanceNameStart)
     {
-        using var searcher = new ManagementObjectSearcher(
-            @"root\wmi", $"SELECT * FROM {className} WHERE InstanceName LIKE '{instanceNameStart}%'");
+        using var connection = new WmiConnection(@"root\wmi");
         var found = false;
-        foreach (ManagementObject setting in searcher.Get())
+        foreach (var setting in connection.CreateQuery($"SELECT * FROM {className} WHERE InstanceName LIKE '{instanceNameStart}%'"))
         {
             found = true;
             if (setting[property] is bool on && on)
@@ -148,7 +147,7 @@ public static class WakeOnLanReadiness
                 continue;
             }
 
-            setting[property] = true;
+            setting.SetPropertyValue(property, true);
             setting.Put();
         }
 
@@ -168,6 +167,6 @@ public static class WakeOnLanReadiness
     }
 
     private static bool IsSettingFailure(Exception exception) =>
-        exception is ManagementException or UnauthorizedAccessException or System.Security.SecurityException or IOException
+        exception is WmiException or UnauthorizedAccessException or System.Security.SecurityException or IOException
             or System.Runtime.InteropServices.COMException;
 }

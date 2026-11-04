@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization.Metadata;
 using System.Net.Http.Json;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Updates;
@@ -23,9 +24,11 @@ public sealed class HttpAgentUpdateClient(
             agentOptions.UpdateChannel,
             checkedAtUtc,
             installedComponents);
-        var response = await SendAsync<DeviceUpdateCheckRequest, DeviceUpdateCheckResponse>(
+        var response = await SendAsync(
             $"/api/devices/{agentOptions.DeviceId:D}/updates/check",
             request,
+            AgentJson.Default.DeviceUpdateCheckRequest,
+            AgentJson.Default.DeviceUpdateCheckResponse,
             cancellationToken);
 
         return new UpdateCheckResult(response.ServerTimeUtc, response.Updates, response.OrganizationAdminPreference);
@@ -56,15 +59,19 @@ public sealed class HttpAgentUpdateClient(
             message,
             observedAtUtc);
 
-        return await SendAsync<DeviceUpdateStatusReportRequest, DeviceUpdateStatusResultDto>(
+        return await SendAsync(
             $"/api/devices/{agentOptions.DeviceId:D}/updates/status",
             request,
+            AgentJson.Default.DeviceUpdateStatusReportRequest,
+            AgentJson.Default.DeviceUpdateStatusResultDto,
             cancellationToken);
     }
 
     private async Task<TResponse> SendAsync<TRequest, TResponse>(
         string path,
         TRequest request,
+        JsonTypeInfo<TRequest> requestInfo,
+        JsonTypeInfo<TResponse> responseInfo,
         CancellationToken cancellationToken)
     {
         var agentOptions = options.Value;
@@ -73,7 +80,7 @@ public sealed class HttpAgentUpdateClient(
 
         using var message = new HttpRequestMessage(HttpMethod.Post, path)
         {
-            Content = JsonContent.Create(request)
+            Content = JsonContent.Create(request, requestInfo)
         };
 
         // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.
@@ -86,7 +93,7 @@ public sealed class HttpAgentUpdateClient(
         using var response = await client.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var body = await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);
+        var body = await response.Content.ReadFromJsonAsync(responseInfo, cancellationToken);
 
         return body ?? throw new InvalidOperationException("Update response was empty.");
     }

@@ -31,7 +31,6 @@ public sealed class FileUpdateAttemptLedger : IUpdateAttemptLedger
     /// </summary>
     public const int MaxAttempts = 2;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object syncRoot = new();
     private readonly string ledgerPath;
     private readonly Dictionary<Guid, int> attemptsByRollout;
@@ -89,7 +88,7 @@ public sealed class FileUpdateAttemptLedger : IUpdateAttemptLedger
             Directory.CreateDirectory(Path.GetDirectoryName(ledgerPath)!);
             var tempPath = $"{ledgerPath}.{Guid.NewGuid():N}.tmp";
             var serializable = attemptsByRollout.ToDictionary(pair => pair.Key.ToString("D"), pair => pair.Value);
-            File.WriteAllText(tempPath, JsonSerializer.Serialize(serializable, JsonOptions));
+            File.WriteAllText(tempPath, JsonSerializer.Serialize(serializable, AgentJson.Default.DictionaryStringInt32));
             File.Move(tempPath, ledgerPath, overwrite: true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -107,7 +106,7 @@ public sealed class FileUpdateAttemptLedger : IUpdateAttemptLedger
 
         try
         {
-            var stored = JsonSerializer.Deserialize<Dictionary<string, int>>(File.ReadAllText(path), JsonOptions);
+            var stored = JsonSerializer.Deserialize(File.ReadAllText(path), AgentJson.Default.DictionaryStringInt32);
             return stored is null
                 ? []
                 : stored

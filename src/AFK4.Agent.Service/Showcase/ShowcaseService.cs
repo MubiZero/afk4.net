@@ -154,8 +154,6 @@ public sealed class ShowcaseService(
 
 public sealed class FileShowcaseStore(IOptions<AgentOptions> options) : IShowcaseStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     // В папке агента, а не в папке витрины: ту хост отдаёт странице, а список карточек странице
     // приходит состоянием.
     private string FilePath => Path.Combine(options.Value.StateDirectory, "showcase.json");
@@ -164,7 +162,7 @@ public sealed class FileShowcaseStore(IOptions<AgentOptions> options) : IShowcas
     {
         try
         {
-            return File.Exists(FilePath) ? JsonSerializer.Deserialize<StoredShowcase>(File.ReadAllText(FilePath), Json) : null;
+            return File.Exists(FilePath) ? JsonSerializer.Deserialize(File.ReadAllText(FilePath), AgentJson.Default.StoredShowcase) : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -175,7 +173,7 @@ public sealed class FileShowcaseStore(IOptions<AgentOptions> options) : IShowcas
 
     public void Save(StoredShowcase showcase)
     {
-        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(showcase, Json));
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(showcase, AgentJson.Default.StoredShowcase));
     }
 }
 
@@ -210,7 +208,7 @@ public sealed class HttpShowcaseClient(
         }
 
         response.EnsureSuccessStatusCode();
-        var showcase = await response.Content.ReadFromJsonAsync<DeviceShowcaseDto>(cancellationToken)
+        var showcase = await response.Content.ReadFromJsonAsync(AgentJson.Default.DeviceShowcaseDto, cancellationToken)
             ?? throw new JsonException("The platform returned an empty showcase.");
         return new ShowcaseFetch(showcase, response.Headers.ETag?.ToString());
     }
