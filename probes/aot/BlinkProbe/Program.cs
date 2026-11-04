@@ -32,8 +32,8 @@ static unsafe class Program
         {
             // Окно в масштабе Windows (125–150% на ноутбуках и больших мониторах): иначе страница рисуется в 100%,
             // занимает часть окна, а нажатия уходят мимо.
-            mbEnableHighDPISupport();
             mbInit(null);
+            mbEnableHighDPISupport();
             Log("init");
             var view = mbCreateWebWindow(0, IntPtr.Zero, 0, 0, 1100, 700);
             Log($"view {view}");
