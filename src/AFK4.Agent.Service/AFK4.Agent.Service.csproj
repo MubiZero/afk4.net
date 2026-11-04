@@ -19,11 +19,6 @@
     <PublishWmiLightStaticallyLinked>true</PublishWmiLightStaticallyLinked>
   </PropertyGroup>
 
-  <!-- Компилятор AOT из SDK (10.0.11) помечен уязвимым (NU1903); берём исправленный выпуск. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.14" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
