@@ -1,6 +1,6 @@
 # Windows 7 на ПК клуба
 
-Последнее обновление 2026-10-29.
+Последнее обновление 2026-11-04.
 
 ## Зачем
 
@@ -74,4 +74,18 @@ Windows 11 (стенд UTM): агент в консоли и службой — 
   иначе повреждение кучи (0xc0000374).
 - Канал без буфера: запись ждёт читателя.
 
-Windows 7 x86/x64 — не проверено: ждёт образов.
+Windows 7 SP1 Ultimate x86 и x64 (сборка владельца, стенды UTM, 2026-11-04):
+- агент в консоли и службой — 7/7 проверок на обеих разрядностях, без .NET на машине;
+- окно на WebView2 109.0.1518.140 — страница, мост `postMessage` ↔ C# работают на обеих разрядностях;
+  у процесса окна 10–12 МБ, у процессов WebView2 вместе ~190 МБ.
+
+Грабли Windows 7:
+- TLS 1.2 у клиента выключен по умолчанию, HTTPS к Cloudflare падает (`net_http_ssl_connection_failed`). Программа
+  просит TLS 1.2 сама: `SocketsHttpHandler.SslOptions.EnabledSslProtocols = Tls12` на Windows старше 8, и тот же
+  обработчик — в SignalR (`HttpMessageHandlerFactory`). Реестр клуба не трогаем.
+- Нынешний загрузчик WebView2 (`MicrosoftEdgeWebview2Setup.exe`) на Windows 7 не запускается: `0x8007007F` за 2 с.
+- WebView2 109 есть в каталоге Microsoft Update («Microsoft Edge-WebView2 Runtime Version 109 Update», 132 МБ x86,
+  144 МБ x64). Это пакет EdgeUpdate: с `/silent /install` он зависает, без аргументов — тоже. Работает то, что лежит
+  внутри (`MicrosoftEdge_X86_109.0.1518.140.exe`, подпись Microsoft):
+  `--msedgewebview --verbose-logging --do-not-launch-msedge --system-level`, 20–30 с. Его и докачивать на Windows 7.
+- Значка «⌫» нет в шрифтах Windows 7 — на экране квадрат. Иконки на экранах — SVG, не символы шрифта.
