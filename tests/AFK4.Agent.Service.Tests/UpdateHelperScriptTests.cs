@@ -414,12 +414,15 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("-f $project.Framework `", script, StringComparison.Ordinal);
         Assert.DoesNotContain("--self-contained false", script, StringComparison.Ordinal);
         Assert.DoesNotContain("SelfContained", script, StringComparison.Ordinal);
+        // Символы отладки в пакеты не едут: .pdb агента AOT вчетверо больше самой программы.
+        Assert.Contains("-p:DebugType=none `", script, StringComparison.Ordinal);
 
         // Тот же способ публикации у канала обновлений: рамочный zip поверх self-contained установки
         // дал бы смесь двух моделей.
         var updateScript = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "scripts", "publish-client-update.ps1"));
         Assert.Contains("--self-contained true `", updateScript, StringComparison.Ordinal);
         Assert.DoesNotContain("--self-contained false", updateScript, StringComparison.Ordinal);
+        Assert.Contains("-p:DebugType=none `", updateScript, StringComparison.Ordinal);
     }
 
     // Self-contained даёт сотни файлов рантайма. Их берёт штатный сбор папки целиком (Files ...\**),

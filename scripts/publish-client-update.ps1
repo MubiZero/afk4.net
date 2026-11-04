@@ -87,6 +87,7 @@ $framework = ($frameworks[0] -split ';')[0]
     -r $Runtime `
     --self-contained true `
     -o $publishRoot `
+    -p:DebugType=none `
     -p:NuGetAudit=false `
     -p:UseSharedCompilation=false
 
