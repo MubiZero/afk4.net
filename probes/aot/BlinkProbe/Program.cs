@@ -30,6 +30,9 @@ static unsafe class Program
 
         try
         {
+            // Окно в масштабе Windows (125–150% на ноутбуках и больших мониторах): иначе страница рисуется в 100%,
+            // занимает часть окна, а нажатия уходят мимо.
+            mbEnableHighDPISupport();
             mbInit(null);
             Log("init");
             var view = mbCreateWebWindow(0, IntPtr.Zero, 0, 0, 1100, 700);
@@ -159,6 +162,7 @@ static unsafe class Program
     private const string Mb = "miniblink";
 
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbInit(void* settings);
+    [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbEnableHighDPISupport();
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern IntPtr mbCreateWebWindow(int type, IntPtr parent, int x, int y, int width, int height);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbLoadURL(IntPtr view, byte* url);
     [DllImport(Mb, CallingConvention = CallingConvention.StdCall)] private static extern void mbMoveToCenter(IntPtr view);
