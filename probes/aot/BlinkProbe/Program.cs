@@ -66,9 +66,12 @@ static unsafe class Program
 
     // Мост сам себя проверяет: страница зовёт mbQuery, C# отвечает, ответ попадает в заголовок окна.
     private const string BridgeCheck =
-        "window.mbQuery(7, 'chrome: ' + typeof window.chrome + ' ; chrome.webview: ' + typeof (window.chrome && window.chrome.webview)" +
-        " + ' ; postMessage: ' + typeof (window.chrome && window.chrome.webview && window.chrome.webview.postMessage)," +
-        " function (code, answer) { document.title = 'bridge: ' + answer; });";
+        "var d = Object.getOwnPropertyDescriptor(window, 'chrome'); var r = [];" +
+        "r.push('desc ' + (d ? 'w' + d.writable + ' c' + d.configurable + ' get' + (typeof d.get) : 'none'));" +
+        "r.push('ext ' + Object.isExtensible(window.chrome)); r.push('webview ' + typeof window.chrome.webview);" +
+        "try { window.chrome.probe = 1; r.push('add ' + window.chrome.probe); } catch (e) { r.push('add err ' + e.message); }" +
+        "try { Object.defineProperty(window, 'chrome', { value: { x: 1 }, writable: true, configurable: true }); r.push('redefine ' + window.chrome.x); } catch (e) { r.push('redefine err ' + e.message); }" +
+        "window.mbQuery(7, r.join(' ; '), function (code, answer) { document.title = 'bridge: ' + answer; });";
 
     // В Miniblink window.chrome только для чтения, и `window.chrome = {…}` молча не срабатывает. Программа дописывает в
     // HTML страницы свой скрипт, который делает его обычным свойством до скриптов страницы, — так же она подставит и мост
