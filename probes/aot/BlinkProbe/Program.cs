@@ -68,27 +68,28 @@ static unsafe class Program
     private const string BridgeCheck =
         "var d = Object.getOwnPropertyDescriptor(window, 'chrome'); var r = [];" +
         "r.push('desc ' + (d ? 'w' + d.writable + ' c' + d.configurable + ' get' + (typeof d.get) : 'none'));" +
-        "r.push('ext ' + Object.isExtensible(window.chrome)); r.push('webview ' + typeof window.chrome.webview);" +
+        "r.push('ext ' + Object.isExtensible(window.chrome)); r.push('webview ' + typeof window.chrome.webview + ' afk4chrome.webview ' + typeof (window.afk4chrome && window.afk4chrome.webview));" +
         "try { window.chrome.probe = 1; r.push('add ' + window.chrome.probe); } catch (e) { r.push('add err ' + e.message); }" +
         "try { Object.defineProperty(window, 'chrome', { value: { x: 1 }, writable: true, configurable: true }); r.push('redefine ' + window.chrome.x); } catch (e) { r.push('redefine err ' + e.message); }" +
         "window.mbQuery(7, r.join(' ; '), function (code, answer) { document.title = 'bridge: ' + answer; });";
 
-    // В Miniblink window.chrome только для чтения, и `window.chrome = {…}` молча не срабатывает. Программа дописывает в
-    // HTML страницы свой скрипт, который делает его обычным свойством до скриптов страницы, — так же она подставит и мост
-    // chrome.webview: свои экраны программа отдаёт сама.
-    private const string WritableChrome =
-        "<script>Object.defineProperty(window, 'chrome', { value: {}, writable: true, configurable: true, enumerable: true });</script>";
+    // В Miniblink window.chrome — неизменяемый геттер, который каждый раз отдаёт новый объект: ни заменить его, ни
+    // дописать в него webview нельзя. Настоящая программа подставит мост под своим именем; проба, чтобы не трогать
+    // код экранов, на лету меняет в скриптах страницы window.chrome на это имя.
+    private const string BridgeName = "window.afk4chrome";
 
     private static string PageUrl = string.Empty;
-    private static byte[]? patchedPage;
+    private static readonly List<byte[]> PatchedBodies = [];
+
+    private static bool IsPageScript(string url) =>
+        url.StartsWith(PageUrl, StringComparison.Ordinal) && url.EndsWith(".js", StringComparison.Ordinal);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int OnLoadBegin(IntPtr view, IntPtr param, byte* url, IntPtr job)
     {
-        if (Marshal.PtrToStringUTF8((IntPtr)url) == PageUrl)
+        if (IsPageScript(Marshal.PtrToStringUTF8((IntPtr)url)!))
         {
             mbNetHookRequest(job);
-            Log("hooked page");
         }
 
         return 0;
@@ -97,20 +98,21 @@ static unsafe class Program
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnLoadEnd(IntPtr view, IntPtr param, byte* url, IntPtr job, byte* buffer, int length)
     {
-        if (Marshal.PtrToStringUTF8((IntPtr)url) != PageUrl)
+        var address = Marshal.PtrToStringUTF8((IntPtr)url)!;
+        if (!IsPageScript(address))
         {
             return;
         }
 
-        var html = Encoding.UTF8.GetString(buffer, length);
-        var at = html.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
-        patchedPage = Encoding.UTF8.GetBytes(at < 0 ? WritableChrome + html : html.Insert(at + "<head>".Length, WritableChrome));
-        fixed (byte* data = patchedPage)
+        var script = Encoding.UTF8.GetString(buffer, length);
+        var body = Encoding.UTF8.GetBytes(script.Replace("window.chrome", BridgeName, StringComparison.Ordinal));
+        PatchedBodies.Add(body);
+        fixed (byte* data = body)
         {
-            mbNetSetData(job, data, patchedPage.Length);
+            mbNetSetData(job, data, body.Length);
         }
 
-        Log($"patched page {length} -> {patchedPage.Length} bytes");
+        Log($"patched {address[(address.LastIndexOf('/') + 1)..]} {length} -> {body.Length} bytes");
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
