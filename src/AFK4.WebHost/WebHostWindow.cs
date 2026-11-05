@@ -406,6 +406,7 @@ public sealed unsafe class WebHostWindow
             case Win32.WmNcHitTest when options.Frameless:
                 return HitTest(lParam);
             case Win32.WmDestroy:
+                Report("window destroyed");
                 ByWindow.Remove(Handle);
                 ByView.TryRemove(view, out _);
                 if (ByWindow.Count == 0)
