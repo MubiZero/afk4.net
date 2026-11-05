@@ -26,6 +26,7 @@ internal static unsafe class Miniblink
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbMoveWindow(IntPtr view, int x, int y, int width, int height);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbShowWindow(IntPtr view, int show);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbSetFocus(IntPtr view);
+    [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern IntPtr mbGetHostHWND(IntPtr view);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbLoadURL(IntPtr view, byte* url);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbLoadHtmlWithBaseUrl(IntPtr view, byte* html, byte* baseUrl);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern IntPtr mbWebFrameGetMainFrame(IntPtr view);

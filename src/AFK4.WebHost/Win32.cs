@@ -83,6 +83,7 @@ internal static unsafe partial class Win32
     [LibraryImport("user32.dll")] public static partial int GetClientRect(IntPtr hwnd, Rect* rect);
     [LibraryImport("user32.dll")] public static partial int GetWindowRect(IntPtr hwnd, Rect* rect);
     [LibraryImport("user32.dll")] public static partial int ReleaseCapture();
+    [LibraryImport("user32.dll")] public static partial IntPtr SetFocus(IntPtr hwnd);
     [LibraryImport("user32.dll")] public static partial int SetProcessDPIAware();
     [LibraryImport("user32.dll")] public static partial IntPtr GetDC(IntPtr hwnd);
     [LibraryImport("user32.dll")] public static partial int ReleaseDC(IntPtr hwnd, IntPtr dc);

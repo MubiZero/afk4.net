@@ -139,6 +139,14 @@ public sealed unsafe class WebHostWindow
     {
         Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString());
         Win32.ShowWindow(Handle, Win32.SwShow);
+        FocusView();
+    }
+
+    // Клавиатура — окну движка, а не внешнему: иначе поле на экране подсвечено, а набранное пропадает, пока по
+    // странице не щёлкнут мышью (стенд Windows 7, 05.11.2026).
+    private void FocusView()
+    {
+        Win32.SetFocus(Miniblink.mbGetHostHWND(view));
         Miniblink.mbSetFocus(view);
     }
 
@@ -248,7 +256,7 @@ public sealed unsafe class WebHostWindow
                 Win32.FillRect(wParam, &area, background);
                 return 1;
             case Win32.WmSetFocus:
-                Miniblink.mbSetFocus(view);
+                FocusView();
                 return IntPtr.Zero;
             case Win32.WmGetMinMaxInfo:
                 var limits = (Win32.MinMaxInfo*)lParam;
