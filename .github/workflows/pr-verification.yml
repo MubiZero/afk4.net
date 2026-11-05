@@ -183,13 +183,12 @@ jobs:
           }
 
       # Программы для приёмки на стенде — отдельным маленьким архивом, а не в общем архиве пакетов на сотни МБ.
+      # Только exe: DLL Miniblink та же, что качает scripts/fetch-miniblink.ps1 (сверена по SHA-256), её не возим.
       - name: Upload Native AOT programs
         uses: actions/upload-artifact@v7
         with:
           name: aot-programs
-          path: |
-            artifacts/aot/*/*/*.exe
-            artifacts/aot/*/*/*.dll
+          path: artifacts/aot/*/*/*.exe
           retention-days: 3
 
   # The Windows job above cannot host this: GitHub service containers are Linux-only, so the
