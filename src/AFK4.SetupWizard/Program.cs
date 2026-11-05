@@ -88,7 +88,9 @@ internal static class SetupWizardProgram
             machine,
             SetupWizardDefaults.PlatformBaseUrl,
             isPreview).Show();
-        return WebHostWindow.RunMessageLoop();
+        var exitCode = WebHostWindow.RunMessageLoop();
+        SetupWizardStartupLog.Write($"Setup wizard window closed, exit code {exitCode}.");
+        return exitCode;
     }
 
     private static int RemoveKiosk()

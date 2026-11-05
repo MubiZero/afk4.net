@@ -28,13 +28,19 @@ public sealed unsafe class WebHostWindow
     private static readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> Pending = new();
     private static int uiThreadId;
     private static uint nativeUiThreadId;
+    // Работа для потока окон приходит сообщением этому невидимому окну, а не потоку: Miniblink крутит свой цикл
+    // сообщений и сообщения потоку выбрасывает — продолжения await терялись (стенд Windows 11, 05.11.2026).
+    private static IntPtr dispatcher;
     private static double scale = 1;
+    private static bool lastWindowClosed;
 
     private readonly WebHostOptions options;
     private readonly string origin;
     private readonly string contentRoot;
     private readonly IntPtr background;
     private IntPtr view;
+    private bool topmost;
+    private bool closingByProgram;
 
     /// <summary>Сообщение экрана — JSON того, что он передал в <c>postMessage</c>.</summary>
     public event Action<string>? MessageReceived;
@@ -48,6 +54,23 @@ public sealed unsafe class WebHostWindow
     public IntPtr Handle { get; private set; }
 
     public bool IsMaximized => Win32.IsZoomed(Handle) != 0;
+
+    public bool IsMinimized => Win32.IsIconic(Handle) != 0;
+
+    /// <summary>
+    /// Окно впереди — клавиатура и мышь у него, а не у игры. Сравнивается процесс, а не окно: передним Windows считает
+    /// и скрытое окно меню Miniblink (<c>_ContextMenu_</c>) — стенд Windows 11, 05.11.2026.
+    /// </summary>
+    public bool IsInFront
+    {
+        get
+        {
+            var front = Win32.GetForegroundWindow();
+            uint processId = 0;
+            return front != IntPtr.Zero && Win32.GetWindowThreadProcessId(front, (IntPtr)(&processId)) != 0
+                && processId == (uint)Environment.ProcessId;
+        }
+    }
 
     public WebHostWindow(WebHostOptions options)
     {
@@ -65,10 +88,12 @@ public sealed unsafe class WebHostWindow
         var rgb = options.BackgroundRgb;
         background = Win32.CreateSolidBrush(((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF));
 
-        var style = Win32.WsClipChildren | (options.Frameless
-            ? Win32.WsPopup | Win32.WsThickFrame | Win32.WsSysMenu | Win32.WsMinimizeBox | Win32.WsMaximizeBox
+        // Киоск — голое окно: без рамки, меню окна и кнопок, — его не двигают, не тянут и не закрывают.
+        var style = Win32.WsClipChildren | (options.Kiosk ? Win32.WsPopup
+            : options.Frameless ? Win32.WsPopup | Win32.WsThickFrame | Win32.WsSysMenu | Win32.WsMinimizeBox | Win32.WsMaximizeBox
             : Win32.WsOverlappedWindow);
-        Handle = Win32.CreateWindowEx(0, WindowClass, options.Title, style, Win32.CwUseDefault, Win32.CwUseDefault,
+        topmost = options.Kiosk;
+        Handle = Win32.CreateWindowEx(topmost ? Win32.WsExTopmost : 0, WindowClass, options.Title, style, Win32.CwUseDefault, Win32.CwUseDefault,
             Scaled(options.Width), Scaled(options.Height), IntPtr.Zero, IntPtr.Zero, Win32.GetModuleHandle(IntPtr.Zero), IntPtr.Zero);
         if (Handle == IntPtr.Zero)
         {
@@ -76,7 +101,14 @@ public sealed unsafe class WebHostWindow
         }
 
         ByWindow[Handle] = this;
-        CenterInWorkArea();
+        if (options.Kiosk)
+        {
+            CoverMonitor();
+        }
+        else
+        {
+            CenterInWorkArea();
+        }
 
         view = Miniblink.mbCreateWebWindow(Miniblink.WindowTypeControl, Handle, 0, 0, 1, 1);
         ByView[view] = this;
@@ -131,16 +163,89 @@ public sealed unsafe class WebHostWindow
             }
         }
 
+        dispatcher = Win32.CreateWindowEx(0, WindowClass, string.Empty, 0, 0, 0, 0, 0, Win32.HwndMessage, IntPtr.Zero,
+            Win32.GetModuleHandle(IntPtr.Zero), IntPtr.Zero);
+        if (dispatcher == IntPtr.Zero)
+        {
+            throw new InvalidOperationException($"CreateWindowEx (dispatcher) failed: {Marshal.GetLastPInvokeError()}");
+        }
+
         SynchronizationContext.SetSynchronizationContext(new UiContext());
     }
 
-    /// <summary>Открыть экран: свою папку или сервер разработки.</summary>
-    public void Show()
+    /// <summary>
+    /// Открыть экран: свою папку или сервер разработки. <paramref name="activate"/> = false — окно появляется, но
+    /// фокус остаётся у того, кто впереди: киоск перезапустился посреди игры и не должен выдёргивать игрока из неё.
+    /// </summary>
+    public void Show(bool activate = true)
     {
         Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString());
-        Win32.ShowWindow(Handle, Win32.SwShow);
-        FocusView();
+        Win32.ShowWindow(Handle, activate ? Win32.SwShow : Win32.SwShowNoActivate);
+        if (activate)
+        {
+            // Запущенного службой или планировщиком Windows вперёд не пускает: запертый ПК за блокнотом не спрятать.
+            if (!IsInFront)
+            {
+                BringToFront();
+            }
+
+            FocusView();
+        }
     }
+
+    /// <summary>«Поверх всех» включить или снять, не забирая фокус: игра впереди остаётся впереди.</summary>
+    public void SetTopmost(bool onTop) => OnUiThread(() =>
+    {
+        topmost = onTop;
+        Win32.SetWindowPos(Handle, onTop ? Win32.HwndTopmost : Win32.HwndNoTopmost, 0, 0, 0, 0,
+            Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
+    });
+
+    /// <summary>
+    /// Вывести окно вперёд с фокусом — «Продлить» поверх игры, блокировка. Windows не даёт фоновому процессу отнять
+    /// передний план: поток окна на миг подключается ко вводу того, кто впереди, а не хватило — нажатие Alt, после
+    /// него переключиться можно. «Поверх всех» после этого — как было.
+    /// </summary>
+    public void BringToFront() => OnUiThread(() =>
+    {
+        if (IsMinimized)
+        {
+            Win32.ShowWindow(Handle, Win32.SwRestore);
+        }
+
+        if (options.Kiosk)
+        {
+            CoverMonitor();
+        }
+
+        var keepTopmost = topmost;
+        Win32.SetWindowPos(Handle, Win32.HwndTopmost, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize);
+        var front = Win32.GetForegroundWindow();
+        var frontThread = front == IntPtr.Zero ? 0 : Win32.GetWindowThreadProcessId(front, IntPtr.Zero);
+        var attached = frontThread != 0 && frontThread != nativeUiThreadId && Win32.AttachThreadInput(nativeUiThreadId, frontThread, 1) != 0;
+        try
+        {
+            Win32.BringWindowToTop(Handle);
+            Win32.SetForegroundWindow(Handle);
+        }
+        finally
+        {
+            if (attached)
+            {
+                Win32.AttachThreadInput(nativeUiThreadId, frontThread, 0);
+            }
+        }
+
+        if (!IsInFront)
+        {
+            Win32.keybd_event(Win32.VkMenu, 0, 0, UIntPtr.Zero);
+            Win32.keybd_event(Win32.VkMenu, 0, Win32.KeyEventKeyUp, UIntPtr.Zero);
+            Win32.SetForegroundWindow(Handle);
+        }
+
+        SetTopmost(keepTopmost);
+        FocusView();
+    });
 
     // Клавиатура — окну движка, а не внешнему: иначе поле на экране подсвечено, а набранное пропадает, пока по
     // странице не щёлкнут мышью (стенд Windows 7, 05.11.2026).
@@ -153,21 +258,17 @@ public sealed unsafe class WebHostWindow
     /// <summary>Цикл сообщений Windows до закрытия последнего окна. Возвращает код выхода.</summary>
     public static int RunMessageLoop()
     {
-        Win32.Msg message;
-        int result;
-        while ((result = Win32.GetMessage(&message, IntPtr.Zero, 0, 0)) > 0)
+        var message = default(Win32.Msg);
+        var result = 0;
+        // Не только по WM_QUIT: его, как и прочие сообщения потоку, выбрасывает цикл Miniblink, и после закрытия
+        // последнего окна процесс висел без окон (стенды Windows 11 и 7, 05.11.2026).
+        while (!lastWindowClosed && (result = Win32.GetMessage(&message, IntPtr.Zero, 0, 0)) > 0)
         {
-            if (message.Hwnd == IntPtr.Zero && message.Message == InvokeMessage)
-            {
-                RunPending();
-                continue;
-            }
-
             Win32.TranslateMessage(&message);
             Win32.DispatchMessage(&message);
         }
 
-        return result < 0 ? 1 : (int)message.WParam;
+        return lastWindowClosed ? 0 : result < 0 ? 1 : (int)message.WParam;
     }
 
     /// <summary>Послать экрану сообщение: <paramref name="json"/> придёт в <c>event.data</c> уже разобранным.</summary>
@@ -184,7 +285,11 @@ public sealed unsafe class WebHostWindow
 
     public void ToggleMaximize() => OnUiThread(() => Win32.ShowWindow(Handle, IsMaximized ? Win32.SwRestore : Win32.SwMaximize));
 
-    public void Close() => OnUiThread(() => Win32.SendMessage(Handle, Win32.WmClose, IntPtr.Zero, IntPtr.Zero));
+    public void Close() => OnUiThread(() =>
+    {
+        closingByProgram = true;
+        Win32.SendMessage(Handle, Win32.WmClose, IntPtr.Zero, IntPtr.Zero);
+    });
 
     /// <summary>Перетаскивание окна без рамки за заголовок, который нарисовал экран: зовётся, пока кнопка мыши нажата.</summary>
     public void BeginDrag() => OnUiThread(() =>
@@ -219,6 +324,15 @@ public sealed unsafe class WebHostWindow
         var width = Math.Min(window.Right - window.Left, work.Right - work.Left);
         var height = Math.Min(window.Bottom - window.Top, work.Bottom - work.Top);
         Win32.MoveWindow(Handle, work.Left + (work.Right - work.Left - width) / 2, work.Top + (work.Bottom - work.Top - height) / 2, width, height, 0);
+    }
+
+    // Весь монитор, а не рабочая область: киоск закрывает и панель задач.
+    private void CoverMonitor()
+    {
+        var info = new Win32.MonitorInfo { Size = sizeof(Win32.MonitorInfo) };
+        Win32.GetMonitorInfo(Win32.MonitorFromWindow(Handle, Win32.MonitorDefaultToNearest), &info);
+        Win32.SetWindowPos(Handle, IntPtr.Zero, info.Monitor.Left, info.Monitor.Top, info.Monitor.Right - info.Monitor.Left,
+            info.Monitor.Bottom - info.Monitor.Top, Win32.SwpNoZOrder | Win32.SwpNoActivate);
     }
 
     private Win32.Rect WorkArea()
@@ -258,6 +372,15 @@ public sealed unsafe class WebHostWindow
             case Win32.WmSetFocus:
                 FocusView();
                 return IntPtr.Zero;
+            case Win32.WmDisplayChange when options.Kiosk:
+                // Игра сменила разрешение и вышла: без этого киоск остаётся в её размере, а угол рабочего стола открыт.
+                CoverMonitor();
+                return IntPtr.Zero;
+            case Win32.WmSysCommand when options.Kiosk && ((int)wParam & 0xFFF0) == Win32.ScClose:
+                // Alt+F4 приходит сюда: киоск закрывает только программа.
+                return IntPtr.Zero;
+            case Win32.WmClose when options.Kiosk && !closingByProgram:
+                return IntPtr.Zero;
             case Win32.WmGetMinMaxInfo:
                 var limits = (Win32.MinMaxInfo*)lParam;
                 // Минимум не больше рабочей области: на экране 800×600 и 1024×768 окно 960×640 иначе уезжает за край
@@ -283,11 +406,17 @@ public sealed unsafe class WebHostWindow
             case Win32.WmNcHitTest when options.Frameless:
                 return HitTest(lParam);
             case Win32.WmDestroy:
+                Report("window destroyed");
                 ByWindow.Remove(Handle);
                 ByView.TryRemove(view, out _);
                 if (ByWindow.Count == 0)
                 {
+                    lastWindowClosed = true;
                     Win32.PostQuitMessage(0);
+                    // Закрытие мог разобрать вложенный цикл Miniblink, пока главный ждёт в GetMessage: WM_QUIT он
+                    // выбросит, и будить главный цикл станет некому — процесс висел без окон (Windows 7 x86, AOT).
+                    // Таймер приходит, пока очередь пуста, и цикл увидит, что окон больше нет.
+                    Win32.SetTimer(dispatcher, 1, 50, IntPtr.Zero);
                 }
 
                 return IntPtr.Zero;
@@ -422,6 +551,12 @@ public sealed unsafe class WebHostWindow
     {
         try
         {
+            if (hwnd == dispatcher && message == InvokeMessage)
+            {
+                RunPending();
+                return IntPtr.Zero;
+            }
+
             return ByWindow.TryGetValue(hwnd, out var window)
                 ? window.HandleMessage(message, wParam, lParam)
                 : Win32.DefWindowProc(hwnd, message, wParam, lParam);
@@ -541,7 +676,7 @@ public sealed unsafe class WebHostWindow
     private static void Post(SendOrPostCallback callback, object? state)
     {
         Pending.Enqueue((callback, state));
-        Win32.PostThreadMessage(nativeUiThreadId, InvokeMessage, IntPtr.Zero, IntPtr.Zero);
+        Win32.PostMessage(dispatcher, InvokeMessage, IntPtr.Zero, IntPtr.Zero);
     }
 
     private static void RunPending()

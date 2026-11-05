@@ -11,10 +11,13 @@ internal static unsafe partial class Win32
     public const int WmClose = 0x0010;
     public const int WmEraseBackground = 0x0014;
     public const int WmGetMinMaxInfo = 0x0024;
+    public const int WmDisplayChange = 0x007E;
     public const int WmNcCalcSize = 0x0083;
     public const int WmNcHitTest = 0x0084;
     public const int WmNcLButtonDown = 0x00A1;
+    public const int WmSysCommand = 0x0112;
     public const int WmApp = 0x8000;
+    public const int ScClose = 0xF060;
 
     public const int SizeMaximized = 2;
     public const int HtClient = 1;
@@ -28,14 +31,22 @@ internal static unsafe partial class Win32
     public const uint WsMinimizeBox = 0x00020000;
     public const uint WsMaximizeBox = 0x00010000;
     public const uint WsClipChildren = 0x02000000;
+    public const uint WsExTopmost = 0x00000008;
 
     public const int SwShow = 5;
+    public const int SwShowNoActivate = 4;
     public const int SwMinimize = 6;
     public const int SwMaximize = 3;
     public const int SwRestore = 9;
     public const int CwUseDefault = unchecked((int)0x80000000);
     public const int LogPixelsX = 88;
     public const uint MonitorDefaultToNearest = 2;
+    public static readonly IntPtr HwndTopmost = -1;
+    public static readonly IntPtr HwndNoTopmost = -2;
+    public static readonly IntPtr HwndMessage = -3;
+    public const uint SwpNoSize = 0x0001, SwpNoMove = 0x0002, SwpNoZOrder = 0x0004, SwpNoActivate = 0x0010;
+    public const byte VkMenu = 0x12;
+    public const uint KeyEventKeyUp = 0x0002;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct Point { public int X, Y; }
@@ -74,12 +85,20 @@ internal static unsafe partial class Win32
     [LibraryImport("user32.dll", EntryPoint = "PostMessageW")] public static partial int PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")] public static partial IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
     [LibraryImport("user32.dll")] public static partial void PostQuitMessage(int exitCode);
-    [LibraryImport("user32.dll", EntryPoint = "PostThreadMessageW")] public static partial int PostThreadMessage(uint threadId, uint message, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll")] public static partial UIntPtr SetTimer(IntPtr hwnd, UIntPtr id, uint milliseconds, IntPtr callback);
     [LibraryImport("user32.dll")] public static partial int MoveWindow(IntPtr hwnd, int x, int y, int width, int height, int repaint);
     [LibraryImport("kernel32.dll")] public static partial uint GetCurrentThreadId();
     [LibraryImport("user32.dll")] public static partial int ShowWindow(IntPtr hwnd, int command);
     [LibraryImport("user32.dll")] public static partial int DestroyWindow(IntPtr hwnd);
     [LibraryImport("user32.dll")] public static partial int IsZoomed(IntPtr hwnd);
+    [LibraryImport("user32.dll")] public static partial int IsIconic(IntPtr hwnd);
+    [LibraryImport("user32.dll")] public static partial int SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+    [LibraryImport("user32.dll")] public static partial IntPtr GetForegroundWindow();
+    [LibraryImport("user32.dll")] public static partial int SetForegroundWindow(IntPtr hwnd);
+    [LibraryImport("user32.dll")] public static partial int BringWindowToTop(IntPtr hwnd);
+    [LibraryImport("user32.dll")] public static partial uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr processId);
+    [LibraryImport("user32.dll")] public static partial int AttachThreadInput(uint attach, uint attachTo, int doAttach);
+    [LibraryImport("user32.dll")] public static partial void keybd_event(byte key, byte scan, uint flags, UIntPtr extraInfo);
     [LibraryImport("user32.dll")] public static partial int GetClientRect(IntPtr hwnd, Rect* rect);
     [LibraryImport("user32.dll")] public static partial int GetWindowRect(IntPtr hwnd, Rect* rect);
     [LibraryImport("user32.dll")] public static partial int ReleaseCapture();
