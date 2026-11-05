@@ -21,12 +21,12 @@ public sealed class FileKioskStateStore(string? filePath = null, bool restrictAc
             return null;
         }
 
-        return JsonSerializer.Deserialize<KioskState>(File.ReadAllText(path));
+        return JsonSerializer.Deserialize(File.ReadAllText(path), SetupWizardFileJson.Default.KioskState);
     }
 
     public void Save(KioskState state)
     {
-        KioskFile.Write(path, JsonSerializer.Serialize(state, KioskFile.Json), restrictAccess);
+        KioskFile.Write(path, JsonSerializer.Serialize(state, SetupWizardFileJson.Default.KioskState), restrictAccess);
     }
 
     public void Clear()
@@ -55,7 +55,7 @@ public sealed class FileKioskAgentConfig(string? filePath = null, bool restrictA
         {
             ["Agent"] = new Dictionary<string, string> { ["ShellPipeClientSid"] = playerSid }
         };
-        KioskFile.Write(path, JsonSerializer.Serialize(document, KioskFile.Json), restrictAccess);
+        KioskFile.Write(path, JsonSerializer.Serialize(document, SetupWizardFileJson.Default.DictionaryStringObject), restrictAccess);
     }
 
     public void Clear()
@@ -69,8 +69,6 @@ public sealed class FileKioskAgentConfig(string? filePath = null, bool restrictA
 
 internal static class KioskFile
 {
-    public static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
-
     public static void Write(string path, string json, bool restrictAccess)
     {
         var directory = Path.GetDirectoryName(path);

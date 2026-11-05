@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Окно программ на ПК клуба: Win32 + Miniblink (Chromium 132 одной DLL) вместо WPF и WebView2 —
+    docs/roadmap/windows7.md. Одна сборка на Windows 7–11, x86 и x64, без .NET на машине (Native AOT).
+    DLL Miniblink (mb132_x32.dll / mb132_x64.dll) кладётся рядом с exe программы.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+</Project>

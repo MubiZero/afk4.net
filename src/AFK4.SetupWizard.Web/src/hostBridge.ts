@@ -12,6 +12,7 @@ export {
   hostBridgeUnavailableMessage,
   HostBridgeRequestError,
   HostBridgeUnavailableError,
+  hostWebView,
   isHostBridgeAvailable,
   isHostBridgeUnavailableError,
   type HostBridgeError,
@@ -19,15 +20,14 @@ export {
   type HostBridgeResponse
 } from '@afk4/host-bridge';
 
-/** Команды, которые понимает WebViewSetupWindow.TryHandleWindowMessage. */
+/** Команды, которые понимает SetupWizardWindow.TryHandleWindowMessage. */
 export type HostWindowCommand = 'drag' | 'minimize' | 'toggleMaximize' | 'close';
 
 export function postHostWindowCommand(command: HostWindowCommand): void {
   postHostWindowMessage({ type: `window:${command}` });
 }
 
-// Синхронизирует иконку окна/таскбара с темой мастера — нативный хост меняет Window.Icon
-// (см. WebViewSetupWindow.TryHandleWindowMessage "window:theme").
+// Тема мастера для нативного хоста (SetupWizardWindow.TryHandleWindowMessage "window:theme").
 export function postHostWindowTheme(theme: 'light' | 'dark'): void {
   postHostWindowMessage({ type: 'window:theme', theme });
 }

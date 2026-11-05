@@ -1,6 +1,7 @@
 using System.Net.Http;
 using AFK4.SetupWizard.Core;
 using AFK4.SetupWizard.Core.Kiosk;
+using AFK4.Shared.Contracts.Net;
 
 namespace AFK4.SetupWizard;
 
@@ -13,7 +14,7 @@ internal sealed class WizardMachine
     public WizardMachine()
     {
         Info = new SetupWizardMachineInfo(Environment.MachineName);
-        ApiClient = new SetupWizardApiClient(new HttpClient { BaseAddress = SetupWizardDefaults.PlatformBaseUrl });
+        ApiClient = new SetupWizardApiClient(new HttpClient(ClubTls.Apply(new SocketsHttpHandler())) { BaseAddress = SetupWizardDefaults.PlatformBaseUrl });
         BootstrapWriter = new CompositeBootstrapWriter(
             new FileBootstrapWriter(Info.MachineName),
             new EnvironmentBootstrapWriter(Info.MachineName));

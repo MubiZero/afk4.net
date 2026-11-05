@@ -5,6 +5,9 @@ using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Games;
 using AFK4.Agent.Service.Logging;
 using AFK4.Agent.Service.Network;
+#if !NETFRAMEWORK
+using AFK4.Shared.Contracts.Net;
+#endif
 using AFK4.Agent.Service.Protection;
 using AFK4.Agent.Service.Shell;
 using AFK4.Agent.Service.Showcase;

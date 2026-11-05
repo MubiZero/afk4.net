@@ -1,7 +1,7 @@
 #if !NETFRAMEWORK
 using System.Security.Authentication;
 
-namespace AFK4.Agent.Service.Network;
+namespace AFK4.Shared.Contracts.Net;
 
 /// <summary>
 /// Windows 7 сама предлагает по HTTPS только TLS 1.0 (у клиента TLS 1.2 выключен по умолчанию), а Cloudflare перед

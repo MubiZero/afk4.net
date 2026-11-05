@@ -1,6 +1,7 @@
 ﻿using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Branding;
@@ -21,11 +22,6 @@ public sealed class SetupWizardWebHostBridge(
     KioskProvisioner? kiosk = null,
     ISetupWizardRebootAction? reboot = null)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     // Потолок на один заход: зал в сотню мест — это уже не установка, а импорт, и такие вещи
     // делаются в панели, а не пачкой запросов из мастера.
     private const int MaxSeatsPerRun = 60;
@@ -44,7 +40,7 @@ public sealed class SetupWizardWebHostBridge(
         SetupWizardWebBridgeRequest? request;
         try
         {
-            request = JsonSerializer.Deserialize<SetupWizardWebBridgeRequest>(webMessageJson, JsonOptions);
+            request = JsonSerializer.Deserialize(webMessageJson, SetupWizardBridgeJson.Default.SetupWizardWebBridgeRequest);
         }
         catch (JsonException)
         {
@@ -151,12 +147,12 @@ public sealed class SetupWizardWebHostBridge(
     private object Reboot()
     {
         (reboot ?? throw new InvalidOperationException("This wizard cannot restart the PC.")).Reboot();
-        return new { };
+        return new WizardEmpty();
     }
 
     private async Task<WizardPhoneSignInResult> PhoneSignInAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardPhoneSignInPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardPhoneSignInPayload);
         var phone = (request.Phone ?? string.Empty).Trim();
         var password = request.Password ?? string.Empty;
         if (phone.Length == 0 || password.Length == 0)
@@ -172,7 +168,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<object> LoginSignInAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardLoginPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardLoginPayload);
         var login = (request.Login ?? string.Empty).Trim();
         var password = request.Password ?? string.Empty;
         if (login.Length == 0 || password.Length == 0)
@@ -195,7 +191,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<object> ClubSignInAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardClubSignInPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardClubSignInPayload);
         var login = (request.Login ?? string.Empty).Trim();
         var password = request.Password ?? string.Empty;
         var organizationId = ParseGuid(request.OrganizationId, nameof(request.OrganizationId));
@@ -212,7 +208,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<object> ForgotPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardForgotByEmailPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardForgotByEmailPayload);
         var userNameOrEmail = (request.UserNameOrEmail ?? string.Empty).Trim();
         if (userNameOrEmail.Length == 0)
         {
@@ -220,12 +216,12 @@ public sealed class SetupWizardWebHostBridge(
         }
 
         await apiClient.ForgotPasswordByEmailAsync(userNameOrEmail, cancellationToken);
-        return new { ok = true };
+        return new WizardOk(true);
     }
 
     private async Task<object> ResetPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardResetByEmailPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardResetByEmailPayload);
         var userNameOrEmail = (request.UserNameOrEmail ?? string.Empty).Trim();
         var code = (request.Code ?? string.Empty).Trim();
         var newPassword = request.NewPassword ?? string.Empty;
@@ -235,12 +231,12 @@ public sealed class SetupWizardWebHostBridge(
         }
 
         await apiClient.ResetPasswordByEmailAsync(userNameOrEmail, code, newPassword, cancellationToken);
-        return new { ok = true };
+        return new WizardOk(true);
     }
 
     private async Task<object> ForgotPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardForgotByPhonePayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardForgotByPhonePayload);
         var phone = (request.PhoneNumber ?? string.Empty).Trim();
         if (phone.Length == 0)
         {
@@ -248,12 +244,12 @@ public sealed class SetupWizardWebHostBridge(
         }
 
         await apiClient.ForgotPasswordByPhoneAsync(phone, cancellationToken);
-        return new { ok = true };
+        return new WizardOk(true);
     }
 
     private async Task<object> ResetPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardResetByPhonePayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardResetByPhonePayload);
         var phone = (request.PhoneNumber ?? string.Empty).Trim();
         var code = (request.Code ?? string.Empty).Trim();
         var newPassword = request.NewPassword ?? string.Empty;
@@ -263,7 +259,7 @@ public sealed class SetupWizardWebHostBridge(
         }
 
         await apiClient.ResetPasswordByPhoneAsync(phone, code, newPassword, cancellationToken);
-        return new { ok = true };
+        return new WizardOk(true);
     }
 
     // Картинки пресетов лежат на платформе: сюда едет их адрес, а не копия графики, чтобы у
@@ -283,7 +279,7 @@ public sealed class SetupWizardWebHostBridge(
             throw new InvalidOperationException("File picker is unavailable in this host.");
         }
 
-        var request = DeserializePayload<WizardUploadLogoPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardUploadLogoPayload);
         var filePath = logoFilePicker.PickImage();
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -303,7 +299,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<object> SaveBrandingAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardBrandingPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardBrandingPayload);
         await apiClient.UpdateBrandingAsync(
             RequireOrganizationId(),
             RequireAccessToken(),
@@ -316,7 +312,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<object> InviteStaffAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardStaffInvitePayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardStaffInvitePayload);
         var displayName = (request.DisplayName ?? string.Empty).Trim();
         var phoneNumber = (request.PhoneNumber ?? string.Empty).Trim();
         var roleName = (request.RoleName ?? string.Empty).Trim();
@@ -341,7 +337,7 @@ public sealed class SetupWizardWebHostBridge(
     // поэтому повтор шага не плодит дубликаты, а докладывает недостающие.
     private async Task<object> CreateSeatsAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardCreateSeatsPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardCreateSeatsPayload);
         var prefix = (request.NamePrefix ?? string.Empty).Trim();
         if (prefix.Length == 0)
         {
@@ -371,7 +367,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<object> CreateTariffAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardCreateTariffPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardCreateTariffPayload);
         var name = (request.Name ?? string.Empty).Trim();
         if (name.Length == 0 || request.PricePerHourMinorUnits is not > 0)
         {
@@ -410,7 +406,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<WizardSeat> CreateSeatAuthenticatedAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardCreateSeatAuthPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardCreateSeatAuthPayload);
         var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
         var zoneId = ParseGuid(request.ZoneId, nameof(request.ZoneId));
         var name = (request.Name ?? string.Empty).Trim();
@@ -435,7 +431,7 @@ public sealed class SetupWizardWebHostBridge(
 
     private async Task<WizardEnrollResult> EnrollAuthenticatedAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<WizardEnrollAuthPayload>(payload);
+        var request = DeserializePayload(payload, SetupWizardBridgeJson.Default.WizardEnrollAuthPayload);
         var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
         var role = (request.Role ?? string.Empty).Trim();
         if (role is not (DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation))
@@ -537,14 +533,14 @@ public sealed class SetupWizardWebHostBridge(
         return parsed;
     }
 
-    private static T DeserializePayload<T>(JsonElement payload)
+    private static T DeserializePayload<T>(JsonElement payload, JsonTypeInfo<T> typeInfo)
     {
         if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
             throw new InvalidOperationException("Host bridge payload is required.");
         }
 
-        return payload.Deserialize<T>(JsonOptions)
+        return payload.Deserialize(typeInfo)
             ?? throw new InvalidOperationException("Host bridge payload is invalid.");
     }
 
@@ -582,15 +578,15 @@ public sealed class SetupWizardWebHostBridge(
     {
         return JsonSerializer.Serialize(
             new SetupWizardWebBridgeResponse("host:response", requestId, ok, payload, error),
-            JsonOptions);
+            SetupWizardBridgeJson.Default.SetupWizardWebBridgeResponse);
     }
 
-    private sealed record SetupWizardWebBridgeRequest(
+    internal sealed record SetupWizardWebBridgeRequest(
         string? Type,
         string? RequestId,
         JsonElement Payload);
 
-    private sealed record SetupWizardWebBridgeResponse(
+    internal sealed record SetupWizardWebBridgeResponse(
         string Type,
         string RequestId,
         bool Ok,
@@ -598,73 +594,73 @@ public sealed class SetupWizardWebHostBridge(
         object? Payload,
         SetupWizardWebBridgeError? Error);
 
-    private sealed record SetupWizardWebBridgeError(string Code, string Message, int? RemainingAttempts = null);
+    internal sealed record SetupWizardWebBridgeError(string Code, string Message, int? RemainingAttempts = null);
 
-    private sealed record WizardPhoneSignInPayload(string? Phone, string? Password);
+    internal sealed record WizardPhoneSignInPayload(string? Phone, string? Password);
 
-    private sealed record WizardLoginPayload(string? Login, string? Password);
+    internal sealed record WizardLoginPayload(string? Login, string? Password);
 
-    private sealed record WizardClubSignInPayload(string? OrganizationId, string? Login, string? Password);
+    internal sealed record WizardClubSignInPayload(string? OrganizationId, string? Login, string? Password);
 
-    private sealed record WizardForgotByEmailPayload(string? UserNameOrEmail);
+    internal sealed record WizardForgotByEmailPayload(string? UserNameOrEmail);
 
-    private sealed record WizardResetByEmailPayload(string? UserNameOrEmail, string? Code, string? NewPassword);
+    internal sealed record WizardResetByEmailPayload(string? UserNameOrEmail, string? Code, string? NewPassword);
 
-    private sealed record WizardForgotByPhonePayload(string? PhoneNumber);
+    internal sealed record WizardForgotByPhonePayload(string? PhoneNumber);
 
-    private sealed record WizardResetByPhonePayload(string? PhoneNumber, string? Code, string? NewPassword);
+    internal sealed record WizardResetByPhonePayload(string? PhoneNumber, string? Code, string? NewPassword);
 
-    private sealed record WizardCreateSeatAuthPayload(
+    internal sealed record WizardCreateSeatAuthPayload(
         string? BranchId,
         string? ZoneId,
         string? ZoneName,
         string? Name);
 
-    private sealed record WizardEnrollAuthPayload(
+    internal sealed record WizardEnrollAuthPayload(
         string? BranchId,
         string? SeatId,
         string? Role,
         string? DisplayName);
 
-    private sealed record WizardPhoneSignInResult(string DisplayName);
+    internal sealed record WizardPhoneSignInResult(string DisplayName);
 
-    private sealed record WizardLoginResult(
+    internal sealed record WizardLoginResult(
         string? DisplayName,
         bool RequiresClubChoice,
         IReadOnlyList<WizardClubChoice> Clubs);
 
-    private sealed record WizardClubChoice(Guid OrganizationId, string Name);
+    internal sealed record WizardClubChoice(Guid OrganizationId, string Name);
 
-    private sealed record WizardBrandingPayload(string? LogoUrl, string? AccentColor);
+    internal sealed record WizardBrandingPayload(string? LogoUrl, string? AccentColor);
 
-    private sealed record WizardBrandingPreset(string Id, string Url);
+    internal sealed record WizardBrandingPreset(string Id, string Url);
 
-    private sealed record WizardBrandingPresets(IReadOnlyList<WizardBrandingPreset> Presets);
+    internal sealed record WizardBrandingPresets(IReadOnlyList<WizardBrandingPreset> Presets);
 
-    private sealed record WizardBrandingSaved(bool Saved);
+    internal sealed record WizardBrandingSaved(bool Saved);
 
-    private sealed record WizardUploadLogoPayload(string? BranchId);
+    internal sealed record WizardUploadLogoPayload(string? BranchId);
 
-    private sealed record WizardLogoUploaded(string? LogoUrl);
+    internal sealed record WizardLogoUploaded(string? LogoUrl);
 
-    private sealed record WizardStaffInvitePayload(string? BranchId, string? DisplayName, string? PhoneNumber, string? RoleName);
+    internal sealed record WizardStaffInvitePayload(string? BranchId, string? DisplayName, string? PhoneNumber, string? RoleName);
 
-    private sealed record WizardStaffInvited(string DisplayName, string RoleName, string Code, DateTimeOffset ExpiresAtUtc);
+    internal sealed record WizardStaffInvited(string DisplayName, string RoleName, string Code, DateTimeOffset ExpiresAtUtc);
 
-    private sealed record WizardCreateSeatsPayload(string? BranchId, string? ZoneId, string? NamePrefix, int? Count);
+    internal sealed record WizardCreateSeatsPayload(string? BranchId, string? ZoneId, string? NamePrefix, int? Count);
 
-    private sealed record WizardSeatsCreated(IReadOnlyList<string> Names);
+    internal sealed record WizardSeatsCreated(IReadOnlyList<string> Names);
 
-    private sealed record WizardCreateTariffPayload(string? BranchId, string? Name, long? PricePerHourMinorUnits);
+    internal sealed record WizardCreateTariffPayload(string? BranchId, string? Name, long? PricePerHourMinorUnits);
 
-    private sealed record WizardTariffCreated(string Name);
+    internal sealed record WizardTariffCreated(string Name);
 
-    private sealed record WizardDiscoverResult(
+    internal sealed record WizardDiscoverResult(
         string OwnerName,
         IReadOnlyList<WizardBranch> Branches,
         bool BrandingConfigured);
 
-    private sealed record WizardBranch(
+    internal sealed record WizardBranch(
         Guid BranchId,
         string BranchSlug,
         string BranchName,
@@ -674,9 +670,9 @@ public sealed class SetupWizardWebHostBridge(
         bool HasTariff,
         bool HasStaffBesidesOwner);
 
-    private sealed record WizardZone(Guid ZoneId, string Name, int SortOrder);
+    internal sealed record WizardZone(Guid ZoneId, string Name, int SortOrder);
 
-    private sealed record WizardSeat(
+    internal sealed record WizardSeat(
         Guid SeatId,
         string PcName,
         Guid ZoneId,
@@ -687,7 +683,7 @@ public sealed class SetupWizardWebHostBridge(
         string? DeviceName,
         bool? IsOnline);
 
-    private sealed record WizardEnrollResult(
+    internal sealed record WizardEnrollResult(
         Guid OrganizationId,
         Guid BranchId,
         Guid DeviceId,
@@ -699,5 +695,9 @@ public sealed class SetupWizardWebHostBridge(
         string UpdateChannel,
         WizardShellOutcome Shell);
 
-    private sealed record WizardKioskStatus(bool Installed);
+    internal sealed record WizardKioskStatus(bool Installed);
+
+    internal sealed record WizardOk(bool Ok);
+
+    internal sealed record WizardEmpty();
 }

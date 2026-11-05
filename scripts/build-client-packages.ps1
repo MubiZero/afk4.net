@@ -336,6 +336,10 @@ $projects = @(
     @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; Framework = 'net10.0-windows' }
 )
 
+# Окна программ показывают экраны в Miniblink: его DLL ложится рядом с exe при публикации
+# (src/AFK4.WebHost/Miniblink.targets), качаем её заранее и сверяем суммы.
+& (Join-Path $PSScriptRoot 'fetch-miniblink.ps1')
+
 foreach ($project in $projects) {
     $output = Join-Path $publishRoot "$($project.Name)-$Version-$Channel"
     $outputFullPath = [System.IO.Path]::GetFullPath($output)

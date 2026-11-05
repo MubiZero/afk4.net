@@ -35,7 +35,7 @@ public sealed class FileBootstrapWriter(
         }
 
         var document = new Dictionary<string, object> { ["Agent"] = agentSection };
-        var json = JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(document, SetupWizardFileJson.Default.DictionaryStringObject);
 
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrWhiteSpace(directory))

@@ -164,25 +164,31 @@ jobs:
             Write-Host "::endgroup::"
           }
 
-      # Агент — Native AOT (docs/roadmap/windows7.md). Компилятор AOT есть только на Windows, и его
-      # предупреждения сборка видит лишь при публикации: обе разрядности, предупреждение — провал.
-      - name: Publish agent Native AOT
+      # Программы на Native AOT (docs/roadmap/windows7.md). Компилятор AOT есть только на Windows, и его
+      # предупреждения сборка видит лишь при публикации: обе разрядности, предупреждение — провал. Мастер везёт
+      # рядом DLL Miniblink своей разрядности.
+      - name: Publish Native AOT programs
         shell: pwsh
         run: |
+          ./scripts/fetch-miniblink.ps1
+          $programs = @{ 'agent' = @('src/AFK4.Agent.Service', 'net10.0'); 'setup-wizard' = @('src/AFK4.SetupWizard', 'net10.0-windows') }
           foreach ($runtime in 'win-x64', 'win-x86') {
-            Write-Host "::group::publish agent $runtime"
-            dotnet publish src/AFK4.Agent.Service -f net10.0 -r $runtime -c Release -o "artifacts/aot/$runtime" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Get-ChildItem "artifacts/aot/$runtime" -Filter *.exe | ForEach-Object { "{0} {1:N1} MB" -f $_.Name, ($_.Length / 1MB) }
-            Write-Host "::endgroup::"
+            foreach ($program in $programs.GetEnumerator()) {
+              Write-Host "::group::publish $($program.Key) $runtime"
+              dotnet publish $program.Value[0] -f $program.Value[1] -r $runtime -c Release -o "artifacts/aot/$runtime/$($program.Key)" -p:DebugType=none -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              Get-ChildItem "artifacts/aot/$runtime/$($program.Key)" -File | ForEach-Object { "{0} {1:N1} MB" -f $_.Name, ($_.Length / 1MB) }
+              Write-Host "::endgroup::"
+            }
           }
 
-      # Агент для приёмки на стенде — отдельным маленьким архивом, а не в общем архиве пакетов на сотни МБ.
-      - name: Upload agent Native AOT
+      # Программы для приёмки на стенде — отдельным маленьким архивом, а не в общем архиве пакетов на сотни МБ.
+      # Только exe: DLL Miniblink та же, что качает scripts/fetch-miniblink.ps1 (сверена по SHA-256), её не возим.
+      - name: Upload Native AOT programs
         uses: actions/upload-artifact@v7
         with:
-          name: aot-agent
-          path: artifacts/aot/*/AFK4.Agent.Service.exe
+          name: aot-programs
+          path: artifacts/aot/*/*/*.exe
           retention-days: 3
 
   # The Windows job above cannot host this: GitHub service containers are Linux-only, so the

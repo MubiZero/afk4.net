@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Branding;
@@ -42,7 +43,6 @@ public static class SetupWizardDefaults
 
 public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardApiClient, IInstallCodeEnrollmentClient
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient httpClient = httpClient;
 
     public async Task<StaffSignInResponse> SignInByPhoneAsync(
@@ -53,11 +53,11 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         using var response = await httpClient.PostAsJsonAsync(
             StaffAuthRoutes.SignInByPhone,
             new StaffSignInByPhoneRequest(phoneNumber, password),
-            JsonOptions,
+            SetupWizardApiJson.Default.StaffSignInByPhoneRequest,
             cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<StaffSignInResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.StaffSignInResponse, cancellationToken);
     }
 
     public async Task<SetupWizardLoginResult> SignInByLoginAsync(
@@ -68,17 +68,17 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         using var response = await httpClient.PostAsJsonAsync(
             StaffAuthRoutes.SignInByLogin,
             new StaffSignInByLoginRequest(login, password),
-            JsonOptions,
+            SetupWizardApiJson.Default.StaffSignInByLoginRequest,
             cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
-            var choose = await ReadRequiredAsync<StaffSignInChooseClubResponse>(response, cancellationToken);
+            var choose = await ReadRequiredAsync(response, SetupWizardApiJson.Default.StaffSignInChooseClubResponse, cancellationToken);
             return new SetupWizardLoginResult(null, choose.Clubs);
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        var signedIn = await ReadRequiredAsync<StaffSignInResponse>(response, cancellationToken);
+        var signedIn = await ReadRequiredAsync(response, SetupWizardApiJson.Default.StaffSignInResponse, cancellationToken);
         return new SetupWizardLoginResult(signedIn, []);
     }
 
@@ -91,17 +91,18 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         using var response = await httpClient.PostAsJsonAsync(
             StaffAuthRoutes.SignIn,
             new StaffSignInRequest(organizationId, login, password),
-            JsonOptions,
+            SetupWizardApiJson.Default.StaffSignInRequest,
             cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<StaffSignInResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.StaffSignInResponse, cancellationToken);
     }
 
     public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
         => PostResetAsync(
             "api/auth/staff/forgot-password",
             new StaffForgotPasswordRequest(userNameOrEmail),
+            SetupWizardApiJson.Default.StaffForgotPasswordRequest,
             cancellationToken);
 
     public Task ResetPasswordByEmailAsync(
@@ -112,12 +113,14 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         => PostResetAsync(
             "api/auth/staff/reset-password",
             new StaffResetPasswordRequest(userNameOrEmail, code, newPassword),
+            SetupWizardApiJson.Default.StaffResetPasswordRequest,
             cancellationToken);
 
     public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
         => PostResetAsync(
             "api/auth/staff/forgot-password-by-phone",
             new StaffForgotPasswordByPhoneRequest(phoneNumber),
+            SetupWizardApiJson.Default.StaffForgotPasswordByPhoneRequest,
             cancellationToken);
 
     public Task ResetPasswordByPhoneAsync(
@@ -128,6 +131,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         => PostResetAsync(
             "api/auth/staff/reset-password-by-phone",
             new StaffResetPasswordByPhoneRequest(phoneNumber, code, newPassword),
+            SetupWizardApiJson.Default.StaffResetPasswordByPhoneRequest,
             cancellationToken);
 
     public async Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(
@@ -140,7 +144,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<InstallDiscoverResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.InstallDiscoverResponse, cancellationToken);
     }
 
     public async Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
@@ -155,13 +159,13 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         {
             Content = JsonContent.Create(
                 new AuthenticatedInstallCreateSeatRequest(branchId, zoneId, name),
-                options: JsonOptions)
+                SetupWizardApiJson.Default.AuthenticatedInstallCreateSeatRequest)
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<InstallCreateSeatResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.InstallCreateSeatResponse, cancellationToken);
     }
 
     public async Task UpdateBrandingAsync(
@@ -174,7 +178,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         using var request = new HttpRequestMessage(new HttpMethod("PATCH"), BrandingRoutes.Organization(organizationId))
         {
             Content = JsonContent.Create(
-                new UpdateOrganizationBrandingRequest(logoUrl, accentColor), options: JsonOptions),
+                new UpdateOrganizationBrandingRequest(logoUrl, accentColor), SetupWizardApiJson.Default.UpdateOrganizationBrandingRequest),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
@@ -199,13 +203,13 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         {
             Content = JsonContent.Create(
                 new CreateStaffInviteRequest(organizationId, userName, displayName, phoneNumber, null, [roleName]),
-                options: JsonOptions),
+                SetupWizardApiJson.Default.CreateStaffInviteRequest),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<StaffInviteDto>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.StaffInviteDto, cancellationToken);
     }
 
     public async Task<UploadedMediaDto> UploadOrganizationLogoAsync(
@@ -233,7 +237,7 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<UploadedMediaDto>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.UploadedMediaDto, cancellationToken);
     }
 
     public async Task<TariffDto> CreateTariffAsync(
@@ -247,6 +251,8 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         var tariff = await SendAsync<CreateTariffRequest, TariffDto>(
             TariffRoutes.Tariffs(organizationId, branchId),
             new CreateTariffRequest(organizationId, name, Guid.NewGuid().ToString("N")),
+            SetupWizardApiJson.Default.CreateTariffRequest,
+            SetupWizardApiJson.Default.TariffDto,
             accessToken,
             cancellationToken);
 
@@ -265,6 +271,8 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
                 RoundingIncrementMinutes: 1,
                 EffectiveFromUtc: DateTimeOffset.UtcNow,
                 IdempotencyKey: Guid.NewGuid().ToString("N")),
+            SetupWizardApiJson.Default.CreateTariffVersionRequest,
+            SetupWizardApiJson.Default.TariffVersionDto,
             accessToken,
             cancellationToken);
 
@@ -274,18 +282,20 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
     private async Task<TResponse> SendAsync<TRequest, TResponse>(
         string path,
         TRequest body,
+        JsonTypeInfo<TRequest> requestInfo,
+        JsonTypeInfo<TResponse> responseInfo,
         string accessToken,
         CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
-            Content = JsonContent.Create(body, options: JsonOptions),
+            Content = JsonContent.Create(body, requestInfo),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<TResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, responseInfo, cancellationToken);
     }
 
     public async Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
@@ -296,31 +306,32 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
     {
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, InstallRoutes.AuthenticatedEnroll(organizationId))
         {
-            Content = JsonContent.Create(request, options: JsonOptions)
+            Content = JsonContent.Create(request, SetupWizardApiJson.Default.AuthenticatedInstallEnrollRequest)
         };
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<InstallEnrollResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.InstallEnrollResponse, cancellationToken);
     }
 
     public async Task<InstallEnrollResponse> EnrollByCodeAsync(
         InstallCodeEnrollRequest request,
         CancellationToken cancellationToken)
     {
-        using var response = await httpClient.PostAsJsonAsync(InstallRoutes.CodeEnroll, request, JsonOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(InstallRoutes.CodeEnroll, request, SetupWizardApiJson.Default.InstallCodeEnrollRequest, cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<InstallEnrollResponse>(response, cancellationToken);
+        return await ReadRequiredAsync(response, SetupWizardApiJson.Default.InstallEnrollResponse, cancellationToken);
     }
 
     // Reset endpoints return 200 on success (no token to persist). On a non-2xx, the body is
     // { "error": "<code>", "remainingAttempts": <n>? } — preserve both so the inline SMS reset
     // UI can show the specific reason and the attempts left (parity with the operator screen).
-    private async Task PostResetAsync<T>(string path, T body, CancellationToken cancellationToken)
+    private async Task PostResetAsync<T>(
+        string path, T body, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken)
     {
-        using var response = await httpClient.PostAsJsonAsync(path, body, JsonOptions, cancellationToken);
+        using var response = await httpClient.PostAsJsonAsync(path, body, typeInfo, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return;
@@ -404,9 +415,10 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
         !string.IsNullOrWhiteSpace(value)
         && value.All(character => char.IsAsciiLetterLower(character) || character == '_' || char.IsAsciiDigit(character));
 
-    private static async Task<T> ReadRequiredAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static async Task<T> ReadRequiredAsync<T>(
+        HttpResponseMessage response, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken)
     {
-        var value = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+        var value = await response.Content.ReadFromJsonAsync(typeInfo, cancellationToken);
         return value ?? throw new InvalidOperationException($"Response body did not contain {typeof(T).Name}.");
     }
 }

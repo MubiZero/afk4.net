@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    DLL Miniblink рядом с exe программы — только своей разрядности: публикация под win-x86 берёт mb132_x32.dll,
+    под win-x64 — mb132_x64.dll, сборка без RID — обе. Сами DLL качает scripts/fetch-miniblink.ps1 в
+    artifacts/miniblink; нет их — сборка идёт (на macOS их не запустить), а окно при старте скажет, чего не хватает.
+  -->
+  <PropertyGroup>
+    <MiniblinkDir>$(MSBuildThisFileDirectory)..\..\artifacts\miniblink\</MiniblinkDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MiniblinkDir)mb132_x64.dll"
+          Condition="'$(RuntimeIdentifier)' != 'win-x86' and Exists('$(MiniblinkDir)mb132_x64.dll')"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(MiniblinkDir)mb132_x32.dll"
+          Condition="'$(RuntimeIdentifier)' != 'win-x64' and Exists('$(MiniblinkDir)mb132_x32.dll')"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+</Project>
