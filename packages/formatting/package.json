@@ -9,9 +9,20 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./intl-polyfills": {
+      "types": "./src/intlPolyfills.ts",
+      "default": "./src/intlPolyfills.ts"
     }
   },
   "scripts": {
     "test": "bun test"
+  },
+  "dependencies": {
+    "@formatjs/intl-datetimeformat": "^8.0.2",
+    "@formatjs/intl-getcanonicallocales": "^3.3.0",
+    "@formatjs/intl-locale": "^5.4.2",
+    "@formatjs/intl-numberformat": "^10.0.2",
+    "@formatjs/intl-pluralrules": "^7.0.2"
   }
 }

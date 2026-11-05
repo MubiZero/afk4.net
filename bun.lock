@@ -21,6 +21,13 @@
     "packages/formatting": {
       "name": "@afk4/formatting",
       "version": "0.1.0",
+      "dependencies": {
+        "@formatjs/intl-datetimeformat": "^8.0.2",
+        "@formatjs/intl-getcanonicallocales": "^3.3.0",
+        "@formatjs/intl-locale": "^5.4.2",
+        "@formatjs/intl-numberformat": "^10.0.2",
+        "@formatjs/intl-pluralrules": "^7.0.2",
+      },
     },
     "packages/host-bridge": {
       "name": "@afk4/host-bridge",
@@ -255,11 +262,27 @@
 
     "@fontsource/jetbrains-mono": ["@fontsource/jetbrains-mono@5.3.0", "", {}, "sha512-fqDfB5I9f1p1TV486aUgB9t8zP84P0O1FtQR5Ol9vjwPy+S+EIGlVYm1cvj2W5shcZMTg2nZFdVMoH5wFu8a1A=="],
 
+    "@formatjs/bigdecimal": ["@formatjs/bigdecimal@0.2.10", "", {}, "sha512-npIs6UARNOg5amJY5UOVsd6HUQQfzYjet0sa0SWIqzsnVhxLSpaIx2DjoIVrr/vqmjURjvroeW6dItjfy3Uf8A=="],
+
     "@formatjs/fast-memoize": ["@formatjs/fast-memoize@3.1.6", "", {}, "sha512-H5aexk1Le7T9TPmscacZ+1pR6CTa2n1wq+HDVGXhH8TzUlQQpeXzZs91dRtmFHrbeNbjPFPfQujUqm7MHgVoXQ=="],
 
     "@formatjs/icu-messageformat-parser": ["@formatjs/icu-messageformat-parser@3.5.11", "", { "dependencies": { "@formatjs/icu-skeleton-parser": "2.1.10" } }, "sha512-NVsuNsc2dUVG9+4HBJ/srScxtA/18LqGgwtop/tuN/OIBjVl6QA+0KhfZQddDD9sEh2LeVjLFPGVU3ixa3blcA=="],
 
     "@formatjs/icu-skeleton-parser": ["@formatjs/icu-skeleton-parser@2.1.10", "", {}, "sha512-XuSva+8ZGawk8VnD5VD6UeH8KarQ/Z022zgjHDoHmlNiAewstXuuzXc0Hk5pGFSdG+nNw5bfJKXqj1ZXHn9yUA=="],
+
+    "@formatjs/intl-datetimeformat": ["@formatjs/intl-datetimeformat@8.0.2", "", { "dependencies": { "@formatjs/bigdecimal": "0.2.10", "@formatjs/intl-localematcher": "0.10.1" } }, "sha512-isKDo8jeQ8VoYvrweku92ajF/Z9fJ76DDnw2eCmKBTJTwZa5GeGl4u40RJiFYPbR6ROluvN0CsbNtGtnd2NyIQ=="],
+
+    "@formatjs/intl-getcanonicallocales": ["@formatjs/intl-getcanonicallocales@3.3.0", "", {}, "sha512-ndj9jw/LHAftSe34D/A6+lj3Y7GHVfPEZ6FZP2wjd8/beYeh3d1sjlSpZSBlzegSKS3U3mUEIzLCpI0+jKNT6w=="],
+
+    "@formatjs/intl-locale": ["@formatjs/intl-locale@5.4.2", "", { "dependencies": { "@formatjs/intl-getcanonicallocales": "3.3.0", "@formatjs/intl-supportedvaluesof": "3.0.0" } }, "sha512-2upVZtpzktEkLMffAk14T2HB62B7ytqrlppZuVX4StnbOHNc4qx5ovimMMMn8mkqvAwFlPX+UZygetny+quqIQ=="],
+
+    "@formatjs/intl-localematcher": ["@formatjs/intl-localematcher@0.10.1", "", { "dependencies": { "@formatjs/fast-memoize": "3.1.7" } }, "sha512-gBqglQK9rXuHsLmM8wzTMBy4Xo4d0jamirIVKuEL8F1rwbskWdpMA1kZarSkny+uvr5q/K6GSzE0Rcq1wZLl3g=="],
+
+    "@formatjs/intl-numberformat": ["@formatjs/intl-numberformat@10.0.2", "", { "dependencies": { "@formatjs/bigdecimal": "0.2.10", "@formatjs/intl-localematcher": "0.10.1" } }, "sha512-iLS3ly1lGZ/a/IVpcSUgC37RjQUZ2wN6zR9+Zbr2uXsxATfMLD+fBqggiXuFudLmZXpbPueCs4Mz3vDsaOVE9A=="],
+
+    "@formatjs/intl-pluralrules": ["@formatjs/intl-pluralrules@7.0.2", "", { "dependencies": { "@formatjs/bigdecimal": "0.2.10", "@formatjs/intl-localematcher": "0.10.1" } }, "sha512-PJ4+ldlqXlo3csmP02u2HqyXw09TDB/fatYpDCyWryfEQeVWl2EbMzij9SBksPaW2U//+q69lXR3IMnCRQAmrw=="],
+
+    "@formatjs/intl-supportedvaluesof": ["@formatjs/intl-supportedvaluesof@3.0.0", "", { "dependencies": { "@formatjs/fast-memoize": "3.1.7" } }, "sha512-9rG37qcIBFyX+HSyPelJKpAatFaO+ElvnWYO/FFMERVZG9e9Wj51CWAvF7+ozYd7B1uKBL2ub6aLzrkWA0UBxA=="],
 
     "@happy-dom/global-registrator": ["@happy-dom/global-registrator@21.0.4", "", { "dependencies": { "@types/node": ">=20.0.0", "happy-dom": "^21.0.4" } }, "sha512-Bbr0hW9hhDhBf3Jp0EyDlkCbFgbr0z2jd3BMKYOYW+fOkPM4Nx195GMXyCtRCGEgoNn6i09FabXrSkNFm2ONzg=="],
 
@@ -626,6 +649,10 @@
     "yargs": ["yargs@15.4.1", "", { "dependencies": { "cliui": "^6.0.0", "decamelize": "^1.2.0", "find-up": "^4.1.0", "get-caller-file": "^2.0.1", "require-directory": "^2.1.1", "require-main-filename": "^2.0.0", "set-blocking": "^2.0.0", "string-width": "^4.2.0", "which-module": "^2.0.0", "y18n": "^4.0.0", "yargs-parser": "^18.1.2" } }, "sha512-aePbxDmcYW++PaqBsJ+HYUFwCdv4LVvdnhBy78E57PIor8/OVvhMrADFFEDh8DHDFRv/O9i3lPhsENjO7QX0+A=="],
 
     "yargs-parser": ["yargs-parser@18.1.3", "", { "dependencies": { "camelcase": "^5.0.0", "decamelize": "^1.2.0" } }, "sha512-o50j0JeToy/4K6OZcaQmW6lyXXKhq7csREXcDwk2omFPJEwUNOVtJKvmDr9EI1fAJZUyZcRF7kxGBWmRXudrCQ=="],
+
+    "@formatjs/intl-localematcher/@formatjs/fast-memoize": ["@formatjs/fast-memoize@3.1.7", "", {}, "sha512-zXfhLpvA6T7+efdt9JLbBwZ00tT7NsBMDVnDu8rpHeNNv8KfRZAMo2gkG0k9lK/Nzc//3kJ9pImsfuJxk3KhUA=="],
+
+    "@formatjs/intl-supportedvaluesof/@formatjs/fast-memoize": ["@formatjs/fast-memoize@3.1.7", "", {}, "sha512-zXfhLpvA6T7+efdt9JLbBwZ00tT7NsBMDVnDu8rpHeNNv8KfRZAMo2gkG0k9lK/Nzc//3kJ9pImsfuJxk3KhUA=="],
 
     "@reduxjs/toolkit/reselect": ["reselect@5.1.1", "", {}, "sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w=="],
 

@@ -2,6 +2,7 @@ import { StrictMode, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PanelI18nProvider } from './PanelI18nProvider';
 import { App } from './App';
+import { loadIntlPolyfills } from '@afk4/formatting/intl-polyfills';
 import { OperatorThemeProvider } from './operatorTheme';
 import { getOperatorConfig } from './operatorConfig';
 import { redeemSupportTicket, writeSupportSession } from './support/supportSession';
@@ -59,6 +60,7 @@ async function acceptSupportTicketIfPresent(): Promise<boolean> {
 }
 
 async function start(): Promise<void> {
+  await loadIntlPolyfills();
   const ticketAccepted = await acceptSupportTicketIfPresent();
   if (!ticketAccepted) {
     mount(<SupportAccessErrorScreen />);
