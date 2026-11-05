@@ -37,7 +37,9 @@ internal sealed class SetupWizardWindow
             Height = 740,
             MinWidth = 960,
             MinHeight = 640,
-            Frameless = true
+            Frameless = true,
+            RequestAuthorization = url => url.StartsWith("https://httpbin.org/", StringComparison.OrdinalIgnoreCase) ? "Bearer probe-token" : null,
+            OpenExternalLinks = false
         });
         window.MessageReceived += OnMessage;
         // Экран рисует кнопку «развернуть/вернуть» по состоянию, которое сообщает окно, — оно меняется и без кнопки:
