@@ -20,6 +20,15 @@ public sealed class WebHostOptions
     /// <summary>Папка данных движка: cookies и localStorage. Папка программы для записи закрыта.</summary>
     public required string DataFolder { get; init; }
 
+    /// <summary>
+    /// Заголовок <c>Authorization</c> для запроса страницы по его адресу или <c>null</c>: токен остаётся у программы,
+    /// скрипт страницы его не видит. Зовётся из потока Miniblink, не из потока окна.
+    /// </summary>
+    public Func<string, string?>? RequestAuthorization { get; init; }
+
+    /// <summary>Ссылки https:// и tg:// с экрана открываются в браузере ПК. Киоску — нет: там они просто не идут.</summary>
+    public bool OpenExternalLinks { get; init; } = true;
+
     public int Width { get; init; } = 1100;
     public int Height { get; init; } = 740;
     public int MinWidth { get; init; } = 640;
