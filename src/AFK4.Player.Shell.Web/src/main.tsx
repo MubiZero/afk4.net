@@ -2,10 +2,12 @@ import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ShellI18nProvider } from './i18n/ShellI18nProvider';
 import { App } from './App';
+import { loadIntlPolyfills } from '@afk4/formatting/intl-polyfills';
 import { ShellErrorBoundary } from './ShellErrorBoundary';
 import './styles/shell.css';
 
 async function start() {
+  await loadIntlPolyfills();
   let frame: (app: ReactNode) => ReactNode = (app) => app;
 
   // Учебный хост — только в dev-сборке и в публичном демо (`bun run build:demo`,
