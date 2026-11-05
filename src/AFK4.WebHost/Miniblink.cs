@@ -40,6 +40,7 @@ internal static unsafe class Miniblink
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbNetSetData(IntPtr job, byte* data, int length);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbNetSetMIMEType(IntPtr job, byte* type);
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbNetCancelRequest(IntPtr job);
+    [DllImport(Library, CallingConvention = CallingConvention.StdCall)] public static extern void mbNetSetHTTPHeaderField(IntPtr job, [MarshalAs(UnmanagedType.LPWStr)] string key, [MarshalAs(UnmanagedType.LPWStr)] string value, int response);
 
     [DllImport(Library, CallingConvention = CallingConvention.StdCall)]
     public static extern void mbOnJsQuery(IntPtr view, delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, long, int, byte*, void> callback, IntPtr param);

@@ -23,7 +23,8 @@ public sealed unsafe class WebHostWindow
     private const int FramelessBorder = 4;
 
     private static readonly Dictionary<IntPtr, WebHostWindow> ByWindow = [];
-    private static readonly Dictionary<IntPtr, WebHostWindow> ByView = [];
+    // Запросы сети и навигацию Miniblink отдаёт из своего потока, не из потока окна.
+    private static readonly ConcurrentDictionary<IntPtr, WebHostWindow> ByView = new();
     private static readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> Pending = new();
     private static int uiThreadId;
     private static uint nativeUiThreadId;
@@ -268,7 +269,7 @@ public sealed unsafe class WebHostWindow
                 return HitTest(lParam);
             case Win32.WmDestroy:
                 ByWindow.Remove(Handle);
-                ByView.Remove(view);
+                ByView.TryRemove(view, out _);
                 if (ByWindow.Count == 0)
                 {
                     Win32.PostQuitMessage(0);
@@ -340,11 +341,15 @@ public sealed unsafe class WebHostWindow
             }
         }
 
-        WithUtf8(type, text => Miniblink.mbNetSetMIMEType(job, text));
         fixed (byte* data = body)
         {
             Miniblink.mbNetSetData(job, data, body.Length);
         }
+
+        // Тип — после данных и ещё заголовком ответа: до данных Miniblink его теряет, и модульный скрипт Vite
+        // отвергается («MIME type of ""») — стенд 05.11.2026.
+        WithUtf8(type, text => Miniblink.mbNetSetMIMEType(job, text));
+        Miniblink.mbNetSetHTTPHeaderField(job, "Content-Type", type, 1);
 
         return true;
     }
@@ -380,7 +385,7 @@ public sealed unsafe class WebHostWindow
     private static string ContentType(string file) => Path.GetExtension(file).ToLowerInvariant() switch
     {
         ".html" or ".htm" => "text/html",
-        ".js" or ".mjs" => "application/javascript",
+        ".js" or ".mjs" => "text/javascript",
         ".css" => "text/css",
         ".json" or ".map" => "application/json",
         ".svg" => "image/svg+xml",
@@ -481,7 +486,9 @@ public sealed unsafe class WebHostWindow
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnConsole(IntPtr view, IntPtr param, int level, byte* message, byte* source, uint line, byte* stack)
     {
-        if (ByView.TryGetValue(view, out var window))
+        // Только предупреждения и ошибки страницы (mbLevelWarning, mbLevelError, mbLevelRevokedError): на уровне
+        // «log» Miniblink сам пишет каждый вызов моста.
+        if (level is 2 or 3 or 6 && ByView.TryGetValue(view, out var window))
         {
             window.Report($"console {level}: {Marshal.PtrToStringUTF8((IntPtr)message)} @ {Marshal.PtrToStringUTF8((IntPtr)source)}:{line}");
         }
