@@ -461,7 +461,23 @@ public sealed unsafe class WebHostWindow
     {
         try
         {
-            return ByView.TryGetValue(view, out var window) && window.TryServe(Marshal.PtrToStringUTF8((IntPtr)url)!, job) ? 1 : 0;
+            if (!ByView.TryGetValue(view, out var window))
+            {
+                return 0;
+            }
+
+            var address = Marshal.PtrToStringUTF8((IntPtr)url)!;
+            if (window.TryServe(address, job))
+            {
+                return 1;
+            }
+
+            if (window.options.RequestAuthorization?.Invoke(address) is { } authorization)
+            {
+                Miniblink.mbNetSetHTTPHeaderField(job, "Authorization", authorization, 0);
+            }
+
+            return 0;
         }
         catch (Exception exception)
         {
@@ -481,7 +497,8 @@ public sealed unsafe class WebHostWindow
         }
 
         window.Report("navigation blocked: " + address);
-        if (address.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || address.StartsWith("tg://", StringComparison.OrdinalIgnoreCase))
+        if (window.options.OpenExternalLinks
+            && (address.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || address.StartsWith("tg://", StringComparison.OrdinalIgnoreCase)))
         {
             Win32.ShellExecute(window.Handle, "open", address, null, null, Win32.SwShow);
         }
