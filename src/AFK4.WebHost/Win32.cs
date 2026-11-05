@@ -85,6 +85,7 @@ internal static unsafe partial class Win32
     [LibraryImport("user32.dll", EntryPoint = "PostMessageW")] public static partial int PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")] public static partial IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
     [LibraryImport("user32.dll")] public static partial void PostQuitMessage(int exitCode);
+    [LibraryImport("user32.dll")] public static partial UIntPtr SetTimer(IntPtr hwnd, UIntPtr id, uint milliseconds, IntPtr callback);
     [LibraryImport("user32.dll")] public static partial int MoveWindow(IntPtr hwnd, int x, int y, int width, int height, int repaint);
     [LibraryImport("kernel32.dll")] public static partial uint GetCurrentThreadId();
     [LibraryImport("user32.dll")] public static partial int ShowWindow(IntPtr hwnd, int command);

@@ -261,7 +261,7 @@ public sealed unsafe class WebHostWindow
         var message = default(Win32.Msg);
         var result = 0;
         // Не только по WM_QUIT: его, как и прочие сообщения потоку, выбрасывает цикл Miniblink, и после закрытия
-        // последнего окна процесс висел без окон (стенд Windows 11, 05.11.2026).
+        // последнего окна процесс висел без окон (стенды Windows 11 и 7, 05.11.2026).
         while (!lastWindowClosed && (result = Win32.GetMessage(&message, IntPtr.Zero, 0, 0)) > 0)
         {
             Win32.TranslateMessage(&message);
@@ -412,6 +412,10 @@ public sealed unsafe class WebHostWindow
                 {
                     lastWindowClosed = true;
                     Win32.PostQuitMessage(0);
+                    // Закрытие мог разобрать вложенный цикл Miniblink, пока главный ждёт в GetMessage: WM_QUIT он
+                    // выбросит, и будить главный цикл станет некому — процесс висел без окон (Windows 7 x86, AOT).
+                    // Таймер приходит, пока очередь пуста, и цикл увидит, что окон больше нет.
+                    Win32.SetTimer(dispatcher, 1, 50, IntPtr.Zero);
                 }
 
                 return IntPtr.Zero;
