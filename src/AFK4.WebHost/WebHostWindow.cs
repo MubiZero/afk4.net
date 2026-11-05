@@ -252,7 +252,14 @@ public sealed unsafe class WebHostWindow
                 return IntPtr.Zero;
             case Win32.WmGetMinMaxInfo:
                 var limits = (Win32.MinMaxInfo*)lParam;
-                limits->MinTrackSize = new Win32.Point { X = Scaled(options.MinWidth), Y = Scaled(options.MinHeight) };
+                // Минимум не больше рабочей области: на экране 800×600 и 1024×768 окно 960×640 иначе уезжает за край
+                // вместе с кнопками «свернуть» и «закрыть» (стенд Windows 7, 05.11.2026).
+                var work = WorkArea();
+                limits->MinTrackSize = new Win32.Point
+                {
+                    X = Math.Min(Scaled(options.MinWidth), work.Right - work.Left),
+                    Y = Math.Min(Scaled(options.MinHeight), work.Bottom - work.Top)
+                };
                 if (options.Frameless)
                 {
                     // Развёрнутое окно без рамки — ровно рабочая область, а не весь экран поверх панели задач.
