@@ -141,7 +141,7 @@ type Home struct {
 	}
 	Open    struct{ Title, Body, Link string }
 	Contact struct {
-		Title, Lead, Name, Phone, Send, Sending, Sent, Error, Consent, Cta, PopupTitle, PopupLead, Close string
+		Title, Lead, Name, Phone, Send, Sending, Sent, Error, Cta, PopupTitle, PopupLead, Close string
 		Channels, Telegram, Call, Email, Wait                                                            string
 	}
 }
