@@ -11,13 +11,8 @@ export interface Feature {
 export interface Content {
   htmlLang: string;
   langName: string;
-  nav: { home: string; download: string; demo: string; signing: string; privacy: string };
+  nav: { home: string; download: string; demo: string; contact: string; features: string; signing: string; privacy: string };
   meta: { title: string; description: string };
-  hero: { kicker: string; title: string; lead: string; download: string; demo: string; note: string; imageAlt: string };
-  features: { title: string; items: Feature[] };
-  player: { title: string; body: string; imageAlt: string };
-  start: { title: string; steps: Feature[]; cta: string };
-  open: { title: string; body: string; link: string };
   footer: { tagline: string; license: string; contact: string };
   download: {
     title: string;
@@ -61,51 +56,12 @@ export const content: Record<Lang, Content> = {
   ru: {
     htmlLang: 'ru',
     langName: 'Рус',
-    nav: { home: 'Главная', download: 'Скачать', demo: 'Демо', signing: 'Code signing policy', privacy: 'Конфиденциальность' },
+    nav: { home: 'Главная', download: 'Скачать', demo: 'Демо', contact: 'Написать', features: 'Возможности', signing: 'Code signing policy', privacy: 'Конфиденциальность' },
     meta: {
-      title: 'AFK4.NET: программа для компьютерного клуба',
-      description: 'Управление ПК, сессиями, кассой и баром компьютерного клуба. Работает без интернета и после отключения света. Таджикский, русский, английский.'
+      title: 'Программа для игрового клуба: AFK4.NET',
+      description: 'ПК, гости, касса и бар игрового клуба в одной программе. Карта зала, смены, Telegram-отчёты, работа без интернета. Таджикский, русский, английский.'
     },
-    hero: {
-      kicker: 'Для компьютерных клубов Таджикистана',
-      title: 'Клуб работает, даже когда пропал свет или интернет',
-      lead: 'AFK4.NET ведёт ПК, сессии гостей, кассу и бар. Без интернета касса сажает гостей за наличные, а после отключения света гости получают своё время назад.',
-      download: 'Скачать установщик',
-      demo: 'Открыть демо Панели',
-      note: 'Демо работает в браузере на выдуманном клубе, без регистрации.',
-      imageAlt: 'Панель AFK4.NET: карта зала с ПК, оставшимся временем гостей и карточкой выбранного ПК'
-    },
-    features: {
-      title: 'Что AFK4.NET делает за администратора',
-      items: [
-        { title: 'Свет пропал, время осталось', body: 'ПК замечают, что их обесточили. Когда так выключились несколько ПК разом, гостям возвращается время простоя, а владелец получает сообщение.' },
-        { title: 'Касса без интернета', body: 'Нет связи с сервером: администратор всё равно сажает гостя за наличные, продлевает, продаёт товар и сдаёт смену. Когда связь вернётся, всё уйдёт на сервер без двойных списаний.' },
-        { title: 'Игры качаются один раз', body: 'Кеш игр встроен в программу на ПК администратора: Steam и Epic берут обновление с него по сети клуба, а не из интернета на каждый ПК.' },
-        { title: 'Здоровье ПК', body: 'Перегрев видеокарты, отказывающий диск, кончившееся место видны на карте зала. О критичном владелец узнаёт в Telegram раньше гостя.' },
-        { title: 'Владелец видит всё с телефона', body: 'Итоги смены, расхождения кассы и сводка за день приходят в Telegram.' },
-        { title: 'Три языка', body: 'Таджикский, русский и английский: у администратора в Панели и у гостя на экране ПК.' }
-      ]
-    },
-    player: {
-      title: 'Экран гостя',
-      body: 'Вместо рабочего стола Windows гость видит экран клуба: оставшееся время, игры, новости клуба и кнопку вызова администратора. Диспетчер задач, «Выполнить» и редактор реестра закрыты.',
-      imageAlt: 'Экран свободного ПК с новостью клуба'
-    },
-    start: {
-      title: 'Как начать',
-      steps: [
-        { title: 'Установите', body: 'Один установщик на ПК администратора и на игровые ПК. Мастер спросит, какой это ПК.' },
-        { title: 'Войдите по номеру', body: 'Владелец входит номером телефона и кодом из SMS. Сотрудников добавляет сам.' },
-        { title: 'Работайте', body: 'ПК появляются на карте зала. Тарифы, бар и настройки ПК задаются в Панели.' }
-      ],
-      cta: 'Скачать установщик'
-    },
-    open: {
-      title: 'Открытый исходный код',
-      body: 'Код AFK4.NET открыт по лицензии AGPL-3.0: любой может проверить, что программа делает на ПК клуба.',
-      link: 'Исходный код на GitHub'
-    },
-    footer: { tagline: 'Программа для компьютерных клубов', license: 'Исходный код: AGPL-3.0', contact: 'Связь' },
+    footer: { tagline: 'Программа для игровых клубов', license: 'Исходный код: AGPL-3.0', contact: 'Связь' },
     download: {
       title: 'Скачать AFK4.NET',
       lead: 'Один установщик для всех ПК клуба: администратора и игровых. Мастер установки сам спросит, что это за ПК.',
@@ -162,6 +118,7 @@ export const content: Record<Lang, Content> = {
         { title: 'Зачем', body: 'Только чтобы клуб работал: открывать ПК по оплате, считать деньги, показывать владельцу отчёты и предупреждать о неисправных ПК. Данные не продаются и не передаются для рекламы.' },
         { title: 'Где хранятся', body: 'На серверах AFK4.NET. Резервные копии базы шифруются при хранении в Cloudflare R2 и хранятся 30 дней. SMS отправляет местный оператор, сообщения в Telegram уходят тем, кто сам подключил отчёты.' },
         { title: 'Этот сайт', body: 'Сайт afk4.net не ставит cookie, не подключает счётчики и сторонние шрифты.' },
+        { title: 'Форма связи', body: 'Если вы напишете через форму на главной, имя, название клуба, телефон и сообщение придут владельцу проекта в Telegram, и только ему. Мы используем их, чтобы ответить вам, и не передаём другим. Попросите удалить сообщение письмом на hello@afk4.net.' },
         { title: 'Ваши права', body: 'Гость или сотрудник может попросить клуб или нас показать, исправить или удалить свои данные. Клуб может попросить удалить данные своей организации.' }
       ]
     }
@@ -169,51 +126,12 @@ export const content: Record<Lang, Content> = {
   tg: {
     htmlLang: 'tg',
     langName: 'Тоҷ',
-    nav: { home: 'Асосӣ', download: 'Боргирӣ', demo: 'Демо', signing: 'Code signing policy', privacy: 'Махфият' },
+    nav: { home: 'Асосӣ', download: 'Боргирӣ', demo: 'Демо', contact: 'Навиштан', features: 'Имкониятҳо', signing: 'Code signing policy', privacy: 'Махфият' },
     meta: {
-      title: 'AFK4.NET: барнома барои клуби компютерӣ',
-      description: 'Идоракунии ПК, сессияҳо, касса ва бари клуби компютерӣ. Бе интернет ва пас аз хомӯшии барқ кор мекунад. Тоҷикӣ, русӣ, англисӣ.'
+      title: 'Барнома барои клуби бозӣ: AFK4.NET',
+      description: 'ПК-ҳо, меҳмонон, касса ва бари клуби бозӣ дар як барнома. Харитаи толор, навбатҳо, ҳисоботи Telegram, кор бе интернет. Тоҷикӣ, русӣ, англисӣ.'
     },
-    hero: {
-      kicker: 'Барои клубҳои компютерии Тоҷикистон',
-      title: 'Клуб кор мекунад, ҳатто агар барқ ё интернет набошад',
-      lead: 'AFK4.NET ПК-ҳо, сессияҳои меҳмонон, касса ва барро идора мекунад. Бе интернет касса меҳмонро бо пули нақд мешинонад, пас аз хомӯшии барқ меҳмонон вақти худро бармегардонанд.',
-      download: 'Боргирии насбкунанда',
-      demo: 'Кушодани демои Панел',
-      note: 'Демо дар браузер бо клуби тахаюлӣ кор мекунад, бе бақайдгирӣ.',
-      imageAlt: 'Панели AFK4.NET: харитаи толор бо ПК-ҳо, вақти боқимондаи меҳмонон ва кортаи ПК-и интихобшуда'
-    },
-    features: {
-      title: 'AFK4.NET ба ҷои маъмур чӣ мекунад',
-      items: [
-        { title: 'Барқ рафт, вақт монд', body: 'ПК-ҳо мефаҳманд, ки онҳо бе барқ монданд. Вақте чанд ПК якбора хомӯш шуданд, ба меҳмонон вақти беистифода бармегардад ва соҳиб хабар мегирад.' },
-        { title: 'Касса бе интернет', body: 'Алоқа бо сервер нест: маъмур ба ҳар ҳол меҳмонро бо пули нақд мешинонад, дароз мекунад, мол мефурӯшад ва ивазро месупорад. Вақте алоқа барқарор шуд, ҳама ба сервер бе дубора гирифтан меравад.' },
-        { title: 'Бозиҳо як бор боргирӣ мешаванд', body: 'Кеши бозиҳо дар барномаи ПК-и маъмур сохта шудааст: Steam ва Epic навсозиро аз он тавассути шабакаи клуб мегиранд, на аз интернет барои ҳар ПК.' },
-        { title: 'Саломатии ПК', body: 'Гармшавии видеокарта, диски вайроншаванда ва ҷои тамомшуда дар харитаи толор намоёнанд. Дар бораи ҳолати вазнин соҳиб дар Telegram пеш аз меҳмон огоҳ мешавад.' },
-        { title: 'Соҳиб ҳамаро аз телефон мебинад', body: 'Натиҷаҳои иваз, фарқияти касса ва хулосаи рӯз ба Telegram меоянд.' },
-        { title: 'Се забон', body: 'Тоҷикӣ, русӣ ва англисӣ: дар Панели маъмур ва дар экрани ПК-и меҳмон.' }
-      ]
-    },
-    player: {
-      title: 'Экрани меҳмон',
-      body: 'Ба ҷои мизи кории Windows меҳмон экрани клубро мебинад: вақти боқимонда, бозиҳо, хабарҳои клуб ва тугмаи даъвати маъмур. Менеҷери вазифаҳо, «Иҷро» ва муҳаррири реестр пӯшидаанд.',
-      imageAlt: 'Экрани ПК-и холӣ бо хабари клуб'
-    },
-    start: {
-      title: 'Чӣ тавр оғоз кардан',
-      steps: [
-        { title: 'Насб кунед', body: 'Як насбкунанда барои ПК-и маъмур ва ПК-ҳои бозӣ. Устод мепурсад, ки ин кадом ПК аст.' },
-        { title: 'Бо рақам ворид шавед', body: 'Соҳиб бо рақами телефон ва рамзи SMS ворид мешавад. Кормандонро худаш илова мекунад.' },
-        { title: 'Кор кунед', body: 'ПК-ҳо дар харитаи толор пайдо мешаванд. Тарифҳо, бар ва танзимоти ПК дар Панел муқаррар мешаванд.' }
-      ],
-      cta: 'Боргирии насбкунанда'
-    },
-    open: {
-      title: 'Рамзи манбаи кушода',
-      body: 'Рамзи AFK4.NET бо иҷозатномаи AGPL-3.0 кушода аст: ҳар кас метавонад санҷад, ки барнома дар ПК-и клуб чӣ кор мекунад.',
-      link: 'Рамзи манба дар GitHub'
-    },
-    footer: { tagline: 'Барнома барои клубҳои компютерӣ', license: 'Рамзи манба: AGPL-3.0', contact: 'Тамос' },
+    footer: { tagline: 'Барнома барои клубҳои бозӣ', license: 'Рамзи манба: AGPL-3.0', contact: 'Тамос' },
     download: {
       title: 'Боргирии AFK4.NET',
       lead: 'Як насбкунанда барои ҳамаи ПК-ҳои клуб: маъмур ва бозӣ. Устоди насб худаш мепурсад, ки ин кадом ПК аст.',
@@ -270,6 +188,7 @@ export const content: Record<Lang, Content> = {
         { title: 'Барои чӣ', body: 'Танҳо барои кори клуб: кушодани ПК аз рӯи пардохт, ҳисоб кардани пул, нишон додани ҳисоботҳо ба соҳиб ва огоҳӣ дар бораи ПК-ҳои вайрон. Маълумот фурӯхта намешавад ва барои реклама дода намешавад.' },
         { title: 'Дар куҷо нигоҳ дошта мешавад', body: 'Дар серверҳои AFK4.NET. Нусхаҳои эҳтиётии базаи маълумот ҳангоми нигоҳдорӣ дар Cloudflare R2 рамзгузорӣ мешаванд ва 30 рӯз нигоҳ дошта мешаванд. SMS-ро оператори маҳаллӣ мефиристад, паёмҳо дар Telegram ба онҳое мераванд, ки худашон ҳисоботҳоро пайваст кардаанд.' },
         { title: 'Ин сайт', body: 'Сайти afk4.net cookie намегузорад, ҳисобгарҳо ва ҳарфҳои бегонаро пайваст намекунад.' },
+        { title: 'Шакли тамос', body: 'Агар шумо тавассути шакл дар саҳифаи асосӣ нависед, ном, номи клуб, телефон ва паёми шумо ба соҳиби лоиҳа дар Telegram меояд ва танҳо ба ӯ. Мо онҳоро барои ҷавоб додан истифода мебарем ва ба дигарон намедиҳем. Нест кардани паёмро бо мактуб ба hello@afk4.net дархост кунед.' },
         { title: 'Ҳуқуқҳои шумо', body: 'Меҳмон ё корманд метавонад аз клуб ё аз мо хоҳиш кунад, ки маълумоти ӯро нишон диҳад, ислоҳ кунад ё нест кунад. Клуб метавонад хоҳиш кунад, ки маълумоти ташкилоти ӯ нест карда шавад.' }
       ]
     }
@@ -277,51 +196,12 @@ export const content: Record<Lang, Content> = {
   en: {
     htmlLang: 'en',
     langName: 'Eng',
-    nav: { home: 'Home', download: 'Download', demo: 'Demo', signing: 'Code signing policy', privacy: 'Privacy' },
+    nav: { home: 'Home', download: 'Download', demo: 'Demo', contact: 'Contact us', features: 'Features', signing: 'Code signing policy', privacy: 'Privacy' },
     meta: {
-      title: 'AFK4.NET: software for computer clubs',
-      description: 'Run the PCs, guest sessions, cash desk and bar of a computer club. Keeps working offline and after a power cut. Tajik, Russian, English.'
+      title: 'Software for a gaming club: AFK4.NET',
+      description: 'PCs, guests, till and bar of a gaming club in one program. Floor map, shifts, Telegram reports, works without internet. Tajik, Russian, English.'
     },
-    hero: {
-      kicker: 'For computer clubs in Tajikistan',
-      title: 'The club keeps running when the power or internet goes out',
-      lead: 'AFK4.NET runs the PCs, guest sessions, cash desk and bar. Offline, the desk still seats guests for cash; after a power cut, guests get their time back.',
-      download: 'Download the installer',
-      demo: 'Open the Panel demo',
-      note: 'The demo runs in the browser on a made-up club, no sign-up.',
-      imageAlt: 'AFK4.NET Panel: hall map with PCs, guests\u2019 remaining time and the selected PC card'
-    },
-    features: {
-      title: 'What AFK4.NET does for the admin',
-      items: [
-        { title: 'Power cut, time kept', body: 'PCs notice they lost power. When several go off at once, guests get the downtime back and the owner gets a message.' },
-        { title: 'Cash desk without internet', body: 'No connection to the server: the admin still seats guests for cash, extends, sells goods and closes the shift. When the connection returns, everything syncs without double charges.' },
-        { title: 'Games download once', body: 'A game cache is built into the admin PC: Steam and Epic pull updates from it over the club network instead of the internet for every PC.' },
-        { title: 'PC health', body: 'An overheating GPU, a failing disk or a full drive show on the hall map. The owner hears about critical problems in Telegram before a guest does.' },
-        { title: 'The owner sees it all from a phone', body: 'Shift totals, cash discrepancies and a daily summary arrive in Telegram.' },
-        { title: 'Three languages', body: 'Tajik, Russian and English, for the admin in the Panel and the guest on the PC screen.' }
-      ]
-    },
-    player: {
-      title: 'The guest screen',
-      body: 'Instead of the Windows desktop the guest sees the club screen: remaining time, games, club news and a button to call the admin. Task Manager, Run and the registry editor are closed.',
-      imageAlt: 'A free PC screen showing club news'
-    },
-    start: {
-      title: 'Getting started',
-      steps: [
-        { title: 'Install', body: 'One installer for the admin PC and the gaming PCs. The wizard asks what kind of PC it is.' },
-        { title: 'Sign in with a phone number', body: 'The owner signs in with a phone number and an SMS code, then adds the staff.' },
-        { title: 'Run the club', body: 'PCs appear on the hall map. Rates, the bar and PC settings live in the Panel.' }
-      ],
-      cta: 'Download the installer'
-    },
-    open: {
-      title: 'Open source',
-      body: 'AFK4.NET is open source under AGPL-3.0, so anyone can check what it does on club PCs.',
-      link: 'Source code on GitHub'
-    },
-    footer: { tagline: 'Software for computer clubs', license: 'Source code: AGPL-3.0', contact: 'Contact' },
+    footer: { tagline: 'Software for gaming clubs', license: 'Source code: AGPL-3.0', contact: 'Contact' },
     download: {
       title: 'Download AFK4.NET',
       lead: 'One installer for every PC in the club, admin and gaming. The setup wizard asks what kind of PC it is.',
@@ -378,6 +258,7 @@ export const content: Record<Lang, Content> = {
         { title: 'Why', body: 'Only to run the club: open PCs for paid time, keep the books, show the owner reports and warn about failing PCs. Data is not sold and not shared for advertising.' },
         { title: 'Where it is kept', body: 'On AFK4.NET servers. Database backups are encrypted at rest in Cloudflare R2 and kept for 30 days. SMS goes through a local operator; Telegram messages go only to people who connected reports themselves.' },
         { title: 'This website', body: 'afk4.net sets no cookies and loads no analytics or third-party fonts.' },
+        { title: 'Contact form', body: 'If you write through the form on the home page, your name, club name, phone and message go to the project owner in Telegram, and only to them. We use them to reply and do not pass them on. To have a message deleted, email hello@afk4.net.' },
         { title: 'Your rights', body: 'A guest or staff member can ask the club or us to show, correct or delete their data. A club can ask for its organization\u2019s data to be deleted.' }
       ]
     }
