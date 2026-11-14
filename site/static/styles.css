@@ -152,7 +152,7 @@ button.seat-free:hover { border-style: solid; }
 .seat-alert { color: var(--text-secondary); font-size: 0.95rem; font-weight: 600; }
 .seat-panel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.05); }
 .seat-panel[hidden] { display: none; }
-.seat-panel-name { font-weight: 700; margin-right: var(--space-2); }
+.seat-panel-name { font-weight: 700; min-width: 4.6rem; margin-right: var(--space-2); font-variant-numeric: tabular-nums; }
 .act { font: inherit; font-size: 0.85rem; font-weight: 600; min-height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--border-control); background: transparent; color: var(--ink); cursor: pointer; transition: background-color 160ms var(--ease), border-color 160ms var(--ease); }
 .act:hover { background: var(--accent-soft); border-color: var(--accent); }
 .seat-hint { font-size: 0.85rem; color: var(--ink-3); min-height: 1.4em; margin: 0; }
