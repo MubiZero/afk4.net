@@ -38,19 +38,18 @@
     });
   }
 
-  // «Что для вас важнее»: выбранная плитка встаёт на место главной, прежняя главная уходит на её место.
-  var board = document.querySelector('[data-board]');
-  var choices = document.querySelectorAll('[data-choose]');
-  if (board && choices.length) {
-    [].forEach.call(choices, function (choice) {
-      choice.addEventListener('click', function () {
-        var key = choice.getAttribute('data-choose');
-        var on = choice.getAttribute('aria-pressed') !== 'true';
-        [].forEach.call(choices, function (other) { other.setAttribute('aria-pressed', 'false'); });
-        if (on) { choice.setAttribute('aria-pressed', 'true'); board.setAttribute('data-focus', key); }
-        else { board.removeAttribute('data-focus'); }
-      });
+  // Вкладки «что для вас важнее»: показывают одну сцену в окне продукта; без скрипта сцены идут подряд.
+  var tabs = document.querySelectorAll('[data-tab]');
+  var scenes = document.querySelectorAll('[data-scene]');
+  if (tabs.length && scenes.length) {
+    var show = function (key) {
+      [].forEach.call(tabs, function (tab) { tab.setAttribute('aria-selected', tab.getAttribute('data-tab') === key ? 'true' : 'false'); });
+      [].forEach.call(scenes, function (scene) { scene.hidden = scene.getAttribute('data-scene') !== key; });
+    };
+    [].forEach.call(tabs, function (tab) {
+      tab.addEventListener('click', function () { show(tab.getAttribute('data-tab')); });
     });
+    show('map');
   }
 
   // Карта зала: нажмите на ПК, появятся команды; кнопка команды отвечает «команда отправлена» (это пример, не боевая отправка).
