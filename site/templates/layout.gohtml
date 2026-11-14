@@ -29,7 +29,6 @@
         <a href="{{.L.Links.Demo}}" class="nav-extra">{{.C.Nav.Demo}}</a>
         <a class="btn btn-lamp btn-small" href="{{anchor .Lang "contact"}}">{{.C.Home.Hero.Write}}</a>
       </nav>
-      <button class="kbd-btn" type="button" data-palette-open aria-label="{{.C.Home.UI.PaletteOpen}}"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13.2 13.2L17 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="kbd">Ctrl K</span></button>
       <nav class="langs" aria-label="Language">{{range .Switcher}}<a href="{{.Href}}" hreflang="{{.HTMLLang}}" lang="{{.HTMLLang}}"{{if .Current}} aria-current="true"{{end}}>{{.Name}}</a>{{end}}</nav>
     </div>
   </header>
@@ -38,22 +37,39 @@
 {{template "main" .}}
   </main>
   <footer class="foot">
-    <div class="wrap foot-row">
-      <div>
-        <img src="/img/logo.svg" alt="AFK4.NET" width="120" height="27">
-        <p>{{.C.Footer.Tagline}}</p>
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <img src="/img/logo.svg" alt="AFK4.NET" width="130" height="30">
+          <p>{{.C.Footer.Tagline}}</p>
+        </div>
+        <nav class="foot-col" aria-label="{{.C.Footer.Product}}">
+          <p class="foot-title">{{.C.Footer.Product}}</p>
+          <a href="{{anchor .Lang "inside"}}">{{.C.Nav.Features}}</a>
+          <a href="{{href .Lang "download"}}">{{.C.Nav.Download}}</a>
+          <a href="{{.L.Links.Demo}}">{{.C.Nav.Demo}}</a>
+          <a href="{{.L.Links.Repo}}">{{.C.Footer.License}}</a>
+        </nav>
+        <nav class="foot-col" aria-label="{{.C.Footer.Contact}}">
+          <p class="foot-title">{{.C.Footer.Contact}}</p>
+          <a href="{{.L.Contacts.Telegram}}">Telegram {{.L.Contacts.TelegramHandle}}</a>
+          <a href="{{.L.Contacts.Phone}}">{{.L.Contacts.PhoneShown}}</a>
+          <a href="{{.L.Links.Email}}">{{mail .L.Links.Email}}</a>
+        </nav>
+        <nav class="foot-col" aria-label="{{.C.Footer.Docs}}">
+          <p class="foot-title">{{.C.Footer.Docs}}</p>
+          <a href="{{href .Lang "download"}}#changes">{{.C.Footer.Windows}}</a>
+          <a href="{{href .Lang "code-signing"}}">{{.C.Nav.Signing}}</a>
+          <a href="{{href .Lang "privacy"}}">{{.C.Nav.Privacy}}</a>
+        </nav>
+        <nav class="foot-col" aria-label="{{.C.Home.UI.Language}}">
+          <p class="foot-title">{{.C.Home.UI.Language}}</p>{{range .Switcher}}
+          <a href="{{.Href}}" hreflang="{{.HTMLLang}}" lang="{{.HTMLLang}}"{{if .Current}} aria-current="true"{{end}}>{{.Name}}</a>{{end}}
+        </nav>
       </div>
-      <nav class="foot-links" aria-label="{{.C.Footer.Contact}}">
-        <a href="{{href .Lang "download"}}">{{.C.Nav.Download}}</a>
-        <a href="{{href .Lang "code-signing"}}">{{.C.Nav.Signing}}</a>
-        <a href="{{href .Lang "privacy"}}">{{.C.Nav.Privacy}}</a>
-        <a href="{{.L.Links.Repo}}">{{.C.Footer.License}}</a>
-      </nav>
-      <nav class="foot-links" aria-label="{{.C.Home.Contact.Channels}}">
-        <a href="{{.L.Contacts.Telegram}}">Telegram {{.L.Contacts.TelegramHandle}}</a>
-        <a href="{{.L.Contacts.Phone}}">{{.L.Contacts.PhoneShown}}</a>
-        <a href="{{.L.Links.Email}}">{{mail .L.Links.Email}}</a>
-      </nav>
+      <div class="foot-bottom">
+        <span>© {{.Year}} AFK4.NET · {{.C.Footer.Made}}</span>
+      </div>
       <!--/email_off-->
     </div>
   </footer>

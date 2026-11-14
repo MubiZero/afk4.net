@@ -17,7 +17,11 @@
   "footer": {
     "tagline": "Software for gaming clubs",
     "license": "Source code: AGPL-3.0",
-    "contact": "Contact"
+    "contact": "Contact",
+    "product": "Product",
+    "docs": "Documents",
+    "made": "Made in Tajikistan",
+    "windows": "What it changes in Windows"
   },
   "download": {
     "title": "Download AFK4.NET",
@@ -195,7 +199,16 @@
         "title": "Player app",
         "text": "Book a PC, top up, order at the bar and keep friends in your phone. Sign in at a PC by scanning a QR.",
         "booking": "Booking: PC 07, today 20:00",
-        "topUp": "Top up"
+        "topUp": "Top up",
+        "features": [
+          "Book a PC",
+          "Top up",
+          "Order at the bar",
+          "Friends"
+        ],
+        "scan": "Sign in at a PC: scan QR",
+        "balance": "Club balance",
+        "club": "Your club"
       },
       "telegram": {
         "title": "Results in Telegram",
@@ -219,7 +232,10 @@
         "title": "Games download once",
         "text": "The game cache is built into the admin PC: Steam and Epic updates come from the club network, not from the internet on every PC.",
         "done": "Downloaded from the internet once",
-        "pcs": "The other PCs take it from the club network"
+        "pcs": "The other PCs take it from the club network",
+        "internet": "Internet",
+        "admin": "Admin PC: cache",
+        "once": "once"
       },
       "langs": {
         "title": "Three languages",
@@ -412,7 +428,6 @@
       "telegram": "Telegram",
       "call": "Call",
       "email": "Email",
-      "emailNote": "We read it less often, so the reply is not instant",
       "wait": "We reply personally"
     },
     "ui": {
@@ -420,8 +435,6 @@
       "palettePlaceholder": "Where to?",
       "paletteHint": "Arrows select, Enter opens, Esc closes",
       "paletteEmpty": "Nothing found",
-      "copy": "Copy",
-      "copied": "Copied",
       "next": "Next",
       "language": "Language"
     }

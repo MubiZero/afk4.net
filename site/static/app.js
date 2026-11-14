@@ -47,61 +47,53 @@
     });
   }
 
-  // Вкладки «что для вас важнее»: одна сцена в окне, бегунок под активной вкладкой, автопоказ с полоской.
+  // Вкладки «что для вас важнее»: одна сцена в окне, бегунок под активной вкладкой, автопоказ с плавной полоской
+  // (полоска — CSS-анимация, смена вкладки по её окончании; нажали сами — автопоказ навсегда останавливается).
   var tabs = $$('[data-tab]');
   var scenes = $$('[data-scene]');
   var pill = $('.tab-pill');
-  var autoplay = null;
+  var playing = false;
+  var current = 0;
   function movePill(tab) {
     if (!pill || !tab) return;
     pill.style.width = tab.offsetWidth + 'px';
     pill.style.transform = 'translate(' + tab.offsetLeft + 'px,' + tab.offsetTop + 'px)';
   }
-  function show(key, fromUser) {
-    tabs.forEach(function (tab) {
-      var on = tab.getAttribute('data-tab') === key;
+  function clearBars() { $$('.tab-bar').forEach(function (bar) { bar.remove(); }); }
+  function show(index) {
+    current = index;
+    tabs.forEach(function (tab, i) {
+      var on = i === index;
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
       if (on) movePill(tab);
     });
+    var key = tabs[index].getAttribute('data-tab');
     scenes.forEach(function (scene) { scene.hidden = scene.getAttribute('data-scene') !== key; });
-    if (fromUser && autoplay) { clearInterval(autoplay.timer); autoplay = null; $$('.tab-bar').forEach(function (bar) { bar.remove(); }); }
+  }
+  function barOn(index) {
+    clearBars();
+    var bar = document.createElement('span');
+    bar.className = 'tab-bar';
+    bar.addEventListener('animationend', function () {
+      if (!playing) return;
+      show((current + 1) % tabs.length);
+      barOn(current);
+    });
+    tabs[index].appendChild(bar);
   }
   if (tabs.length && scenes.length) {
-    tabs.forEach(function (tab) {
-      tab.addEventListener('click', function () { show(tab.getAttribute('data-tab'), true); });
+    tabs.forEach(function (tab, index) {
+      tab.addEventListener('click', function () { playing = false; clearBars(); show(index); });
     });
-    show('map', false);
-    window.addEventListener('resize', function () { movePill($('[data-tab][aria-selected="true"]')); });
-    // Автопоказ: пока человек не нажал сам, вкладки сменяются каждые 7 секунд, когда блок на виду.
+    show(0);
+    window.addEventListener('resize', function () { movePill(tabs[current]); });
     var stage = $('.stage');
     if (!lite && stage && 'IntersectionObserver' in window && !window.matchMedia('(max-width: 700px)').matches) {
-      var visible = false;
-      var index = 0;
-      var started = 0;
-      new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; }, { threshold: 0.5 }).observe(stage);
-      var step = function () {
-        if (!visible || document.hidden) { started = Date.now(); return; }
-        var bar = $('.tab-bar');
-        var elapsed = Date.now() - started;
-        if (bar) bar.style.transform = 'scaleX(' + Math.min(elapsed / 7000, 1) + ')';
-        if (elapsed >= 7000) {
-          index = (index + 1) % tabs.length;
-          $$('.tab-bar').forEach(function (b) { b.remove(); });
-          show(tabs[index].getAttribute('data-tab'), false);
-          var fresh = document.createElement('span');
-          fresh.className = 'tab-bar';
-          tabs[index].appendChild(fresh);
-          started = Date.now();
-        }
-      };
-      var first = document.createElement('span');
-      first.className = 'tab-bar';
-      tabs[0].appendChild(first);
-      started = Date.now();
-      autoplay = { timer: setInterval(step, 100) };
-      ['pointerdown', 'keydown'].forEach(function (type) {
-        stage.addEventListener(type, function () { if (autoplay) { clearInterval(autoplay.timer); autoplay = null; $$('.tab-bar').forEach(function (b) { b.remove(); }); } });
-      });
+      playing = true;
+      barOn(0);
+      new IntersectionObserver(function (entries) { stage.classList.toggle('is-paused', !entries[0].isIntersecting); }, { threshold: 0.5 }).observe(stage);
+      stage.addEventListener('pointerdown', function () { playing = false; clearBars(); });
+      stage.addEventListener('keydown', function () { playing = false; clearBars(); });
     }
   }
 
@@ -118,7 +110,7 @@
         current = seat;
         seat.setAttribute('aria-pressed', 'true');
         seatName.textContent = seat.getAttribute('data-seat');
-        panel.hidden = false;
+        panel.classList.remove("is-idle");
         hint.textContent = hintText;
       });
     });
@@ -141,20 +133,6 @@
     if (!lite) setInterval(mark, 2400);
   }
 
-  // Копирование контактов в один клик.
-  $$('[data-copy]').forEach(function (button) {
-    var text = button.textContent;
-    button.addEventListener('click', function () {
-      var value = button.getAttribute('data-copy');
-      var done = function () {
-        button.textContent = button.getAttribute('data-copied');
-        button.classList.add('is-done');
-        setTimeout(function () { button.textContent = text; button.classList.remove('is-done'); }, 1800);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done);
-    });
-  });
-
   // Быстрый переход: Ctrl K или ⌘K, стрелки, Enter.
   var palette = $('[data-palette]');
   if (palette && palette.showModal) {
@@ -170,8 +148,7 @@
       empty.hidden = list.length > 0;
     };
     var openPalette = function () { input.value = ''; items.forEach(function (li) { li.hidden = false; }); active = 0; palette.showModal(); highlight(); input.focus(); };
-    $$('[data-palette-open]').forEach(function (button) { button.addEventListener('click', openPalette); });
-    document.addEventListener('keydown', function (event) {
+        document.addEventListener('keydown', function (event) {
       if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K' || event.code === 'KeyK')) {
         event.preventDefault();
         if (palette.open) palette.close(); else openPalette();

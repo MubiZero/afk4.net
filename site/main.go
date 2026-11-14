@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 //go:embed templates/*.gohtml static content/*.json
@@ -43,7 +44,7 @@ type Content struct {
 	LangName string
 	Nav      struct{ Home, Download, Demo, Contact, Features, Signing, Privacy string }
 	Meta     struct{ Title, Description string }
-	Footer   struct{ Tagline, License, Contact string }
+	Footer   struct{ Tagline, License, Contact, Product, Docs, Made, Windows string }
 	Download struct {
 		Title, Lead, Button, ButtonNote, RequirementsTitle string
 		Requirements                                       []string
@@ -101,7 +102,8 @@ type Home struct {
 		}
 		App struct {
 			Tile
-			Booking, TopUp string
+			Booking, TopUp, Scan, Balance, Club string
+			Features                            []string
 		}
 		Telegram struct {
 			Tile
@@ -113,7 +115,7 @@ type Home struct {
 		}
 		Cache struct {
 			Tile
-			Done, Pcs string
+			Done, Pcs, Internet, Admin, Once string
 		}
 		Langs struct {
 			Tile
@@ -129,7 +131,7 @@ type Home struct {
 		Groups      []Group
 	}
 	UI struct {
-		PaletteOpen, PalettePlaceholder, PaletteHint, PaletteEmpty, Copy, Copied, Next, Language string
+		PaletteOpen, PalettePlaceholder, PaletteHint, PaletteEmpty, Next, Language string
 	}
 	How struct {
 		Title string
@@ -139,7 +141,7 @@ type Home struct {
 	Open    struct{ Title, Body, Link string }
 	Contact struct {
 		Title, Lead, Name, Club, Phone, Message, Send, Sending, Sent, Error, Consent string
-		Channels, Telegram, Call, Email, EmailNote, Wait                             string
+		Channels, Telegram, Call, Email, Wait                                        string
 	}
 }
 
@@ -170,6 +172,7 @@ type View struct {
 	Title    string
 	Desc     string
 	Alts     []LangLink
+	Year     int
 }
 
 func prefix(lang string) string {
@@ -278,7 +281,7 @@ func main() {
 		must(os.MkdirAll(dir, 0o755))
 		for _, page := range pages {
 			t := template.Must(template.Must(base.Clone()).ParseFS(assets, "templates/"+page+".gohtml"))
-			view := View{Lang: lang, Page: page, C: c, L: links, Seats: seats}
+			view := View{Lang: lang, Page: page, C: c, L: links, Seats: seats, Year: time.Now().Year()}
 			switch page {
 			case "index":
 				view.Title, view.Desc = c.Meta.Title, c.Meta.Description
