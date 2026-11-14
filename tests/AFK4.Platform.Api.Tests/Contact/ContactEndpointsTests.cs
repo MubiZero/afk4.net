@@ -35,6 +35,21 @@ public sealed class ContactEndpointsTests
     }
 
     [Fact]
+    public async Task ANameIsOptional_OnlyAContactIsRequired()
+    {
+        var bot = new FakeBot();
+        await using var factory = CreateFactory(bot);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(Route, new ContactRequestDto(null, null, "+992 90 111 22 33", null, "tg", null));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = Assert.Single(bot.Sent).Html;
+        Assert.Contains("+992 90 111 22 33", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Имя:", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TextWithTags_ReachesTelegramEscaped()
     {
         var bot = new FakeBot();
@@ -63,11 +78,10 @@ public sealed class ContactEndpointsTests
     }
 
     [Theory]
-    [InlineData(null, "+992 90 111 22 33")]
-    [InlineData("  ", "+992 90 111 22 33")]
     [InlineData("Мухаммад", null)]
     [InlineData("Мухаммад", "")]
-    public async Task WithoutANameOrAContact_TheRequestIsRefused(string? name, string? contact)
+    [InlineData(null, "   ")]
+    public async Task WithoutAContact_TheRequestIsRefused(string? name, string? contact)
     {
         var bot = new FakeBot();
         await using var factory = CreateFactory(bot);
