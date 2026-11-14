@@ -373,7 +373,7 @@ html.lite .btn, html.lite .lang-row, html.lite .scene, html.lite .seat, html.lit
 /* Вкладки: бегунок под активной вкладкой, полоска автопоказа, плавная смена сцены */
 .tabs { position: relative; }
 .tab { position: relative; z-index: 1; }
-.tab-pill { position: absolute; z-index: 0; left: 0; top: 0; height: 44px; width: 0; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.1); border: 1px solid var(--border-control); transition: transform 380ms var(--ease), width 380ms var(--ease); pointer-events: none; opacity: 0; }
+.tab-pill { position: absolute; z-index: 0; left: 0; top: 0; height: 44px; width: 0; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.1); border: 1px solid var(--border-control); transition: transform 380ms var(--ease); pointer-events: none; opacity: 0; }
 .js .tab-pill { opacity: 1; }
 .js .tab[aria-selected="true"] { background: transparent; border-color: transparent; }
 .tab-bar { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--accent); transform-origin: left; transform: scaleX(0); }
