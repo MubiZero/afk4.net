@@ -120,9 +120,6 @@ p { margin: 0 0 var(--space-4); max-width: 66ch; }
 
 /* Окно продукта */
 .window { margin: 0; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-elevated); overflow: hidden; box-shadow: var(--shadow-elevated); }
-.window-bar { display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 var(--space-4); border-bottom: 1px solid var(--hair); background: rgba(255, 255, 255, 0.03); }
-.window-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
-.window-title { margin-left: var(--space-3); font-size: 0.8rem; color: var(--ink-3); }
 .window > img { width: 100%; }
 
 /* Вкладки и сцена */
@@ -345,4 +342,80 @@ html.lite .btn, html.lite .lang-row, html.lite .scene, html.lite .seat, html.lit
 @media (max-width: 360px) {
   .brand img { width: 84px; }
   .nav .btn-small { padding: 0 10px; font-size: 13px; }
+}
+
+/* Окно в стиле Windows 11: значок и заголовок слева, кнопки управления справа, углы 8 px. Рынку клубов ближе Windows. */
+.window { border-radius: var(--radius-md); }
+.window-bar { display: flex; align-items: center; gap: var(--space-3); height: 36px; padding: 0 0 0 var(--space-3); border-bottom: 1px solid var(--hair); background: rgba(255, 255, 255, 0.04); font-size: 0.8rem; color: var(--ink-3); }
+.window-icon { color: var(--accent); flex: none; }
+.window-title { margin-right: auto; }
+.window-ctl { display: flex; height: 100%; }
+.window-ctl i { position: relative; width: 46px; height: 100%; }
+.window-ctl i::before, .window-ctl i::after { content: ""; position: absolute; left: 50%; top: 50%; }
+.ctl-min::before { width: 10px; height: 1px; background: var(--ink-2); transform: translate(-50%, 0); }
+.ctl-max::before { width: 9px; height: 9px; border: 1px solid var(--ink-2); transform: translate(-50%, -50%); }
+.ctl-close::before, .ctl-close::after { width: 12px; height: 1px; background: var(--ink-2); }
+.ctl-close::before { transform: translate(-50%, 0) rotate(45deg); }
+.ctl-close::after { transform: translate(-50%, 0) rotate(-45deg); }
+
+/* Полоса прокрутки страницы */
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 30; transform-origin: left; transform: scaleX(0); background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); pointer-events: none; }
+
+/* Появление блоков при прокрутке: без скрипта и в лёгкой версии всё видно сразу */
+.js:not(.lite) [data-reveal] { opacity: 0; transform: translateY(28px); transition: opacity 800ms var(--ease), transform 800ms var(--ease); }
+.js:not(.lite) [data-reveal].is-in { opacity: 1; transform: none; }
+
+/* Подсветка под курсором: у карточек и строк список следует за указателем */
+.spot { position: relative; isolation: isolate; }
+.spot::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; opacity: 0; background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow), transparent 65%); transition: opacity 250ms var(--ease); pointer-events: none; }
+.spot:hover::before { opacity: 0.55; }
+
+/* Вкладки: бегунок под активной вкладкой, полоска автопоказа, плавная смена сцены */
+.tabs { position: relative; }
+.tab { position: relative; z-index: 1; }
+.tab-pill { position: absolute; z-index: 0; left: 0; top: 0; height: 44px; width: 0; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.1); border: 1px solid var(--border-control); transition: transform 380ms var(--ease), width 380ms var(--ease); pointer-events: none; opacity: 0; }
+.js .tab-pill { opacity: 1; }
+.js .tab[aria-selected="true"] { background: transparent; border-color: transparent; }
+.tab-bar { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+.scene { animation: scene-in 520ms var(--ease) both; }
+@keyframes scene-in { from { opacity: 0; transform: translateY(14px); } }
+
+/* Место, у которого время на исходе, горит янтарём */
+.seat-warn { border-color: var(--warning); background: var(--warning-soft-bg); animation: warn 1800ms ease-in-out infinite; }
+.seat-warn .seat-time { color: var(--warning-text); }
+@keyframes warn { 50% { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28); } }
+
+/* Герой: свет следует за курсором, Панель чуть поворачивается к нему */
+.hero-spot { position: absolute; inset: 0; background: radial-gradient(520px circle at var(--hx, 50%) var(--hy, 30%), rgba(44, 197, 146, 0.14), transparent 60%); pointer-events: none; }
+.hero-shot { transition: transform 300ms var(--ease); will-change: transform; }
+
+/* Быстрый переход: Ctrl K */
+.kbd-btn { display: inline-flex; align-items: center; gap: var(--space-2); height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--hair); background: rgba(255, 255, 255, 0.03); color: var(--ink-2); font: inherit; font-size: 0.85rem; cursor: pointer; transition: background-color 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease); }
+.kbd-btn:hover { color: var(--ink); border-color: var(--border-control); background: rgba(255, 255, 255, 0.07); }
+.kbd { font-size: 0.75rem; color: var(--ink-3); border: 1px solid var(--hair); border-radius: 5px; padding: 1px 6px; }
+.palette { width: min(560px, calc(100vw - 32px)); margin: 12vh auto auto; padding: 0; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-elevated); color: var(--ink); box-shadow: var(--shadow-elevated), 0 0 120px var(--accent-glow); overflow: hidden; }
+.palette::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); }
+.palette[open] { animation: scene-in 260ms var(--ease) both; }
+.palette-input { display: block; width: 100%; font: inherit; font-size: 1.05rem; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--hair); padding: var(--space-4) var(--space-5); outline: none; }
+.palette-list { list-style: none; margin: 0; padding: var(--space-2); max-height: 50vh; overflow: auto; }
+.palette-list a { display: block; padding: 11px var(--space-4); border-radius: var(--radius-md); text-decoration: none; color: var(--ink-2); }
+.palette-list a:hover, .palette-list a.is-active { background: var(--accent-soft); color: var(--ink); }
+.palette-list li[hidden] { display: none; }
+.palette-empty, .palette-hint { margin: 0; padding: var(--space-3) var(--space-5); font-size: 0.82rem; color: var(--ink-3); }
+.palette-hint { border-top: 1px solid var(--hair); }
+
+/* Копирование контактов */
+.chan { display: flex; align-items: center; gap: var(--space-2); }
+.copy { font: inherit; font-size: 0.82rem; font-weight: 600; min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--hair); background: transparent; color: var(--ink-3); cursor: pointer; transition: color 160ms var(--ease), border-color 160ms var(--ease), background-color 160ms var(--ease); }
+.copy:hover { color: var(--ink); border-color: var(--border-control); }
+.copy.is-done { color: var(--accent-text); border-color: var(--border-accent); background: var(--accent-soft); }
+.closing .channels { align-items: center; }
+
+html.lite .tab-pill, html.lite .scene, html.lite .seat-warn, html.lite .hero-shot { animation: none; transition: none; }
+@media (max-width: 700px) {
+  .kbd-btn { display: none; }
+  .tab-pill { display: none; }
+  .js .tab[aria-selected="true"] { background: rgba(255, 255, 255, 0.1); border-color: var(--border-control); }
+  .chan { flex-direction: column; align-items: stretch; }
+  .window-ctl i { width: 38px; }
 }

@@ -144,12 +144,6 @@
       "nameLine": "It is called AFK4.NET. Made in Tajikistan, in Tajik, Russian and English.",
       "write": "Write to us",
       "demo": "Open the demo",
-      "demoNote": "The demo opens in your browser on an invented club, no sign-up.",
-      "trust": [
-        "Open source code",
-        "What it changes in Windows",
-        "Demo without sign-up"
-      ],
       "imageAlt": "AFK4.NET Panel: a floor map with PCs, guests’ remaining time and a card of the selected PC"
     },
     "board": {
@@ -420,6 +414,16 @@
       "email": "Email",
       "emailNote": "We read it less often, so the reply is not instant",
       "wait": "We reply personally"
+    },
+    "ui": {
+      "paletteOpen": "Quick jump",
+      "palettePlaceholder": "Where to?",
+      "paletteHint": "Arrows select, Enter opens, Esc closes",
+      "paletteEmpty": "Nothing found",
+      "copy": "Copy",
+      "copied": "Copied",
+      "next": "Next",
+      "language": "Language"
     }
   }
 }

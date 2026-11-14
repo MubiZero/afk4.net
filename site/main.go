@@ -32,7 +32,7 @@ type Seat struct {
 
 var seats = []Seat{
 	{"01", "play", 2592}, {"02", "free", 0}, {"03", "play", 1214}, {"04", "play", 5410},
-	{"05", "play", 421}, {"06", "free", 0}, {"07", "play", 3300}, {"08", "offline", 0},
+	{"05", "play", 289}, {"06", "free", 0}, {"07", "play", 3300}, {"08", "offline", 0},
 	{"09", "play", 905}, {"10", "play", 4120}, {"11", "free", 0}, {"12", "play", 1750},
 }
 
@@ -80,8 +80,7 @@ type Home struct {
 		Items []string
 	}
 	Hero struct {
-		Title, Lead, NameLine, Write, Demo, DemoNote, ImageAlt string
-		Trust                                                  []string
+		Title, Lead, NameLine, Write, Demo, ImageAlt string
 	}
 	Board struct {
 		Label, Synthetic, Have, Planned string
@@ -128,6 +127,9 @@ type Home struct {
 	Inside struct {
 		Title, Lead string
 		Groups      []Group
+	}
+	UI struct {
+		PaletteOpen, PalettePlaceholder, PaletteHint, PaletteEmpty, Copy, Copied, Next, Language string
 	}
 	How struct {
 		Title string

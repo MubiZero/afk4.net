@@ -1,7 +1,11 @@
-// Оживление главной: таймеры мест, «Отключить интернет», смена языка в плитке, форма связи.
-// Без этого скрипта страница читается целиком; скрипт только добавляет движение и отправку формы.
+// Оживление страницы: таймеры мест, вкладки с автопоказом, «Отключить интернет», быстрый переход Ctrl K, подсветка
+// под курсором, появление блоков, копирование контактов. Без этого скрипта страница читается целиком; в лёгкой версии
+// (слабая связь, экономия трафика, «меньше движения») остаются только сведения и действия, без украшений.
 (function () {
-  var lite = document.documentElement.classList.contains('lite');
+  var root = document.documentElement;
+  var lite = root.classList.contains('lite');
+  var $ = function (selector, scope) { return (scope || document).querySelector(selector); };
+  var $$ = function (selector, scope) { return [].slice.call((scope || document).querySelectorAll(selector)); };
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
   function clock(total) {
@@ -9,57 +13,106 @@
     return h > 0 ? h + ':' + pad(m) + ':' + pad(s) : pad(m) + ':' + pad(s);
   }
 
-  // Таймеры идут и в лёгкой версии: это сведения, не украшение.
-  var timers = [].map.call(document.querySelectorAll('[data-seconds]'), function (el) {
+  // Таймеры идут и в лёгкой версии: это сведения, не украшение. Меньше 5 минут: место горит янтарём.
+  var timers = $$('[data-seconds]').map(function (el) {
     var base = parseInt(el.getAttribute('data-seconds'), 10) || 0;
-    return { el: el, base: base, left: base };
+    return { el: el, seat: el.closest('.seat-play'), base: base, left: base };
   });
+  function paint(t) {
+    t.el.textContent = clock(t.left);
+    if (t.seat) t.seat.classList.toggle('seat-warn', t.left > 0 && t.left < 300);
+  }
+  timers.forEach(paint);
   if (timers.length) {
     setInterval(function () {
       if (document.hidden) return;
       timers.forEach(function (t) {
         t.left = t.left > 0 ? t.left - 1 : t.base;
-        t.el.textContent = clock(t.left);
+        paint(t);
       });
     }, 1000);
   }
 
-  // Кнопка «Отключить интернет»: класс на плитке, подписи берём из data-атрибутов (язык страницы).
-  var tile = document.querySelector('[data-offline]');
-  if (tile) {
-    var button = tile.querySelector('[data-offline-toggle]');
-    var label = tile.querySelector('[data-offline-label]');
-    var state = tile.querySelector('[data-offline-state]');
-    button.addEventListener('click', function () {
-      var off = tile.classList.toggle('is-off');
-      button.setAttribute('aria-pressed', off ? 'true' : 'false');
-      label.textContent = button.getAttribute(off ? 'data-label-on' : 'data-label-off');
+  // Кнопка «Отключить интернет»: класс на сцене, подписи берём из data-атрибутов (язык страницы).
+  var offline = $('[data-offline]');
+  if (offline) {
+    var toggle = $('[data-offline-toggle]', offline);
+    var label = $('[data-offline-label]', offline);
+    var state = $('[data-offline-state]', offline);
+    toggle.addEventListener('click', function () {
+      var off = offline.classList.toggle('is-off');
+      toggle.setAttribute('aria-pressed', off ? 'true' : 'false');
+      label.textContent = toggle.getAttribute(off ? 'data-label-on' : 'data-label-off');
       state.textContent = state.getAttribute(off ? 'data-text-off' : 'data-text-on');
     });
   }
 
-  // Вкладки «что для вас важнее»: показывают одну сцену в окне продукта; без скрипта сцены идут подряд.
-  var tabs = document.querySelectorAll('[data-tab]');
-  var scenes = document.querySelectorAll('[data-scene]');
-  if (tabs.length && scenes.length) {
-    var show = function (key) {
-      [].forEach.call(tabs, function (tab) { tab.setAttribute('aria-selected', tab.getAttribute('data-tab') === key ? 'true' : 'false'); });
-      [].forEach.call(scenes, function (scene) { scene.hidden = scene.getAttribute('data-scene') !== key; });
-    };
-    [].forEach.call(tabs, function (tab) {
-      tab.addEventListener('click', function () { show(tab.getAttribute('data-tab')); });
+  // Вкладки «что для вас важнее»: одна сцена в окне, бегунок под активной вкладкой, автопоказ с полоской.
+  var tabs = $$('[data-tab]');
+  var scenes = $$('[data-scene]');
+  var pill = $('.tab-pill');
+  var autoplay = null;
+  function movePill(tab) {
+    if (!pill || !tab) return;
+    pill.style.width = tab.offsetWidth + 'px';
+    pill.style.transform = 'translate(' + tab.offsetLeft + 'px,' + tab.offsetTop + 'px)';
+  }
+  function show(key, fromUser) {
+    tabs.forEach(function (tab) {
+      var on = tab.getAttribute('data-tab') === key;
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      if (on) movePill(tab);
     });
-    show('map');
+    scenes.forEach(function (scene) { scene.hidden = scene.getAttribute('data-scene') !== key; });
+    if (fromUser && autoplay) { clearInterval(autoplay.timer); autoplay = null; $$('.tab-bar').forEach(function (bar) { bar.remove(); }); }
+  }
+  if (tabs.length && scenes.length) {
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () { show(tab.getAttribute('data-tab'), true); });
+    });
+    show('map', false);
+    window.addEventListener('resize', function () { movePill($('[data-tab][aria-selected="true"]')); });
+    // Автопоказ: пока человек не нажал сам, вкладки сменяются каждые 7 секунд, когда блок на виду.
+    var stage = $('.stage');
+    if (!lite && stage && 'IntersectionObserver' in window && !window.matchMedia('(max-width: 700px)').matches) {
+      var visible = false;
+      var index = 0;
+      var started = 0;
+      new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; }, { threshold: 0.5 }).observe(stage);
+      var step = function () {
+        if (!visible || document.hidden) { started = Date.now(); return; }
+        var bar = $('.tab-bar');
+        var elapsed = Date.now() - started;
+        if (bar) bar.style.transform = 'scaleX(' + Math.min(elapsed / 7000, 1) + ')';
+        if (elapsed >= 7000) {
+          index = (index + 1) % tabs.length;
+          $$('.tab-bar').forEach(function (b) { b.remove(); });
+          show(tabs[index].getAttribute('data-tab'), false);
+          var fresh = document.createElement('span');
+          fresh.className = 'tab-bar';
+          tabs[index].appendChild(fresh);
+          started = Date.now();
+        }
+      };
+      var first = document.createElement('span');
+      first.className = 'tab-bar';
+      tabs[0].appendChild(first);
+      started = Date.now();
+      autoplay = { timer: setInterval(step, 100) };
+      ['pointerdown', 'keydown'].forEach(function (type) {
+        stage.addEventListener(type, function () { if (autoplay) { clearInterval(autoplay.timer); autoplay = null; $$('.tab-bar').forEach(function (b) { b.remove(); }); } });
+      });
+    }
   }
 
-  // Карта зала: нажмите на ПК, появятся команды; кнопка команды отвечает «команда отправлена» (это пример, не боевая отправка).
-  var panel = document.querySelector('[data-seat-panel]');
+  // Карта зала: нажмите на ПК, появятся команды; кнопка команды отвечает «команда отправлена» (пример, не боевая отправка).
+  var panel = $('[data-seat-panel]');
   if (panel) {
-    var seatName = panel.querySelector('[data-seat-name]');
-    var hint = document.querySelector('[data-seat-hint]');
+    var seatName = $('[data-seat-name]', panel);
+    var hint = $('[data-seat-hint]');
     var hintText = hint.textContent;
     var current = null;
-    [].forEach.call(document.querySelectorAll('[data-seat]'), function (seat) {
+    $$('[data-seat]').forEach(function (seat) {
       seat.addEventListener('click', function () {
         if (current) current.setAttribute('aria-pressed', 'false');
         current = seat;
@@ -69,7 +122,7 @@
         hint.textContent = hintText;
       });
     });
-    [].forEach.call(panel.querySelectorAll('[data-act]'), function (button) {
+    $$('[data-act]', panel).forEach(function (button) {
       button.addEventListener('click', function () {
         hint.textContent = seatName.textContent + ': ' + button.getAttribute('data-act').toLowerCase() + ', ' + panel.getAttribute('data-sent');
       });
@@ -77,27 +130,127 @@
   }
 
   // Плитка «Три языка»: подсвечивает строки по очереди.
-  var rows = document.querySelectorAll('[data-lang-row]');
+  var rows = $$('[data-lang-row]');
   if (rows.length) {
     var i = 0;
     var mark = function () {
-      [].forEach.call(rows, function (row, index) { row.classList.toggle('is-active', index === i); });
+      rows.forEach(function (row, index) { row.classList.toggle('is-active', index === i); });
       i = (i + 1) % rows.length;
     };
     mark();
     if (!lite) setInterval(mark, 2400);
   }
 
-  // Список «Всё, что внутри»: на узком экране группы свёрнуты, на широком открыты.
-  if (window.matchMedia && window.matchMedia('(max-width: 700px)').matches) {
-    [].forEach.call(document.querySelectorAll('.group'), function (group) { group.removeAttribute('open'); });
+  // Копирование контактов в один клик.
+  $$('[data-copy]').forEach(function (button) {
+    var text = button.textContent;
+    button.addEventListener('click', function () {
+      var value = button.getAttribute('data-copy');
+      var done = function () {
+        button.textContent = button.getAttribute('data-copied');
+        button.classList.add('is-done');
+        setTimeout(function () { button.textContent = text; button.classList.remove('is-done'); }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done);
+    });
+  });
+
+  // Быстрый переход: Ctrl K или ⌘K, стрелки, Enter.
+  var palette = $('[data-palette]');
+  if (palette && palette.showModal) {
+    var input = $('[data-palette-input]', palette);
+    var items = $$('li', $('[data-palette-list]', palette));
+    var empty = $('[data-palette-empty]', palette);
+    var active = 0;
+    var visibleItems = function () { return items.filter(function (li) { return !li.hidden; }); };
+    var highlight = function () {
+      var list = visibleItems();
+      items.forEach(function (li) { $('a', li).classList.remove('is-active'); });
+      if (list.length) { active = Math.max(0, Math.min(active, list.length - 1)); $('a', list[active]).classList.add('is-active'); }
+      empty.hidden = list.length > 0;
+    };
+    var openPalette = function () { input.value = ''; items.forEach(function (li) { li.hidden = false; }); active = 0; palette.showModal(); highlight(); input.focus(); };
+    $$('[data-palette-open]').forEach(function (button) { button.addEventListener('click', openPalette); });
+    document.addEventListener('keydown', function (event) {
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K' || event.code === 'KeyK')) {
+        event.preventDefault();
+        if (palette.open) palette.close(); else openPalette();
+      }
+    });
+    input.addEventListener('input', function () {
+      var query = input.value.trim().toLowerCase();
+      items.forEach(function (li) { li.hidden = query !== '' && li.textContent.toLowerCase().indexOf(query) === -1; });
+      active = 0;
+      highlight();
+    });
+    input.addEventListener('keydown', function (event) {
+      var list = visibleItems();
+      if (event.key === 'ArrowDown') { event.preventDefault(); active = (active + 1) % Math.max(list.length, 1); highlight(); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); active = (active - 1 + list.length) % Math.max(list.length, 1); highlight(); }
+      else if (event.key === 'Enter' && list.length) { event.preventDefault(); $('a', list[active]).click(); }
+    });
+    palette.addEventListener('click', function (event) { if (event.target === palette) palette.close(); });
+    $$('a', palette).forEach(function (link) { link.addEventListener('click', function () { palette.close(); }); });
   }
 
-  // Форма связи: отправка без перезагрузки; без скрипта форма уходит обычным POST.
-  var form = document.querySelector('[data-contact]');
+  // Украшения: только если человек не просил меньше движения и связь не слабая.
+  if (!lite) {
+    // Полоса прокрутки страницы.
+    var bar = $('[data-progress]');
+    if (bar) {
+      var onScroll = function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(window.scrollY / max, 1) : 0) + ')';
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+
+    // Появление блоков при прокрутке.
+    var reveal = $$('[data-reveal]');
+    if ('IntersectionObserver' in window) {
+      var seen = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) { if (entry.isIntersecting) { entry.target.classList.add('is-in'); seen.unobserve(entry.target); } });
+      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+      reveal.forEach(function (el) { seen.observe(el); });
+    } else {
+      reveal.forEach(function (el) { el.classList.add('is-in'); });
+    }
+
+    // Подсветка под курсором у карточек.
+    $$('.spot').forEach(function (el) {
+      el.addEventListener('pointermove', function (event) {
+        var rect = el.getBoundingClientRect();
+        el.style.setProperty('--mx', (event.clientX - rect.left) + 'px');
+        el.style.setProperty('--my', (event.clientY - rect.top) + 'px');
+      });
+    });
+
+    // Герой: свет следует за курсором, Панель чуть поворачивается к нему.
+    var hero = $('.hero');
+    var shot = $('.hero-shot');
+    if (hero && shot && window.matchMedia('(hover: hover)').matches) {
+      var light = document.createElement('div');
+      light.className = 'hero-spot';
+      light.setAttribute('aria-hidden', 'true');
+      hero.insertBefore(light, hero.firstChild);
+      hero.addEventListener('pointermove', function (event) {
+        var rect = hero.getBoundingClientRect();
+        var x = (event.clientX - rect.left) / rect.width;
+        var y = (event.clientY - rect.top) / rect.height;
+        light.style.setProperty('--hx', (x * 100) + '%');
+        light.style.setProperty('--hy', (y * 100) + '%');
+        shot.style.transform = 'perspective(1800px) rotateX(' + (9 - (y - 0.5) * 3) + 'deg) rotateY(' + ((x - 0.5) * 4) + 'deg)';
+      });
+      hero.addEventListener('pointerleave', function () { shot.style.transform = ''; });
+    }
+  }
+
+  // Форма связи (появится, когда у сайта будет адрес в API): отправка без перезагрузки.
+  var form = $('[data-contact]');
   if (form && window.fetch) {
-    var note = form.querySelector('[data-form-state]');
-    var submit = form.querySelector('button[type="submit"]');
+    var note = $('[data-form-state]', form);
+    var submit = $('button[type="submit"]', form);
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       note.className = 'form-state';

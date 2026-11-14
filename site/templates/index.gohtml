@@ -8,26 +8,22 @@
           <a class="btn btn-lamp" href="#contact">{{.Hero.Write}}</a>
           <a class="btn" href="{{$.L.Links.Demo}}">{{.Hero.Demo}}</a>
         </div>
-        <p class="note">{{.Hero.DemoNote}}</p>
-        <ul class="trust">
-          <li><a href="{{$.L.Links.Repo}}">{{index .Hero.Trust 0}}</a></li>
-          <li><a href="{{href $.Lang "download"}}#changes">{{index .Hero.Trust 1}}</a></li>
-        </ul>
         <figure class="hero-shot"><img src="/img/panel.jpg" alt="{{.Hero.ImageAlt}}" width="1280" height="764"></figure>
       </div>
     </section>
 
-    <section class="block" aria-labelledby="stage-title">
+    <section class="block" aria-labelledby="stage-title" data-reveal>
       <div class="wrap">
         <h2 class="block-title" id="stage-title">{{.Board.Label}}. <span class="muted">{{.Choose.Title}}</span></h2>
         <div class="tabs" role="tablist" aria-label="{{.Choose.Title}}">
+          <span class="tab-pill" aria-hidden="true"></span>
           <button class="tab" type="button" role="tab" data-tab="map" aria-selected="true">{{index .Choose.Items 0}}</button>
           <button class="tab" type="button" role="tab" data-tab="till" aria-selected="false">{{index .Choose.Items 1}}</button>
           <button class="tab" type="button" role="tab" data-tab="telegram" aria-selected="false">{{index .Choose.Items 2}}</button>
           <button class="tab" type="button" role="tab" data-tab="offline" aria-selected="false">{{index .Choose.Items 3}}</button>
         </div>
         <div class="window stage">
-          <div class="window-bar"><i></i><i></i><i></i><span class="window-title">{{.Board.Synthetic}}</span></div>
+          <div class="window-bar"><svg class="window-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".35"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".35"/></svg><span class="window-title">{{.Board.Synthetic}}</span><span class="window-ctl" aria-hidden="true"><i class="ctl-min"></i><i class="ctl-max"></i><i class="ctl-close"></i></span></div>
           <div class="scene" data-scene="map" role="tabpanel">
             <div class="scene-text">
               <h3>{{.Board.Map.Title}}</h3>
@@ -92,20 +88,20 @@
       </div>
     </section>
 
-    <section class="block">
+    <section class="block" data-reveal>
       <div class="wrap split">
         <div class="split-text">
           <h2 class="block-title">{{.Board.Guest.Title}}</h2>
           <p class="lead">{{.Board.Guest.Text}}</p>
           <span class="chip chip-have">{{.Board.Have}}</span>
         </div>
-        <figure class="window"><div class="window-bar"><i></i><i></i><i></i><span class="window-title">{{.Board.Synthetic}}</span></div><img src="/img/shell.jpg" alt="{{.Board.Guest.ImageAlt}}" width="1280" height="761" loading="lazy"></figure>
+        <figure class="window"><div class="window-bar"><svg class="window-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".35"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".35"/></svg><span class="window-title">{{.Board.Synthetic}}</span><span class="window-ctl" aria-hidden="true"><i class="ctl-min"></i><i class="ctl-max"></i><i class="ctl-close"></i></span></div><img src="/img/shell.jpg" alt="{{.Board.Guest.ImageAlt}}" width="1280" height="761" loading="lazy"></figure>
       </div>
     </section>
 
-    <section class="block">
+    <section class="block" data-reveal>
       <div class="wrap cards3">
-        <article class="card">
+        <article class="card spot">
           <h3>{{.Board.Langs.Title}}</h3>
           <p>{{.Board.Langs.Text}}</p>
           <ul class="lang-rows">
@@ -115,7 +111,7 @@
           </ul>
           <span class="chip chip-have">{{.Board.Have}}</span>
         </article>
-        <article class="card">
+        <article class="card spot">
           <h3>{{.Board.Cache.Title}}</h3>
           <p>{{.Board.Cache.Text}}</p>
           <div class="cache" aria-hidden="true">
@@ -126,7 +122,7 @@
           </div>
           <span class="chip chip-planned">{{.Board.Planned}}</span>
         </article>
-        <article class="card">
+        <article class="card spot">
           <h3>{{.Board.App.Title}}</h3>
           <p>{{.Board.App.Text}}</p>
           <div class="phone" aria-hidden="true"><span class="phone-line">{{.Board.App.Booking}}</span><span class="phone-btn">{{.Board.App.TopUp}}</span></div>
@@ -135,7 +131,7 @@
       </div>
     </section>
 
-    <section class="block" id="inside">
+    <section class="block" id="inside" data-reveal>
       <div class="wrap">
         <h2 class="block-title">{{.Inside.Title}}</h2>
         <p class="lead">{{.Inside.Lead}}</p>
@@ -151,7 +147,7 @@
       </div>
     </section>
 
-    <section class="block">
+    <section class="block" data-reveal>
       <div class="wrap">
         <h2 class="block-title">{{.How.Title}}</h2>
         <ol class="steps">{{range .How.Steps}}
@@ -170,9 +166,9 @@
         <h2 class="closing-title">{{.Contact.Title}}</h2>
         <p class="lead">{{.Contact.Lead}}</p>
         <ul class="channels">
-          <li><a class="btn btn-lamp" href="{{$.L.Contacts.Telegram}}">{{.Contact.Telegram}} {{$.L.Contacts.TelegramHandle}}</a></li>
-          <li><a class="btn" href="{{$.L.Contacts.Phone}}">{{.Contact.Call}} {{$.L.Contacts.PhoneShown}}</a></li>
-          <li><a class="btn btn-quiet" href="{{$.L.Links.Email}}">{{.Contact.Email}} {{mail $.L.Links.Email}}</a></li>
+          <li class="chan"><a class="btn btn-lamp" href="{{$.L.Contacts.Telegram}}">{{.Contact.Telegram}} {{$.L.Contacts.TelegramHandle}}</a><button class="copy" type="button" data-copy="{{$.L.Contacts.TelegramHandle}}" data-copied="{{.UI.Copied}}" aria-label="{{.UI.Copy}}: {{$.L.Contacts.TelegramHandle}}">{{.UI.Copy}}</button></li>
+          <li class="chan"><a class="btn" href="{{$.L.Contacts.Phone}}">{{.Contact.Call}} {{$.L.Contacts.PhoneShown}}</a><button class="copy" type="button" data-copy="{{$.L.Contacts.PhoneShown}}" data-copied="{{.UI.Copied}}" aria-label="{{.UI.Copy}}: {{$.L.Contacts.PhoneShown}}">{{.UI.Copy}}</button></li>
+          <li class="chan"><a class="btn btn-quiet" href="{{$.L.Links.Email}}">{{.Contact.Email}} {{mail $.L.Links.Email}}</a><button class="copy" type="button" data-copy="{{mail $.L.Links.Email}}" data-copied="{{.UI.Copied}}" aria-label="{{.UI.Copy}}: {{mail $.L.Links.Email}}">{{.UI.Copy}}</button></li>
         </ul>
         <p class="note">{{.Contact.EmailNote}}</p>{{if $.L.ContactEndpoint}}
         <form class="form" action="{{$.L.ContactEndpoint}}" method="post" data-contact data-sending="{{.Contact.Sending}}" data-sent="{{.Contact.Sent}}" data-error="{{.Contact.Error}}">

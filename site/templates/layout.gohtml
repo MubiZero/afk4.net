@@ -18,6 +18,7 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
+  <div class="progress" data-progress aria-hidden="true"></div>
   <a class="skip" href="#main">{{if eq .Lang "en"}}Skip to content{{else if eq .Lang "tg"}}Ба мундариҷа{{else}}К содержанию{{end}}</a>
   <header class="top">
     <div class="wrap top-row">
@@ -28,6 +29,7 @@
         <a href="{{.L.Links.Demo}}" class="nav-extra">{{.C.Nav.Demo}}</a>
         <a class="btn btn-lamp btn-small" href="{{anchor .Lang "contact"}}">{{.C.Home.Hero.Write}}</a>
       </nav>
+      <button class="kbd-btn" type="button" data-palette-open aria-label="{{.C.Home.UI.PaletteOpen}}"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13.2 13.2L17 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="kbd">Ctrl K</span></button>
       <nav class="langs" aria-label="Language">{{range .Switcher}}<a href="{{.Href}}" hreflang="{{.HTMLLang}}" lang="{{.HTMLLang}}"{{if .Current}} aria-current="true"{{end}}>{{.Name}}</a>{{end}}</nav>
     </div>
   </header>
@@ -55,6 +57,23 @@
       <!--/email_off-->
     </div>
   </footer>
+  <dialog class="palette" data-palette aria-label="{{.C.Home.UI.PaletteOpen}}">
+    <input class="palette-input" type="text" placeholder="{{.C.Home.UI.PalettePlaceholder}}" aria-label="{{.C.Home.UI.PalettePlaceholder}}" autocomplete="off" data-palette-input>
+    <ul class="palette-list" data-palette-list>
+      <li><a href="{{anchor .Lang "inside"}}">{{.C.Nav.Features}}</a></li>
+      <li><a href="{{href .Lang "download"}}">{{.C.Nav.Download}}</a></li>
+      <li><a href="{{.L.Links.Demo}}">{{.C.Nav.Demo}}</a></li>
+      <li><a href="{{anchor .Lang "contact"}}">{{.C.Home.Hero.Write}}</a></li>
+      <li><a href="{{.L.Contacts.Telegram}}">Telegram {{.L.Contacts.TelegramHandle}}</a></li>
+      <li><a href="{{.L.Contacts.Phone}}">{{.L.Contacts.PhoneShown}}</a></li>
+      <li><a href="{{.L.Links.Repo}}">{{.C.Footer.License}}</a></li>
+      <li><a href="{{href .Lang "code-signing"}}">{{.C.Nav.Signing}}</a></li>
+      <li><a href="{{href .Lang "privacy"}}">{{.C.Nav.Privacy}}</a></li>{{range .Switcher}}
+      <li><a href="{{.Href}}" hreflang="{{.HTMLLang}}">{{$.C.Home.UI.Language}}: {{.Name}}</a></li>{{end}}
+    </ul>
+    <p class="palette-empty" data-palette-empty hidden>{{.C.Home.UI.PaletteEmpty}}</p>
+    <p class="palette-hint">{{.C.Home.UI.PaletteHint}}</p>
+  </dialog>
 </body>
 </html>
 {{end}}
