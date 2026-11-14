@@ -547,3 +547,7 @@ html { scroll-padding-top: 96px; }
 }
 
 main > section:last-child:not(.closing) { padding-bottom: var(--space-24); }
+
+/* Форме нужен скрипт: без него остаются кнопки Telegram, телефона и почты. */
+.form { display: none; }
+.js .form { display: grid; }

@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -320,8 +321,13 @@ func main() {
 	copyFile(filepath.Join(root, "..", "packages", "tokens", "tokens.css"), filepath.Join(dist, "tokens.css"))
 	copyFile(filepath.Join(root, "..", "brand", "afk4-logo-horizontal.svg"), filepath.Join(dist, "img", "logo.svg"))
 	copyFile(filepath.Join(root, "..", "brand", "afk4-icon.svg"), filepath.Join(dist, "img", "favicon.svg"))
+	// Форма связи ходит в API по другому адресу: его, и только его, разрешаем в connect-src.
+	connect := "'self'"
+	if api, err := url.Parse(links.ContactEndpoint); err == nil && api.Host != "" {
+		connect += " " + api.Scheme + "://" + api.Host
+	}
 	headers := "/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n" +
-		"  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'\n"
+		"  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src " + connect + "; form-action 'self'; base-uri 'self'; frame-ancestors 'none'\n"
 	must(os.WriteFile(filepath.Join(dist, "_headers"), []byte(headers), 0o644))
 	fmt.Printf("site built: %d languages × %d pages → %s\n", len(langs), len(pages), dist)
 }

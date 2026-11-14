@@ -21,6 +21,14 @@
 
   Страницы: `index.html`, `download.html`, `code-signing.html`, `privacy.html`. Локальный просмотр — конфигурация
   `public-site` в `.claude/launch.json` (порт 4180).
+- **Форма связи** — на главной, пишет в Telegram владельцу через API:
+  - Ручка `POST /api/public/contact` в `AFK4.Platform.Api` (`Endpoints/ContactEndpoints.cs`): без входа, не больше 5 заявок за 10 минут с адреса,
+    ловушка для ботов, CORS только `afk4.net` и `www.afk4.net`, текст в Telegram экранируется.
+  - Окружение API (Coolify): `Telegram__BotToken` (бот `@AFK4netbot`, уже есть) и `Contact__TelegramChatId` — id чата владельца
+    (узнать: написать боту любое сообщение и открыть `https://api.telegram.org/bot<токен>/getUpdates`, поле `chat.id`).
+    Без них ручка отвечает 503, а форма на сайте показывает ошибку и контакты рядом.
+  - Порядок выкладки: сначала API с ручкой, потом сайт. Адрес ручки — `contactEndpoint` в `site/content/links.json`;
+    пустой адрес прячет форму и раздел «Форма связи» в политике конфиденциальности.
 - **Выкладка** — `.github/workflows/public-site.yml`: на каждую правку `site/**` в `main` собирает и выкладывает на
   Cloudflare Pages, проект `afk4-site`.
   - Секрет `CLOUDFLARE_PAGES_API_TOKEN` — узкий токен «Pages: изменение» этого аккаунта.

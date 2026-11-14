@@ -32,7 +32,7 @@
     "requirements": [
       "Windows 10 or 11, 64-bit",
       "Administrator rights during setup",
-      "Internet for sign-in and updates. Without it, PCs keep running until the paid time ends."
+      "Internet for sign-in and updates."
     ],
     "changesTitle": "What setup changes in Windows",
     "changesLead": "To turn club PCs into gaming seats, the software changes Windows settings. This is everything it does.",

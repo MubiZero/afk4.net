@@ -15,5 +15,5 @@
     "phone": "tel:+992186663333",
     "phoneShown": "+992 18 666 33 33"
   },
-  "contactEndpoint": ""
+  "contactEndpoint": "https://api.afk4.net/api/public/contact"
 }
