@@ -20,4 +20,7 @@ public static class PublicRateLimits
 
     /// <summary>Уведомления банка: свой предел, чтобы игроки клуба не отнимали у них место.</summary>
     public const int PaymentWebhookPerMinute = 600;
+
+    /// <summary>Форма связи на публичном сайте: заявки владельцу в Telegram. Человек пишет раз, поток — спам.</summary>
+    public const int ContactPerTenMinutes = 5;
 }
