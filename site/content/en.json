@@ -1,0 +1,444 @@
+{
+  "htmlLang": "en",
+  "langName": "Eng",
+  "nav": {
+    "home": "Home",
+    "download": "Download",
+    "demo": "Demo",
+    "contact": "Contact us",
+    "features": "Features",
+    "signing": "Code signing policy",
+    "privacy": "Privacy"
+  },
+  "meta": {
+    "title": "Software for a gaming club: AFK4.NET",
+    "description": "PCs, guests, till and bar of a gaming club in one program. Floor map, shifts, Telegram reports, works without internet. Tajik, Russian, English."
+  },
+  "footer": {
+    "tagline": "Software for gaming clubs",
+    "license": "Source code: AGPL-3.0",
+    "contact": "Contact",
+    "product": "Product",
+    "docs": "Documents",
+    "made": "Made in Tajikistan",
+    "windows": "What it changes in Windows"
+  },
+  "download": {
+    "title": "Download AFK4.NET",
+    "lead": "One installer for every PC in the club, admin and gaming. The setup wizard asks what kind of PC it is.",
+    "button": "Download from GitHub",
+    "buttonNote": "The latest version is on the GitHub releases page. The software updates itself.",
+    "requirementsTitle": "Requirements",
+    "requirements": [
+      "Windows 10 or 11, 64-bit",
+      "Administrator rights during setup",
+      "Internet for sign-in and updates"
+    ],
+    "changesTitle": "What setup changes in Windows",
+    "changesLead": "To turn club PCs into gaming seats, the software changes Windows settings. This is everything it does.",
+    "changes": [
+      {
+        "title": "AFK4.NET Agent service",
+        "body": "Runs as the system, talks to the club server, opens and closes the PC by session and updates the software with signed packages."
+      },
+      {
+        "title": "Kiosk on gaming PCs",
+        "body": "A player account with automatic sign-in is created and the club screen replaces Explorer. Task Manager, Run, the registry editor and the drives, USB storage and websites the club picks are blocked per the club settings."
+      },
+      {
+        "title": "Firewall rules",
+        "body": "Open only to the club’s local network: TCP 47615 (desk commands without internet) and TCP 80 on the admin PC (game cache)."
+      },
+      {
+        "title": "hosts file",
+        "body": "While the game cache is on, a block between the “AFK4 game cache” markers is added to the hosts file to route Steam and Epic downloads to the cache. Other lines are left untouched."
+      },
+      {
+        "title": "Wake over the network",
+        "body": "Windows Fast Startup is turned off and the network card may wake the PC with a magic packet, so the club can turn PCs on before opening."
+      },
+      {
+        "title": "Idle and scheduled shutdown",
+        "body": "If the club enables it, free PCs turn themselves off."
+      }
+    ],
+    "dataTitle": "What data goes to the server",
+    "dataBody": "Only to the AFK4.NET server the club uses: PC state, sessions and payments, a hardware description and its readings (temperatures, disks) and the list of installed programs. Details in the privacy policy.",
+    "uninstallTitle": "How to uninstall",
+    "uninstallSteps": [
+      "Open Settings → Apps and uninstall AFK4.NET. If AFK4.NET Agent, AFK4.NET Player Shell, the AFK4.NET Panel or AFK4.NET Setup Payload are still listed, uninstall them too.",
+      "Uninstalling AFK4.NET Agent removes the kiosk (the player account is deleted and Windows sign-in goes back to how it was), the firewall rules, the “AFK4 game cache” block in hosts and the Windows restrictions, and turns Fast Startup back on if the software turned it off."
+    ],
+    "uninstallLeftovers": "What stays: the network card’s permission to wake the PC over the network (it opens nothing) and the C:\\ProgramData\\AFK4 folder with logs and the PC key, so a reinstall does not need a new enrollment. If the PC leaves the club, delete that folder."
+  },
+  "signing": {
+    "title": "Code signing policy",
+    "lead": "How AFK4.NET software is signed and who is responsible.",
+    "attribution": "Free code signing provided by SignPath.io, certificate by SignPath Foundation.",
+    "whatTitle": "What is signed",
+    "whatBody": "The AFK4.NET installer and the MSI packages of its parts (AFK4.NET Agent service, player screen, Panel, setup wizard), built by GitHub Actions from the open repository. We do not sign anyone else’s software.",
+    "rolesTitle": "Who is responsible",
+    "roles": [
+      {
+        "title": "Committers and reviewers",
+        "body": "Repository members with write access. Outside contributions are reviewed by a member before merging."
+      },
+      {
+        "title": "Approvers",
+        "body": "The project owner, who approves every release for signing by hand."
+      }
+    ],
+    "processTitle": "How a release gets signed",
+    "process": [
+      "Every change passes required CI checks; nothing merges into main without a green run.",
+      "GitHub Actions builds the packages from this repository’s source code.",
+      "The project owner approves each signing request by hand in SignPath.",
+      "All members use multi-factor authentication on GitHub and SignPath."
+    ],
+    "privacyTitle": "Privacy",
+    "privacyBody": "The software sends data only to the AFK4.NET server the club uses, and only to run the club. The privacy policy lists exactly what."
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "updated": "Effective 29 October 2026.",
+    "sections": [
+      {
+        "title": "Who is responsible",
+        "body": "The AFK4.NET platform is run by Mubinjon Mukhamedov (Tajikistan). Questions about data: hello@afk4.net."
+      },
+      {
+        "title": "What data",
+        "body": "Club staff: name, phone number, role. Guests with an account: phone number, name, optional birth date, balance and visits. The club’s sessions, payments, cash desk and stock. From club PCs: computer name, address on the club network, a hardware description and its readings (temperatures, disks, free space), the list of installed programs and protection events."
+      },
+      {
+        "title": "Why",
+        "body": "Only to run the club: open PCs for paid time, keep the books, show the owner reports and warn about failing PCs. Data is not sold and not shared for advertising."
+      },
+      {
+        "title": "Where it is kept",
+        "body": "On AFK4.NET servers. Database backups are encrypted at rest in Cloudflare R2 and kept for 30 days. SMS goes through a local operator; Telegram messages go only to people who connected reports themselves."
+      },
+      {
+        "title": "This website",
+        "body": "afk4.net sets no cookies and loads no analytics or third-party fonts."
+      },
+      {
+        "title": "Contact form",
+        "body": "If you leave a request on the site, your name and phone or Telegram go to the project owner in Telegram, and only to them. We use them to contact you and do not pass them on. To have a message deleted, email hello@afk4.net.",
+        "when": "form"
+      },
+      {
+        "title": "Your rights",
+        "body": "A guest or staff member can ask the club or us to show, correct or delete their data. A club can ask for its organization’s data to be deleted."
+      }
+    ]
+  },
+  "home": {
+    "choose": {
+      "title": "What matters most to you?",
+      "items": [
+        "Keep an eye on the hall",
+        "Take money and sell at the bar",
+        "Know the results without being at the club",
+        "Work without internet"
+      ]
+    },
+    "hero": {
+      "title": "Software for a gaming club",
+      "lead": "PCs, guests, till and bar in one place. Your admin sees the whole hall, a guest sits down at a PC with a phone number, and you get the shift results in Telegram.",
+      "nameLine": "It is called AFK4.NET. Made in Tajikistan, in Tajik, Russian and English.",
+      "write": "Write to us",
+      "demo": "Open the demo",
+      "imageAlt": "AFK4.NET Panel: a floor map with PCs, guests’ remaining time and a card of the selected PC"
+    },
+    "board": {
+      "label": "The program at work",
+      "synthetic": "Example on an invented club",
+      "have": "In the program",
+      "planned": "In development",
+      "map": {
+        "title": "The whole hall on one map",
+        "text": "Who is playing, how much time is left, which PC is free or not answering. Lock, unlock, wake, message the guest on their screen: right from the map.",
+        "free": "free",
+        "left": "left",
+        "offline": "no link",
+        "pc": "PC",
+        "hint": "Press a PC: this is how commands look in the Panel.",
+        "actions": {
+          "lock": "Lock",
+          "unlock": "Unlock",
+          "message": "Message the guest"
+        },
+        "sent": "command sent"
+      },
+      "till": {
+        "title": "Till and bar",
+        "text": "Top-ups, tea and snacks, shifts, receipts. Money goes into a log that cannot be erased: every correction is visible.",
+        "lines": [
+          {
+            "name": "Tea",
+            "price": "6"
+          },
+          {
+            "name": "Chips",
+            "price": "12"
+          },
+          {
+            "name": "Time, 1 hour",
+            "price": "15"
+          }
+        ],
+        "total": "Total",
+        "currency": "TJS"
+      },
+      "guest": {
+        "title": "Guest screen",
+        "text": "A free PC shows the club screen instead of the Windows desktop: seat number, club news, language, sound and network. A mouse move or a key press opens sign-in by phone number or QR.",
+        "imageAlt": "A free PC screen: seat number, a club news item and a system bar with language, sound and network"
+      },
+      "app": {
+        "title": "Player app",
+        "text": "Booking, top-up, bar orders and friends in your phone.",
+        "booking": "Booking: PC 07, today 20:00",
+        "topUp": "Top up",
+        "features": [
+          "Book a PC",
+          "Top up",
+          "Order at the bar",
+          "Friends"
+        ],
+        "scan": "Sign in at a PC: scan QR",
+        "balance": "Club balance",
+        "club": "Your club"
+      },
+      "telegram": {
+        "title": "Results in Telegram",
+        "text": "Shift closed, till does not match, a PC is overheating. The message arrives at once, not when you next visit the club.",
+        "messages": [
+          "Shift closed. Till matches: 1,240 TJS.",
+          "PC 04: graphics card overheating, 91 °C"
+        ]
+      },
+      "offline": {
+        "title": "No internet: the club keeps working",
+        "text": "Press the button. PCs keep counting time, the admin takes cash, and when the link returns everything goes to the server.",
+        "button": "Cut the internet",
+        "buttonBack": "Restore the internet",
+        "on": "Internet is up",
+        "off": "No internet. The club keeps working.",
+        "cashOnly": "Till: cash only",
+        "counting": "Time is running"
+      },
+      "cache": {
+        "title": "Games download once",
+        "text": "A game downloads from the internet once; the other PCs get it over the club network.",
+        "done": "Downloaded from the internet once",
+        "pcs": "The other PCs take it from the club network",
+        "internet": "Internet",
+        "admin": "Admin PC: cache",
+        "once": "once"
+      },
+      "langs": {
+        "title": "Three languages",
+        "text": "Tajik, Russian and English: for the admin in the Panel and for the guest on the PC screen.",
+        "phrases": {
+          "tg": "Ба клуб хуш омадед",
+          "ru": "Добро пожаловать в клуб",
+          "en": "Welcome to the club"
+        }
+      },
+      "soon": {
+        "title": "What we are building next",
+        "text": "In development, no dates promised.",
+        "items": [
+          "Order snacks and drinks from a phone",
+          "One guest account across all clubs of a network"
+        ]
+      }
+    },
+    "inside": {
+      "title": "Everything inside",
+      "lead": "The full list. “In the program” means the feature is built and you can see it in the demo. “In development” means not yet.",
+      "groups": [
+        {
+          "title": "Floor map and PCs",
+          "status": "have",
+          "items": [
+            "Halls and seats, colour and time left on every PC",
+            "Commands: lock, unlock, restart, shut down, wake over the network",
+            "A message on the guest’s screen and sign-out of their session",
+            "Select several PCs at once, one action",
+            "Maintenance mode: the PC is open for staff and not sold to guests",
+            "Seats without a PC: consoles and TVs are run by hand like any seat",
+            "PC health: graphics card temperature, disks, space, an alert to the owner"
+          ]
+        },
+        {
+          "title": "Sessions and tariffs",
+          "status": "have",
+          "items": [
+            "Start, extend, move to another PC, pause, end",
+            "Tariffs can change: the price of a session already started does not",
+            "Time packages, bonuses and cashback",
+            "Debt: “will pay later”",
+            "A guest starts their own session at the PC: signs in, picks time, pays from the balance"
+          ]
+        },
+        {
+          "title": "Till and bar",
+          "status": "have",
+          "items": [
+            "Products, categories, stock, barcode, low-stock warning",
+            "Sale, return, void: the original record is never erased",
+            "Shift: open, close, cash count, mismatch",
+            "Receipts and tips for the admin",
+            "Large money actions only go through with a confirmation"
+          ]
+        },
+        {
+          "title": "Guests",
+          "status": "have",
+          "items": [
+            "Guest list, search, merging duplicates",
+            "Bookings, reviews and a rating for the visit",
+            "Birthday gift",
+            "Club news and events on PC screens and in the Panel",
+            "Tournaments"
+          ]
+        },
+        {
+          "title": "Guest screen on the PC",
+          "status": "have",
+          "items": [
+            "The club screen instead of Windows: no desktop, no taskbar",
+            "Sign in by phone and PIN or by QR",
+            "Pick time, extend, top up",
+            "Games, bar, “call the admin”",
+            "Visit summary: rating and tips",
+            "Language, keyboard layout, sound and network in a system bar",
+            "A guest cannot get into Windows settings: Task Manager, Run and the registry are blocked, and so are the USB drives and sites the club picks"
+          ]
+        },
+        {
+          "title": "Owner",
+          "status": "have",
+          "items": [
+            "Roles and permissions: owner, manager, shift lead, admin, technician, accountant",
+            "The “Events” log: who did what and when",
+            "Reports: Summary, Shifts and till, Revenue",
+            "Several branches",
+            "Shift results, till alerts and yesterday’s summary in Telegram",
+            "Move guests with their balances from another program"
+          ]
+        },
+        {
+          "title": "When something goes wrong",
+          "status": "have",
+          "items": [
+            "Till without internet: cash, extensions, shifts",
+            "Power cut: guests get their downtime back",
+            "An alert about a failing PC before a guest notices",
+            "A database copy every hour",
+            "Updates arrive by themselves, only what changed is downloaded"
+          ]
+        },
+        {
+          "title": "Getting connected",
+          "status": "have",
+          "items": [
+            "One installer for every PC in the club, the wizard asks what kind of PC it is",
+            "The owner signs in with a phone number and an SMS code",
+            "A Panel demo without sign-up",
+            "Tajik, Russian and English"
+          ]
+        },
+        {
+          "title": "Player app",
+          "status": "planned",
+          "items": [
+            "Club catalogue and booking",
+            "Top-up, packages, cashback",
+            "Friends, invitations, tournaments",
+            "Sign in at a PC by QR"
+          ]
+        },
+        {
+          "title": "One account across a club network",
+          "status": "planned",
+          "items": [
+            "Phone, PIN and reputation shared across the network’s clubs",
+            "Each club keeps its own money",
+            "A guest walks into another club of the network: they are already known"
+          ]
+        },
+        {
+          "title": "Ordering at the bar from a phone",
+          "status": "planned",
+          "items": [
+            "A guest picks snacks and drinks in the app",
+            "The admin gets an order queue"
+          ]
+        },
+        {
+          "title": "Game distribution through the cache",
+          "status": "planned",
+          "items": [
+            "The cache is built into the admin PC",
+            "Steam and Epic updates come from the club network",
+            "A test on a real club PC is still ahead"
+          ]
+        }
+      ]
+    },
+    "how": {
+      "title": "How to start",
+      "steps": [
+        {
+          "title": "Install",
+          "body": "One installer for the admin PC and for the gaming PCs. The wizard asks what kind of PC it is."
+        },
+        {
+          "title": "Sign in by phone",
+          "body": "The owner signs in with a phone number and an SMS code and adds staff themselves."
+        },
+        {
+          "title": "Work",
+          "body": "PCs appear on the floor map. Tariffs, bar and PC settings are set in the Panel."
+        }
+      ],
+      "cta": "Download the installer"
+    },
+    "open": {
+      "title": "Open source code",
+      "body": "AFK4.NET’s code is open under AGPL-3.0: anyone can check what the program does on a club’s PCs.",
+      "link": "Source code on GitHub"
+    },
+    "contact": {
+      "title": "Tell us about your club",
+      "lead": "How many PCs you have, what program you use now and what is missing. We will show you AFK4.NET at work and answer your questions.",
+      "name": "Name",
+      "phone": "Phone or Telegram",
+      "send": "Send",
+      "sending": "Sending…",
+      "sent": "Message sent. We will answer you personally.",
+      "error": "Could not send. Write to us on Telegram or call, the contacts are next to this form.",
+      "channels": "Or right away",
+      "telegram": "Telegram",
+      "call": "Call",
+      "email": "Email",
+      "wait": "We reply personally",
+      "cta": "Leave a request",
+      "popupTitle": "Leave your contact",
+      "popupLead": "We will get in touch and tell you more about the product.",
+      "close": "Close"
+    },
+    "ui": {
+      "paletteOpen": "Quick jump",
+      "palettePlaceholder": "Where to?",
+      "paletteHint": "Arrows select, Enter opens, Esc closes",
+      "paletteEmpty": "Nothing found",
+      "next": "Next",
+      "language": "Language"
+    }
+  }
+}
