@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Существующий статический сайт: `site/` (content.ts с тремя языками, build.ts, styles.css), выкладка на Cloudflare Pages (`afk4-site`, workflow Public Site на `site/**`). Сборщик не меняем без причины.
+Статический сайт на Go: `site/` (`main.go` и `templates/*.gohtml`, тексты на трёх языках в `content/*.json`, `static/styles.css`), сборка `cd site && go run .` в `site/dist/`, выкладка на Cloudflare Pages (`afk4-site`, workflow Public Site на `site/**`). Подробности: `docs/operations/public-site.md`. Сборщик не меняем без причины.
 
 ## Users
 
@@ -41,11 +41,11 @@ AFK4.NET ведёт ПК клуба, сессии гостей, кассу и б
 
 ## Brand Commitments
 
-Имя AFK4.NET, логотип и фавикон из `site/img/` (`logo.svg`, `favicon.svg`) — существующие активы. Владелец: сайт-шаблон «как все SaaS», «мёртвый и сухой» и тёмную тему принял отрицательно: старый вид — антиреференс.
+Имя AFK4.NET, логотип и фавикон из `site/static/img/` (`logo.svg`, `favicon.svg`) — существующие активы. Владелец: сайт-шаблон «как все SaaS», «мёртвый и сухой» и тёмную тему принял отрицательно: старый вид — антиреференс.
 
 ## Evidence on Hand
 
-Скриншоты Панели и экрана гостя (`site/img/panel.jpg`, `site/img/shell.jpg`), живое демо, открытый код, выпуск v0.2.0 на GitHub (28.10.2026). Нет и нельзя выдумывать: отзывов, названий клубов-клиентов, цифр экономии, цен, логотипов партнёров.
+Скриншоты Панели и экрана гостя (`site/static/img/panel.jpg`, `site/static/img/shell.jpg`), живое демо, открытый код, выпуск v0.2.0 на GitHub (28.10.2026). Нет и нельзя выдумывать: отзывов, названий клубов-клиентов, цифр экономии, цен, логотипов партнёров.
 
 ## Product Principles
 

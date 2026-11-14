@@ -23,7 +23,10 @@ Read these files first in new sessions:
 - [Architecture Design](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md) -
   platform decisions and module boundaries.
 - [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) -
-  implemented capabilities, latest verification, known gaps, and next work.
+  implemented capabilities, known gaps, and the last verification round (to 2026-09-30).
+- [Pilot Plan](docs/roadmap/pilot-plan-2026-10.md) - the current work order for
+  the first clubs, with what is done and what waits for a live PC.
+- [Windows 7](docs/roadmap/windows7.md) - Native AOT + Miniblink, probes and state.
 - [Production Readiness Roadmap](docs/roadmap/production-readiness.md) - what
   separates the project from pilot and commercial production.
 
@@ -32,20 +35,25 @@ Read these files first in new sessions:
 - Cloud-first SaaS; no local club server in the MVP.
 - Internal browser-based Platform Control is in the MVP for platform-owner
   organization onboarding, subscription/status controls, organization health, and support.
-- Native Windows app Organization Admin built as a .NET desktop shell with WebView2 and
-  a React/TypeScript operator UI.
-- Gaming PCs are Windows 10/11 only in the MVP.
+- Native Windows app Organization Admin built as a .NET desktop shell with a
+  React/TypeScript operator UI (WebView2 window today, moving to `AFK4.WebHost`).
+- Gaming PCs are Windows 7 to 11, x86 and x64 (owner, 2026-10-29 and 2026-11-04):
+  programs on the PC move to Native AOT with a Miniblink window, see
+  [Windows 7](docs/roadmap/windows7.md).
 - Backend is ASP.NET Core on .NET 10, starting as a modular monolith.
 - PostgreSQL is the production source-of-truth database.
 - Agent runtime is split into Windows Agent Service and Player Shell UI.
 - Realtime communication uses SignalR over WebSockets.
-- Offline mode is grace mode only for already active sessions.
+- Offline: the Agent holds an already active session to its paid end (grace
+  mode), and the Organization Admin can seat, settle and sell cash without a
+  connection and sync later, see [Offline Front Desk](docs/roadmap/offline-front-desk.md).
 - Billing uses immutable ledger entries, not mutable balances.
 - MVP includes POS, inventory, shifts, receipts, audit, reports, and
   centralized signed updates.
 - MVP excludes customer browser operational admin as the primary club UI, local
   server, non-Windows agents, kernel driver, country-specific fiscal
-  integrations, mobile app, microservices, and full event sourcing.
+  integrations, microservices, and full event sourcing. The Flutter player app (`src/afk4_customer_app`, Android and web;
+  iOS is not built) is part of the product.
 
 ## Runtime Parts
 
@@ -77,14 +85,13 @@ action logged to the organization's own audit trail; see
 
 `src/AFK4.OrganizationAdmin.App` is the native Windows app for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions. The
-approved target is a .NET desktop host with WebView2 and a React/TypeScript
-operator UI. It is distinct from the Platform Control; the main working
+approved target is a .NET desktop host with a React/TypeScript operator UI
+(WebView2 window today). It is distinct from the Platform Control; the main working
 screen is the floor map. The WebView2/React console now has staff sign-in,
 backend-loaded floor-map state, selected-seat session actions, billing-mode
 selection, filters/table view, SignalR reloads, active-session ticking, and
-backend-confirmed critical commands. The legacy WPF/MVVM implementation remains
-the migration source for parity areas and operator workflows that are still
-being hardened or ported.
+backend-confirmed critical commands. WPF only hosts the window; the old WPF/MVVM
+screens are gone.
 
 The accepted UI/UX direction for this native operator console is recorded in
 [Organization Admin UI/UX Target](docs/product/organization-admin-ui-target.md).
@@ -98,8 +105,9 @@ and installer adapter execution.
 
 ### Setup Wizard
 
-`src/AFK4.SetupWizard` is the first-run WPF enrollment wizard for the single
-Agent MSI flow. It runs as `AFK4.SetupWizard.exe` against install APIs: owner
+`src/AFK4.SetupWizard` is the first-run enrollment wizard for the single Agent
+MSI flow. It is Native AOT with a Win32 + Miniblink window (`AFK4.WebHost`, no
+WPF, no WebView2). It runs as `AFK4.SetupWizard.exe` against install APIs: owner
 code discovery, branch/floor-map discovery, role choice, optional gaming-PC
 seat selection or seat creation, seatless manager-workstation enrollment,
 device enrollment, stable device key, and Agent bootstrap environment writing.
@@ -108,7 +116,8 @@ affordances and starts Agent Service after successful enrollment.
 
 ### Player Shell
 
-`src/AFK4.Player.Shell` is the player-facing WPF UI. It displays locked,
+`src/AFK4.Player.Shell` is the player-facing UI: a WPF window hosting a WebView2
+React screen, moving to `AFK4.WebHost` like the wizard. It displays locked,
 active-session, warning, grace/offline, ending, and launcher states. It is not a
 trusted authority for sessions, billing, or authorization.
 
@@ -116,6 +125,8 @@ trusted authority for sessions, billing, or authorization.
 
 - `src/AFK4.Shared.Contracts` - DTOs shared by backend, Organization Admin, Agent,
   and Shell.
+- `src/AFK4.WebHost` - shared window for programs on club PCs: Win32 +
+  Miniblink (Chromium 132 in one DLL), bridge `window.afk4Host`.
 - `src/AFK4.Update.Publisher` - CLI for publishing update artifacts and signed
   package metadata.
 - `packages/ui` (`@afk4/ui`) - shared web UI layer (styles, layout primitives)
@@ -123,8 +134,11 @@ trusted authority for sessions, billing, or authorization.
 
 ## Local Requirements
 
-- Windows with PowerShell.
-- Git for Windows.
+- Windows with PowerShell for the Windows programs, packaging and runbooks.
+  On macOS or Linux, `scripts/verify.sh` runs the same lanes as PR Verification
+  (`dotnet`, `web`, `flutter`; `windows` runs through your Windows host or a
+  GitHub runner). It needs bun and Flutter at the versions CI pins.
+- Git (Git for Windows on Windows).
 - .NET SDK `10.0.203` or compatible .NET 10 SDK allowed by `global.json`.
 - Repository-local .NET tools restored with `dotnet tool restore`.
 - Docker or local PostgreSQL for live smoke runs.
@@ -146,9 +160,8 @@ From the repository root:
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
 
-The latest recorded verification can move quickly. See
-[Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
-current build/test counts, smoke evidence, known gaps, and next work.
+Test counts move quickly and are not kept in the docs: see the `PR Verification
+Result` check in CI or run `scripts/verify.sh`.
 
 ## Organization Admin Staging Smoke
 

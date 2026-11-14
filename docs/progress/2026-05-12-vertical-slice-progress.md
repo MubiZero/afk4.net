@@ -1,6 +1,28 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-28
+Last updated: 2026-09-30. This snapshot stops there. From 2026-10-25 the work order
+is `docs/roadmap/pilot-plan-2026-10.md` (pilot, offline front desk, power outage,
+game cache, backups, VM acceptance); Windows 7 is `docs/roadmap/windows7.md`.
+
+## Contents
+
+- [Purpose](#purpose)
+- [Current Product Direction](#current-product-direction)
+- [Navigation](#navigation)
+- [Implemented (high level)](#implemented-high-level)
+- [Honesty Wave (2026-09-16)](#honesty-wave-2026-09-16)
+- [Player App Audit (2026-09-18)](#player-app-audit-2026-09-18)
+- [Platform Control Audit (2026-09-19)](#platform-control-audit-2026-09-19)
+- [Third Pass — Design (2026-09-22)](#third-pass--design-2026-09-22)
+- [Ponytail Pass and Three-Pass Audit of Every Part (2026-09-28)](#ponytail-pass-and-three-pass-audit-of-every-part-2026-09-28)
+- [Design Pass of Every Part (2026-09-29)](#design-pass-of-every-part-2026-09-29)
+- [Offline Until The Paid End (2026-09-30)](#offline-until-the-paid-end-2026-09-30)
+- [Acceptance On A Windows VM (2026-09-30)](#acceptance-on-a-windows-vm-2026-09-30)
+- [A Guest Pays Cash At The Desk (2026-09-30)](#a-guest-pays-cash-at-the-desk-2026-09-30)
+- [Removing The Kiosk Takes The PC Off The Floor (2026-09-30)](#removing-the-kiosk-takes-the-pc-off-the-floor-2026-09-30)
+- [Latest Verification](#latest-verification)
+- [Known Gaps](#known-gaps)
+- [Recommended Next Work](#recommended-next-work)
 
 ## Purpose
 
@@ -15,8 +37,8 @@ needed.
 
 - AFK4 is a cloud-first SaaS platform for computer clubs.
 - Day-to-day club operations **and** the owner-facing settings run in the same
-  native Windows app, Organization Admin (a .NET shell hosting a WebView2
-  React/TypeScript UI) — permissions decide who sees which sections, not which
+  native Windows app, Organization Admin (a .NET shell hosting a React/TypeScript
+  UI in a WebView2 window, moving to `AFK4.WebHost`) — permissions decide who sees which sections, not which
   app they open. It was the Operator App before the 2026-07-28 product-boundary
   migration; that name survives only inside the code and in archived plans.
 - Platform-owner/support operations run in the browser Platform Control
@@ -921,201 +943,15 @@ server still offered the PC to guests. Owner decision: no player account = not a
 
 ## Latest Verification
 
+Per-merge test counts are not kept here: `PR Verification Result` in CI and
+`scripts/verify.sh` carry them, and git history has the older rounds (audits,
+design pass, shell stack, July–September gates). Two entries stay because
+nothing else records them: the last merge round and the one check on a real device.
+
 - VM acceptance merged (2026-09-30): #591, #593–#602. The integration branch passed
   `scripts/verify.sh --all` (API on real PostgreSQL, contracts, Agent, web, Flutter) and the Windows lane on
   the VM before the re-run; #599–#602 were verified per PR (affected API tests, shell 153, Agent 510 and shell
   148 on Windows). Every PR merged on a green CI including Windows.
-
-- Design pass merged (2026-09-29). #587 (screens of every part) passed
-  `scripts/verify.sh --all` — API 3325 on real PostgreSQL, Agent 445 (+30
-  WindowsOnly), Setup Wizard 138 (+5), web and Flutter with builds — and green
-  CI including Windows. #589 (tails) passed the web and Flutter lanes.
-
-- Audit merged (2026-09-28). The ponytail pass (#511–#521 via #522) and the
-  three-pass audit fixes (#523–#541, one integration branch) — see the section
-  above. The audit integration tree passed `scripts/verify.sh --all`: API
-  3316/3316 on real PostgreSQL, contracts 153, Agent 445 (+30 WindowsOnly),
-  Setup Wizard 138 (+5), Publisher 13, localization 15; web 1697 in the Panel
-  and every other workspace with builds and Biome; Flutter 613 + integration;
-  solution build with WPF (`-p:EnableWindowsTargeting=true`) without warnings.
-  Windows suites run only in CI. Not verified: anything on a live Windows PC.
-
-- Audit fixes merged (2026-09-28). After the owner asked whether everything
-  built during the shell rewrite exists everywhere and works, three audits
-  (shell vs. concept, Panel + Platform Control, player app) found real bugs;
-  #503–#508 fix them and went in through one integration branch as one deploy:
-  #503 (read caches), #504 (demo Panel on GitHub Pages), #505 (app: QR sign-in
-  on the PC, extend prices and early-end refund from the server, pushes from
-  every club of a person, seats under maintenance not shown free), #506 (Panel
-  and server: a zero invoice is no debt, grace fixed at issue, news scoped to
-  the branch, SSRF guard on ad images, moderated campaigns locked, plan steps
-  confirmed with the price, cp1251 guest import, roles per the owner on
-  2026-09-28), #507 (shell: countdown to the session end, sign-out on silence,
-  summary within the token window, all 17 audit items), #508 (demo mock answers
-  every screen). The integration tree built clean (solution, `tsc` for every web
-  workspace, Biome, `flutter analyze`, EF model has no pending changes, the demo
-  build walked screen by screen); tests were run only by CI — the owner asked
-  not to run them locally. Not verified: anything on a live Windows PC, the QR
-  scanner and pushes on a real phone.
-
-- Shell stack and its leftovers merged (2026-09-26). #449–#500 went in through
-  one integration branch: `main` equals the integration tree, and the full PR
-  Verification (web, Flutter, Windows, PostgreSQL) was green on ffa4c24e. Then
-  #501 (local `scripts/verify.sh` green, CI green) and #502 (CI green on
-  8ecfb924; its tests were run only by CI — the owner asked not to run them
-  locally) merged as one deploy, `main` 70314d40, identical to the tested
-  commit. Not verified: anything on a live Windows PC (kiosk, drives and
-  monitors, age-locked games), uploads to the real MinIO and pushes on a real
-  phone.
-
-- Cleanup and gates round (2026-09-02…03, PRs #207–#212). Three dead stacks
-  removed: the switched-off WPF Organization Admin (8884 lines + 23 test files),
-  the React player web, and the unused `AFK4.BuildingBlocks` project — about
-  24 000 lines and one styling stack. **The release path was broken and nobody
-  saw it:** `scripts/register-update-package-requests.ps1` still posted to the
-  club-scoped update routes that moved to the platform level, so `Package Smoke`
-  had been red on every push to `main` since 2026-08-21. The script now speaks
-  the platform contract; package registration was taken out of the smoke run
-  entirely, because that route needs a platform-admin session and that session is
-  behind two-factor — a bypass token for CI was refused. Package Smoke is green
-  again (first green since 2026-08-21) and staging deploys.
-  Removing the dead stacks broke the staging deploy once: three Dockerfiles still
-  copied the deleted paths, and `deploy/**` was in no PR path filter. Both fixed —
-  the directory now triggers checks and a test asserts every `COPY` source
-  exists.
-  Added in the same round: in-app push handling in the player app (a notification
-  now opens the screen it is about; a test caught that the in-app banner sat
-  under the bottom navigation and its button hit «Профиль» instead), a narrow
-  Biome lint gate on the web workspaces (it caught a shadowed `escape` that would
-  have URL-encoded the audit CSV export), 27 tests for the setup-wizard host
-  bridge (moved into `SetupWizard.Core` so it is testable off Windows), and 16
-  tests for the dashboard summary calculation.
-
-Older verification entries (2026-07-28 and earlier) were removed from this file;
-git history has them.
-
-- Cleanup round (2026-08-17, after the review-fix round below): three leftovers
-  closed. **Postpaid billed the same minutes twice.** A fixed-duration postpaid
-  session records a debt for its minutes at start and at every extension, and
-  checkout then priced the whole elapsed span again: the guest paid the full
-  amount at the till and walked out still owing it on the ledger, because the
-  fresh debt and its settlement netted to zero while the start debt stayed
-  untouched. Checkout now records only what is not already on the session and
-  settles the whole outstanding balance. The same change fixes the repricing that
-  the tariff-schedule work made likely: postpaid debt entries now carry their
-  billable seconds, so already-billed minutes keep the price they were sold at,
-  and the tariff in force at checkout applies only to the overstay. Two tests,
-  both mutation-checked: without the fix one leaves 2250 of phantom debt, the
-  other demands 3750 at the till where 2300 was owed. Open tabs bill exactly as
-  before — they have nothing recorded to subtract. **The localhost CORS origins
-  are no longer appended in production** (`CorsOrigins.Resolve`); staging and dev
-  keep them, so the browser verification route still works, and a production
-  deployment lists its own origins or gets a startup warning. **444 lines of dead
-  CSS** removed: `15-settings.css` kept the whole pre-`payset-*` payments and
-  loyalty stylesheet plus the retired settings shell — 46 class names with no
-  reference anywhere in the repository. Full suite green, including all 28
-  PostgreSQL tests (2134 backend, 1108 web).
-- Review-fix round (2026-08-17): three independent reviewers went over the two
-  merged revenue slices and this branch's docs/cleanup. They found real defects in
-  merged code, all now fixed and each pinned by a test that was mutation-checked
-  against the unfixed code. **A scheduled tariff was only checked at the start
-  instant**, so a booking 08:00–23:00 on an 08:00–16:00 tariff was priced entirely
-  at the morning rate; the gate now requires the tariff to apply throughout the
-  whole span, and falls back to the instant only when there is no known end (an
-  open-ended session). **The capacity check and the booking insert were not one
-  transaction**, so two concurrent bookings for a one-machine hall both committed
-  with two wallet holds; both online paths now run Serializable with a retry, the
-  same pattern session start already used, and a real-PostgreSQL test with a read
-  barrier reproduces the double booking when the transaction is removed.
-  **Seated reservations were dropped from occupancy** on the false premise that a
-  session holds their seat — `SeatAsync` creates no session — so a physically full
-  hall could read as empty; seated now occupies, and a session with no scheduled
-  end (or one already passed) occupies through the present moment instead of
-  vanishing. **The day-of-week toggles inverted their own meaning**: an everyday
-  tariff shows all seven days selected, and the first click XOR-ed against zero,
-  turning "not Saturdays" into "Saturdays only". **`PATCH /tariffs/{id}` erased the
-  schedule** whenever a caller omitted the fields; the schedule moved into a
-  nested object where absent means keep. **Guest and comp sessions bypassed the
-  gate** — a guest session carries a tariff version that checkout prices from, and
-  a comp valuation feeds the manager-approval threshold; both are gated now.
-  Docs: the pilot runbook sent readers to a `Pilot Setup` panel that no longer
-  exists and to a staff step the UI cannot finish (an invite has no redemption
-  screen anywhere in the repo), the roadmap still advertised that panel, the
-  permission names had lost their `organization.` prefix, the CORS caveat
-  overstated the risk (auth is bearer, not cookie), and a `.claude/memory` note
-  still called the deleted settings sections live.
-
-- Off-peak pricing gate (2026-08-17): Platform API passed **2105 tests against a
-  real PostgreSQL database with zero skips**; Shared Contracts 141/141;
-  Localization 15/15; Building Blocks 3/3; Update Publisher 13/13; `@afk4/i18n`
-  39/39; Organization Admin Web 1106/1106 plus its production build; Platform
-  Control 286/286; the customer app passed 323 widget tests with a clean
-  `flutter analyze`. Read that PostgreSQL number carefully: it is true of the
-  suite, but `PlatformApiFactory` runs on the in-memory provider, so the tests for
-  a feature built on it never execute their SQL against Npgsql and can observe no
-  isolation behaviour at all. The nine gate tests were re-run with the schedule check
-  neutered: exactly the four refusal cases fail and the five "must still work" cases
-  pass. Fourteen more unit tests pin the window itself — midnight crossing, day
-  masks, half-open boundaries and the branch time zone — with a fixed-offset zone
-  rather than a named one, so the answer cannot differ between Linux and Windows.
-  The migration `AddTariffSchedule` adds three nullable/defaulted columns to
-  `tariffs`, so every existing tariff keeps applying round the clock. The
-  full-solution build was not run: the Windows-targeted projects cannot build on
-  Linux. Not exercised on a device or against staging.
-
-- Booking capacity gate (2026-08-17): Platform API passed **2082 tests against a
-  real PostgreSQL database with zero skips**; Shared Contracts 141/141;
-  Localization 15/15; Building Blocks 3/3; Update Publisher 13/13; `@afk4/i18n`
-  39/39; Organization Admin Web 1102/1102 plus its production build; Platform
-  Control 286/286; the customer app passed 319 widget tests with a clean
-  `flutter analyze`. The ten capacity tests were re-run with the check neutered:
-  exactly the four refusal cases fail and the six "must still work" cases pass, so
-  they prove the check rather than themselves; the two new booking-sheet tests were
-  checked the same way. `AFK4.Agent.Service.Tests` fails 26 `ClientReleaseAutomation`
-  tests here — verified identical on a clean tree, they need Windows signing tooling
-  and run on the CI Windows job. The full-solution build was not run: the
-  Windows-targeted projects cannot build on Linux. Not exercised on a device or
-  against staging.
-
-- Refer-a-friend gate (2026-08-16): Platform API passed **2072 tests against a real
-  PostgreSQL database with zero skips**; Shared Contracts 141/141; Localization
-  15/15; `@afk4/i18n` 39/39; Organization Admin Web 1102/1102 plus its production
-  build; Platform Control 286/286; the customer app passed 317 widget tests with a
-  clean `flutter analyze`. The migration `AddPlayerReferrals` adds two tables and a
-  per-organization unique referral code on the player. The full-solution build was
-  not run: the Windows-targeted projects cannot build on Linux. Not exercised on a
-  device or against staging.
-
-- Group booking gate (2026-08-16): Platform API passed **2060 tests against a real
-  PostgreSQL database with zero skips**; Shared Contracts 141/141; Localization
-  15/15; `@afk4/i18n` 39/39; Organization Admin Web 1102/1102 plus its production
-  build; Platform Control 286/286; the customer app passed 307 widget tests with a
-  clean `flutter analyze`. The full-solution build was not run: `AFK4.Player.Shell`
-  and `AFK4.OrganizationAdmin.App` target Windows and cannot build on Linux. Nothing
-  here has been exercised on a device or against staging.
-
-- Hour packages and session survival gate (2026-08-15): Platform API passed
-  **2051 tests against a real PostgreSQL database with zero skips** — the local
-  database was raised for the run, so the 27 Postgres-only tests that earlier
-  gates skipped are included here. Shared Contracts passed 141/141,
-  Localization 15/15, `@afk4/i18n` 39/39, Organization Admin Web 1102/1102 plus
-  its production build, Platform Control 286/286, and the customer app passed
-  299 widget tests with a clean `flutter analyze`. The concurrent-refresh test
-  was checked against the unfixed client and fails there, so it proves the race
-  rather than itself. The full-solution build was not run: `AFK4.Player.Shell`
-  targets Windows and cannot build on Linux. Nothing in this slice has been
-  exercised on a real device or against staging yet.
-
-  Two pre-existing defects were found and fixed on the way. The organization
-  offboarding tests pinned the date 2026-08-10 and compared it with the system
-  clock, so the "do not purge before the grace period ends" check silently
-  inverted five days later — 2026-08-15 armed it, and it was already red on a
-  clean tree. The i18n generator matched a placeholder name from the opening
-  brace without requiring a comma or closing brace after it, so the first word
-  of a plural branch became a placeholder: `other {valid for {count} days}`
-  yielded an argument named `valid`. Cyrillic never matched the pattern, so the
-  miss waited for the first English branch starting with a word; regenerating
-  all three locales after the fix changed no existing string.
 
 - Live Android device check (2026-08-15, run by the owner against Coolify
   staging, manual — no test artifact): payom template identifiers and the
@@ -1129,44 +965,6 @@ git history has them.
   payload) and the payom transport are now exercised against the real gateways,
   not only around them. iOS/APNs delivery remains unverified — no APNs key and
   no iOS build exist yet.
-
-- Push notification gate (2026-08-14): Platform API passed 1996 tests with 27
-  PostgreSQL-only skips; Shared Contracts passed 141/141; Organization Admin
-  Web passed 1102 tests; i18n passed 39/39; the customer app passed 286 widget
-  tests with a clean `flutter analyze`. Delivery to a real phone was NOT
-  verified: it needs an APNs key, a Firebase service-account key, and a device
-  build, none of which exist in this environment. What is covered by tests is
-  the logic around delivery — channel fan-out, dead-token cleanup, reminder
-  windows and idempotency, device registration and removal, and the app's
-  register/unregister/rotate behaviour. The FCM transport itself (JWT signing,
-  token exchange, HTTP v1 payload) is unexercised until credentials exist.
-
-- Club showcase / reviews / player record gate (2026-08-13): Platform API
-  passed 1973 tests with 27 PostgreSQL-only skips; Shared Contracts passed
-  141/141; Organization Admin Web passed 1102 tests; i18n passed 39/39; the
-  customer app passed 277 widget tests with a clean `flutter analyze`. The
-  full-solution build was not run on this machine: `AFK4.Player.Shell` targets
-  Windows and cannot build on Linux. A live browser pass over the picker,
-  reviews, review sheet, and record screen was done against a local fake API;
-  OpenStreetMap tiles are unreachable from this environment, so the map was
-  verified by its pins and camera fit, not by rendered tiles. The hall gallery
-  was verified by widget test (swipe + tap) and by its page dots in the
-  browser: Flutter leaves mouse out of `dragDevices`, so a desktop-web mouse
-  cannot swipe it — touch can, and this app ships to phones.
-
-- Platform-admin directory, mandatory 2FA, and support-mode gate (2026-08-06):
-  the Platform API suite passed 1596 tests against a real PostgreSQL database
-  with zero skips; Organization Admin Web passed 993 component/model tests
-  plus 94 App integration tests; Platform Control passed 174/174; i18n passed
-  39/39; and the full solution build completed cleanly.
-
-- Platform Control rebuild review gate (2026-07-30): Platform Control passed
-  147/147 tests and its production build; i18n passed 39/39; Shared Contracts
-  passed 137/137; Platform API passed 1477 tests with 14 PostgreSQL-only skips;
-  and the sequential full solution build completed with 0 warnings and 0
-  errors. The attention projection integration test covers all three added
-  operational counts without per-organization requests. No push, merge,
-  deployment, or physical Windows smoke was performed.
 
 ## Known Gaps
 
@@ -1286,6 +1084,11 @@ git history has them.
   `docs/roadmap/production-readiness.md`.
 
 ## Recommended Next Work
+
+> **Historical (2026-09-30).** The order below was set before the pilot plan. It
+> is superseded by `docs/roadmap/pilot-plan-2026-10.md` (2026-10-25): there is
+> still no live PC, but a Windows 11 VM acceptance ran on 2026-10-26…27, so
+> «every live run is frozen» no longer holds as written.
 
 Platform Control was audited on 2026-09-19 (#361–#368), which closes the last
 part that had none. The order is the owner's, set on 2026-09-16: **every live run

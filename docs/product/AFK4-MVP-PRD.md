@@ -3,6 +3,81 @@
 Status: Draft for product review  
 Last updated: 2026-09-24
 
+## Contents
+
+- [1. Product Summary](#1-product-summary)
+- [2. Problem Statement](#2-problem-statement)
+- [3. Target Users And Roles](#3-target-users-and-roles)
+  - [Platform Admin / Platform Support](#platform-admin--platform-support)
+  - [Organization Owner](#organization-owner)
+  - [Branch Manager](#branch-manager)
+  - [Shift Supervisor](#shift-supervisor)
+  - [Operator](#operator)
+  - [Technician](#technician)
+  - [Accountant](#accountant)
+  - [Player / Guest](#player--guest)
+- [4. MVP Goals And Non-Goals](#4-mvp-goals-and-non-goals)
+  - [MVP Goals](#mvp-goals)
+  - [Non-Goals For The First MVP](#non-goals-for-the-first-mvp)
+- [5. Core User Journeys](#5-core-user-journeys)
+  - [Journey 1: Provision A New Organization](#journey-1-provision-a-new-organization)
+  - [Journey 2: Connect Organization Admin To SaaS](#journey-2-connect-organization-admin-to-saas)
+  - [Journey 3: Suspend Or Reactivate An Organization](#journey-3-suspend-or-reactivate-an-organization)
+  - [Journey 4: Open A Shift](#journey-4-open-a-shift)
+  - [Journey 5: Start A Guest Session](#journey-5-start-a-guest-session)
+  - [Journey 6: Start A Registered Player Session](#journey-6-start-a-registered-player-session)
+  - [Journey 7: Extend, Transfer, Or End Session](#journey-7-extend-transfer-or-end-session)
+  - [Journey 8: Sell POS Items](#journey-8-sell-pos-items)
+  - [Journey 9: Refund Or Manual Correction](#journey-9-refund-or-manual-correction)
+  - [Journey 10: Device Goes Offline During Active Session](#journey-10-device-goes-offline-during-active-session)
+  - [Journey 11: Close A Shift](#journey-11-close-a-shift)
+  - [Journey 12: Roll Out Client Update](#journey-12-roll-out-client-update)
+- [6. Functional Requirements](#6-functional-requirements)
+  - [Identity, Tenancy, And RBAC](#identity-tenancy-and-rbac)
+  - [Platform Control](#platform-control)
+  - [Club Layout And Device Management](#club-layout-and-device-management)
+  - [Session Lifecycle](#session-lifecycle)
+  - [Billing, Ledger, Tariffs, And Packages](#billing-ledger-tariffs-and-packages)
+  - [POS, Inventory, Shifts, And Receipts](#pos-inventory-shifts-and-receipts)
+  - [Audit](#audit)
+  - [Updates](#updates)
+  - [Reports](#reports)
+  - [Organization Admin](#organization-admin)
+  - [Agent Service And Player Shell](#agent-service-and-player-shell)
+  - [Club Showcase And Platform Advertising](#club-showcase-and-platform-advertising)
+  - [SaaS Plans And Onboarding](#saas-plans-and-onboarding)
+  - [Player App](#player-app)
+- [7. Non-Functional Requirements](#7-non-functional-requirements)
+  - [Security](#security)
+  - [Reliability](#reliability)
+  - [Performance](#performance)
+  - [Observability](#observability)
+  - [Data Protection](#data-protection)
+- [8. MVP Release Phases](#8-mvp-release-phases)
+  - [Phase 1: Vertical Slice Foundation](#phase-1-vertical-slice-foundation)
+  - [Phase 2: Identity, Tenancy, And RBAC](#phase-2-identity-tenancy-and-rbac)
+  - [Phase 3: Platform Control And Organization Onboarding](#phase-3-platform-control-and-organization-onboarding)
+  - [Phase 4: Club Layout And Device Management](#phase-4-club-layout-and-device-management)
+  - [Phase 5: Session Lifecycle And Grace Mode](#phase-5-session-lifecycle-and-grace-mode)
+  - [Phase 6: Billing, Ledger, Tariffs, And Packages](#phase-6-billing-ledger-tariffs-and-packages)
+  - [Phase 7: POS, Inventory, Shifts, And Receipts](#phase-7-pos-inventory-shifts-and-receipts)
+  - [Phase 8: Organization Admin Production UX](#phase-8-organization-admin-production-ux)
+  - [Phase 9: Agent Enforcement And Player Shell](#phase-9-agent-enforcement-and-player-shell)
+  - [Phase 10: Updates, Reports, And Operations](#phase-10-updates-reports-and-operations)
+- [9. Success Metrics](#9-success-metrics)
+- [10. Risks And Open Decisions](#10-risks-and-open-decisions)
+  - [Pricing And Platform Advertising](#pricing-and-platform-advertising)
+  - [Windows Enforcement Complexity](#windows-enforcement-complexity)
+  - [Fiscal And Payment Providers](#fiscal-and-payment-providers)
+  - [Offline Expectations](#offline-expectations)
+  - [Organization Isolation](#organization-isolation)
+  - [Platform Control Security](#platform-control-security)
+  - [Update Safety](#update-safety)
+  - [UI Workflow Complexity](#ui-workflow-complexity)
+  - [Organization Admin UI Runtime Migration](#organization-admin-ui-runtime-migration)
+  - [Realtime Agent Protocol](#realtime-agent-protocol)
+- [11. References](#11-references)
+
 ## 1. Product Summary
 
 AFK4.NET is a cloud-first SaaS platform for managing Windows-based cyber clubs.
@@ -173,7 +248,8 @@ operations through AFK4:
   onboarding, subscription/status controls, organization health, and support actions;
 - manage zones, seats, and Windows devices;
 - show a usable native Windows app Organization Admin floor map implemented through a
-  WebView2 desktop shell and React/TypeScript UI;
+  .NET desktop shell and React/TypeScript UI (the window is WebView2 today and
+  moves to `AFK4.WebHost`, see `docs/roadmap/windows7.md`);
 - run Agent Service and Player Shell on gaming PCs;
 - report device status and receive cloud-approved commands through realtime
   infrastructure;
@@ -596,9 +672,11 @@ Success criteria:
 
 - Organization Admin must remain the native Windows desktop application for
   day-to-day club operations; it must not become the Platform Control.
-- Organization Admin must use a .NET desktop shell with WebView2 hosting a
-  React/TypeScript UI for the operator experience.
-- The WebView2 shell owns Windows integration such as process lifetime,
+- Organization Admin must use a .NET desktop shell hosting a React/TypeScript UI
+  for the operator experience. The window is WebView2 today; the owner decided
+  on 2026-11-04 to move programs on club PCs to Native AOT with a Miniblink
+  window (`AFK4.WebHost`), see `docs/roadmap/windows7.md`.
+- The desktop shell owns Windows integration such as process lifetime,
   protected token storage, environment configuration, native packaging, and
   safe host-to-web bridges. Business state remains backend-authoritative.
 - Floor map must be the default working screen.
@@ -611,7 +689,9 @@ Success criteria:
 
 ### Agent Service And Player Shell
 
-- Agent Service must run on Windows 10/11 gaming PCs.
+- Agent Service must run on Windows 7 to 11 gaming PCs, x86 and x64 (owner,
+  2026-10-29 and 2026-11-04: nearly half of the club PCs in Tajikistan run
+  Windows 7). Windows XP is not supported. Plan and state: `docs/roadmap/windows7.md`.
 - Agent Service must maintain outgoing cloud communication.
 - Agent Service must send heartbeat, device state, active session state, and
   local event backlog.
@@ -847,6 +927,12 @@ Because there is no local server, offline behavior is intentionally limited.
 This must be communicated clearly to operators and owners to avoid mismatched
 expectations.
 
+Since the pilot plan of 2026-10-25 the front desk is the exception: the
+Organization Admin seats a guest, settles a session and sells goods for cash
+without internet, then syncs without double charges. Design and stages:
+`docs/roadmap/offline-front-desk.md`. Gaming PCs still only continue sessions
+that were already active.
+
 ### Organization Isolation
 
 Organization isolation is required from the start. Mistakes here are high impact and
@@ -882,11 +968,13 @@ close need focused UX design.
 
 ### Organization Admin UI Runtime Migration
 
-The MVP Organization Admin runtime is changing from WPF-rendered screens to a .NET
-desktop WebView2 shell with React/TypeScript UI. The migration must preserve the
-native Windows app boundary, protected token storage, packaging/update model,
-backend-authoritative critical actions, and staging smoke capability while
-removing WPF as the primary operator UI technology.
+The Organization Admin runtime moved from WPF-rendered screens to a .NET desktop
+shell with a React/TypeScript UI; the WPF screens are gone. The next step is the
+window itself: WebView2 gives way to `AFK4.WebHost` (Win32 + Miniblink) so that
+one build runs on Windows 7 to 11 (`docs/roadmap/windows7.md`). Both steps
+must preserve the native Windows app boundary, protected token storage,
+packaging/update model, backend-authoritative critical actions, and staging
+smoke capability.
 
 ### Realtime Agent Protocol
 

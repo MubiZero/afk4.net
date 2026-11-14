@@ -2,7 +2,22 @@
 
 Last updated: 2026-09-24
 
+## Contents
+
+- [Purpose](#purpose)
+- [Production Definitions](#production-definitions)
+- [Critical Path To Pilot Production](#critical-path-to-pilot-production)
+- [Commercial Production Blockers](#commercial-production-blockers)
+- [Recommended Next Work](#recommended-next-work)
+- [Launch Scope (2026-09-24)](#launch-scope-2026-09-24)
+- [Decision Rules](#decision-rules)
+
 ## Purpose
+
+> **State after 2026-09-24:** the work order and what is done live in
+> `docs/roadmap/pilot-plan-2026-10.md`. The status notes below (2026-09-03 to
+> 2026-09-24) are a chronology; the gates further down were last reviewed on
+> 2026-09-24 and can lag the pilot plan.
 
 This roadmap tracks what separates the current AFK4 codebase from production.
 It is intentionally operational: infrastructure, release gates, security,

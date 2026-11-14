@@ -7,13 +7,13 @@ Last updated: 2026-05-26
 
 This runbook describes the current MVP bootstrap flow for a Windows endpoint.
 The default onboarding artifact is now the WiX-built `AFK4 Agent` MSI. It
-installs the Agent Service and WPF Setup Wizard; Player Shell and Organization Admin
+installs the Agent Service and the Setup Wizard (Native AOT, Win32 + Miniblink window, no WPF); Player Shell and Organization Admin
 are intentionally not bundled in this MSI and are pulled by the Agent from the
 update channel according to the enrolled device role.
 
 ## Preconditions
 
-- The PC runs Windows 10/11.
+- The PC runs Windows 10/11. Windows 7 is supported by the product, but the installer bundle still needs WebView2 and is not accepted for Windows 7 yet; the state is in `docs/roadmap/windows7.md`.
 - The branch exists in the AFK4 backend.
 - A branch staff account with enrollment access can sign in through the Setup
   Wizard by phone or email/login and password.

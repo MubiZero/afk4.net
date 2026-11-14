@@ -3,6 +3,28 @@
 Status: manual staging smoke path  
 Last updated: 2026-05-26
 
+## Contents
+
+- [Purpose](#purpose)
+- [Scope](#scope)
+- [Current Caveats](#current-caveats)
+- [Endpoint Checklist](#endpoint-checklist)
+- [Prerequisites](#prerequisites)
+- [Slice 3.4 Preferred Flow](#slice-34-preferred-flow)
+- [Prepare Staging Data](#prepare-staging-data)
+- [Download Or Build The Agent Package](#download-or-build-the-agent-package)
+- [Enroll With Setup Wizard](#enroll-with-setup-wizard)
+- [Kiosk Account And Autologon](#kiosk-account-and-autologon)
+- [Baseline Device Evidence](#baseline-device-evidence)
+- [Player Shell Visible State](#player-shell-visible-state)
+- [Session Start And Unlock Smoke](#session-start-and-unlock-smoke)
+- [Lease Refresh And Lease Expiry](#lease-refresh-and-lease-expiry)
+- [Session End And Lock Smoke](#session-end-and-lock-smoke)
+- [Update Check And Status Smoke](#update-check-and-status-smoke)
+- [Diagnostics And Audit Evidence](#diagnostics-and-audit-evidence)
+- [Pass criteria](#pass-criteria)
+- [Cleanup](#cleanup)
+
 ## Purpose
 
 This runbook verifies AFK4 on one real Windows gaming PC against the staging

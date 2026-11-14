@@ -3,6 +3,16 @@
 Status: single client master installer (Burn bundle) carrying everything it needs (self-contained programs + offline WebView2); wizard installs role apps
 Last updated: 2026-10-01
 
+## Contents
+
+- [Purpose](#purpose)
+- [Packaging Decision](#packaging-decision)
+- [Update Pipeline Relationship](#update-pipeline-relationship)
+- [Agent MSI Adapter Shape](#agent-msi-adapter-shape)
+- [Safety Rules](#safety-rules)
+- [Current Commands](#current-commands)
+- [Authenticode Signing](#authenticode-signing)
+
 ## Purpose
 
 This runbook records the approved packaging direction for AFK4 Windows
@@ -67,7 +77,7 @@ The component MSIs are build inputs (written to `artifacts/client-packages/inter
 the single deliverable handed to operators is the bundle `.exe`. The component MSIs are
 also still produced as standalone artifacts for update-pipeline publishing and recovery.
 
-- **Agent MSI.** Installs the Agent Service, the WPF Setup Wizard, update helper
+- **Agent MSI.** Installs the Agent Service, the Setup Wizard (Native AOT, Win32 + Miniblink, no WPF), update helper
   scripts, a Start Menu shortcut, a per-machine first-run pending marker, and a
   HKLM `RunOnce` entry for the wizard. The MSI also attempts to launch the
   wizard after an interactive install. The service is registered for automatic

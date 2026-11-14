@@ -29,15 +29,9 @@ src/AFK4.Player.Shell.Web/dist-demo/
 secrets/
 Secrets/
 
-# Local agent/editor settings (ignore everything except the versioned project memory)
+# Local agent/editor settings (the agent memory is not kept in the repository)
 /.claude/*
-!/.claude/memory/
-!/.claude/memory/**
-# Same for nested .claude folders inside subprojects (but keep the root project memory above)
 **/.claude/
-!/.claude/
-!/.claude/memory/
-!/.claude/memory/**
 
 # One-off command-output dumps
 diffstat.txt
