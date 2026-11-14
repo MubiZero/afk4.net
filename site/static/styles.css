@@ -255,17 +255,9 @@ button.seat-free:hover { border-style: solid; }
   html:not(.lite) .hero-inner > *:nth-child(n + 4) { animation-delay: 200ms; }
   html:not(.lite) .chat li { animation: rise 600ms var(--ease) backwards; animation-delay: 300ms; }
   html:not(.lite) .chat li:nth-child(2) { animation-delay: 1100ms; }
-  html:not(.lite)   html:not(.lite) .cache-pcs li { animation: fill-y 500ms var(--ease) backwards; }
-  html:not(.lite) .cache-pcs li:nth-child(1) { animation-delay: 2700ms; }
-  html:not(.lite) .cache-pcs li:nth-child(2) { animation-delay: 2800ms; }
-  html:not(.lite) .cache-pcs li:nth-child(3) { animation-delay: 2900ms; }
-  html:not(.lite) .cache-pcs li:nth-child(4) { animation-delay: 3000ms; }
-  html:not(.lite) .cache-pcs li:nth-child(5) { animation-delay: 3100ms; }
-  html:not(.lite) .cache-pcs li:nth-child(6) { animation-delay: 3200ms; }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
 @keyframes fill { from { transform: scaleX(0); } }
-@keyframes fill-y { from { opacity: 0; transform: scaleY(0.2); } }
 
 html.lite { scroll-behavior: auto; }
 html.lite .hero-shot { transform: none; }
@@ -565,3 +557,4 @@ main > section:last-child:not(.closing) { padding-bottom: var(--space-24); }
 html.lite .ask[open] { animation: none; }
 @media (max-width: 700px) { .ask { margin: auto auto 0; width: 100vw; max-width: 100vw; border-radius: var(--radius-lg) var(--radius-lg) 0 0; } .ask-form { padding: var(--space-6) var(--space-5) var(--space-8); } }
 .ask-form .form-state:empty { display: none; }
+@media (max-width: 700px) { .closing .channels { align-items: stretch; } .closing .channels li { display: block; } }
