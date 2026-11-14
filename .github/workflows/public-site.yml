@@ -41,4 +41,4 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: bunx wrangler@4.150.0 pages deploy site/dist --project-name afk4-site --branch main --commit-dirty=true
+        run: npx --yes wrangler@4.150.0 pages deploy site/dist --project-name afk4-site --branch main --commit-dirty=true

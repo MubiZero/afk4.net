@@ -22,8 +22,12 @@ jobs:
     timeout-minutes: 5
     outputs:
       run_dotnet: ${{ steps.filter.outputs.run_dotnet }}
+      run_windows: ${{ steps.filter.outputs.run_windows }}
+      run_api: ${{ steps.filter.outputs.run_api }}
+      run_aot: ${{ steps.filter.outputs.run_aot }}
       run_web: ${{ steps.filter.outputs.run_web }}
       run_flutter: ${{ steps.filter.outputs.run_flutter }}
+      run_site: ${{ steps.filter.outputs.run_site }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -44,6 +48,57 @@ jobs:
             "scripts/",
             "src/",
             "tests/"
+          )
+          # Только выкладывают: правка такого файла не меняет продукт, платная Windows-дорожка и PostgreSQL ей не нужны.
+          $deployOnlyFiles = @(
+            ".github/workflows/public-site.yml",
+            ".github/workflows/demo-pages.yml",
+            ".github/workflows/coolify-staging-deploy.yml"
+          )
+          # Публичный сайт: Go-генератор, токены и логотипы, из которых он собирается. Дорожка лёгкая, на Ubuntu.
+          $sitePrefixes = @(
+            "site/",
+            "packages/tokens/",
+            "brand/",
+            ".github/workflows/public-site.yml",
+            ".github/workflows/pr-verification.yml"
+          )
+          # Пути, которые видит только одна из двух .NET-дорожек. Остальное (контракты, общие файлы сборки, скрипты, решение) поднимает обе.
+          # Платформенный API зависит только от AFK4.Shared.Contracts, Windows-программы от API не зависят.
+          $apiOnlyPrefixes = @(
+            "src/AFK4.Platform.Api/",
+            "tests/AFK4.Platform.Api.Tests/"
+          )
+          $windowsOnlyPrefixes = @(
+            "src/AFK4.Agent.Service/",
+            "src/AFK4.SetupWizard/",
+            "src/AFK4.SetupWizard.Core/",
+            "src/AFK4.WebHost/",
+            "src/AFK4.OrganizationAdmin.App/",
+            "src/AFK4.Player.Shell/",
+            "src/AFK4.Update.Publisher/",
+            # Веб-интерфейсы программ на Windows API не вызывают в тестах: их проверяет веб-дорожка.
+            "src/AFK4.OrganizationAdmin.Web/",
+            "src/AFK4.SetupWizard.Web/",
+            "src/AFK4.Player.Shell.Web/",
+            "installers/",
+            "tests/AFK4.Agent.Service.Tests/",
+            "tests/AFK4.SetupWizard.Tests/",
+            "tests/AFK4.OrganizationAdmin.App.Tests/",
+            "tests/AFK4.Player.Shell.Tests/",
+            "tests/AFK4.NetFramework.Tests/",
+            "tests/AFK4.Update.Publisher.Tests/"
+          )
+          # Публикация Native AOT (две разрядности, ~2,5 минуты на платном раннере) нужна, только если тронуты программы на AOT или то, из чего они собираются.
+          $aotPrefixes = @(
+            "src/AFK4.Agent.Service/",
+            "src/AFK4.SetupWizard/",
+            "src/AFK4.SetupWizard.Core/",
+            "src/AFK4.WebHost/",
+            "src/AFK4.Shared.Contracts/",
+            "src/Compat/",
+            "scripts/fetch-miniblink.ps1",
+            ".github/workflows/pr-verification.yml"
           )
           $relevantFiles = @(
             "AFK4.sln",
@@ -81,16 +136,47 @@ jobs:
             "bunfig.toml"
           )
           $runDotnet = $false
+          $runWindows = $false
+          $runApi = $false
+          $runAot = $false
           $runWeb = $false
           $runFlutter = $false
+          $runSite = $false
 
           foreach ($path in $changed) {
-            if ($relevantFiles -contains $path) {
-              $runDotnet = $true
+            foreach ($prefix in $sitePrefixes) {
+              if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $runSite = $true
+              }
             }
+            if ($deployOnlyFiles -contains $path) {
+              continue
+            }
+            $dotnetRelevant = $relevantFiles -contains $path
             foreach ($prefix in $relevantPrefixes) {
               if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                $runDotnet = $true
+                $dotnetRelevant = $true
+              }
+            }
+            if ($dotnetRelevant) {
+              $runDotnet = $true
+              $isApiOnly = $false
+              $isWindowsOnly = $false
+              foreach ($prefix in $apiOnlyPrefixes) {
+                if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) { $isApiOnly = $true }
+              }
+              foreach ($prefix in $windowsOnlyPrefixes) {
+                if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) { $isWindowsOnly = $true }
+              }
+              if (-not $isApiOnly) { $runWindows = $true }
+              if (-not $isWindowsOnly) { $runApi = $true }
+            }
+            if ($relevantFiles -contains $path) {
+              $runAot = $true
+            }
+            foreach ($prefix in $aotPrefixes) {
+              if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $runAot = $true
               }
             }
 
@@ -109,24 +195,29 @@ jobs:
               }
             }
 
-            if ($runDotnet -and $runWeb -and $runFlutter) {
+            if ($runWindows -and $runApi -and $runAot -and $runWeb -and $runFlutter -and $runSite) {
               break
             }
           }
 
           Write-Host "Changed paths:"
           $changed | ForEach-Object { Write-Host " - $_" }
-          Write-Host "Run .NET build/test: $runDotnet"
+          Write-Host "Run .NET build/test: $runDotnet (Windows: $runWindows, API on PostgreSQL: $runApi, Native AOT publish: $runAot)"
           Write-Host "Run web build/test: $runWeb"
           Write-Host "Run Flutter build/test: $runFlutter"
+          Write-Host "Run public site build: $runSite"
           "run_dotnet=$($runDotnet.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_windows=$($runWindows.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_api=$($runApi.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_aot=$($runAot.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run_web=$($runWeb.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run_flutter=$($runFlutter.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_site=$($runSite.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   build-test-windows:
     name: Build And Test Windows
     needs: changes
-    if: ${{ needs.changes.outputs.run_dotnet == 'true' }}
+    if: ${{ needs.changes.outputs.run_windows == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -137,6 +228,13 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore tools
         run: dotnet tool restore
@@ -168,6 +266,7 @@ jobs:
       # предупреждения сборка видит лишь при публикации: обе разрядности, предупреждение — провал. Мастер везёт
       # рядом DLL Miniblink своей разрядности.
       - name: Publish Native AOT programs
+        if: ${{ needs.changes.outputs.run_aot == 'true' }}
         shell: pwsh
         run: |
           ./scripts/fetch-miniblink.ps1
@@ -185,6 +284,7 @@ jobs:
       # Программы для приёмки на стенде — отдельным маленьким архивом, а не в общем архиве пакетов на сотни МБ.
       # Только exe: DLL Miniblink та же, что качает scripts/fetch-miniblink.ps1 (сверена по SHA-256), её не возим.
       - name: Upload Native AOT programs
+        if: ${{ needs.changes.outputs.run_aot == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: aot-programs
@@ -197,7 +297,7 @@ jobs:
   test-postgres:
     name: Test Against PostgreSQL (${{ matrix.shard }}/3)
     needs: changes
-    if: ${{ needs.changes.outputs.run_dotnet == 'true' }}
+    if: ${{ needs.changes.outputs.run_api == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Набор API — три четверти всего времени тестов, а раннер на две ядра: три части идут втрое
@@ -241,9 +341,21 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
       # Only the API test project: the solution also carries WPF projects, which do not build off Windows.
       - name: Build
         run: dotnet build tests/AFK4.Platform.Api.Tests -p:NuGetAudit=false -v minimal
+
+      # Правка одного только API не поднимает Windows-дорожку, а DevSeed собирается вместе с API: проверяем, что он не сломан.
+      - name: Build the API seed tool
+        if: ${{ matrix.shard == 1 }}
+        run: dotnet build src/AFK4.Platform.DevSeed -p:NuGetAudit=false -v minimal
 
       - name: Test
         run: scripts/test-shard.sh tests/AFK4.Platform.Api.Tests ${{ matrix.shard }} 3 -p:NuGetAudit=false -v minimal
@@ -380,6 +492,40 @@ jobs:
           cd src/afk4_customer_app
           flutter build web --release
 
+  build-site:
+    name: Build Public Site
+    needs: changes
+    if: ${{ needs.changes.outputs.run_site == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: site/go.mod
+
+      - name: Vet, format and build
+        working-directory: site
+        run: |
+          go vet ./...
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo "gofmt: файлы выше не отформатированы"; exit 1; }
+          go run .
+
+      - name: Check the built pages
+        run: |
+          for page in index download code-signing privacy; do
+            for dir in "" tg/ en/; do
+              test -s "site/dist/${dir}${page}.html" || { echo "нет страницы ${dir}${page}.html"; exit 1; }
+            done
+          done
+          for file in tokens.css styles.css app.js lite.js _headers; do
+            test -s "site/dist/${file}" || { echo "нет файла ${file}"; exit 1; }
+          done
+          if grep -rl '{{' site/dist --include='*.html'; then echo "в страницах остались необработанные шаблоны"; exit 1; fi
+
   pr-verification-result:
     name: PR Verification Result
     needs:
@@ -388,6 +534,7 @@ jobs:
       - test-postgres
       - build-test-web
       - build-test-flutter
+      - build-site
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -396,23 +543,26 @@ jobs:
         shell: pwsh
         run: |
           $changesResult = "${{ needs.changes.result }}"
-          $runDotnet = "${{ needs.changes.outputs.run_dotnet }}"
+          $runWindows = "${{ needs.changes.outputs.run_windows }}"
+          $runApi = "${{ needs.changes.outputs.run_api }}"
           $windowsResult = "${{ needs.build-test-windows.result }}"
           $postgresResult = "${{ needs.test-postgres.result }}"
           $runWeb = "${{ needs.changes.outputs.run_web }}"
           $webResult = "${{ needs.build-test-web.result }}"
           $runFlutter = "${{ needs.changes.outputs.run_flutter }}"
           $flutterResult = "${{ needs.build-test-flutter.result }}"
+          $runSite = "${{ needs.changes.outputs.run_site }}"
+          $siteResult = "${{ needs.build-site.result }}"
 
           if ($changesResult -ne "success") {
             throw "Change detection failed. Result: $changesResult"
           }
 
-          if ($runDotnet -eq "true" -and $windowsResult -ne "success") {
+          if ($runWindows -eq "true" -and $windowsResult -ne "success") {
             throw "Windows build/test gate did not pass. Result: $windowsResult"
           }
 
-          if ($runDotnet -eq "true" -and $postgresResult -ne "success") {
+          if ($runApi -eq "true" -and $postgresResult -ne "success") {
             throw "PostgreSQL test gate did not pass. Result: $postgresResult"
           }
 
@@ -424,11 +574,22 @@ jobs:
             throw "Flutter build/test gate did not pass. Result: $flutterResult"
           }
 
-          if ($runDotnet -ne "true") {
-            Write-Host "No .NET-relevant changes detected; skipping the paid Windows runner and the PostgreSQL job."
+          if ($runSite -eq "true" -and $siteResult -ne "success") {
+            throw "Public site build gate did not pass. Result: $siteResult"
+          }
+
+          if ($runWindows -ne "true") {
+            Write-Host "No Windows-relevant changes detected; skipping the paid Windows runner."
           }
           else {
-            Write-Host "Windows build/test and PostgreSQL gates passed."
+            Write-Host "Windows build/test gate passed."
+          }
+
+          if ($runApi -ne "true") {
+            Write-Host "No API-relevant changes detected; skipping the PostgreSQL job."
+          }
+          else {
+            Write-Host "PostgreSQL gate passed."
           }
 
           if ($runWeb -ne "true") {

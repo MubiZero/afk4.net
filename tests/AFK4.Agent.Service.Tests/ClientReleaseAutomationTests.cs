@@ -598,7 +598,23 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("$env:GITHUB_OUTPUT", workflow, StringComparison.Ordinal);
 
         Assert.Contains("build-test-windows:", workflow, StringComparison.Ordinal);
-        Assert.Contains("if: ${{ needs.changes.outputs.run_dotnet == 'true' }}", workflow, StringComparison.Ordinal);
+        // Две .NET-дорожки: Windows (всё, кроме API) и PostgreSQL (API и общее). Правка только API не гоняет платную
+        // Windows, правка только Windows-программ не гоняет три части PostgreSQL, а публикация Native AOT идёт по своему признаку.
+        Assert.Contains("run_windows: ${{ steps.filter.outputs.run_windows }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_api: ${{ steps.filter.outputs.run_api }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_aot: ${{ steps.filter.outputs.run_aot }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: ${{ needs.changes.outputs.run_windows == 'true' }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: ${{ needs.changes.outputs.run_api == 'true' }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("\"src/AFK4.Platform.Api/\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("\"src/AFK4.WebHost/\"", workflow, StringComparison.Ordinal);
+        // Программы на AOT публикуются и грузятся артефактом только когда их тронули.
+        Assert.Equal(2, CountOccurrences(workflow, "if: ${{ needs.changes.outputs.run_aot == 'true' }}"));
+        // Деплой-workflow только выкладывают, их правка не должна поднимать дорогие дорожки.
+        Assert.Contains(".github/workflows/public-site.yml", workflow, StringComparison.Ordinal);
+        Assert.Contains("build-site:", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_site: ${{ steps.filter.outputs.run_site }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("Public site build gate did not pass.", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/cache@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("runs-on: windows-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("timeout-minutes: 45", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-dotnet@v6", workflow, StringComparison.Ordinal);
@@ -635,7 +651,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("if: ${{ always() }}", workflow, StringComparison.Ordinal);
         Assert.Contains("Windows build/test gate did not pass.", workflow, StringComparison.Ordinal);
         Assert.Contains("PostgreSQL test gate did not pass.", workflow, StringComparison.Ordinal);
-        Assert.Contains("No .NET-relevant changes detected; skipping the paid Windows runner and the PostgreSQL job.", workflow, StringComparison.Ordinal);
+        Assert.Contains("No Windows-relevant changes detected; skipping the paid Windows runner.", workflow, StringComparison.Ordinal);
+        Assert.Contains("No API-relevant changes detected; skipping the PostgreSQL job.", workflow, StringComparison.Ordinal);
 
         // The Flutter gate has to be wired the same way as the others: a job, a change filter that
         // includes the string catalog it generates from, and a throw in the result gate. A job that
