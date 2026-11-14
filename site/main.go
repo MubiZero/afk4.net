@@ -37,7 +37,7 @@ var seats = []Seat{
 	{"09", "play", 905}, {"10", "play", 4120}, {"11", "free", 0}, {"12", "play", 1750},
 }
 
-type Feature struct{ Title, Body string }
+type Feature struct{ Title, Body, When string }
 
 type Content struct {
 	HTMLLang string
@@ -257,6 +257,16 @@ func main() {
 	contents := map[string]*Content{}
 	for _, lang := range langs {
 		c := load[Content]("content/" + lang + ".json")
+		// Разделы с пометкой when=form описывают форму связи: пока у сайта нет адреса в API (contactEndpoint), их нет.
+		if links.ContactEndpoint == "" {
+			kept := c.Privacy.Sections[:0]
+			for _, section := range c.Privacy.Sections {
+				if section.When != "form" {
+					kept = append(kept, section)
+				}
+			}
+			c.Privacy.Sections = kept
+		}
 		contents[lang] = &c
 	}
 
@@ -265,6 +275,7 @@ func main() {
 		"clock":  clock,
 		"sum":    sumLines,
 		"icon":   icon,
+		"cicon":  cicon,
 		"anchor": func(lang, a string) string { return href(lang, "index") + "#" + a },
 		"mail":   func(s string) string { return strings.TrimPrefix(s, "mailto:") },
 		"host":   func(s string) string { return strings.TrimPrefix(s, "https://") },
@@ -336,4 +347,21 @@ func icon(i int) template.HTML {
 		return ""
 	}
 	return template.HTML(`<svg class="gicon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">` + groupIcons[i] + `</svg>`)
+}
+
+// changeIcons — значки пунктов «Что установка меняет в Windows» в порядке content/*.json.
+var changeIcons = []string{
+	`<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>`,
+	`<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>`,
+	`<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>`,
+	`<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>`,
+	`<path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/>`,
+	`<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
+}
+
+func cicon(i int) template.HTML {
+	if i < 0 || i >= len(changeIcons) {
+		return ""
+	}
+	return template.HTML(`<svg class="gicon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">` + changeIcons[i] + `</svg>`)
 }

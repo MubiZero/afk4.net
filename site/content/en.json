@@ -124,7 +124,8 @@
       },
       {
         "title": "Contact form",
-        "body": "If you write through the form on the home page, your name, club name, phone and message go to the project owner in Telegram, and only to them. We use them to reply and do not pass them on. To have a message deleted, email hello@afk4.net."
+        "body": "If you write through the form on the home page, your name, club name, phone and message go to the project owner in Telegram, and only to them. We use them to reply and do not pass them on. To have a message deleted, email hello@afk4.net.",
+        "when": "form"
       },
       {
         "title": "Your rights",

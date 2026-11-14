@@ -1,8 +1,22 @@
-{{define "main"}}{{with .C.Privacy}}    <section class="section">
-      <div class="wrap narrow">
+{{define "main"}}{{with .C.Privacy}}    <section class="page-hero">
+      <div class="hero-glow page-glow" aria-hidden="true"></div>
+      <div class="hero-lines" aria-hidden="true"></div>
+      <div class="wrap page-hero-inner">
         <h1 class="page-title">{{.Title}}</h1>
-        <p class="note">{{.Updated}}</p>{{range .Sections}}
-        <h2>{{.Title}}</h2>
-        <p>{{.Body}}</p>{{end}}
+        <p class="lead">{{.Updated}}</p>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap doc">
+        <nav class="toc" aria-label="{{.Title}}">{{range $i, $s := .Sections}}
+          <a href="#s{{$i}}">{{$s.Title}}</a>{{end}}
+        </nav>
+        <div class="doc-body">{{range $i, $s := .Sections}}
+          <section id="s{{$i}}" class="doc-sec">
+            <h2>{{$s.Title}}</h2>
+            <p>{{$s.Body}}</p>
+          </section>{{end}}
+        </div>
       </div>
     </section>{{end}}{{end}}
