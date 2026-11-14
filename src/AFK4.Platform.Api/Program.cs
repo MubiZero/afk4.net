@@ -116,6 +116,10 @@ var combinedWebOrigins = organizationAdminWebOrigins
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray();
 
+var publicSiteOrigins = builder.Environment.IsDevelopment()
+    ? new[] { "https://afk4.net", "https://www.afk4.net", "http://localhost:8765" }
+    : new[] { "https://afk4.net", "https://www.afk4.net" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
@@ -139,6 +143,13 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
+    // Форма связи публичного сайта: только его адреса, только POST, без cookie.
+    options.AddPolicy(
+        ContactEndpoints.CorsPolicyName,
+        policy => policy
+            .WithOrigins(publicSiteOrigins)
+            .WithMethods("POST")
+            .WithHeaders("Content-Type"));
 });
 builder.Services.AddDbContext<PlatformDbContext>(options =>
 {
@@ -264,6 +275,8 @@ builder.Services.AddSingleton<ISmsTransport>(provider =>
 builder.Services.AddSingleton<INotificationChannel, SmsChannel>();
 builder.Services.Configure<TelegramOptions>(
     builder.Configuration.GetSection(TelegramOptions.SectionName));
+builder.Services.Configure<ContactOptions>(
+    builder.Configuration.GetSection(ContactOptions.SectionName));
 // Токен бота стоит в пути запроса Bot API — журнал запросов фабрики записал бы его в лог.
 builder.Services.AddHttpClient(TelegramClientRegistration.HttpClientName, (provider, http) =>
         http.Timeout = TimeSpan.FromSeconds(provider.GetRequiredService<IOptions<TelegramOptions>>().Value.TimeoutSeconds))
@@ -470,6 +483,15 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = PublicRateLimits.PlayerSessionPerMinute,
                 Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("contact-public", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = PublicRateLimits.ContactPerTenMinutes,
+                Window = TimeSpan.FromMinutes(10)
             }));
 
     options.AddPolicy("payment-webhook", httpContext =>
@@ -689,6 +711,7 @@ app.MapGameLibraryEndpoints(organizations);
 app.MapPlatformMediaEndpoints();
 app.MapDeviceHardwareEndpoints(organizations);
 app.MapShowcaseEndpoints();
+app.MapContactEndpoints();
 app.MapAdEndpoints();
 app.MapTipEndpoints(organizations);
 organizations.MapClubPlanEndpoints();
