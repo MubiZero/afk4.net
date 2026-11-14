@@ -18,12 +18,14 @@ The platform is designed to compete architecturally with systems such as Senet, 
 - The MVP includes an internal browser-based Platform Control for platform
   owner/support organization lifecycle management.
 - The operator experience is a native Windows desktop application.
-- The first supported gaming PCs are Windows 10/11 only. Console and TV seats
+- Supported gaming PCs are Windows 7 to 11, x86 and x64 (owner, 2026-10-29 and
+  2026-11-04; `docs/roadmap/windows7.md`). Console and TV seats
   are agentless: staff start and end their sessions by hand (2026-09-24).
 - The backend is a .NET ASP.NET Core modular monolith.
 - The database is PostgreSQL.
-- The Organization Admin is a native .NET Windows desktop shell with WebView2 and a
-  React/TypeScript operator UI.
+- The Organization Admin is a native .NET Windows desktop shell with a
+  React/TypeScript operator UI. The window is WebView2 today and moves to
+  `AFK4.WebHost` (Win32 + Miniblink, decided 2026-11-04).
 - The gaming PC stack is split into Windows Agent Service and Player Shell UI.
 - Realtime device communication uses SignalR over WebSockets with fallback behavior.
 - Offline behavior is grace mode for already active sessions only.
@@ -60,7 +62,8 @@ or branch-scoped operator permissions.
 ### Organization Admin
 
 The Organization Admin is a native Windows desktop application built as a .NET host
-with WebView2 and a React/TypeScript UI. It is used by cashiers, operators,
+with a React/TypeScript UI in a WebView2 window (moving to `AFK4.WebHost`, see
+`docs/roadmap/windows7.md`). It is used by cashiers, operators,
 administrators, branch managers, technicians, accountants, and owners depending
 on permissions.
 
@@ -79,7 +82,7 @@ The Agent Service is the local enforcement component, but it is not the business
 
 ### Player Shell
 
-The Player Shell is a separate WPF process hosting a WebView2 React UI. Since the rewrite decided on 2026-09-24 it is the Windows shell of a dedicated player account: the per-user Winlogon `Shell` value points at it and the account signs in by autologon, with the password kept as an LSA secret. Players get no explorer, taskbar, or Start menu; the shell is both the lock screen and the game library, and it carries the system bar (language, keyboard layout, volume, microphone, network, clock) that the taskbar would otherwise provide.
+The Player Shell is a separate WPF process hosting a WebView2 React UI; its window moves to `AFK4.WebHost` (Win32 + Miniblink) with the Windows 7 work in `docs/roadmap/windows7.md`. Since the rewrite decided on 2026-09-24 it is the Windows shell of a dedicated player account: the per-user Winlogon `Shell` value points at it and the account signs in by autologon, with the password kept as an LSA secret. Players get no explorer, taskbar, or Start menu; the shell is both the lock screen and the game library, and it carries the system bar (language, keyboard layout, volume, microphone, network, clock) that the taskbar would otherwise provide.
 
 Sign-in happens in the host, not in the page. Player tokens live only in host memory, are attached to API requests by the host, and are revoked on the server when the PC locks. Signing in by QR reuses the device's seating code: the shell shows it as a QR, the player app confirms it with the player's own session, the server issues tokens bound to that device, and the host redeems them. The shell never receives tokens from the phone directly.
 

@@ -1,6 +1,8 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-09-28
+Last updated: 2026-09-30. This snapshot stops there. From 2026-10-25 the work order
+is `docs/roadmap/pilot-plan-2026-10.md` (pilot, offline front desk, power outage,
+game cache, backups, VM acceptance); Windows 7 is `docs/roadmap/windows7.md`.
 
 ## Purpose
 
@@ -15,8 +17,8 @@ needed.
 
 - AFK4 is a cloud-first SaaS platform for computer clubs.
 - Day-to-day club operations **and** the owner-facing settings run in the same
-  native Windows app, Organization Admin (a .NET shell hosting a WebView2
-  React/TypeScript UI) — permissions decide who sees which sections, not which
+  native Windows app, Organization Admin (a .NET shell hosting a React/TypeScript
+  UI in a WebView2 window, moving to `AFK4.WebHost`) — permissions decide who sees which sections, not which
   app they open. It was the Operator App before the 2026-07-28 product-boundary
   migration; that name survives only inside the code and in archived plans.
 - Platform-owner/support operations run in the browser Platform Control
@@ -1286,6 +1288,11 @@ git history has them.
   `docs/roadmap/production-readiness.md`.
 
 ## Recommended Next Work
+
+> **Historical (2026-09-30).** The order below was set before the pilot plan. It
+> is superseded by `docs/roadmap/pilot-plan-2026-10.md` (2026-10-25): there is
+> still no live PC, but a Windows 11 VM acceptance ran on 2026-10-26…27, so
+> «every live run is frozen» no longer holds as written.
 
 Platform Control was audited on 2026-09-19 (#361–#368), which closes the last
 part that had none. The order is the owner's, set on 2026-09-16: **every live run

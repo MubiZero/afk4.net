@@ -67,7 +67,7 @@ The component MSIs are build inputs (written to `artifacts/client-packages/inter
 the single deliverable handed to operators is the bundle `.exe`. The component MSIs are
 also still produced as standalone artifacts for update-pipeline publishing and recovery.
 
-- **Agent MSI.** Installs the Agent Service, the WPF Setup Wizard, update helper
+- **Agent MSI.** Installs the Agent Service, the Setup Wizard (Native AOT, Win32 + Miniblink, no WPF), update helper
   scripts, a Start Menu shortcut, a per-machine first-run pending marker, and a
   HKLM `RunOnce` entry for the wizard. The MSI also attempts to launch the
   wizard after an interactive install. The service is registered for automatic

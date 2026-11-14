@@ -173,7 +173,8 @@ operations through AFK4:
   onboarding, subscription/status controls, organization health, and support actions;
 - manage zones, seats, and Windows devices;
 - show a usable native Windows app Organization Admin floor map implemented through a
-  WebView2 desktop shell and React/TypeScript UI;
+  .NET desktop shell and React/TypeScript UI (the window is WebView2 today and
+  moves to `AFK4.WebHost`, see `docs/roadmap/windows7.md`);
 - run Agent Service and Player Shell on gaming PCs;
 - report device status and receive cloud-approved commands through realtime
   infrastructure;
@@ -596,9 +597,11 @@ Success criteria:
 
 - Organization Admin must remain the native Windows desktop application for
   day-to-day club operations; it must not become the Platform Control.
-- Organization Admin must use a .NET desktop shell with WebView2 hosting a
-  React/TypeScript UI for the operator experience.
-- The WebView2 shell owns Windows integration such as process lifetime,
+- Organization Admin must use a .NET desktop shell hosting a React/TypeScript UI
+  for the operator experience. The window is WebView2 today; the owner decided
+  on 2026-11-04 to move programs on club PCs to Native AOT with a Miniblink
+  window (`AFK4.WebHost`), see `docs/roadmap/windows7.md`.
+- The desktop shell owns Windows integration such as process lifetime,
   protected token storage, environment configuration, native packaging, and
   safe host-to-web bridges. Business state remains backend-authoritative.
 - Floor map must be the default working screen.
@@ -611,7 +614,9 @@ Success criteria:
 
 ### Agent Service And Player Shell
 
-- Agent Service must run on Windows 10/11 gaming PCs.
+- Agent Service must run on Windows 7 to 11 gaming PCs, x86 and x64 (owner,
+  2026-10-29 and 2026-11-04: nearly half of the club PCs in Tajikistan run
+  Windows 7). Windows XP is not supported. Plan and state: `docs/roadmap/windows7.md`.
 - Agent Service must maintain outgoing cloud communication.
 - Agent Service must send heartbeat, device state, active session state, and
   local event backlog.
@@ -847,6 +852,12 @@ Because there is no local server, offline behavior is intentionally limited.
 This must be communicated clearly to operators and owners to avoid mismatched
 expectations.
 
+Since the pilot plan of 2026-10-25 the front desk is the exception: the
+Organization Admin seats a guest, settles a session and sells goods for cash
+without internet, then syncs without double charges. Design and stages:
+`docs/roadmap/offline-front-desk.md`. Gaming PCs still only continue sessions
+that were already active.
+
 ### Organization Isolation
 
 Organization isolation is required from the start. Mistakes here are high impact and
@@ -882,11 +893,13 @@ close need focused UX design.
 
 ### Organization Admin UI Runtime Migration
 
-The MVP Organization Admin runtime is changing from WPF-rendered screens to a .NET
-desktop WebView2 shell with React/TypeScript UI. The migration must preserve the
-native Windows app boundary, protected token storage, packaging/update model,
-backend-authoritative critical actions, and staging smoke capability while
-removing WPF as the primary operator UI technology.
+The Organization Admin runtime moved from WPF-rendered screens to a .NET desktop
+shell with a React/TypeScript UI; the WPF screens are gone. The next step is the
+window itself: WebView2 gives way to `AFK4.WebHost` (Win32 + Miniblink) so that
+one build runs on Windows 7 to 11 (`docs/roadmap/windows7.md`). Both steps
+must preserve the native Windows app boundary, protected token storage,
+packaging/update model, backend-authoritative critical actions, and staging
+smoke capability.
 
 ### Realtime Agent Protocol
 

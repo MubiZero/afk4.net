@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Существующий статический сайт: `site/` (content.ts с тремя языками, build.ts, styles.css), выкладка на Cloudflare Pages (`afk4-site`, workflow Public Site на `site/**`). Сборщик не меняем без причины.
+Статический сайт на Go: `site/` (`main.go` и `templates/*.gohtml`, тексты на трёх языках в `content/*.json`, `static/styles.css`), сборка `cd site && go run .` в `site/dist/`, выкладка на Cloudflare Pages (`afk4-site`, workflow Public Site на `site/**`). Подробности: `docs/operations/public-site.md`. Сборщик не меняем без причины.
 
 ## Users
 
