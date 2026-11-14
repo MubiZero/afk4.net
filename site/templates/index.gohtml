@@ -1,0 +1,197 @@
+{{define "main"}}{{with .C.Home}}    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-lines" aria-hidden="true"></div>
+      <div class="wrap hero-inner">
+        <h1>{{.Hero.Title}}</h1>
+        <p class="lead">{{.Hero.Lead}}</p>
+        <div class="actions actions-center">
+          <a class="btn btn-lamp" href="#contact">{{.Hero.Write}}</a>
+          <a class="btn" href="{{$.L.Links.Demo}}">{{.Hero.Demo}}</a>
+        </div>
+        <figure class="hero-shot"><img src="/img/panel.jpg" alt="{{.Hero.ImageAlt}}" width="1280" height="764"></figure>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="stage-title" data-reveal>
+      <div class="wrap">
+        <h2 class="block-title" id="stage-title">{{.Board.Label}}. <span class="muted">{{.Choose.Title}}</span></h2>
+        <div class="tabs" role="tablist" aria-label="{{.Choose.Title}}">
+          <span class="tab-pill" aria-hidden="true"></span>
+          <button class="tab" type="button" role="tab" data-tab="map" aria-selected="true">{{index .Choose.Items 0}}</button>
+          <button class="tab" type="button" role="tab" data-tab="till" aria-selected="false">{{index .Choose.Items 1}}</button>
+          <button class="tab" type="button" role="tab" data-tab="telegram" aria-selected="false">{{index .Choose.Items 2}}</button>
+          <button class="tab" type="button" role="tab" data-tab="offline" aria-selected="false">{{index .Choose.Items 3}}</button>
+        </div>
+        <div class="window stage">
+          <div class="window-bar"><svg class="window-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity=".35"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity=".35"/></svg><span class="window-title">{{.Board.Synthetic}}</span><span class="window-ctl" aria-hidden="true"><i class="ctl-min"></i><i class="ctl-max"></i><i class="ctl-close"></i></span></div>
+          <div class="scene" data-scene="map" role="tabpanel">
+            <div class="scene-text">
+              <h3>{{.Board.Map.Title}}</h3>
+              <p>{{.Board.Map.Text}}</p>
+              <span class="chip chip-have">{{.Board.Have}}</span>
+            </div>
+            <div class="scene-visual">
+              <ul class="seats">{{range $.Seats}}
+                {{if eq .State "play"}}<li><button class="seat seat-play" type="button" data-seat="{{$.C.Home.Board.Map.PC}} {{.N}}" aria-pressed="false"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time" data-seconds="{{.Seconds}}">{{clock .Seconds}}</span><span class="seat-sub">{{$.C.Home.Board.Map.Left}}</span></button></li>
+                {{else if eq .State "free"}}<li><button class="seat seat-free" type="button" data-seat="{{$.C.Home.Board.Map.PC}} {{.N}}" aria-pressed="false"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time seat-quiet">{{$.C.Home.Board.Map.Free}}</span></button></li>
+                {{else}}<li><div class="seat seat-offline"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time seat-alert">{{$.C.Home.Board.Map.Offline}}</span></div></li>
+                {{end}}{{end}}
+              </ul>
+              <p class="seat-hint" role="status" aria-live="polite" data-seat-hint>{{.Board.Map.Hint}}</p>
+              <div class="seat-panel is-idle" data-seat-panel data-sent="{{.Board.Map.Sent}}">
+                <span class="seat-panel-name" data-seat-name></span>
+                <button class="act" type="button" data-act="{{.Board.Map.Actions.Lock}}">{{.Board.Map.Actions.Lock}}</button>
+                <button class="act" type="button" data-act="{{.Board.Map.Actions.Unlock}}">{{.Board.Map.Actions.Unlock}}</button>
+                <button class="act" type="button" data-act="{{.Board.Map.Actions.Message}}">{{.Board.Map.Actions.Message}}</button>
+              </div>
+            </div>
+          </div>
+          <div class="scene" data-scene="till" role="tabpanel">
+            <div class="scene-text">
+              <h3>{{.Board.Till.Title}}</h3>
+              <p>{{.Board.Till.Text}}</p>
+              <span class="chip chip-have">{{.Board.Have}}</span>
+            </div>
+            <div class="scene-visual">
+              <ul class="receipt" aria-hidden="true">{{range .Board.Till.Lines}}
+                <li><span>{{.Name}}</span><span>{{.Price}} {{$.C.Home.Board.Till.Currency}}</span></li>{{end}}
+                <li class="receipt-total"><span>{{.Board.Till.Total}}</span><span>{{sum .Board.Till.Lines}} {{.Board.Till.Currency}}</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="scene" data-scene="telegram" role="tabpanel">
+            <div class="scene-text">
+              <h3>{{.Board.Telegram.Title}}</h3>
+              <p>{{.Board.Telegram.Text}}</p>
+              <span class="chip chip-have">{{.Board.Have}}</span>
+            </div>
+            <div class="scene-visual">
+              <ol class="chat" aria-hidden="true">{{range .Board.Telegram.Messages}}
+                <li>{{.}}</li>{{end}}
+              </ol>
+            </div>
+          </div>
+          <div class="scene" data-scene="offline" role="tabpanel" data-offline>
+            <div class="scene-text">
+              <h3>{{.Board.Offline.Title}}</h3>
+              <p>{{.Board.Offline.Text}}</p>
+              <span class="chip chip-have">{{.Board.Have}}</span>
+            </div>
+            <div class="scene-visual offline-panel">
+              <button class="btn btn-ink" type="button" data-offline-toggle data-label-off="{{.Board.Offline.Button}}" data-label-on="{{.Board.Offline.ButtonBack}}" aria-pressed="false"><svg class="wifi" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 16a5 5 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19.5" r="1.4" fill="currentColor"/><path class="wifi-cut" d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span data-offline-label>{{.Board.Offline.Button}}</span></button>
+              <p class="offline-state" role="status" aria-live="polite" data-offline-state data-text-on="{{.Board.Offline.On}}" data-text-off="{{.Board.Offline.Off}}">{{.Board.Offline.On}}</p>
+              <ul class="minis" aria-hidden="true">{{range $i, $s := $.Seats}}{{if and (lt $i 5) (eq $s.State "play")}}<li class="mini"><span>{{$.C.Home.Board.Map.PC}} {{$s.N}}</span><span class="seat-time" data-seconds="{{$s.Seconds}}">{{clock $s.Seconds}}</span></li>{{end}}{{end}}</ul>
+              <p class="offline-cash" aria-hidden="true">{{.Board.Offline.Counting}} · {{.Board.Offline.CashOnly}}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-reveal>
+      <div class="wrap split">
+        <div class="split-text">
+          <h2 class="block-title">{{.Board.Guest.Title}}</h2>
+          <p class="lead">{{.Board.Guest.Text}}</p>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </div>
+        <figure class="pcscreen"><img src="/img/shell.jpg" alt="{{.Board.Guest.ImageAlt}}" width="1280" height="761" loading="lazy"><figcaption>{{.Board.Synthetic}}</figcaption></figure>
+          <figcaption>{{.Board.Synthetic}}</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="block" data-reveal>
+      <div class="wrap cards3">
+        <article class="card spot">
+          <h3>{{.Board.Langs.Title}}</h3>
+          <p>{{.Board.Langs.Text}}</p>
+          <ul class="lang-rows">
+            <li class="lang-row" data-lang-row="tg"><span class="lang-name">Тоҷикӣ</span><span class="lang-phrase" lang="tg">{{.Board.Langs.Phrases.Tg}}</span></li>
+            <li class="lang-row" data-lang-row="ru"><span class="lang-name">Русский</span><span class="lang-phrase" lang="ru">{{.Board.Langs.Phrases.Ru}}</span></li>
+            <li class="lang-row" data-lang-row="en"><span class="lang-name">English</span><span class="lang-phrase" lang="en">{{.Board.Langs.Phrases.En}}</span></li>
+          </ul>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="card spot">
+          <h3>{{.Board.Cache.Title}}</h3>
+          <p>{{.Board.Cache.Text}}</p>
+          <div class="cache" aria-hidden="true">
+            <span class="node"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/></svg>{{.Board.Cache.Internet}}</span>
+            <span class="down"><i></i><b>{{.Board.Cache.Once}}</b></span>
+            <span class="node node-main"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M7 9h4M7 12h7"/></svg>{{.Board.Cache.Admin}}</span>
+            <svg class="fan" viewBox="0 0 300 44" preserveAspectRatio="none"><path pathLength="1" d="M150 0V12M150 12C150 28 25 20 25 44M150 12C150 28 85 20 85 44M150 12V44M150 12C150 28 215 20 215 44M150 12C150 28 275 20 275 44M150 12C150 28 25 20 25 44"/></svg>
+            <ul class="cache-pcs">{{range $i, $s := $.Seats}}{{if lt $i 5}}<li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg>{{$s.N}}</li>{{end}}{{end}}</ul>
+            <span class="cache-label">{{.Board.Cache.Pcs}}</span>
+          </div>
+          <span class="chip chip-planned">{{.Board.Planned}}</span>
+        </article>
+        <article class="card spot">
+          <h3>{{.Board.App.Title}}</h3>
+          <p>{{.Board.App.Text}}</p>
+          <div class="phone" aria-hidden="true">
+            <span class="phone-notch"></span>
+            <span class="phone-status"><b>20:41</b><i></i></span>
+            <span class="phone-bar"><em>{{.Board.App.Club}}</em><u></u></span>
+            <span class="phone-balance"><small>{{.Board.App.Balance}}</small>120 {{.Board.Till.Currency}}</span>
+            <span class="phone-actions">
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>{{index .Board.App.Features 0}}</span>
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M12 10v5M9.5 12.5h5"/></svg>{{index .Board.App.Features 1}}</span>
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/></svg>{{index .Board.App.Features 2}}</span>
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/></svg>{{index .Board.App.Features 3}}</span>
+            </span>
+            <span class="phone-scan"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4M7 12h10"/></svg>{{.Board.App.Scan}}</span>
+            <span class="phone-tabs"><i class="on"></i><i></i><i></i><i></i></span>
+          </div>
+          <span class="chip chip-planned">{{.Board.Planned}}</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="block" id="inside" data-reveal>
+      <div class="wrap">
+        <h2 class="block-title">{{.Inside.Title}}</h2>
+        <p class="lead">{{.Inside.Lead}}</p>
+        <div class="legend"><span class="chip chip-have">{{.Board.Have}}</span><span class="chip chip-planned">{{.Board.Planned}}</span></div>
+        <div class="atlas" data-atlas>
+          <div class="atlas-grid" role="tablist" aria-label="{{.Inside.Title}}">{{range $i, $g := .Inside.Groups}}
+            <button class="atlas-tile atlas-{{$g.Status}}" type="button" role="tab" data-group="{{$i}}" aria-selected="{{if eq $i 0}}true{{else}}false{{end}}">{{icon $i}}<span class="atlas-name">{{$g.Title}}</span></button>{{end}}
+          </div>
+          <div class="atlas-panel">{{range $i, $g := .Inside.Groups}}
+            <section class="atlas-detail" data-detail="{{$i}}" role="tabpanel">
+              <div class="atlas-head">{{icon $i}}<h3>{{$g.Title}}</h3>{{if eq $g.Status "have"}}<span class="chip chip-have">{{$.C.Home.Board.Have}}</span>{{else}}<span class="chip chip-planned">{{$.C.Home.Board.Planned}}</span>{{end}}</div>
+              <ul>{{range $g.Items}}
+                <li>{{.}}</li>{{end}}
+              </ul>
+            </section>{{end}}
+          </div>
+        </div>
+        <ul class="soon-line"><li class="soon-title">{{.Board.Soon.Title}}:</li>{{range .Board.Soon.Items}}<li>{{.}}</li>{{end}}</ul>
+      </div>
+    </section>
+
+    <section class="block" data-reveal>
+      <div class="wrap">
+        <h2 class="block-title">{{.How.Title}}</h2>
+        <ol class="steps">{{range .How.Steps}}
+          <li><h3>{{.Title}}</h3><p>{{.Body}}</p></li>{{end}}
+        </ol>
+        <div class="open-line">
+          <p><strong>{{.Open.Title}}.</strong> {{.Open.Body}} <a class="link" href="{{$.L.Links.Repo}}">{{.Open.Link}}</a> · <a class="link" href="{{href $.Lang "code-signing"}}">{{$.C.Nav.Signing}}</a></p>
+          <a class="btn" href="{{href $.Lang "download"}}">{{.How.CTA}}</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing" id="contact">
+      <div class="hero-glow closing-glow" aria-hidden="true"></div>
+      <div class="wrap closing-inner">
+        <h2 class="closing-title">{{.Contact.Title}}</h2>
+        <p class="lead">{{.Contact.Lead}}</p>
+        <ul class="channels">{{if $.L.ContactEndpoint}}
+          <li><button class="btn btn-lamp" type="button" data-ask-open>{{.Contact.Cta}}</button></li>{{end}}
+          <li><a class="btn" href="{{$.L.Contacts.Telegram}}">{{.Contact.Telegram}} {{$.L.Contacts.TelegramHandle}}</a></li>
+          <li><a class="btn" href="{{$.L.Contacts.Phone}}">{{.Contact.Call}} {{$.L.Contacts.PhoneShown}}</a></li>
+          <li><a class="btn btn-quiet" href="{{$.L.Links.Email}}">{{.Contact.Email}} {{mail $.L.Links.Email}}</a></li>
+        </ul>
+      </div>
+    </section>{{end}}{{end}}

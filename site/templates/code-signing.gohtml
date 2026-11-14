@@ -1,0 +1,53 @@
+{{define "main"}}{{with .C.Signing}}    <section class="page-hero">
+      <div class="hero-glow page-glow" aria-hidden="true"></div>
+      <div class="hero-lines" aria-hidden="true"></div>
+      <div class="wrap page-hero-inner">
+        <h1 class="page-title">{{.Title}}</h1>
+        <p class="lead">{{.Lead}}</p>
+        <p class="badge"><svg class="gicon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Free code signing provided by <a class="link" href="{{$.L.Links.Signpath}}">SignPath.io</a>, certificate by <a class="link" href="{{$.L.Links.SignpathFoundation}}">SignPath Foundation</a>.</span></p>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap">
+        <div class="panel">
+          <svg class="gicon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <div>
+            <h2 class="panel-title">{{.WhatTitle}}</h2>
+            <p>{{.WhatBody}}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap">
+        <h2 class="block-title">{{.RolesTitle}}</h2>
+        <ul class="roles">
+          <li class="card spot"><svg class="gicon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.6.8 2.7 2.4 3 5.2"/></svg><h3>{{(index .Roles 0).Title}}</h3><p>{{(index .Roles 0).Body}}</p><a class="link" href="{{$.L.Links.Members}}">{{host $.L.Links.Members}}</a></li>
+          <li class="card spot"><svg class="gicon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>{{(index .Roles 1).Title}}</h3><p>{{(index .Roles 1).Body}}</p><a class="link" href="{{$.L.Links.Owner}}">{{host $.L.Links.Owner}}</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap">
+        <h2 class="block-title">{{.ProcessTitle}}</h2>
+        <ol class="timeline">{{range .Process}}
+          <li>{{.}}</li>{{end}}
+        </ol>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap">
+        <div class="panel">
+          <svg class="gicon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <div>
+            <h2 class="panel-title">{{.PrivacyTitle}}</h2>
+            <p>{{.PrivacyBody}}</p>
+            <a class="link" href="{{href $.Lang "privacy"}}">{{$.C.Nav.Privacy}}</a>
+          </div>
+        </div>
+      </div>
+    </section>{{end}}{{end}}

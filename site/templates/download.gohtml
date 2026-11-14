@@ -1,0 +1,55 @@
+{{define "main"}}{{with .C.Download}}    <section class="page-hero">
+      <div class="hero-glow page-glow" aria-hidden="true"></div>
+      <div class="hero-lines" aria-hidden="true"></div>
+      <div class="wrap page-hero-inner">
+        <h1 class="page-title">{{.Title}}</h1>
+        <p class="lead">{{.Lead}}</p>
+        <div class="actions">
+          <a class="btn btn-lamp btn-big" href="{{$.L.Links.Releases}}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>{{.Button}}</a>
+        </div>
+        <p class="note">{{.ButtonNote}}</p>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap">
+        <h2 class="block-title">{{.RequirementsTitle}}</h2>
+        <ul class="reqs">{{range .Requirements}}
+          <li class="card spot"><svg class="gicon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/></svg><p>{{.}}</p></li>{{end}}
+        </ul>
+      </div>
+    </section>
+
+    <section class="block block-tight" id="changes">
+      <div class="wrap">
+        <h2 class="block-title">{{.ChangesTitle}}</h2>
+        <p class="lead">{{.ChangesLead}}</p>
+        <ul class="changes-grid">{{range $i, $c := .Changes}}
+          <li class="card spot">{{cicon $i}}<h3>{{$c.Title}}</h3><p>{{$c.Body}}</p></li>{{end}}
+        </ul>
+      </div>
+    </section>
+
+    <section class="block block-tight">
+      <div class="wrap">
+        <div class="panel">
+          <svg class="gicon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <div>
+            <h2 class="panel-title">{{.DataTitle}}</h2>
+            <p>{{.DataBody}}</p>
+            <a class="link" href="{{href $.Lang "privacy"}}">{{$.C.Nav.Privacy}}</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block block-tight" id="uninstall">
+      <div class="wrap">
+        <h2 class="block-title">{{.UninstallTitle}}</h2>
+        <ol class="steps steps-2">{{range .UninstallSteps}}
+          <li><p>{{.}}</p></li>{{end}}
+        </ol>
+        <p class="note note-wide">{{.UninstallLeftovers}}</p>
+        <p><a class="link" href="{{href $.Lang "code-signing"}}">{{$.C.Nav.Signing}}</a></p>
+      </div>
+    </section>{{end}}{{end}}

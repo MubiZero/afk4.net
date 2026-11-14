@@ -1,0 +1,19 @@
+{
+  "links": {
+    "repo": "https://github.com/MubiZero/afk4.net",
+    "releases": "https://github.com/MubiZero/afk4.net/releases/latest",
+    "members": "https://github.com/MubiZero/afk4.net/graphs/contributors",
+    "owner": "https://github.com/MubiZero",
+    "demo": "https://demo.afk4.net",
+    "signpath": "https://signpath.io",
+    "signpathFoundation": "https://signpath.org",
+    "email": "mailto:hello@afk4.net"
+  },
+  "contacts": {
+    "telegram": "https://t.me/MubiDev",
+    "telegramHandle": "@MubiDev",
+    "phone": "tel:+992186663333",
+    "phoneShown": "+992 18 666 33 33"
+  },
+  "contactEndpoint": "https://api.afk4.net/api/public/contact"
+}
