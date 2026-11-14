@@ -3,6 +3,17 @@
 Status: role-aware MSI publishing runbook after Slice 3.5 legacy cleanup
 Last updated: 2026-05-26
 
+## Contents
+
+- [Purpose](#purpose)
+- [Signing Key](#signing-key)
+- [Publish A Ready Artifact](#publish-a-ready-artifact)
+- [Build And Publish A Client Project](#build-and-publish-a-client-project)
+- [Publish Ready MSI Packages](#publish-ready-msi-packages)
+- [Register The Package](#register-the-package)
+- [Configure Agent Verification](#configure-agent-verification)
+- [Verification](#verification)
+
 ## Purpose
 
 This runbook describes the publishing path for AFK4 client update artifacts.

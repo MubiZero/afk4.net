@@ -16,6 +16,16 @@ The commands assume PowerShell from the repository root:
 Set-Location D:\afk4.net
 ```
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Start PostgreSQL](#start-postgresql)
+- [Restore EF Tool](#restore-ef-tool)
+- [Apply EF Migrations](#apply-ef-migrations)
+- [Start Platform API](#start-platform-api)
+- [Live Smoke](#live-smoke)
+- [Stop Local Services](#stop-local-services)
+
 ## Prerequisites
 
 - Docker Desktop or another Docker runtime with Compose support.

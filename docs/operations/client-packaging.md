@@ -3,6 +3,16 @@
 Status: single client master installer (Burn bundle) carrying everything it needs (self-contained programs + offline WebView2); wizard installs role apps
 Last updated: 2026-10-01
 
+## Contents
+
+- [Purpose](#purpose)
+- [Packaging Decision](#packaging-decision)
+- [Update Pipeline Relationship](#update-pipeline-relationship)
+- [Agent MSI Adapter Shape](#agent-msi-adapter-shape)
+- [Safety Rules](#safety-rules)
+- [Current Commands](#current-commands)
+- [Authenticode Signing](#authenticode-signing)
+
 ## Purpose
 
 This runbook records the approved packaging direction for AFK4 Windows

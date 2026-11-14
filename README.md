@@ -23,7 +23,7 @@ Read these files first in new sessions:
 - [Architecture Design](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md) -
   platform decisions and module boundaries.
 - [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) -
-  implemented capabilities, latest verification, known gaps, and next work.
+  implemented capabilities, known gaps, and the last verification round (to 2026-09-30).
 - [Pilot Plan](docs/roadmap/pilot-plan-2026-10.md) - the current work order for
   the first clubs, with what is done and what waits for a live PC.
 - [Windows 7](docs/roadmap/windows7.md) - Native AOT + Miniblink, probes and state.
@@ -160,9 +160,8 @@ From the repository root:
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
 
-The latest recorded verification can move quickly. See
-[Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
-current build/test counts, smoke evidence, known gaps, and next work.
+Test counts move quickly and are not kept in the docs: see the `PR Verification
+Result` check in CI or run `scripts/verify.sh`.
 
 ## Organization Admin Staging Smoke
 
