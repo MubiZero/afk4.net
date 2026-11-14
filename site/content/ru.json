@@ -7,7 +7,7 @@
     "demo": "Демо",
     "contact": "Написать",
     "features": "Возможности",
-    "signing": "Code signing policy",
+    "signing": "Политика подписи кода",
     "privacy": "Конфиденциальность"
   },
   "meta": {
@@ -72,7 +72,7 @@
     "uninstallLeftovers": "Остаются разрешение сетевой карте будить ПК по сети (оно ничего не открывает) и папка C:\\ProgramData\\AFK4 с журналами и ключом ПК: с ней переустановка не требует новой регистрации. Если ПК уходит из клуба, удалите эту папку."
   },
   "signing": {
-    "title": "Code signing policy",
+    "title": "Политика подписи кода",
     "lead": "Как подписываются программы AFK4.NET и кто за это отвечает.",
     "attribution": "Free code signing provided by SignPath.io, certificate by SignPath Foundation.",
     "whatTitle": "Что подписывается",

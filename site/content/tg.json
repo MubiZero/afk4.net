@@ -7,7 +7,7 @@
     "demo": "Демо",
     "contact": "Навиштан",
     "features": "Имкониятҳо",
-    "signing": "Code signing policy",
+    "signing": "Сиёсати имзои рамз",
     "privacy": "Махфият"
   },
   "meta": {
@@ -72,7 +72,7 @@
     "uninstallLeftovers": "Иҷозати корти шабака барои бедор кардани ПК тавассути шабака (он чизе намекушояд) ва ҷузвдони C:\\ProgramData\\AFK4 бо маҷаллаҳо ва калиди ПК мемонанд: бо он насби дубора бақайдгирии навро талаб намекунад. Агар ПК аз клуб баравад, ин ҷузвдонро нест кунед."
   },
   "signing": {
-    "title": "Code signing policy",
+    "title": "Сиёсати имзои рамз",
     "lead": "Барномаҳои AFK4.NET чӣ тавр имзо карда мешаванд ва кӣ барои он ҷавобгар аст.",
     "attribution": "Free code signing provided by SignPath.io, certificate by SignPath Foundation.",
     "whatTitle": "Чӣ имзо карда мешавад",

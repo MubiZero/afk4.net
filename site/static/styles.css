@@ -578,3 +578,7 @@ html.lite .ask[open] { animation: none; }
   .hero-shot { aspect-ratio: 5 / 4; }
   .hero-shot img { width: 250%; max-width: none; margin-left: -2%; }
 }
+
+/* Подвал: «Оставить заявку» стоит в ряду текстовых ссылок колонки, а не кнопкой */
+.foot-ask { align-self: flex-start; margin: 0; padding: 5px 0; border: 0; border-radius: 4px; background: none; font: inherit; font-size: inherit; font-weight: 400; color: var(--ink-3); text-align: left; cursor: pointer; }
+.foot-ask:hover { color: var(--ink); background: none; border-color: transparent; }
