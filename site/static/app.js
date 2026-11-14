@@ -257,8 +257,7 @@
   }
 
 
-  // Заявка: окно с двумя полями. Само открывается один раз за неделю: через 15 секунд на главной или когда
-  // прокрутили половину страницы. Кнопки «Оставить заявку» (в ряду контактов и в подвале) открывают его всегда.
+  // Заявка: окно с двумя полями. Само открывается один раз за неделю: через 15 секунд на главной. Кнопки «Оставить заявку» (в ряду контактов и в подвале) открывают его всегда.
   var ask = $('[data-ask]');
   if (ask && ask.showModal) {
     var ASK_KEY = 'afk4-ask';
@@ -283,20 +282,7 @@
     ask.addEventListener('close', remember);
 
     if (ask.hasAttribute('data-ask-auto') && !recent()) {
-      var fired = false;
-      var onScrollAsk;
-      var trigger = function () {
-        if (fired) return;
-        fired = true;
-        window.removeEventListener('scroll', onScrollAsk);
-        if (!busy()) openAsk();
-      };
-      onScrollAsk = function () {
-        var max = document.documentElement.scrollHeight - window.innerHeight;
-        if (max > 0 && window.scrollY / max > 0.5) trigger();
-      };
-      window.addEventListener('scroll', onScrollAsk, { passive: true });
-      setTimeout(trigger, 15000);
+      setTimeout(function () { if (!busy()) openAsk(); }, 15000);
     }
   }
 
