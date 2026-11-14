@@ -24,6 +24,7 @@ jobs:
       run_dotnet: ${{ steps.filter.outputs.run_dotnet }}
       run_web: ${{ steps.filter.outputs.run_web }}
       run_flutter: ${{ steps.filter.outputs.run_flutter }}
+      run_site: ${{ steps.filter.outputs.run_site }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -44,6 +45,20 @@ jobs:
             "scripts/",
             "src/",
             "tests/"
+          )
+          # Только выкладывают: правка такого файла не меняет продукт, платная Windows-дорожка и PostgreSQL ей не нужны.
+          $deployOnlyFiles = @(
+            ".github/workflows/public-site.yml",
+            ".github/workflows/demo-pages.yml",
+            ".github/workflows/coolify-staging-deploy.yml"
+          )
+          # Публичный сайт: Go-генератор, токены и логотипы, из которых он собирается. Дорожка лёгкая, на Ubuntu.
+          $sitePrefixes = @(
+            "site/",
+            "packages/tokens/",
+            "brand/",
+            ".github/workflows/public-site.yml",
+            ".github/workflows/pr-verification.yml"
           )
           $relevantFiles = @(
             "AFK4.sln",
@@ -83,8 +98,17 @@ jobs:
           $runDotnet = $false
           $runWeb = $false
           $runFlutter = $false
+          $runSite = $false
 
           foreach ($path in $changed) {
+            foreach ($prefix in $sitePrefixes) {
+              if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $runSite = $true
+              }
+            }
+            if ($deployOnlyFiles -contains $path) {
+              continue
+            }
             if ($relevantFiles -contains $path) {
               $runDotnet = $true
             }
@@ -109,7 +133,7 @@ jobs:
               }
             }
 
-            if ($runDotnet -and $runWeb -and $runFlutter) {
+            if ($runDotnet -and $runWeb -and $runFlutter -and $runSite) {
               break
             }
           }
@@ -119,9 +143,11 @@ jobs:
           Write-Host "Run .NET build/test: $runDotnet"
           Write-Host "Run web build/test: $runWeb"
           Write-Host "Run Flutter build/test: $runFlutter"
+          Write-Host "Run public site build: $runSite"
           "run_dotnet=$($runDotnet.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run_web=$($runWeb.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run_flutter=$($runFlutter.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_site=$($runSite.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   build-test-windows:
     name: Build And Test Windows
@@ -380,6 +406,40 @@ jobs:
           cd src/afk4_customer_app
           flutter build web --release
 
+  build-site:
+    name: Build Public Site
+    needs: changes
+    if: ${{ needs.changes.outputs.run_site == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: site/go.mod
+
+      - name: Vet, format and build
+        working-directory: site
+        run: |
+          go vet ./...
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo "gofmt: файлы выше не отформатированы"; exit 1; }
+          go run .
+
+      - name: Check the built pages
+        run: |
+          for page in index download code-signing privacy; do
+            for dir in "" tg/ en/; do
+              test -s "site/dist/${dir}${page}.html" || { echo "нет страницы ${dir}${page}.html"; exit 1; }
+            done
+          done
+          for file in tokens.css styles.css app.js lite.js _headers; do
+            test -s "site/dist/${file}" || { echo "нет файла ${file}"; exit 1; }
+          done
+          if grep -rl '{{' site/dist --include='*.html'; then echo "в страницах остались необработанные шаблоны"; exit 1; fi
+
   pr-verification-result:
     name: PR Verification Result
     needs:
@@ -388,6 +448,7 @@ jobs:
       - test-postgres
       - build-test-web
       - build-test-flutter
+      - build-site
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -403,6 +464,8 @@ jobs:
           $webResult = "${{ needs.build-test-web.result }}"
           $runFlutter = "${{ needs.changes.outputs.run_flutter }}"
           $flutterResult = "${{ needs.build-test-flutter.result }}"
+          $runSite = "${{ needs.changes.outputs.run_site }}"
+          $siteResult = "${{ needs.build-site.result }}"
 
           if ($changesResult -ne "success") {
             throw "Change detection failed. Result: $changesResult"
@@ -422,6 +485,10 @@ jobs:
 
           if ($runFlutter -eq "true" -and $flutterResult -ne "success") {
             throw "Flutter build/test gate did not pass. Result: $flutterResult"
+          }
+
+          if ($runSite -eq "true" -and $siteResult -ne "success") {
+            throw "Public site build gate did not pass. Result: $siteResult"
           }
 
           if ($runDotnet -ne "true") {
