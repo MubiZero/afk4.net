@@ -1,0 +1,173 @@
+{{define "chip"}}<span class="chip chip-{{.Kind}}">{{.Label}}</span>{{end}}
+{{define "main"}}{{with .C.Home}}    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-lines" aria-hidden="true"></div>
+      <div class="wrap hero-inner">
+        <h1>{{.Hero.Title}}</h1>
+        <p class="lead">{{.Hero.Lead}}</p>
+        <div class="actions actions-center">
+          <a class="btn btn-lamp" href="#contact">{{.Hero.Write}}</a>
+          <a class="btn" href="{{$.L.Links.Demo}}">{{.Hero.Demo}}</a>
+        </div>
+        <p class="note">{{.Hero.DemoNote}}</p>
+        <ul class="trust">
+          <li><a href="{{$.L.Links.Repo}}">{{index .Hero.Trust 0}}</a></li>
+          <li><a href="{{href $.Lang "download"}}#changes">{{index .Hero.Trust 1}}</a></li>
+        </ul>
+        <figure class="hero-shot"><img src="/img/panel.jpg" alt="{{.Hero.ImageAlt}}" width="1280" height="764"></figure>
+      </div>
+    </section>
+    <section class="wrap board-wrap" aria-labelledby="board-title">
+      <h2 class="board-label" id="board-title">{{.Board.Label}} <span class="synthetic">{{.Board.Synthetic}}</span></h2>
+      <div class="chooser" role="group" aria-label="{{.Choose.Title}}">
+        <p class="chooser-title">{{.Choose.Title}}</p>
+        <div class="chooser-row">
+          <button class="choice" type="button" data-choose="map" aria-pressed="false">{{index .Choose.Items 0}}</button>
+          <button class="choice" type="button" data-choose="till" aria-pressed="false">{{index .Choose.Items 1}}</button>
+          <button class="choice" type="button" data-choose="telegram" aria-pressed="false">{{index .Choose.Items 2}}</button>
+          <button class="choice" type="button" data-choose="offline" aria-pressed="false">{{index .Choose.Items 3}}</button>
+        </div>
+      </div>
+      <div class="board" data-board>
+        <article class="tile tile-map">
+          <h3>{{.Board.Map.Title}}</h3>
+          <p>{{.Board.Map.Text}}</p>
+          <ul class="seats">{{range $.Seats}}
+            {{if eq .State "play"}}<li><button class="seat seat-play" type="button" data-seat="{{$.C.Home.Board.Map.PC}} {{.N}}" aria-pressed="false"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time" data-seconds="{{.Seconds}}">{{clock .Seconds}}</span><span class="seat-sub">{{$.C.Home.Board.Map.Left}}</span></button></li>
+            {{else if eq .State "free"}}<li><button class="seat seat-free" type="button" data-seat="{{$.C.Home.Board.Map.PC}} {{.N}}" aria-pressed="false"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time seat-quiet">{{$.C.Home.Board.Map.Free}}</span></button></li>
+            {{else}}<li><div class="seat seat-offline"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time seat-alert">{{$.C.Home.Board.Map.Offline}}</span></div></li>
+            {{end}}{{end}}
+          </ul>
+          <div class="seat-panel" data-seat-panel data-sent="{{.Board.Map.Sent}}" hidden>
+            <span class="seat-panel-name" data-seat-name></span>
+            <button class="act" type="button" data-act="{{.Board.Map.Actions.Lock}}">{{.Board.Map.Actions.Lock}}</button>
+            <button class="act" type="button" data-act="{{.Board.Map.Actions.Unlock}}">{{.Board.Map.Actions.Unlock}}</button>
+            <button class="act" type="button" data-act="{{.Board.Map.Actions.Message}}">{{.Board.Map.Actions.Message}}</button>
+          </div>
+          <p class="seat-hint" role="status" aria-live="polite" data-seat-hint>{{.Board.Map.Hint}}</p>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="tile tile-guest tile-mint">
+          <h3>{{.Board.Guest.Title}}</h3>
+          <p>{{.Board.Guest.Text}}</p>
+          <figure class="screen"><img src="/img/shell.jpg" alt="{{.Board.Guest.ImageAlt}}" width="1280" height="761" loading="lazy"></figure>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="tile tile-till">
+          <h3>{{.Board.Till.Title}}</h3>
+          <p>{{.Board.Till.Text}}</p>
+          <ul class="receipt" aria-hidden="true">{{range .Board.Till.Lines}}
+            <li><span>{{.Name}}</span><span>{{.Price}} {{$.C.Home.Board.Till.Currency}}</span></li>{{end}}
+            <li class="receipt-total"><span>{{.Board.Till.Total}}</span><span>{{sum .Board.Till.Lines}} {{.Board.Till.Currency}}</span></li>
+          </ul>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="tile tile-offline tile-lamp" data-offline>
+          <h3>{{.Board.Offline.Title}}</h3>
+          <p>{{.Board.Offline.Text}}</p>
+          <div class="offline-panel">
+            <button class="btn btn-ink" type="button" data-offline-toggle data-label-off="{{.Board.Offline.Button}}" data-label-on="{{.Board.Offline.ButtonBack}}" aria-pressed="false"><svg class="wifi" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 16a5 5 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19.5" r="1.4" fill="currentColor"/><path class="wifi-cut" d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span data-offline-label>{{.Board.Offline.Button}}</span></button>
+            <p class="offline-state" role="status" aria-live="polite" data-offline-state data-text-on="{{.Board.Offline.On}}" data-text-off="{{.Board.Offline.Off}}">{{.Board.Offline.On}}</p>
+            <ul class="minis" aria-hidden="true">{{range $i, $s := $.Seats}}{{if and (lt $i 5) (eq $s.State "play")}}<li class="mini"><span>{{$.C.Home.Board.Map.PC}} {{$s.N}}</span><span class="seat-time" data-seconds="{{$s.Seconds}}">{{clock $s.Seconds}}</span></li>{{end}}{{end}}</ul>
+            <p class="offline-cash" aria-hidden="true">{{.Board.Offline.Counting}} · {{.Board.Offline.CashOnly}}</p>
+          </div>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="tile tile-telegram">
+          <h3>{{.Board.Telegram.Title}}</h3>
+          <p>{{.Board.Telegram.Text}}</p>
+          <ol class="chat" aria-hidden="true">{{range .Board.Telegram.Messages}}
+            <li>{{.}}</li>{{end}}
+          </ol>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="tile tile-app">
+          <h3>{{.Board.App.Title}}</h3>
+          <p>{{.Board.App.Text}}</p>
+          <div class="phone" aria-hidden="true"><span class="phone-line">{{.Board.App.Booking}}</span><span class="phone-btn">{{.Board.App.TopUp}}</span></div>
+          <span class="chip chip-planned">{{.Board.Planned}}</span>
+        </article>
+        <article class="tile tile-cache">
+          <h3>{{.Board.Cache.Title}}</h3>
+          <p>{{.Board.Cache.Text}}</p>
+          <div class="cache" aria-hidden="true">
+            <span class="cache-label">{{.Board.Cache.Done}}</span>
+            <span class="cache-bar"><i></i></span>
+            <span class="cache-label">{{.Board.Cache.Pcs}}</span>
+            <ul class="cache-pcs">{{range $i, $s := $.Seats}}{{if lt $i 6}}<li>{{$.C.Home.Board.Map.PC}} {{$s.N}}</li>{{end}}{{end}}</ul>
+          </div>
+          <span class="chip chip-planned">{{.Board.Planned}}</span>
+        </article>
+        <article class="tile tile-langs">
+          <h3>{{.Board.Langs.Title}}</h3>
+          <p>{{.Board.Langs.Text}}</p>
+          <ul class="lang-rows">
+            <li class="lang-row" data-lang-row="tg"><span class="lang-name">Тоҷикӣ</span><span class="lang-phrase" lang="tg">{{.Board.Langs.Phrases.Tg}}</span></li>
+            <li class="lang-row" data-lang-row="ru"><span class="lang-name">Русский</span><span class="lang-phrase" lang="ru">{{.Board.Langs.Phrases.Ru}}</span></li>
+            <li class="lang-row" data-lang-row="en"><span class="lang-name">English</span><span class="lang-phrase" lang="en">{{.Board.Langs.Phrases.En}}</span></li>
+          </ul>
+          <span class="chip chip-have">{{.Board.Have}}</span>
+        </article>
+        <article class="tile tile-soon">
+          <h3>{{.Board.Soon.Title}}</h3>
+          <p>{{.Board.Soon.Text}}</p>
+          <ul class="soon">{{range .Board.Soon.Items}}<li>{{.}}</li>{{end}}</ul>
+          <span class="chip chip-planned">{{.Board.Planned}}</span>
+        </article>
+      </div>
+    </section>
+    <section class="section" id="inside">
+      <div class="wrap">
+        <h2>{{.Inside.Title}}</h2>
+        <p class="lead">{{.Inside.Lead}}</p>
+        <div class="groups">{{range .Inside.Groups}}
+          <details class="group group-{{.Status}}" open>
+            <summary><span class="group-title">{{.Title}}</span>{{if eq .Status "have"}}<span class="chip chip-have">{{$.C.Home.Board.Have}}</span>{{else}}<span class="chip chip-planned">{{$.C.Home.Board.Planned}}</span>{{end}}</summary>
+            <ul>{{range .Items}}
+              <li>{{.}}</li>{{end}}
+            </ul>
+          </details>{{end}}
+        </div>
+      </div>
+    </section>
+    <section class="section section-tint">
+      <div class="wrap how">
+        <div>
+          <h2>{{.How.Title}}</h2>
+          <ol class="steps">{{range .How.Steps}}
+            <li><h3>{{.Title}}</h3><p>{{.Body}}</p></li>{{end}}
+          </ol>
+          <div class="actions"><a class="btn btn-ink" href="{{href $.Lang "download"}}">{{.How.CTA}}</a></div>
+        </div>
+        <div class="open">
+          <h2>{{.Open.Title}}</h2>
+          <p class="lead">{{.Open.Body}}</p>
+          <p><a class="link" href="{{$.L.Links.Repo}}">{{.Open.Link}}</a> · <a class="link" href="{{href $.Lang "code-signing"}}">{{$.C.Nav.Signing}}</a></p>
+        </div>
+      </div>
+    </section>
+    <section class="section" id="contact">
+      <div class="wrap contact">
+        <div class="contact-copy">
+          <h2>{{.Contact.Title}}</h2>
+          <p class="lead">{{.Contact.Lead}}</p>
+          <p class="channels-label">{{.Contact.Channels}}</p>
+          <ul class="channels">
+            <li><a class="btn btn-lamp" href="{{$.L.Contacts.Telegram}}">{{.Contact.Telegram}} {{$.L.Contacts.TelegramHandle}}</a></li>
+            <li><a class="btn" href="{{$.L.Contacts.Phone}}">{{.Contact.Call}} {{$.L.Contacts.PhoneShown}}</a></li>
+            <li><a class="btn btn-quiet" href="{{$.L.Links.Email}}">{{.Contact.Email}} {{mail $.L.Links.Email}}</a><span class="note">{{.Contact.EmailNote}}</span></li>
+          </ul>
+        </div>{{if $.L.ContactEndpoint}}
+        <form class="form" action="{{$.L.ContactEndpoint}}" method="post" data-contact data-sending="{{.Contact.Sending}}" data-sent="{{.Contact.Sent}}" data-error="{{.Contact.Error}}">
+          <label>{{.Contact.Name}}<input name="name" autocomplete="name" required maxlength="80"></label>
+          <label>{{.Contact.Club}}<input name="club" maxlength="120"></label>
+          <label>{{.Contact.Phone}}<input name="contact" autocomplete="tel" required maxlength="80"></label>
+          <label>{{.Contact.Message}}<textarea name="message" rows="4" maxlength="1000"></textarea></label>
+          <label class="trap" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+          <input type="hidden" name="lang" value="{{$.Lang}}">
+          <button class="btn btn-lamp" type="submit">{{.Contact.Send}}</button>
+          <p class="form-state" role="status" aria-live="polite" data-form-state></p>
+          <p class="note">{{.Contact.Consent}} <a class="link" href="{{href $.Lang "privacy"}}">{{$.C.Nav.Privacy}}</a></p>
+        </form>{{end}}
+      </div>
+    </section>{{end}}{{end}}

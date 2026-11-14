@@ -1,0 +1,27 @@
+{{define "main"}}{{with .C.Download}}    <section class="section">
+      <div class="wrap narrow">
+        <h1 class="page-title">{{.Title}}</h1>
+        <p class="lead">{{.Lead}}</p>
+        <div class="actions">
+          <a class="btn btn-lamp" href="{{$.L.Links.Releases}}">{{.Button}}</a>
+        </div>
+        <p class="note">{{.ButtonNote}}</p>
+        <h2>{{.RequirementsTitle}}</h2>
+        <ul class="plain">{{range .Requirements}}
+          <li>{{.}}</li>{{end}}
+        </ul>
+        <h2 id="changes">{{.ChangesTitle}}</h2>
+        <p>{{.ChangesLead}}</p>
+        <dl class="changes">{{range .Changes}}
+          <dt>{{.Title}}</dt><dd>{{.Body}}</dd>{{end}}
+        </dl>
+        <h2>{{.DataTitle}}</h2>
+        <p>{{.DataBody}} <a class="link" href="{{href $.Lang "privacy"}}">{{$.C.Nav.Privacy}}</a></p>
+        <h2 id="uninstall">{{.UninstallTitle}}</h2>
+        <ol class="plain">{{range .UninstallSteps}}
+          <li>{{.}}</li>{{end}}
+        </ol>
+        <p class="note">{{.UninstallLeftovers}}</p>
+        <p><a class="link" href="{{href $.Lang "code-signing"}}">{{$.C.Nav.Signing}}</a></p>
+      </div>
+    </section>{{end}}{{end}}

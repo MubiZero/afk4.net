@@ -1,0 +1,60 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.C.HTMLLang}}" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <meta name="description" content="{{.Desc}}">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta property="og:title" content="{{.Title}}">
+  <meta property="og:description" content="{{.Desc}}">
+  <meta property="og:image" content="https://afk4.net/img/panel.jpg">
+  {{range .Switcher}}<link rel="alternate" hreflang="{{.HTMLLang}}" href="https://afk4.net{{.Href}}">
+  {{end}}<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/lite.js"></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">{{if eq .Lang "en"}}Skip to content{{else if eq .Lang "tg"}}Ба мундариҷа{{else}}К содержанию{{end}}</a>
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="{{href .Lang "index"}}"><img src="/img/logo.svg" alt="AFK4.NET" width="150" height="34"></a>
+      <nav class="nav" aria-label="{{.C.Nav.Home}}">
+        <a href="{{anchor .Lang "inside"}}" class="nav-extra">{{.C.Nav.Features}}</a>
+        <a href="{{href .Lang "download"}}" class="nav-download"{{if eq .Page "download"}} aria-current="page"{{end}}>{{.C.Nav.Download}}</a>
+        <a href="{{.L.Links.Demo}}" class="nav-extra">{{.C.Nav.Demo}}</a>
+        <a class="btn btn-lamp btn-small" href="{{anchor .Lang "contact"}}">{{.C.Home.Hero.Write}}</a>
+      </nav>
+      <nav class="langs" aria-label="Language">{{range .Switcher}}<a href="{{.Href}}" hreflang="{{.HTMLLang}}" lang="{{.HTMLLang}}"{{if .Current}} aria-current="true"{{end}}>{{.Name}}</a>{{end}}</nav>
+    </div>
+  </header>
+  <!--email_off--><!-- Cloudflare иначе прячет адрес за скриптом: без JS видно «[email protected]». -->
+  <main id="main">
+{{template "main" .}}
+  </main>
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <div>
+        <img src="/img/logo.svg" alt="AFK4.NET" width="120" height="27">
+        <p>{{.C.Footer.Tagline}}</p>
+      </div>
+      <nav class="foot-links" aria-label="{{.C.Footer.Contact}}">
+        <a href="{{href .Lang "download"}}">{{.C.Nav.Download}}</a>
+        <a href="{{href .Lang "code-signing"}}">{{.C.Nav.Signing}}</a>
+        <a href="{{href .Lang "privacy"}}">{{.C.Nav.Privacy}}</a>
+        <a href="{{.L.Links.Repo}}">{{.C.Footer.License}}</a>
+      </nav>
+      <nav class="foot-links" aria-label="{{.C.Home.Contact.Channels}}">
+        <a href="{{.L.Contacts.Telegram}}">Telegram {{.L.Contacts.TelegramHandle}}</a>
+        <a href="{{.L.Contacts.Phone}}">{{.L.Contacts.PhoneShown}}</a>
+        <a href="{{.L.Links.Email}}">{{mail .L.Links.Email}}</a>
+      </nav>
+      <!--/email_off-->
+    </div>
+  </footer>
+</body>
+</html>
+{{end}}

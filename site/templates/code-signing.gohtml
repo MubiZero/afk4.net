@@ -1,0 +1,20 @@
+{{define "main"}}{{with .C.Signing}}    <section class="section">
+      <div class="wrap narrow">
+        <h1 class="page-title">{{.Title}}</h1>
+        <p class="lead">{{.Lead}}</p>
+        <p class="callout">Free code signing provided by <a class="link" href="{{$.L.Links.Signpath}}">SignPath.io</a>, certificate by <a class="link" href="{{$.L.Links.SignpathFoundation}}">SignPath Foundation</a>.</p>
+        <h2>{{.WhatTitle}}</h2>
+        <p>{{.WhatBody}}</p>
+        <h2>{{.RolesTitle}}</h2>
+        <dl class="changes">
+          <dt>{{(index .Roles 0).Title}}</dt><dd>{{(index .Roles 0).Body}} <a class="link" href="{{$.L.Links.Members}}">{{host $.L.Links.Members}}</a></dd>
+          <dt>{{(index .Roles 1).Title}}</dt><dd>{{(index .Roles 1).Body}} <a class="link" href="{{$.L.Links.Owner}}">{{host $.L.Links.Owner}}</a></dd>
+        </dl>
+        <h2>{{.ProcessTitle}}</h2>
+        <ol class="plain">{{range .Process}}
+          <li>{{.}}</li>{{end}}
+        </ol>
+        <h2>{{.PrivacyTitle}}</h2>
+        <p>{{.PrivacyBody}} <a class="link" href="{{href $.Lang "privacy"}}">{{$.C.Nav.Privacy}}</a></p>
+      </div>
+    </section>{{end}}{{end}}

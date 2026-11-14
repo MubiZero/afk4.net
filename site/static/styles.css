@@ -49,7 +49,7 @@ body {
   line-height: 1.6;
   font-feature-settings: "tnum" 0;
   caret-color: var(--ink);
-  scrollbar-color: #b9bdb3 var(--bg);
+  scrollbar-color: var(--border-strong) var(--bg);
 }
 
 ::selection { background: var(--accent-soft); color: var(--ink); }
@@ -91,13 +91,12 @@ a { color: inherit; }
 .btn:disabled { opacity: 0.55; cursor: progress; }
 .btn-lamp { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 .btn-lamp:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--text-on-accent); box-shadow: var(--shadow-press); }
-.btn-ink { background: var(--ink); border-color: var(--ink); color: #fff; }
-.btn-ink:hover { background: var(--text-strong); border-color: var(--text-strong); color: #fff; }
+.btn-ink { background: var(--text-primary); border-color: var(--text-primary); color: var(--surface-canvas); }
+.btn-ink:hover { background: #fff; border-color: #fff; color: var(--surface-canvas); }
 .btn-quiet { border-color: var(--line); color: var(--ink-2); }
 .btn-small { min-height: 42px; padding: 0 var(--space-5); font-size: 15px; white-space: nowrap; }
 
 /* Первый экран */
-.hero { padding-top: var(--space-12); padding-bottom: var(--space-4); }
 h1 { font-size: clamp(2.4rem, 5.2vw, 4.6rem); line-height: 1.04; letter-spacing: -0.035em; font-weight: 700; margin: 0 0 var(--space-6); text-wrap: balance; }
 .page-title { font-size: clamp(2rem, 5vw, 3.4rem); letter-spacing: -0.025em; max-width: none; margin-bottom: var(--space-6); }
 h2 { font-size: clamp(1.7rem, 3.4vw, 2.6rem); line-height: 1.12; letter-spacing: -0.025em; margin: var(--space-12) 0 var(--space-4); font-weight: 700; text-wrap: balance; }
@@ -109,8 +108,6 @@ p { margin: 0 0 var(--space-4); max-width: 66ch; }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0 0 var(--space-3); }
 .name-line { color: var(--ink-3); font-size: 0.95rem; }
 
-.hero-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--space-12); align-items: end; }
-.hero-cta .note { max-width: 40ch; }
 .trust { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); list-style: none; padding: 0; margin: var(--space-4) 0 0; font-size: 0.95rem; }
 .trust a { color: var(--ink-2); text-underline-offset: 4px; text-decoration-color: var(--border-default); }
 .trust a:hover { color: var(--ink); text-decoration-color: var(--ink); }
@@ -197,10 +194,10 @@ button.seat-free:hover { border-style: solid; }
 .is-off .wifi-cut { opacity: 1; }
 .offline-state { font-weight: 650; color: var(--ink) !important; font-size: 1.05rem !important; }
 .minis { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.mini { display: flex; gap: var(--space-3); align-items: baseline; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.6); font-size: 0.8rem; color: var(--ink-3); }
+.mini { display: flex; gap: var(--space-3); align-items: baseline; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.07); font-size: 0.8rem; color: var(--ink-3); }
 .mini .seat-time { font-size: 1.05rem; color: var(--ink); }
 .offline-cash { font-size: 0.85rem !important; color: var(--ink-3) !important; opacity: 0.0; max-height: 0; overflow: hidden; transition: opacity 350ms var(--ease); }
-.is-off { background: #0f172a; border-color: #0f172a; color: #fff; }
+.is-off { background: #070707; border-color: var(--border-strong); color: #fff; }
 .is-off p, .is-off .offline-cash { color: #cdd3ce !important; }
 .is-off .offline-state { color: #fbbf24 !important; }
 .is-off .offline-cash { opacity: 1; max-height: 3em; }
@@ -332,7 +329,6 @@ html.lite .btn, html.lite .lang-row, html.lite .tile-lamp, html.lite .tile-offli
       "app app app cache cache cache"
       "langs langs langs soon soon soon";
   }
-  .hero-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
   .how, .contact { grid-template-columns: minmax(0, 1fr); gap: var(--space-12); }
 }
 
@@ -345,6 +341,7 @@ html.lite .btn, html.lite .lang-row, html.lite .tile-lamp, html.lite .tile-offli
   body { font-size: 16px; }
   .wrap { padding-inline: var(--space-4); }
   .hero { padding-top: var(--space-8); }
+  .hero-shot { transform: none !important; margin-top: var(--space-6); }
   .top-row { gap: var(--space-2); min-height: 60px; }
   .brand img { width: 100px; }
   .langs { padding-left: var(--space-2); gap: 0; }
@@ -391,3 +388,18 @@ html.lite .btn, html.lite .lang-row, html.lite .tile-lamp, html.lite .tile-offli
 .board[data-focus="offline"] .tile-map { grid-area: offline; }
 .board[data-focus="telegram"] .tile-map { grid-area: chat; }
 @media (max-width: 700px) { .choice { width: 100%; text-align: left; } }
+
+/* Первый экран в духе Linear: заголовок по центру, продукт под наклоном с растворяющимся низом, тонкая сетка и
+   изумрудный свет сверху. Цвета и тени — из токенов тёмной темы. */
+.hero { position: relative; overflow: hidden; padding: var(--space-16) 0 0; text-align: center; }
+.hero-glow { position: absolute; left: 50%; top: -220px; width: 900px; height: 560px; transform: translateX(-50%); background: radial-gradient(50% 60% at 50% 40%, var(--accent-glow), transparent 70%); pointer-events: none; }
+.hero-lines { position: absolute; inset: 0; background-image: linear-gradient(var(--border-soft) 1px, transparent 1px), linear-gradient(90deg, var(--border-soft) 1px, transparent 1px); background-size: 72px 72px; opacity: 0.5; -webkit-mask-image: linear-gradient(#000, transparent 70%); mask-image: linear-gradient(#000, transparent 70%); pointer-events: none; }
+.hero-inner { position: relative; }
+.hero h1 { font-size: clamp(2.4rem, 6.2vw, 5rem); letter-spacing: -0.04em; margin: 0 auto var(--space-5); max-width: 18ch; }
+.hero .lead { margin: 0 auto var(--space-6); }
+.actions-center { justify-content: center; }
+.hero .note { margin: 0 auto; max-width: 52ch; }
+.trust { justify-content: center; }
+.hero-shot { margin: var(--space-12) auto 0; max-width: 1080px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-default); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 40px 120px var(--accent-glow); transform: perspective(1800px) rotateX(9deg); transform-origin: top center; -webkit-mask-image: linear-gradient(#000 60%, transparent 99%); mask-image: linear-gradient(#000 60%, transparent 99%); }
+.hero-shot img { width: 100%; }
+html.lite .hero-shot { transform: none; }
