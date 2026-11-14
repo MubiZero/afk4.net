@@ -35,20 +35,20 @@ function layout(lang: Lang, page: Page, title: string, description: string, main
     .map((other) => `<link rel="alternate" hreflang="${content[other].htmlLang}" href="https://afk4.net${href(other, page)}">`)
     .join('\n  ');
   return `<!doctype html>
-<html lang="${c.htmlLang}">
+<html lang="${c.htmlLang}" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escape(title)}</title>
   <meta name="description" content="${escape(description)}">
   <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#f4f5f0">
+  <meta name="theme-color" content="#eef2f7">
   <meta property="og:title" content="${escape(title)}">
   <meta property="og:description" content="${escape(description)}">
   <meta property="og:image" content="https://afk4.net/img/panel.jpg">
   ${alternates}
   <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="/fonts/geologica-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/tokens.css">
   <link rel="stylesheet" href="/styles.css">
   ${scripts}
 </head>
@@ -411,10 +411,12 @@ for (const lang of langs) {
   }
 }
 cpSync(join(root, 'img'), join(dist, 'img'), { recursive: true });
-cpSync(join(root, 'fonts'), join(dist, 'fonts'), { recursive: true });
+// Токены и логотип берём из канона продукта, а не копируем руками: сайт идёт за ними.
+cpSync(join(root, '..', 'packages', 'tokens', 'tokens.css'), join(dist, 'tokens.css'));
+cpSync(join(root, '..', 'brand', 'afk4-logo-horizontal-light.svg'), join(dist, 'img', 'logo-light.svg'));
 for (const file of ['styles.css', 'app.js', 'lite.js']) cpSync(join(root, file), join(dist, file));
 writeFileSync(
   join(dist, '_headers'),
-  "/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n"
+  "/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'\n"
 );
 console.log(`site built: ${langs.length} languages × ${pages.length} pages → ${dist}`);
