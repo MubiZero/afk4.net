@@ -32,7 +32,7 @@
     "requirements": [
       "Windows 10 or 11, 64-bit",
       "Administrator rights during setup",
-      "Internet for sign-in and updates."
+      "Internet for sign-in and updates"
     ],
     "changesTitle": "What setup changes in Windows",
     "changesLead": "To turn club PCs into gaming seats, the software changes Windows settings. This is everything it does.",
@@ -193,7 +193,7 @@
       },
       "guest": {
         "title": "Guest screen",
-        "text": "Instead of the Windows desktop, the guest sees the club screen: sign in by phone number or QR, time left, games, bar and a “call the admin” button.",
+        "text": "A free PC shows the club screen instead of the Windows desktop: seat number, club news, language, sound and network. A mouse move or a key press opens sign-in by phone number or QR.",
         "imageAlt": "A free PC screen: seat number, a club news item and a system bar with language, sound and network"
       },
       "app": {

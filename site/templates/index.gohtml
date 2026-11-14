@@ -37,13 +37,13 @@
                 {{else}}<li><div class="seat seat-offline"><span class="seat-name">{{$.C.Home.Board.Map.PC}} {{.N}}</span><span class="seat-time seat-alert">{{$.C.Home.Board.Map.Offline}}</span></div></li>
                 {{end}}{{end}}
               </ul>
+              <p class="seat-hint" role="status" aria-live="polite" data-seat-hint>{{.Board.Map.Hint}}</p>
               <div class="seat-panel is-idle" data-seat-panel data-sent="{{.Board.Map.Sent}}">
                 <span class="seat-panel-name" data-seat-name></span>
                 <button class="act" type="button" data-act="{{.Board.Map.Actions.Lock}}">{{.Board.Map.Actions.Lock}}</button>
                 <button class="act" type="button" data-act="{{.Board.Map.Actions.Unlock}}">{{.Board.Map.Actions.Unlock}}</button>
                 <button class="act" type="button" data-act="{{.Board.Map.Actions.Message}}">{{.Board.Map.Actions.Message}}</button>
               </div>
-              <p class="seat-hint" role="status" aria-live="polite" data-seat-hint>{{.Board.Map.Hint}}</p>
             </div>
           </div>
           <div class="scene" data-scene="till" role="tabpanel">
@@ -95,7 +95,8 @@
           <p class="lead">{{.Board.Guest.Text}}</p>
           <span class="chip chip-have">{{.Board.Have}}</span>
         </div>
-        <figure class="pcscreen"><img src="/img/shell.jpg" alt="{{.Board.Guest.ImageAlt}}" width="1280" height="761" loading="lazy"></figure>
+        <figure class="pcscreen"><img src="/img/shell.jpg" alt="{{.Board.Guest.ImageAlt}}" width="1280" height="761" loading="lazy"><figcaption>{{.Board.Synthetic}}</figcaption></figure>
+          <figcaption>{{.Board.Synthetic}}</figcaption></figure>
       </div>
     </section>
 
@@ -164,7 +165,7 @@
             </section>{{end}}
           </div>
         </div>
-        <ul class="soon-line"><li class="soon-title">{{.Board.Soon.Title}}: {{.Board.Soon.Text}}</li>{{range .Board.Soon.Items}}<li>{{.}}</li>{{end}}</ul>
+        <ul class="soon-line"><li class="soon-title">{{.Board.Soon.Title}}:</li>{{range .Board.Soon.Items}}<li>{{.}}</li>{{end}}</ul>
       </div>
     </section>
 

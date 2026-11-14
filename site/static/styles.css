@@ -558,3 +558,23 @@ html.lite .ask[open] { animation: none; }
 @media (max-width: 700px) { .ask { margin: auto auto 0; width: 100vw; max-width: 100vw; border-radius: var(--radius-lg) var(--radius-lg) 0 0; } .ask-form { padding: var(--space-6) var(--space-5) var(--space-8); } }
 .ask-form .form-state:empty { display: none; }
 @media (max-width: 700px) { .closing .channels { align-items: stretch; } .closing .channels li { display: block; } }
+
+/* Правки после проверки: подпись под снимком, ряды вместо одинаковых карточек на странице загрузки, высота карточек */
+.pcscreen figcaption { padding: var(--space-2) var(--space-4); font-size: 0.78rem; color: var(--ink-3); border-top: 1px solid var(--hair); background: rgba(255, 255, 255, 0.03); }
+.cards3 { align-items: start; }
+.reqs { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: var(--space-4); }
+.reqs .card { background: none; border: 0; border-top: 1px solid var(--hair); border-radius: 0; padding: var(--space-4) 0; align-items: center; }
+.reqs .card:last-child { border-bottom: 1px solid var(--hair); }
+.reqs .card::before { display: none; }
+.changes-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.changes-grid .card { display: grid; grid-template-columns: 36px minmax(0, 3fr) minmax(0, 6fr); gap: var(--space-4) var(--space-6); align-items: start; background: none; border: 0; border-top: 1px solid var(--hair); border-radius: 0; padding: var(--space-5) 0; }
+.changes-grid .card:last-child { border-bottom: 1px solid var(--hair); }
+.changes-grid .card h3 { grid-column: 2; }
+.changes-grid .card p { grid-column: 3; }
+.changes-grid .card .gicon { grid-column: 1; margin-top: 2px; }
+.spot::before { border-radius: inherit; }
+@media (max-width: 1000px) { .changes-grid .card { grid-template-columns: 36px minmax(0, 1fr); } .changes-grid .card h3 { grid-column: 2; } .changes-grid .card p { grid-column: 2; } }
+@media (max-width: 700px) {
+  .hero-shot { aspect-ratio: 5 / 4; }
+  .hero-shot img { width: 250%; max-width: none; margin-left: -2%; }
+}
