@@ -256,7 +256,51 @@
     }
   }
 
-  // Форма связи (появится, когда у сайта будет адрес в API): отправка без перезагрузки.
+
+  // Заявка: окно с двумя полями. Само открывается один раз за неделю: через 15 секунд на главной или когда
+  // прокрутили половину страницы. Кнопки «Оставить заявку» (в ряду контактов и в подвале) открывают его всегда.
+  var ask = $('[data-ask]');
+  if (ask && ask.showModal) {
+    var ASK_KEY = 'afk4-ask';
+    var recent = function () {
+      try { return Date.now() - (parseInt(localStorage.getItem(ASK_KEY), 10) || 0) < 7 * 24 * 3600 * 1000; } catch (e) { return false; }
+    };
+    var remember = function () { try { localStorage.setItem(ASK_KEY, String(Date.now())); } catch (e) {} };
+    var busy = function () {
+      var active = document.activeElement;
+      var typing = active && /^(input|textarea|select)$/i.test(active.tagName);
+      return document.hidden || typing || ask.open || ($('[data-palette]') && $('[data-palette]').open);
+    };
+    var openAsk = function () {
+      if (ask.open) return;
+      ask.showModal();
+      var field = $('input[name="contact"]', ask);
+      if (field) field.focus();
+    };
+    $$('[data-ask-open]').forEach(function (button) { button.addEventListener('click', openAsk); });
+    $$('[data-ask-close]').forEach(function (button) { button.addEventListener('click', function () { ask.close(); }); });
+    ask.addEventListener('click', function (event) { if (event.target === ask) ask.close(); });
+    ask.addEventListener('close', remember);
+
+    if (ask.hasAttribute('data-ask-auto') && !recent()) {
+      var fired = false;
+      var onScrollAsk;
+      var trigger = function () {
+        if (fired) return;
+        fired = true;
+        window.removeEventListener('scroll', onScrollAsk);
+        if (!busy()) openAsk();
+      };
+      onScrollAsk = function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        if (max > 0 && window.scrollY / max > 0.5) trigger();
+      };
+      window.addEventListener('scroll', onScrollAsk, { passive: true });
+      setTimeout(trigger, 15000);
+    }
+  }
+
+  // Отправка заявки без перезагрузки; удалось: окно закрывается само.
   var form = $('[data-contact]');
   if (form && window.fetch) {
     var note = $('[data-form-state]', form);
@@ -274,6 +318,7 @@
           note.className = 'form-state is-ok';
           note.textContent = form.getAttribute('data-sent');
           form.reset();
+          if (ask) setTimeout(function () { ask.close(); note.textContent = ''; note.className = 'form-state'; }, 2200);
         })
         .catch(function () {
           note.className = 'form-state is-error';

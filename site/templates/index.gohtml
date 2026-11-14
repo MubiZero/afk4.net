@@ -186,22 +186,11 @@
       <div class="wrap closing-inner">
         <h2 class="closing-title">{{.Contact.Title}}</h2>
         <p class="lead">{{.Contact.Lead}}</p>
-        <ul class="channels">
-          <li><a class="btn btn-lamp" href="{{$.L.Contacts.Telegram}}">{{.Contact.Telegram}} {{$.L.Contacts.TelegramHandle}}</a></li>
+        <ul class="channels">{{if $.L.ContactEndpoint}}
+          <li><button class="btn btn-lamp" type="button" data-ask-open>{{.Contact.Cta}}</button></li>{{end}}
+          <li><a class="btn" href="{{$.L.Contacts.Telegram}}">{{.Contact.Telegram}} {{$.L.Contacts.TelegramHandle}}</a></li>
           <li><a class="btn" href="{{$.L.Contacts.Phone}}">{{.Contact.Call}} {{$.L.Contacts.PhoneShown}}</a></li>
           <li><a class="btn btn-quiet" href="{{$.L.Links.Email}}">{{.Contact.Email}} {{mail $.L.Links.Email}}</a></li>
         </ul>
-        {{if $.L.ContactEndpoint}}
-        <form class="form" action="{{$.L.ContactEndpoint}}" method="post" data-contact data-sending="{{.Contact.Sending}}" data-sent="{{.Contact.Sent}}" data-error="{{.Contact.Error}}">
-          <label>{{.Contact.Name}}<input name="name" autocomplete="name" required maxlength="80"></label>
-          <label>{{.Contact.Club}}<input name="club" maxlength="120"></label>
-          <label>{{.Contact.Phone}}<input name="contact" autocomplete="tel" required maxlength="80"></label>
-          <label>{{.Contact.Message}}<textarea name="message" rows="4" maxlength="1000"></textarea></label>
-          <label class="trap" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
-          <input type="hidden" name="lang" value="{{$.Lang}}">
-          <button class="btn btn-lamp" type="submit">{{.Contact.Send}}</button>
-          <p class="form-state" role="status" aria-live="polite" data-form-state></p>
-          <p class="note">{{.Contact.Consent}} <a class="link" href="{{href $.Lang "privacy"}}">{{$.C.Nav.Privacy}}</a></p>
-        </form>{{end}}
       </div>
     </section>{{end}}{{end}}

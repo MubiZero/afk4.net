@@ -55,6 +55,7 @@
           <a href="{{.L.Contacts.Telegram}}">Telegram {{.L.Contacts.TelegramHandle}}</a>
           <a href="{{.L.Contacts.Phone}}">{{.L.Contacts.PhoneShown}}</a>
           <a href="{{.L.Links.Email}}">{{mail .L.Links.Email}}</a>
+          {{if .L.ContactEndpoint}}<button class="foot-ask" type="button" data-ask-open>{{.C.Home.Contact.Cta}}</button>{{end}}
         </nav>
         <nav class="foot-col" aria-label="{{.C.Footer.Docs}}">
           <p class="foot-title">{{.C.Footer.Docs}}</p>
@@ -73,6 +74,21 @@
       <!--/email_off-->
     </div>
   </footer>
+  {{if .L.ContactEndpoint}}<dialog class="ask" data-ask{{if eq .Page "index"}} data-ask-auto{{end}} aria-labelledby="ask-title">
+    <form class="ask-form" action="{{.L.ContactEndpoint}}" method="post" data-contact data-sending="{{.C.Home.Contact.Sending}}" data-sent="{{.C.Home.Contact.Sent}}" data-error="{{.C.Home.Contact.Error}}">
+      <button class="ask-close" type="button" data-ask-close aria-label="{{.C.Home.Contact.Close}}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <h2 id="ask-title">{{.C.Home.Contact.PopupTitle}}</h2>
+      <p class="ask-lead">{{.C.Home.Contact.PopupLead}}</p>
+      <label>{{.C.Home.Contact.Name}}<input name="name" autocomplete="name" maxlength="80"></label>
+      <label>{{.C.Home.Contact.Phone}}<input name="contact" autocomplete="tel" required maxlength="80"></label>
+      <label class="trap" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+      <input type="hidden" name="lang" value="{{.Lang}}">
+      <button class="btn btn-lamp" type="submit">{{.C.Home.Contact.Send}}</button>
+      <p class="form-state" role="status" aria-live="polite" data-form-state></p>
+      <p class="note">{{.C.Home.Contact.Consent}} <a class="link" href="{{href .Lang "privacy"}}">{{.C.Nav.Privacy}}</a></p>
+    </form>
+  </dialog>
+  {{end}}
   <dialog class="palette" data-palette aria-label="{{.C.Home.UI.PaletteOpen}}">
     <input class="palette-input" type="text" placeholder="{{.C.Home.UI.PalettePlaceholder}}" aria-label="{{.C.Home.UI.PalettePlaceholder}}" autocomplete="off" data-palette-input>
     <ul class="palette-list" data-palette-list>

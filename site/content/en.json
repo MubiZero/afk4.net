@@ -124,7 +124,7 @@
       },
       {
         "title": "Contact form",
-        "body": "If you write through the form on the home page, your name, club name, phone and message go to the project owner in Telegram, and only to them. We use them to reply and do not pass them on. To have a message deleted, email hello@afk4.net.",
+        "body": "If you leave a request on the site, your name and phone or Telegram go to the project owner in Telegram, and only to them. We use them to contact you and do not pass them on. To have a message deleted, email hello@afk4.net.",
         "when": "form"
       },
       {
@@ -416,10 +416,8 @@
     "contact": {
       "title": "Tell us about your club",
       "lead": "How many PCs you have, what program you use now and what is missing. We will show you AFK4.NET at work and answer your questions.",
-      "name": "What should we call you",
-      "club": "Club and city",
+      "name": "Name",
       "phone": "Phone or Telegram",
-      "message": "What matters for your club",
       "send": "Send",
       "sending": "Sending…",
       "sent": "Message sent. We will answer you personally.",
@@ -429,7 +427,11 @@
       "telegram": "Telegram",
       "call": "Call",
       "email": "Email",
-      "wait": "We reply personally"
+      "wait": "We reply personally",
+      "cta": "Leave a request",
+      "popupTitle": "Leave your contact",
+      "popupLead": "We will get in touch with you.",
+      "close": "Close"
     },
     "ui": {
       "paletteOpen": "Quick jump",
