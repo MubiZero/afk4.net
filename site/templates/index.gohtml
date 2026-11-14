@@ -115,13 +115,11 @@
           <h3>{{.Board.Cache.Title}}</h3>
           <p>{{.Board.Cache.Text}}</p>
           <div class="cache" aria-hidden="true">
-            <div class="flow">
-              <span class="node">{{.Board.Cache.Internet}}</span>
-              <span class="link-line"><b>{{.Board.Cache.Once}}</b><i></i></span>
-              <span class="node node-main">{{.Board.Cache.Admin}}</span>
-            </div>
-            <span class="cache-label">{{.Board.Cache.Done}}</span>
-            <ul class="cache-pcs">{{range $i, $s := $.Seats}}{{if lt $i 6}}<li>{{$.C.Home.Board.Map.PC}} {{$s.N}}</li>{{end}}{{end}}</ul>
+            <span class="node"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/></svg>{{.Board.Cache.Internet}}</span>
+            <span class="down"><i></i><b>{{.Board.Cache.Once}}</b></span>
+            <span class="node node-main"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M7 9h4M7 12h7"/></svg>{{.Board.Cache.Admin}}</span>
+            <svg class="fan" viewBox="0 0 300 44" preserveAspectRatio="none"><path pathLength="1" d="M150 0V12M150 12C150 28 25 20 25 44M150 12C150 28 85 20 85 44M150 12V44M150 12C150 28 215 20 215 44M150 12C150 28 275 20 275 44M150 12C150 28 25 20 25 44"/></svg>
+            <ul class="cache-pcs">{{range $i, $s := $.Seats}}{{if lt $i 5}}<li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg>{{$s.N}}</li>{{end}}{{end}}</ul>
             <span class="cache-label">{{.Board.Cache.Pcs}}</span>
           </div>
           <span class="chip chip-planned">{{.Board.Planned}}</span>
@@ -130,10 +128,18 @@
           <h3>{{.Board.App.Title}}</h3>
           <p>{{.Board.App.Text}}</p>
           <div class="phone" aria-hidden="true">
-            <span class="phone-club">{{.Board.App.Club}}</span>
+            <span class="phone-notch"></span>
+            <span class="phone-status"><b>20:41</b><i></i></span>
+            <span class="phone-bar"><em>{{.Board.App.Club}}</em><u></u></span>
             <span class="phone-balance"><small>{{.Board.App.Balance}}</small>120 {{.Board.Till.Currency}}</span>
-            <span class="phone-grid">{{range .Board.App.Features}}<span>{{.}}</span>{{end}}</span>
-            <span class="phone-scan"><svg viewBox="0 0 24 24" width="18" height="18" focusable="false"><path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4M7 12h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>{{.Board.App.Scan}}</span>
+            <span class="phone-actions">
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>{{index .Board.App.Features 0}}</span>
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M12 10v5M9.5 12.5h5"/></svg>{{index .Board.App.Features 1}}</span>
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/></svg>{{index .Board.App.Features 2}}</span>
+              <span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/></svg>{{index .Board.App.Features 3}}</span>
+            </span>
+            <span class="phone-scan"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4M7 12h10"/></svg>{{.Board.App.Scan}}</span>
+            <span class="phone-tabs"><i class="on"></i><i></i><i></i><i></i></span>
           </div>
           <span class="chip chip-planned">{{.Board.Planned}}</span>
         </article>
@@ -144,13 +150,19 @@
       <div class="wrap">
         <h2 class="block-title">{{.Inside.Title}}</h2>
         <p class="lead">{{.Inside.Lead}}</p>
-        <div class="rows">{{range .Inside.Groups}}
-          <div class="row row-{{.Status}}">
-            <div class="row-head"><h3>{{.Title}}</h3>{{if eq .Status "have"}}<span class="chip chip-have">{{$.C.Home.Board.Have}}</span>{{else}}<span class="chip chip-planned">{{$.C.Home.Board.Planned}}</span>{{end}}</div>
-            <ul>{{range .Items}}
-              <li>{{.}}</li>{{end}}
-            </ul>
-          </div>{{end}}
+        <div class="legend"><span class="chip chip-have">{{.Board.Have}}</span><span class="chip chip-planned">{{.Board.Planned}}</span></div>
+        <div class="atlas" data-atlas>
+          <div class="atlas-grid" role="tablist" aria-label="{{.Inside.Title}}">{{range $i, $g := .Inside.Groups}}
+            <button class="atlas-tile atlas-{{$g.Status}}" type="button" role="tab" data-group="{{$i}}" aria-selected="{{if eq $i 0}}true{{else}}false{{end}}">{{icon $i}}<span class="atlas-name">{{$g.Title}}</span></button>{{end}}
+          </div>
+          <div class="atlas-panel">{{range $i, $g := .Inside.Groups}}
+            <section class="atlas-detail" data-detail="{{$i}}" role="tabpanel">
+              <div class="atlas-head">{{icon $i}}<h3>{{$g.Title}}</h3>{{if eq $g.Status "have"}}<span class="chip chip-have">{{$.C.Home.Board.Have}}</span>{{else}}<span class="chip chip-planned">{{$.C.Home.Board.Planned}}</span>{{end}}</div>
+              <ul>{{range $g.Items}}
+                <li>{{.}}</li>{{end}}
+              </ul>
+            </section>{{end}}
+          </div>
         </div>
         <ul class="soon-line"><li class="soon-title">{{.Board.Soon.Title}}: {{.Board.Soon.Text}}</li>{{range .Board.Soon.Items}}<li>{{.}}</li>{{end}}</ul>
       </div>

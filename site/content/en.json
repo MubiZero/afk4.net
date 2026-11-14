@@ -197,7 +197,7 @@
       },
       "app": {
         "title": "Player app",
-        "text": "Book a PC, top up, order at the bar and keep friends in your phone. Sign in at a PC by scanning a QR.",
+        "text": "Booking, top-up, bar orders and friends in your phone.",
         "booking": "Booking: PC 07, today 20:00",
         "topUp": "Top up",
         "features": [
@@ -230,7 +230,7 @@
       },
       "cache": {
         "title": "Games download once",
-        "text": "The game cache is built into the admin PC: Steam and Epic updates come from the club network, not from the internet on every PC.",
+        "text": "A game downloads from the internet once; the other PCs get it over the club network.",
         "done": "Downloaded from the internet once",
         "pcs": "The other PCs take it from the club network",
         "internet": "Internet",

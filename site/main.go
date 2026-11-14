@@ -261,14 +261,14 @@ func main() {
 	}
 
 	funcs := template.FuncMap{
-		"href":    href,
-		"clock":   clock,
-		"sum":     sumLines,
-		"anchor":  func(lang, a string) string { return href(lang, "index") + "#" + a },
-		"mail":    func(s string) string { return strings.TrimPrefix(s, "mailto:") },
-		"host":    func(s string) string { return strings.TrimPrefix(s, "https://") },
-		"seq":     func(items []Seat, n int) []Seat { return items[:n] },
-		"isfocus": func(s string) bool { return s == "" },
+		"href":   href,
+		"clock":  clock,
+		"sum":    sumLines,
+		"icon":   icon,
+		"anchor": func(lang, a string) string { return href(lang, "index") + "#" + a },
+		"mail":   func(s string) string { return strings.TrimPrefix(s, "mailto:") },
+		"host":   func(s string) string { return strings.TrimPrefix(s, "https://") },
+		"seq":    func(items []Seat, n int) []Seat { return items[:n] },
 	}
 	base := template.Must(template.New("base").Funcs(funcs).ParseFS(assets, "templates/layout.gohtml"))
 
@@ -313,4 +313,27 @@ func main() {
 		"  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'\n"
 	must(os.WriteFile(filepath.Join(dist, "_headers"), []byte(headers), 0o644))
 	fmt.Printf("site built: %d languages × %d pages → %s\n", len(langs), len(pages), dist)
+}
+
+// groupIcons — значки групп возможностей в том же порядке, что группы в content/*.json: один штрих, 24 px.
+var groupIcons = []string{
+	`<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>`,
+	`<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
+	`<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>`,
+	`<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.6.8 2.7 2.4 3 5.2"/>`,
+	`<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>`,
+	`<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>`,
+	`<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>`,
+	`<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>`,
+	`<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>`,
+	`<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>`,
+	`<path d="M5 8h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2M8 3v2M12 3v2"/>`,
+	`<path d="M12 3v12M7 11l5 5 5-5M4 21h16"/>`,
+}
+
+func icon(i int) template.HTML {
+	if i < 0 || i >= len(groupIcons) {
+		return ""
+	}
+	return template.HTML(`<svg class="gicon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">` + groupIcons[i] + `</svg>`)
 }

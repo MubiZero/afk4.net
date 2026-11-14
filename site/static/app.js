@@ -121,6 +121,32 @@
     });
   }
 
+  // «Всё, что внутри»: плитки-значки слева, подробности выбранной группы справа; без скрипта подробности идут подряд.
+  var atlasTiles = $$('[data-group]');
+  var details = $$('[data-detail]');
+  if (atlasTiles.length && details.length) {
+    var pick = function (index, scroll) {
+      atlasTiles.forEach(function (tile, i) { tile.setAttribute('aria-selected', i === index ? 'true' : 'false'); });
+      details.forEach(function (detail, i) { detail.hidden = i !== index; });
+      if (scroll && window.matchMedia('(max-width: 1000px)').matches) {
+        var panelBox = $('.atlas-panel').getBoundingClientRect();
+        if (panelBox.top < 0 || panelBox.bottom > window.innerHeight) $('.atlas-panel').scrollIntoView({ behavior: lite ? 'auto' : 'smooth', block: 'nearest' });
+      }
+    };
+    atlasTiles.forEach(function (tile, index) {
+      tile.addEventListener('click', function () { pick(index, true); });
+      tile.addEventListener('keydown', function (event) {
+        var next = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
+        if (!next) return;
+        event.preventDefault();
+        var target = (index + next + atlasTiles.length) % atlasTiles.length;
+        atlasTiles[target].focus();
+        pick(target, false);
+      });
+    });
+    pick(0, false);
+  }
+
   // Плитка «Три языка»: подсвечивает строки по очереди.
   var rows = $$('[data-lang-row]');
   if (rows.length) {
@@ -132,6 +158,13 @@
     mark();
     if (!lite) setInterval(mark, 2400);
   }
+
+  // Выбор языка человеком запоминается: автоопределение больше не вмешивается (см. lite.js).
+  $$('a[hreflang]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      try { localStorage.setItem('afk4-lang', link.getAttribute('hreflang')); } catch (e) {}
+    });
+  });
 
   // Быстрый переход: Ctrl K или ⌘K, стрелки, Enter.
   var palette = $('[data-palette]');
