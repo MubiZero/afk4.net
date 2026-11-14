@@ -15,6 +15,7 @@ export interface Group {
 }
 
 export interface Home {
+  choose: { title: string; items: string[] };
   hero: { title: string; lead: string; nameLine: string; write: string; demo: string; demoNote: string; trust: string[] };
   board: {
     label: string;
@@ -57,6 +58,7 @@ export interface Home {
 
 export const home: Record<Lang, Home> = {
   ru: {
+    choose: { title: 'Что для вас важнее всего?', items: ['Следить за залом', 'Принимать деньги и продавать в баре', 'Знать итоги, не приходя в клуб', 'Работать без интернета'] },
     hero: {
       title: 'Программа для игрового клуба',
       lead: 'ПК, гости, касса и бар в одном месте. Администратор видит весь зал, гость садится за ПК по номеру телефона, а вам в Telegram приходят итоги смены.',
@@ -302,6 +304,7 @@ export const home: Record<Lang, Home> = {
     }
   },
   tg: {
+    choose: { title: 'Барои шумо чӣ муҳимтар аст?', items: ['Толорро назорат кардан', 'Пул қабул кардан ва дар бар фурӯхтан', 'Натиҷаро бе омадан ба клуб донистан', 'Бе интернет кор кардан'] },
     hero: {
       title: 'Барнома барои клуби бозӣ',
       lead: 'ПК-ҳо, меҳмонон, касса ва бар дар як ҷой. Маъмур тамоми толорро мебинад, меҳмон бо рақами телефон ба ПК менишинад, ва ба Telegram-и шумо натиҷаҳои иваз меояд.',
@@ -547,6 +550,7 @@ export const home: Record<Lang, Home> = {
     }
   },
   en: {
+    choose: { title: 'What matters most to you?', items: ['Keep an eye on the hall', 'Take money and sell at the bar', 'Know the results without being at the club', 'Work without internet'] },
     hero: {
       title: 'Software for a gaming club',
       lead: 'PCs, guests, till and bar in one place. Your admin sees the whole hall, a guest sits down at a PC with a phone number, and you get the shift results in Telegram.',

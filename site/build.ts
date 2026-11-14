@@ -156,7 +156,13 @@ function board(h: Home): string {
     `<li class="lang-row" data-lang-row="${code}"><span class="lang-name">${name}</span><span class="lang-phrase" lang="${code}">${escape(b.langs.phrases[code])}</span></li>`;
   return `    <section class="wrap board-wrap" aria-labelledby="board-title">
       <h2 class="board-label" id="board-title">${escape(b.label)} <span class="synthetic">${escape(b.synthetic)}</span></h2>
-      <div class="board">
+      <div class="chooser" role="group" aria-label="${escape(h.choose.title)}">
+        <p class="chooser-title">${escape(h.choose.title)}</p>
+        <div class="chooser-row">
+${['map', 'till', 'telegram', 'offline'].map((key, index) => `          <button class="choice" type="button" data-choose="${key}" aria-pressed="false">${escape(h.choose.items[index])}</button>`).join('\n')}
+        </div>
+      </div>
+      <div class="board" data-board>
         <article class="tile tile-map">
           <h3>${escape(b.map.title)}</h3>
           <p>${escape(b.map.text)}</p>

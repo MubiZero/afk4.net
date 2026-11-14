@@ -376,3 +376,18 @@ html.lite .btn, html.lite .lang-row, html.lite .tile-lamp, html.lite .tile-offli
   .brand img { width: 84px; }
   .nav .btn-small { padding: 0 10px; font-size: 13px; }
 }
+
+/* Выбор «что важнее»: нажатая кнопка ставит нужную плитку на место главной. Без скрипта выбора нет. */
+.chooser { display: none; margin: 0 0 var(--space-4); }
+.js .chooser { display: block; }
+.chooser-title { font-weight: 650; margin: 0 0 var(--space-3); color: var(--ink-2); }
+.chooser-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.choice { font: inherit; font-weight: 600; font-size: 1rem; min-height: 52px; padding: 0 var(--space-5); border-radius: var(--radius-md); border: 1.5px solid var(--border-control); background: var(--surface-elevated); color: var(--ink); cursor: pointer; transition: background-color 160ms var(--ease), border-color 160ms var(--ease), box-shadow 200ms var(--ease), transform 140ms var(--ease); }
+.choice:hover { border-color: var(--ink); background: var(--surface-hover); }
+.choice:active { transform: scale(0.97); }
+.choice[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); box-shadow: var(--shadow-press); }
+.board[data-focus="till"] .tile-till, .board[data-focus="offline"] .tile-offline, .board[data-focus="telegram"] .tile-telegram { grid-area: map; border-color: var(--accent); box-shadow: var(--shadow-press), var(--shadow); }
+.board[data-focus="till"] .tile-map { grid-area: till; }
+.board[data-focus="offline"] .tile-map { grid-area: offline; }
+.board[data-focus="telegram"] .tile-map { grid-area: chat; }
+@media (max-width: 700px) { .choice { width: 100%; text-align: left; } }

@@ -38,6 +38,21 @@
     });
   }
 
+  // «Что для вас важнее»: выбранная плитка встаёт на место главной, прежняя главная уходит на её место.
+  var board = document.querySelector('[data-board]');
+  var choices = document.querySelectorAll('[data-choose]');
+  if (board && choices.length) {
+    [].forEach.call(choices, function (choice) {
+      choice.addEventListener('click', function () {
+        var key = choice.getAttribute('data-choose');
+        var on = choice.getAttribute('aria-pressed') !== 'true';
+        [].forEach.call(choices, function (other) { other.setAttribute('aria-pressed', 'false'); });
+        if (on) { choice.setAttribute('aria-pressed', 'true'); board.setAttribute('data-focus', key); }
+        else { board.removeAttribute('data-focus'); }
+      });
+    });
+  }
+
   // Карта зала: нажмите на ПК, появятся команды; кнопка команды отвечает «команда отправлена» (это пример, не боевая отправка).
   var panel = document.querySelector('[data-seat-panel]');
   if (panel) {
