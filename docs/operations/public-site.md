@@ -19,8 +19,8 @@
   - таджикский — `/tg/`;
   - английский — `/en/`.
 
-  Страницы: `index.html`, `download.html`, `code-signing.html`, `privacy.html`. Локальный просмотр — конфигурация
-  `public-site` в `.claude/launch.json` (порт 4180).
+  Страницы: `index.html`, `download.html`, `code-signing.html`, `privacy.html`. Локальный просмотр:
+  `cd site && go run . && python3 -m http.server 4180 --bind 127.0.0.1 --directory dist`.
 - **Форма связи** — на главной, пишет в Telegram владельцу через API:
   - Ручка `POST /api/public/contact` в `AFK4.Platform.Api` (`Endpoints/ContactEndpoints.cs`): без входа, не больше 5 заявок за 10 минут с адреса,
     ловушка для ботов, CORS только `afk4.net` и `www.afk4.net`, текст в Telegram экранируется.
