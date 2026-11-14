@@ -51,9 +51,9 @@ internal static class ContactEndpoints
 
             var name = Clean(request.Name, NameMax);
             var contactValue = Clean(request.Contact, ContactMax);
-            if (name.Length == 0 || contactValue.Length == 0)
+            if (contactValue.Length == 0)
             {
-                return Results.BadRequest(new { error = "name and contact are required", code = "required" });
+                return Results.BadRequest(new { error = "contact is required", code = "required" });
             }
 
             if (!contact.Value.IsConfigured || !telegram.Value.IsConfigured)
@@ -68,7 +68,7 @@ internal static class ContactEndpoints
             var lang = request.Lang is "ru" or "tg" or "en" ? request.Lang : "?";
 
             var html = new StringBuilder("<b>Сообщение с сайта afk4.net</b>\n\n");
-            html.Append("Имя: ").Append(WebUtility.HtmlEncode(name)).Append('\n');
+            if (name.Length > 0) html.Append("Имя: ").Append(WebUtility.HtmlEncode(name)).Append('\n');
             html.Append("Контакт: ").Append(WebUtility.HtmlEncode(contactValue)).Append('\n');
             if (club.Length > 0) html.Append("Клуб: ").Append(WebUtility.HtmlEncode(club)).Append('\n');
             if (message.Length > 0) html.Append("\n").Append(WebUtility.HtmlEncode(message)).Append('\n');
