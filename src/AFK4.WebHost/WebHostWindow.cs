@@ -279,6 +279,26 @@ public sealed unsafe class WebHostWindow
 
     public bool IsBandDocked => bandDocked;
 
+    /// <summary>
+    /// Полоса должна занимать свой край, что бы ни случилось с окном: звать из опроса. Окно, которое после
+    /// <see cref="DockBand"/> оказалось другого размера (стенд Windows 7 x86, 15.11.2026), снова ставится в полосу.
+    /// </summary>
+    public void ReassertBand() => OnUiThread(() =>
+    {
+        if (!bandDocked)
+        {
+            return;
+        }
+
+        Win32.Rect rect;
+        Win32.GetWindowRect(Handle, &rect);
+        if (rect.Bottom - rect.Top != bandPixels || rect.Top != 0)
+        {
+            Report($"band moved to {rect.Left},{rect.Top} {rect.Right},{rect.Bottom}; docking again");
+            PositionBand();
+        }
+    });
+
     private Win32.AppBarData BandData() => new()
     {
         Size = sizeof(Win32.AppBarData),
