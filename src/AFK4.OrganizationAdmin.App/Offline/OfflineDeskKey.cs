@@ -33,8 +33,9 @@ public sealed class OfflineDeskKey : IDisposable
         {
             try
             {
-                var stored = JsonSerializer.Deserialize<StoredKey>(
-                    ProtectedData.Unprotect(File.ReadAllBytes(path), optionalEntropy: null, DataProtectionScope.CurrentUser));
+                var stored = JsonSerializer.Deserialize(
+                    ProtectedData.Unprotect(File.ReadAllBytes(path), optionalEntropy: null, DataProtectionScope.CurrentUser),
+                    OrganizationAdminKeyJson.Default.StoredKey);
                 if (stored is not null)
                 {
                     var key = ECDsa.Create();
@@ -53,7 +54,7 @@ public sealed class OfflineDeskKey : IDisposable
         var keyId = "desk-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(6)).ToLowerInvariant();
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var bytes = ProtectedData.Protect(
-            JsonSerializer.SerializeToUtf8Bytes(new StoredKey(keyId, created.ExportPkcs8PrivateKey())),
+            JsonSerializer.SerializeToUtf8Bytes(new StoredKey(keyId, created.ExportPkcs8PrivateKey()), OrganizationAdminKeyJson.Default.StoredKey),
             optionalEntropy: null,
             DataProtectionScope.CurrentUser);
         var temp = path + ".tmp";
@@ -64,5 +65,5 @@ public sealed class OfflineDeskKey : IDisposable
 
     public void Dispose() => Key.Dispose();
 
-    private sealed record StoredKey(string KeyId, byte[] Pkcs8);
+    internal sealed record StoredKey(string KeyId, byte[] Pkcs8);
 }

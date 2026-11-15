@@ -18,7 +18,6 @@ public sealed class NamedPipeUpdateCoordinationServer(
     Action shutdown) : IDisposable
 {
     private const int MaxPayloadBytes = 64 * 1024;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly CancellationTokenSource lifetime = new();
     private Task? serverTask;
 
@@ -140,13 +139,13 @@ public sealed class NamedPipeUpdateCoordinationServer(
         var length = BinaryPrimitives.ReadInt32BigEndian(prefix);
         if (length is <= 0 or > MaxPayloadBytes) throw new InvalidDataException("Invalid payload length.");
         var payload = new byte[length]; await stream.ReadExactlyAsync(payload, cancellationToken);
-        return JsonSerializer.Deserialize<LocalUpdateCoordinationRequest>(payload, JsonOptions)
+        return JsonSerializer.Deserialize(payload, OrganizationAdminStoreJson.Default.LocalUpdateCoordinationRequest)
             ?? throw new InvalidDataException("Empty request.");
     }
 
     private static async Task WriteAsync(Stream stream, LocalUpdateCoordinationResponse response, CancellationToken cancellationToken)
     {
-        var payload = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(response, OrganizationAdminStoreJson.Default.LocalUpdateCoordinationResponse);
         var prefix = new byte[4]; BinaryPrimitives.WriteInt32BigEndian(prefix, payload.Length);
         await stream.WriteAsync(prefix, cancellationToken); await stream.WriteAsync(payload, cancellationToken);
         // Ответ дописывается до закрытия канала: закрытый канал уносит с собой невычитанное,

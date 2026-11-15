@@ -6,8 +6,6 @@ namespace AFK4.OrganizationAdmin.App.Connection;
 
 public sealed class ProtectedDataOrganizationAdminConnectionStore : IOrganizationAdminConnectionStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     private readonly string path;
 
     public ProtectedDataOrganizationAdminConnectionStore()
@@ -28,7 +26,7 @@ public sealed class ProtectedDataOrganizationAdminConnectionStore : IOrganizatio
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.SerializeToUtf8Bytes(snapshot, JsonOptions);
+        var json = JsonSerializer.SerializeToUtf8Bytes(snapshot, OrganizationAdminStoreJson.Default.OrganizationAdminConnectionSnapshot);
         var protectedBytes = ProtectedData.Protect(json, optionalEntropy: null, DataProtectionScope.CurrentUser);
 
         await File.WriteAllBytesAsync(path, protectedBytes, cancellationToken);
@@ -49,7 +47,7 @@ public sealed class ProtectedDataOrganizationAdminConnectionStore : IOrganizatio
             var protectedBytes = await File.ReadAllBytesAsync(path, cancellationToken);
             var json = ProtectedData.Unprotect(protectedBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
 
-            return JsonSerializer.Deserialize<OrganizationAdminConnectionSnapshot>(json, JsonOptions);
+            return JsonSerializer.Deserialize(json, OrganizationAdminStoreJson.Default.OrganizationAdminConnectionSnapshot);
         }
         catch (Exception exception) when (exception is CryptographicException or IOException or JsonException)
         {

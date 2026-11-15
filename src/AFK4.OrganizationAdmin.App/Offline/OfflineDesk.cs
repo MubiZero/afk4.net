@@ -33,8 +33,8 @@ public sealed class OfflineDesk(Func<OfflineDeskKey> key, HttpClient http)
         lease = lease with { Signature = Convert.ToBase64String(signature) };
 
         var url = new Uri($"http://{ip}:{OfflineLeaseSigning.AgentLanPort}{OfflineLeaseSigning.AgentLeasePath}");
-        using var response = await http.PostAsJsonAsync(url, lease, cancellationToken);
-        return await response.Content.ReadFromJsonAsync<OfflineSeatResponse>(cancellationToken)
+        using var response = await http.PostAsJsonAsync(url, lease, OrganizationAdminBridgeJson.Default.SessionLeaseDto, cancellationToken);
+        return await response.Content.ReadFromJsonAsync(OrganizationAdminBridgeJson.Default.OfflineSeatResponse, cancellationToken)
             ?? new OfflineSeatResponse(false, $"The PC answered {(int)response.StatusCode} without a result.", true, null, null);
     }
 

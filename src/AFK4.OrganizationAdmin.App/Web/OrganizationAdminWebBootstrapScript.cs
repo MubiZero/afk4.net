@@ -5,14 +5,8 @@ using AFK4.OrganizationAdmin.App.Configuration;
 
 namespace AFK4.OrganizationAdmin.Web;
 
-public static class OrganizationAdminWebBootstrapScript
+public static partial class OrganizationAdminWebBootstrapScript
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     public static string Create(OrganizationAdminOptions appOptions, OrganizationAdminWebShellLaunchTarget launchTarget) =>
         Create(appOptions, launchTarget, ResolveInstalledVersion());
 
@@ -28,7 +22,7 @@ public static class OrganizationAdminWebBootstrapScript
         var payload = new OrganizationAdminWebBootstrapPayload(
             Product: OrganizationAdminOptions.Product,
             CompatibilityEpoch: OrganizationAdminOptions.CompatibilityEpoch,
-            Runtime: "webview2",
+            Runtime: "miniblink",
             ShellMode: launchTarget.Mode,
             PlatformBaseUrl: appOptions.PlatformBaseUrl.ToString(),
             CurrencyCode: appOptions.CurrencyCode,
@@ -36,7 +30,7 @@ public static class OrganizationAdminWebBootstrapScript
             OrganizationId: appOptions.OrganizationId,
             BranchId: appOptions.BranchId);
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
+        var json = JsonSerializer.Serialize(payload, OrganizationAdminBootstrapJson.Default.OrganizationAdminWebBootstrapPayload);
         return $"window.__AFK4_ORGANIZATION_ADMIN_CONFIG__ = {json};";
     }
 
@@ -53,7 +47,7 @@ public static class OrganizationAdminWebBootstrapScript
             : assembly.GetName().Version?.ToString() ?? "—";
     }
 
-    private sealed record OrganizationAdminWebBootstrapPayload(
+    internal sealed record OrganizationAdminWebBootstrapPayload(
         string Product,
         int CompatibilityEpoch,
         string Runtime,
@@ -63,4 +57,9 @@ public static class OrganizationAdminWebBootstrapScript
         string AppVersion,
         Guid? OrganizationId,
         Guid? BranchId);
+
+    /// <summary>JSON настроек экрана без отражения: Native AOT (docs/roadmap/windows7.md).</summary>
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(OrganizationAdminWebBootstrapPayload))]
+    internal sealed partial class OrganizationAdminBootstrapJson : JsonSerializerContext;
 }

@@ -40,6 +40,18 @@ public sealed class WebHostOptions
     public int MinWidth { get; init; } = 640;
     public int MinHeight { get; init; } = 480;
 
+    /// <summary>
+    /// Где открыть окно (пиксели экрана) вместо центра рабочей области: положение, которое оператор оставил в прошлый раз.
+    /// Вызывающий сам следит, чтобы окно не уехало за экран. Размеры <see cref="Width"/> и <see cref="Height"/> тогда не нужны.
+    /// </summary>
+    public (int X, int Y, int Width, int Height)? InitialBounds { get; init; }
+
+    /// <summary>Открыть развёрнутым; обычные размеры (<see cref="InitialBounds"/>) остаются тем, во что окно вернётся.</summary>
+    public bool StartMaximized { get; init; }
+
+    /// <summary>Скруглённые углы и тонкий контур окна без рамки (Windows 11; на старых системах ничего не меняется).</summary>
+    public uint? BorderRgb { get; init; }
+
     /// <summary>Без рамки Windows: заголовок и кнопки рисует сам экран (команды окна через мост).</summary>
     public bool Frameless { get; init; }
 

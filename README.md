@@ -36,7 +36,7 @@ Read these files first in new sessions:
 - Internal browser-based Platform Control is in the MVP for platform-owner
   organization onboarding, subscription/status controls, organization health, and support.
 - Native Windows app Organization Admin built as a .NET desktop shell with a
-  React/TypeScript operator UI (WebView2 window today, moving to `AFK4.WebHost`).
+  React/TypeScript operator UI (Native AOT, Win32 window and Miniblink via `AFK4.WebHost`).
 - Gaming PCs are Windows 7 to 11, x86 and x64 (owner, 2026-10-29 and 2026-11-04):
   programs on the PC move to Native AOT with a Miniblink window, see
   [Windows 7](docs/roadmap/windows7.md).
@@ -85,13 +85,13 @@ action logged to the organization's own audit trail; see
 
 `src/AFK4.OrganizationAdmin.App` is the native Windows app for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions. The
-approved target is a .NET desktop host with a React/TypeScript operator UI
-(WebView2 window today). It is distinct from the Platform Control; the main working
-screen is the floor map. The WebView2/React console now has staff sign-in,
+approved target is a Native AOT desktop host with a React/TypeScript operator UI
+(Win32 window and Miniblink via `AFK4.WebHost`). It is distinct from the Platform Control; the main working
+screen is the floor map. The Miniblink/React console now has staff sign-in,
 backend-loaded floor-map state, selected-seat session actions, billing-mode
 selection, filters/table view, SignalR reloads, active-session ticking, and
-backend-confirmed critical commands. WPF only hosts the window; the old WPF/MVVM
-screens are gone.
+backend-confirmed critical commands. The host only owns the window and the
+machine-local identity; the old WPF/MVVM screens are gone.
 
 The accepted UI/UX direction for this native operator console is recorded in
 [Organization Admin UI/UX Target](docs/product/organization-admin-ui-target.md).

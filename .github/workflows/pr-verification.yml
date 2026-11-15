@@ -95,6 +95,7 @@ jobs:
             "src/AFK4.SetupWizard/",
             "src/AFK4.SetupWizard.Core/",
             "src/AFK4.Player.Shell/",
+            "src/AFK4.OrganizationAdmin.App/",
             "src/AFK4.Localization/",
             "src/AFK4.WebHost/",
             "src/AFK4.Shared.Contracts/",
@@ -272,7 +273,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/fetch-miniblink.ps1
-          $programs = @{ 'agent' = @('src/AFK4.Agent.Service', 'net10.0'); 'setup-wizard' = @('src/AFK4.SetupWizard', 'net10.0-windows'); 'player-shell' = @('src/AFK4.Player.Shell', 'net10.0-windows') }
+          $programs = @{ 'agent' = @('src/AFK4.Agent.Service', 'net10.0'); 'setup-wizard' = @('src/AFK4.SetupWizard', 'net10.0-windows'); 'player-shell' = @('src/AFK4.Player.Shell', 'net10.0-windows'); 'organization-admin' = @('src/AFK4.OrganizationAdmin.App', 'net10.0-windows') }
           foreach ($runtime in 'win-x64', 'win-x86') {
             foreach ($program in $programs.GetEnumerator()) {
               Write-Host "::group::publish $($program.Key) $runtime"

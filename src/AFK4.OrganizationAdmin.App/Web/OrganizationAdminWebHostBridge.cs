@@ -1,10 +1,13 @@
+using System.Buffers;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using AFK4.OrganizationAdmin.App;
 using AFK4.OrganizationAdmin.App.Connection;
 using AFK4.OrganizationAdmin.App.Offline;
 using AFK4.OrganizationAdmin.App.Updates;
+using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.OrganizationAdmin.Web;
 
@@ -18,17 +21,12 @@ public sealed class OrganizationAdminWebHostBridge(
     OfflineDesk? offlineDesk = null,
     OfflineJournal? offlineJournal = null)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public async Task<string?> HandleAsync(string webMessageJson, CancellationToken cancellationToken)
     {
-        OrganizationAdminWebBridgeRequest? request;
+        BridgeRequest? request;
         try
         {
-            request = JsonSerializer.Deserialize<OrganizationAdminWebBridgeRequest>(webMessageJson, JsonOptions);
+            request = JsonSerializer.Deserialize(webMessageJson, OrganizationAdminBridgeJson.Default.BridgeRequest);
         }
         catch (JsonException)
         {
@@ -93,7 +91,7 @@ public sealed class OrganizationAdminWebHostBridge(
     }
 
     private async Task<string> RestartAndInstallAsync(
-        OrganizationAdminWebBridgeRequest request,
+        BridgeRequest request,
         CancellationToken cancellationToken)
     {
         try
@@ -110,7 +108,7 @@ public sealed class OrganizationAdminWebHostBridge(
                     new OrganizationAdminWebBridgeError("update_unavailable", "Local update coordination is unavailable."));
             }
 
-            var payload = DeserializePayload<OrganizationAdminRestartAndInstallPayload>(request.Payload);
+            var payload = DeserializePayload(request.Payload, OrganizationAdminBridgeJson.Default.RestartAndInstallPayload);
             if (!Guid.TryParse(payload.UpdateRolloutId, out var rolloutId) || rolloutId == Guid.Empty ||
                 !Guid.TryParse(payload.UpdatePackageId, out var packageId) || packageId == Guid.Empty)
             {
@@ -122,7 +120,7 @@ public sealed class OrganizationAdminWebHostBridge(
                 new OrganizationAdminShutdownAcknowledgement(rolloutId, packageId, DateTimeOffset.UtcNow),
                 cancellationToken);
             requestShutdown();
-            return CreateResponse(request.RequestId!, true, new { accepted = true }, null);
+            return CreateResponse(request.RequestId!, true, new AcceptedPayload(true), null);
         }
         catch (Exception exception) when (exception is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException)
         {
@@ -133,7 +131,7 @@ public sealed class OrganizationAdminWebHostBridge(
 
     // Офлайн у стойки (docs/roadmap/offline-front-desk.md): ключ этого ПК, передача подписанной аренды ПК
     // в зале и журнал кассы на диске. Без хоста (в браузере) Панель офлайн-действий не предлагает.
-    private async Task<string> HandleOfflineAsync(OrganizationAdminWebBridgeRequest request, CancellationToken cancellationToken)
+    private async Task<string> HandleOfflineAsync(BridgeRequest request, CancellationToken cancellationToken)
     {
         if (offlineDesk is null || offlineJournal is null)
         {
@@ -148,22 +146,22 @@ public sealed class OrganizationAdminWebHostBridge(
             {
                 case "offline:key":
                     var (keyId, publicKeyPem) = offlineDesk.PublicKey();
-                    payload = new { keyId, publicKeyPem };
+                    payload = new OfflineKeyPayload(keyId, publicKeyPem);
                     break;
                 case "offline:sendLease":
-                    var send = DeserializePayload<OfflineSendLeasePayload>(request.Payload);
+                    var send = DeserializePayload(request.Payload, OrganizationAdminBridgeJson.Default.SendLeasePayload);
                     payload = await offlineDesk.SendLeaseAsync(send.Address, send.Lease, cancellationToken);
                     break;
                 case "offline:journalAppend":
-                    offlineJournal.Append(DeserializePayload<OfflineJournalAppendPayload>(request.Payload).Record);
-                    payload = new { appended = true };
+                    offlineJournal.Append(DeserializePayload(request.Payload, OrganizationAdminBridgeJson.Default.JournalAppendPayload).Record);
+                    payload = new AppendedPayload(true);
                     break;
                 case "offline:journalRead":
-                    payload = new { records = offlineJournal.Read() };
+                    payload = new RecordsPayload(offlineJournal.Read());
                     break;
                 case "offline:journalAck":
-                    var ack = DeserializePayload<OfflineJournalAckPayload>(request.Payload);
-                    payload = new { remaining = offlineJournal.Acknowledge(ack.Ids.ToHashSet(StringComparer.Ordinal)) };
+                    var ack = DeserializePayload(request.Payload, OrganizationAdminBridgeJson.Default.JournalAckPayload);
+                    payload = new RemainingPayload(offlineJournal.Acknowledge(ack.Ids.ToHashSet(StringComparer.Ordinal)));
                     break;
                 default:
                     throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.");
@@ -183,15 +181,15 @@ public sealed class OrganizationAdminWebHostBridge(
         }
     }
 
-    private async Task<OrganizationAdminWebStoredConnection?> LoadConnectionAsync(CancellationToken cancellationToken)
+    private async Task<StoredConnection?> LoadConnectionAsync(CancellationToken cancellationToken)
     {
         var snapshot = await connectionStore.LoadAsync(cancellationToken);
         return snapshot is null ? null : CreateStoredConnection(snapshot);
     }
 
-    private async Task<OrganizationAdminWebStoredConnection> SaveConnectionAsync(JsonElement payload, CancellationToken cancellationToken)
+    private async Task<StoredConnection> SaveConnectionAsync(JsonElement payload, CancellationToken cancellationToken)
     {
-        var request = DeserializePayload<OrganizationAdminWebStoredConnectionPayload>(payload);
+        var request = DeserializePayload(payload, OrganizationAdminBridgeJson.Default.StoredConnectionPayload);
         if (!Guid.TryParse(request.OrganizationId, out var organizationId) || organizationId == Guid.Empty)
         {
             throw new InvalidOperationException("OrganizationId must be a valid GUID.");
@@ -229,12 +227,12 @@ public sealed class OrganizationAdminWebHostBridge(
     private async Task<object> ClearConnectionAsync(CancellationToken cancellationToken)
     {
         await connectionStore.ClearAsync(cancellationToken);
-        return new { cleared = true };
+        return new ClearedPayload(true);
     }
 
-    private static OrganizationAdminWebStoredConnection CreateStoredConnection(OrganizationAdminConnectionSnapshot snapshot)
+    private static StoredConnection CreateStoredConnection(OrganizationAdminConnectionSnapshot snapshot)
     {
-        return new OrganizationAdminWebStoredConnection(
+        return new StoredConnection(
             snapshot.OrganizationId,
             snapshot.OrganizationSlug,
             snapshot.OrganizationName,
@@ -245,47 +243,81 @@ public sealed class OrganizationAdminWebHostBridge(
             snapshot.StoredAtUtc);
     }
 
-    private static T DeserializePayload<T>(JsonElement payload)
+    private static T DeserializePayload<T>(JsonElement payload, JsonTypeInfo<T> typeInfo)
     {
         if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
             throw new InvalidOperationException("Host bridge payload is required.");
         }
 
-        return payload.Deserialize<T>(JsonOptions)
+        return payload.Deserialize(typeInfo)
             ?? throw new InvalidOperationException("Host bridge payload is invalid.");
     }
 
+    /// <summary>Ответ об ошибке, которую поймало окно: тот же конверт, что у остальных ответов моста.</summary>
+    public static string CreateErrorResponse(string requestId, string code, string message) =>
+        CreateResponse(requestId, ok: false, payload: null, new OrganizationAdminWebBridgeError(code, message));
+
+    // Без отражения: тела — только записи из OrganizationAdminBridgeJson. «payload» пишется всегда (null, если тела нет),
+    // как и раньше: страница ждёт это поле у каждого ответа.
     private static string CreateResponse(
         string requestId,
         bool ok,
         object? payload,
         OrganizationAdminWebBridgeError? error)
     {
-        return JsonSerializer.Serialize(
-            new OrganizationAdminWebBridgeResponse("host:response", requestId, ok, payload, error),
-            JsonOptions);
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("type", "host:response");
+            writer.WriteString("requestId", requestId);
+            writer.WriteBoolean("ok", ok);
+            writer.WritePropertyName("payload");
+            WritePayload(writer, payload);
+            if (error is not null)
+            {
+                writer.WriteStartObject("error");
+                writer.WriteString("code", error.Code);
+                writer.WriteString("message", error.Message);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
-    private sealed record OrganizationAdminWebBridgeRequest(
+    private static void WritePayload(Utf8JsonWriter writer, object? payload)
+    {
+        var context = OrganizationAdminBridgeJson.Default;
+        switch (payload)
+        {
+            case null: writer.WriteNullValue(); break;
+            case StoredConnection value: JsonSerializer.Serialize(writer, value, context.StoredConnection); break;
+            case ClearedPayload value: JsonSerializer.Serialize(writer, value, context.ClearedPayload); break;
+            case AcceptedPayload value: JsonSerializer.Serialize(writer, value, context.AcceptedPayload); break;
+            case OfflineKeyPayload value: JsonSerializer.Serialize(writer, value, context.OfflineKeyPayload); break;
+            case AppendedPayload value: JsonSerializer.Serialize(writer, value, context.AppendedPayload); break;
+            case RecordsPayload value: JsonSerializer.Serialize(writer, value, context.RecordsPayload); break;
+            case RemainingPayload value: JsonSerializer.Serialize(writer, value, context.RemainingPayload); break;
+            case OfflineSeatResponse value: JsonSerializer.Serialize(writer, value, context.OfflineSeatResponse); break;
+            default: throw new InvalidOperationException($"{payload.GetType().Name} has no JSON contract for the host bridge.");
+        }
+    }
+
+    internal sealed record BridgeRequest(
         string? Type,
         string? RequestId,
         string? OperationId,
         JsonElement Payload);
 
-    private sealed record OrganizationAdminWebBridgeResponse(
-        string Type,
-        string RequestId,
-        bool Ok,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
-        object? Payload,
-        OrganizationAdminWebBridgeError? Error);
-
     private sealed record OrganizationAdminWebBridgeError(
         string Code,
         string Message);
 
-    private sealed record OrganizationAdminWebStoredConnectionPayload(
+    internal sealed record StoredConnectionPayload(
         string? OrganizationId,
         string? OrganizationSlug,
         string? OrganizationName,
@@ -295,17 +327,17 @@ public sealed class OrganizationAdminWebHostBridge(
         string? BranchCity,
         DateTimeOffset? StoredAtUtc);
 
-    private sealed record OrganizationAdminRestartAndInstallPayload(
+    internal sealed record RestartAndInstallPayload(
         string? UpdateRolloutId,
         string? UpdatePackageId);
 
-    private sealed record OfflineSendLeasePayload(string Address, AFK4.Shared.Contracts.Sessions.SessionLeaseDto Lease);
+    internal sealed record SendLeasePayload(string Address, AFK4.Shared.Contracts.Sessions.SessionLeaseDto Lease);
 
-    private sealed record OfflineJournalAppendPayload(JsonElement Record);
+    internal sealed record JournalAppendPayload(JsonElement Record);
 
-    private sealed record OfflineJournalAckPayload(IReadOnlyList<string> Ids);
+    internal sealed record JournalAckPayload(IReadOnlyList<string> Ids);
 
-    private sealed record OrganizationAdminWebStoredConnection(
+    internal sealed record StoredConnection(
         Guid OrganizationId,
         string OrganizationSlug,
         string OrganizationName,
@@ -314,4 +346,16 @@ public sealed class OrganizationAdminWebHostBridge(
         string BranchName,
         string BranchCity,
         DateTimeOffset StoredAtUtc);
+
+    internal sealed record ClearedPayload(bool Cleared);
+
+    internal sealed record AcceptedPayload(bool Accepted);
+
+    internal sealed record OfflineKeyPayload(string KeyId, string PublicKeyPem);
+
+    internal sealed record AppendedPayload(bool Appended);
+
+    internal sealed record RecordsPayload(IReadOnlyList<JsonElement> Records);
+
+    internal sealed record RemainingPayload(int Remaining);
 }
