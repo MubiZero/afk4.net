@@ -34,6 +34,9 @@ public sealed unsafe class WebHostWindow
     private static double scale = 1;
     private static bool lastWindowClosed;
     private static Action? tick;
+    // ВРЕМЕННО: отладка падения Miniblink на Windows 7 x86 (AFK4_WEBHOST_DEBUG=notopmost,nobring,nofocus). Убрать.
+    private static readonly string DebugFlags = Environment.GetEnvironmentVariable("AFK4_WEBHOST_DEBUG") ?? string.Empty;
+    private static bool Dbg(string flag) => DebugFlags.Contains(flag, StringComparison.Ordinal);
     private const uint TickTimerId = 2;
 
     private readonly WebHostOptions options;
@@ -368,6 +371,7 @@ public sealed unsafe class WebHostWindow
     public void SetTopmost(bool onTop) => OnUiThread(() =>
     {
         topmost = onTop;
+        if (Dbg("notopmost")) { return; }
         Win32.SetWindowPos(Handle, onTop ? Win32.HwndTopmost : Win32.HwndNoTopmost, 0, 0, 0, 0,
             Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
     });
@@ -379,6 +383,7 @@ public sealed unsafe class WebHostWindow
     /// </summary>
     public void BringToFront() => OnUiThread(() =>
     {
+        if (Dbg("nobring")) { return; }
         if (IsMinimized)
         {
             Win32.ShowWindow(Handle, Win32.SwRestore);
@@ -422,6 +427,7 @@ public sealed unsafe class WebHostWindow
     // странице не щёлкнут мышью (стенд Windows 7, 05.11.2026).
     private void FocusView()
     {
+        if (Dbg("nofocus")) { return; }
         Win32.SetFocus(Miniblink.mbGetHostHWND(view));
         Miniblink.mbSetFocus(view);
     }
