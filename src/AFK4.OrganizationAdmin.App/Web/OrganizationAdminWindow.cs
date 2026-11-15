@@ -138,7 +138,9 @@ internal sealed class OrganizationAdminWindow
                 Top = saved.Top * scale,
                 Width = saved.Width * scale,
                 Height = saved.Height * scale
-            }).Sanitize(virtualScreen.Left, virtualScreen.Top, virtualScreen.Width, virtualScreen.Height, MinWidth * scale, MinHeight * scale);
+            }).Sanitize(virtualScreen.Left, virtualScreen.Top, virtualScreen.Width, virtualScreen.Height,
+                // Минимум окна не больше рабочей области: на экране 800×600 окно 960×600 иначе выходит за край (стенд Windows 7).
+                Math.Min(MinWidth * scale, work.Width), Math.Min(MinHeight * scale, work.Height));
         if (sane is null)
         {
             var fitted = OrganizationAdminWindowPlacement.FirstRun(work.Left, work.Top, work.Width, work.Height, DefaultWidth * scale, DefaultHeight * scale);
