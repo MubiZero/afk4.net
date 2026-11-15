@@ -11,6 +11,12 @@ public sealed class WebHostOptions
     /// <summary>Имя своего «сайта» экрана, например <c>setup.afk4.local</c>: в сеть такие запросы не уходят.</summary>
     public required string VirtualHost { get; init; }
 
+    /// <summary>
+    /// Ещё свои «сайты» экрана: имя → папка, только для чтения (обложки игр из общей папки ПК). Страница берёт из них
+    /// картинки по <c>https://{имя}/…</c>; в сеть такие запросы не уходят. Нет папки — файла нет, и всё.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? ExtraHosts { get; init; }
+
     /// <summary>Сервер разработки Vite (localhost) вместо папки — только при разработке.</summary>
     public Uri? DevServerUrl { get; init; }
 

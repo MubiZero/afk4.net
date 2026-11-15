@@ -19,7 +19,6 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
     /// <summary>Обновлять заранее: запрос страницы не должен упереться в истёкший доступ.</summary>
     public static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(2);
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly Lock gate = new();
     private readonly SemaphoreSlim refreshing = new(1, 1);
     private PlatformPersonSessionResponse? session;
@@ -93,7 +92,7 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
-                Content = JsonContent.Create(new PlayerSignOutRequest(leaving.RefreshToken), options: Json)
+                Content = JsonContent.Create(new PlayerSignOutRequest(leaving.RefreshToken), PlayerSessionJson.Default.PlayerSignOutRequest)
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", leaving.AccessToken);
             using var response = await http.SendAsync(request, cancellationToken);
@@ -130,7 +129,7 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
             HttpResponseMessage response;
             try
             {
-                response = await http.PostAsJsonAsync(endpoint, new PlayerRefreshRequest(current!.RefreshToken), Json, cancellationToken);
+                response = await http.PostAsJsonAsync(endpoint, new PlayerRefreshRequest(current!.RefreshToken), PlayerSessionJson.Default.PlayerRefreshRequest, cancellationToken);
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException
                                               && !cancellationToken.IsCancellationRequested)
@@ -151,7 +150,7 @@ public sealed class DevicePlayerSession(HttpClient http, Func<string?> apiBaseUr
                     return false;
                 }
 
-                var refreshed = await response.Content.ReadFromJsonAsync<PlatformPersonSessionResponse>(Json, cancellationToken);
+                var refreshed = await response.Content.ReadFromJsonAsync(PlayerSessionJson.Default.PlatformPersonSessionResponse, cancellationToken);
                 lock (gate)
                 {
                     // Пока шло обновление, игрок мог выйти или войти другой — чужой ответ не записываем.

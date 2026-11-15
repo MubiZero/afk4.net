@@ -49,8 +49,12 @@ public sealed class LocalizationService
         using var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"Embedded locale catalog '{resourceName}' was not found.");
 
+#if NET
+        return JsonSerializer.Deserialize(stream, LocalizationJson.Default.DictionaryStringString)
+#else
         return JsonSerializer.Deserialize<Dictionary<string, string>>(stream)
-            ?? throw new InvalidOperationException($"Embedded locale catalog '{resourceName}' was empty or malformed.");
+#endif
+            ??throw new InvalidOperationException($"Embedded locale catalog '{resourceName}' was empty or malformed.");
     }
 
     public string CurrentLocale => currentLocale;

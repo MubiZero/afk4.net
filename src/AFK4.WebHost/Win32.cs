@@ -8,8 +8,13 @@ internal static unsafe partial class Win32
     public const int WmDestroy = 0x0002;
     public const int WmSize = 0x0005;
     public const int WmSetFocus = 0x0007;
+    public const int WmPaint = 0x000F;
     public const int WmClose = 0x0010;
     public const int WmEraseBackground = 0x0014;
+    public const int WmMouseActivate = 0x0021;
+    public const int WmLButtonDown = 0x0201;
+    public const int WmTimer = 0x0113;
+    public const int MaNoActivate = 3;
     public const int WmGetMinMaxInfo = 0x0024;
     public const int WmDisplayChange = 0x007E;
     public const int WmNcCalcSize = 0x0083;
@@ -32,6 +37,17 @@ internal static unsafe partial class Win32
     public const uint WsMaximizeBox = 0x00010000;
     public const uint WsClipChildren = 0x02000000;
     public const uint WsExTopmost = 0x00000008;
+    public const uint WsExToolWindow = 0x00000080;
+    public const uint WsExNoActivate = 0x08000000;
+
+    // DrawText.
+    public const uint DtCenter = 0x1, DtWordBreak = 0x10, DtCalcRect = 0x400, DtNoPrefix = 0x800;
+    public const int Transparent = 1;
+    public const int SmCxScreen = 0;
+
+    // Панель рабочего стола (appbar).
+    public const uint AbmNew = 0, AbmRemove = 1, AbmQueryPos = 2, AbmSetPos = 3, AbeTop = 1;
+    public const int AbnPosChanged = 1;
 
     public const int SwShow = 5;
     public const int SwShowNoActivate = 4;
@@ -59,6 +75,19 @@ internal static unsafe partial class Win32
 
     [StructLayout(LayoutKind.Sequential)]
     public struct MonitorInfo { public int Size; public Rect Monitor, Work; public uint Flags; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct AppBarData { public int Size; public IntPtr Hwnd; public uint CallbackMessage, Edge; public Rect Rect; public IntPtr Param; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PaintStruct
+    {
+        public IntPtr Dc;
+        public int Erase;
+        public Rect Paint;
+        public int Restore, IncUpdate;
+        public fixed byte Reserved[32];
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct Msg { public IntPtr Hwnd; public uint Message; public IntPtr WParam, LParam; public uint Time; public Point Pt; }
@@ -113,7 +142,32 @@ internal static unsafe partial class Win32
     [LibraryImport("gdi32.dll")] public static partial int GetDeviceCaps(IntPtr dc, int index);
     [LibraryImport("gdi32.dll")] public static partial IntPtr CreateSolidBrush(uint color);
     [LibraryImport("user32.dll")] public static partial int FillRect(IntPtr dc, Rect* rect, IntPtr brush);
+    [LibraryImport("user32.dll")] public static partial int GetSystemMetrics(int index);
+    [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)] public static partial uint RegisterWindowMessage(string name);
+    [LibraryImport("shell32.dll")] public static partial UIntPtr SHAppBarMessage(uint message, AppBarData* data);
+    [LibraryImport("user32.dll")] public static partial IntPtr BeginPaint(IntPtr hwnd, PaintStruct* paint);
+    [LibraryImport("user32.dll")] public static partial int EndPaint(IntPtr hwnd, PaintStruct* paint);
+    [LibraryImport("user32.dll")] public static partial int InvalidateRect(IntPtr hwnd, Rect* rect, int erase);
+    [LibraryImport("user32.dll")] public static partial int SetWindowRgn(IntPtr hwnd, IntPtr region, int redraw);
+    [LibraryImport("user32.dll", EntryPoint = "DrawTextW")] public static partial int DrawText(IntPtr dc, char* text, int length, Rect* rect, uint format);
+    [LibraryImport("gdi32.dll")] public static partial IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
+    [LibraryImport("gdi32.dll")] public static partial int FillRgn(IntPtr dc, IntPtr region, IntPtr brush);
+    [LibraryImport("gdi32.dll")] public static partial int FrameRgn(IntPtr dc, IntPtr region, IntPtr brush, int width, int height);
+    [LibraryImport("gdi32.dll")] public static partial uint SetTextColor(IntPtr dc, uint color);
+    [LibraryImport("gdi32.dll")] public static partial int SetBkMode(IntPtr dc, int mode);
+    [LibraryImport("gdi32.dll")] public static partial IntPtr SelectObject(IntPtr dc, IntPtr handle);
+    [LibraryImport("gdi32.dll")] public static partial int DeleteObject(IntPtr handle);
+    [LibraryImport("gdi32.dll", EntryPoint = "CreateFontW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial IntPtr CreateFont(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strikeOut,
+        uint charSet, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW")] public static partial IntPtr GetModuleHandle(IntPtr name);
+
+    /// <summary>Цвет для GDI: 0x00BBGGRR из привычного 0xRRGGBB.</summary>
+    public static uint Colorref(uint rgb) => ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF);
+
+    /// <summary>Шрифт Segoe UI (есть и на Windows 7), высота в пикселях.</summary>
+    public static IntPtr SegoeUi(int pixels, int weight) =>
+        CreateFont(-pixels, 0, 0, 0, weight, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
     [LibraryImport("shell32.dll", EntryPoint = "ShellExecuteW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial IntPtr ShellExecute(IntPtr hwnd, string operation, string file, string? parameters, string? directory, int show);
 

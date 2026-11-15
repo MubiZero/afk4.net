@@ -33,14 +33,21 @@ public sealed unsafe class WebHostWindow
     private static IntPtr dispatcher;
     private static double scale = 1;
     private static bool lastWindowClosed;
+    private static Action? tick;
+    private const uint TickTimerId = 2;
 
     private readonly WebHostOptions options;
     private readonly string origin;
     private readonly string contentRoot;
+    private readonly List<(string Origin, string Root)> extraRoots = [];
     private readonly IntPtr background;
     private IntPtr view;
     private bool topmost;
     private bool closingByProgram;
+    private bool bandDocked;
+    private int bandPixels;
+    private uint bandMessage;
+    private (string Headline, string Text)? fallback;
 
     /// <summary>Сообщение экрана — JSON того, что он передал в <c>postMessage</c>.</summary>
     public event Action<string>? MessageReceived;
@@ -83,6 +90,11 @@ public sealed unsafe class WebHostWindow
         this.options = options;
         origin = $"https://{options.VirtualHost}/";
         contentRoot = Path.GetFullPath(options.ContentRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        foreach (var (host, folder) in options.ExtraHosts ?? new Dictionary<string, string>())
+        {
+            extraRoots.Add(($"https://{host}/", Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar));
+        }
+
         Directory.CreateDirectory(options.DataFolder);
         // Windows ждёт цвет как 0x00BBGGRR.
         var rgb = options.BackgroundRgb;
@@ -139,6 +151,7 @@ public sealed unsafe class WebHostWindow
 
         uiThreadId = Environment.CurrentManagedThreadId;
         nativeUiThreadId = Win32.GetCurrentThreadId();
+
         Win32.SetProcessDPIAware();
         scale = Win32.SystemScale();
         Miniblink.UseBundledLibrary();
@@ -171,6 +184,198 @@ public sealed unsafe class WebHostWindow
         }
 
         SynchronizationContext.SetSynchronizationContext(new UiContext());
+        NativeCard.RegisterClass(scale);
+    }
+
+    /// <summary>Масштаб Windows для окон программы (1 = 100%): размеры в точках умножаются на него.</summary>
+    public static double Scale => scale;
+
+    /// <summary>
+    /// Звать <paramref name="action"/> в потоке окон каждые <paramref name="milliseconds"/>: опрос окон, ввода и звука.
+    /// Один таймер на процесс; сбой в действии ловит вызывающий.
+    /// </summary>
+    public static void SetTick(int milliseconds, Action action)
+    {
+        tick = action;
+        Win32.SetTimer(dispatcher, TickTimerId, (uint)milliseconds, IntPtr.Zero);
+    }
+
+    /// <summary>Страница видна или спрятана: пока впереди игра, экран игрока скрыт и не рисует кадры.</summary>
+    public void SetPageVisible(bool visible) => OnUiThread(() =>
+    {
+        // Окно движка не прячем (mbShowWindow(0) на Windows 7 x86 роняло Miniblink: c0000005 в mb132_x32.dll, 15.11.2026):
+        // страница сама узнаёт, что скрыта, как в браузере, и перестаёт тикать (visibilitychange).
+        var state = visible ? "visible" : "hidden";
+        var script = "(function(){try{Object.defineProperty(document,'visibilityState',{value:'" + state + "',configurable:true});"
+            + "Object.defineProperty(document,'hidden',{value:" + (visible ? "false" : "true") + ",configurable:true});"
+            + "document.dispatchEvent(new Event('visibilitychange'));}catch(e){}})();";
+        WithUtf8(script, text => Miniblink.mbRunJs(view, Miniblink.mbWebFrameGetMainFrame(view), text, 0, null, IntPtr.Zero, IntPtr.Zero));
+        if (visible && fallback is null)
+        {
+            FocusView();
+        }
+    });
+
+    /// <summary>
+    /// Запасной экран, нарисованный самим окном (GDI, без движка): остаток времени и пояснение. Нужен, когда сам
+    /// движок упал и страница не нарисует ничего — закрытый экран всё равно закрыт.
+    /// </summary>
+    public void ShowFallback(string headline, string text) => OnUiThread(() =>
+    {
+        fallback = (headline, text);
+        // Движок не прячем, а сжимаем до точки (скрытие окна движка роняло Miniblink): запасной экран рисует само окно.
+        LayoutView();
+        Win32.InvalidateRect(Handle, null, 1);
+    });
+
+    /// <summary>Убрать запасной экран и вернуть страницу.</summary>
+    public void HideFallback() => OnUiThread(() =>
+    {
+        if (fallback is null)
+        {
+            return;
+        }
+
+        fallback = null;
+        LayoutView();
+        Win32.InvalidateRect(Handle, null, 1);
+    });
+
+    /// <summary>
+    /// Встать полосой вдоль верхнего края (appbar, как панель задач): Windows вычитает её из рабочей области, и
+    /// развёрнутые окна техника под неё не залезают. Высота — в точках; повторный вызов перестраивает полосу.
+    /// </summary>
+    public void DockBand(int heightPoints) => OnUiThread(() =>
+    {
+        bandPixels = Scaled(heightPoints);
+        if (!bandDocked)
+        {
+            bandMessage = Win32.RegisterWindowMessage("AFK4.MaintenanceBand");
+            var data = BandData();
+            Win32.SHAppBarMessage(Win32.AbmNew, &data);
+            bandDocked = true;
+        }
+
+        PositionBand();
+    });
+
+    /// <summary>Снять полосу: рабочая область Windows возвращается целиком, окно — снова на весь монитор.</summary>
+    public void UndockBand() => OnUiThread(() =>
+    {
+        if (!bandDocked)
+        {
+            return;
+        }
+
+        var data = BandData();
+        Win32.SHAppBarMessage(Win32.AbmRemove, &data);
+        bandDocked = false;
+        bandPixels = 0;
+        if (options.Kiosk)
+        {
+            CoverMonitor();
+        }
+    });
+
+    public bool IsBandDocked => bandDocked;
+
+    /// <summary>
+    /// Окно киоска занимает своё место, что бы ни случилось с ним после <see cref="DockBand"/> и <see cref="UndockBand"/>:
+    /// полоса — свой край, иначе весь монитор. Звать из опроса. На стенде Windows 7 x86 (15.11.2026) окно после постановки
+    /// в полосу откатывалось на весь экран, а после снятия полосы оставалось полосой — запертый ПК был бы открыт.
+    /// </summary>
+    public void ReassertLayout() => OnUiThread(() =>
+    {
+        if (!options.Kiosk || IsMinimized)
+        {
+            return;
+        }
+
+        Win32.Rect rect;
+        Win32.GetWindowRect(Handle, &rect);
+        if (bandDocked)
+        {
+            if (rect.Bottom - rect.Top != bandPixels || rect.Top != 0)
+            {
+                Report($"band moved to {rect.Left},{rect.Top} {rect.Right},{rect.Bottom}; docking again");
+                PositionBand();
+            }
+
+            return;
+        }
+
+        var info = new Win32.MonitorInfo { Size = sizeof(Win32.MonitorInfo) };
+        Win32.GetMonitorInfo(Win32.MonitorFromWindow(Handle, Win32.MonitorDefaultToNearest), &info);
+        if (rect.Left != info.Monitor.Left || rect.Top != info.Monitor.Top || rect.Right != info.Monitor.Right || rect.Bottom != info.Monitor.Bottom)
+        {
+            Report($"window moved to {rect.Left},{rect.Top} {rect.Right},{rect.Bottom}; covering the monitor again");
+            CoverMonitor();
+        }
+    });
+
+    private Win32.AppBarData BandData() => new()
+    {
+        Size = sizeof(Win32.AppBarData),
+        Hwnd = Handle,
+        CallbackMessage = bandMessage
+    };
+
+    private void PositionBand()
+    {
+        var data = BandData();
+        data.Edge = Win32.AbeTop;
+        data.Rect = new Win32.Rect { Left = 0, Top = 0, Right = Win32.GetSystemMetrics(Win32.SmCxScreen), Bottom = bandPixels };
+        // Windows может сдвинуть полосу под другую панель вдоль того же края — спрашиваем, где можно.
+        Win32.SHAppBarMessage(Win32.AbmQueryPos, &data);
+        data.Rect.Bottom = data.Rect.Top + bandPixels;
+        Win32.SHAppBarMessage(Win32.AbmSetPos, &data);
+        Win32.MoveWindow(Handle, data.Rect.Left, data.Rect.Top, data.Rect.Right - data.Rect.Left, data.Rect.Bottom - data.Rect.Top, 1);
+    }
+
+    private void PaintFallback()
+    {
+        var paint = default(Win32.PaintStruct);
+        var dc = Win32.BeginPaint(Handle, &paint);
+        try
+        {
+            Win32.Rect area;
+            Win32.GetClientRect(Handle, &area);
+            Win32.FillRect(dc, &area, background);
+            if (fallback is not { } card)
+            {
+                return;
+            }
+
+            Win32.SetBkMode(dc, Win32.Transparent);
+            var big = Win32.SegoeUi(Scaled(48), 600);
+            var small = Win32.SegoeUi(Scaled(18), 400);
+            var old = Win32.SelectObject(dc, big);
+            var height = area.Bottom - area.Top;
+            var middle = height / 2;
+            Win32.SetTextColor(dc, Win32.Colorref(0xE5E7EB));
+            var top = new Win32.Rect { Left = area.Left, Top = middle - Scaled(70), Right = area.Right, Bottom = middle };
+            DrawText(dc, card.Headline, ref top, Win32.DtCenter | Win32.DtNoPrefix);
+            Win32.SelectObject(dc, small);
+            Win32.SetTextColor(dc, Win32.Colorref(0x9CA3AF));
+            var bottom = new Win32.Rect { Left = area.Left + Scaled(40), Top = middle + Scaled(8), Right = area.Right - Scaled(40), Bottom = height };
+            DrawText(dc, card.Text, ref bottom, Win32.DtCenter | Win32.DtWordBreak | Win32.DtNoPrefix);
+            Win32.SelectObject(dc, old);
+            Win32.DeleteObject(big);
+            Win32.DeleteObject(small);
+        }
+        finally
+        {
+            Win32.EndPaint(Handle, &paint);
+        }
+    }
+
+    private static void DrawText(IntPtr dc, string text, ref Win32.Rect rect, uint format)
+    {
+        fixed (char* chars = text)
+        fixed (Win32.Rect* area = &rect)
+        {
+            Win32.DrawText(dc, chars, text.Length, area, format);
+        }
     }
 
     /// <summary>
@@ -281,6 +486,24 @@ public sealed unsafe class WebHostWindow
         OnUiThread(() => WithUtf8(script, text => Miniblink.mbRunJs(view, Miniblink.mbWebFrameGetMainFrame(view), text, 0, null, IntPtr.Zero, IntPtr.Zero)));
     }
 
+    /// <summary>Работа, поставленная в поток окон (<see cref="RunOnUiThread"/>, продолжения await), упала с исключением.</summary>
+    public static event Action<Exception>? UiError;
+
+    /// <summary>Страница загрузилась (главный документ).</summary>
+    public event Action? PageLoaded;
+
+    /// <summary>Страница не загрузилась (сбой, а не отмена переходом): киоск показывает запасной экран и пробует снова.</summary>
+    public event Action? PageLoadFailed;
+
+    /// <summary>Загрузить экран заново — после сбоя загрузки.</summary>
+    public void Reload() => OnUiThread(() => Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString()));
+
+    /// <summary>
+    /// Выполнить в потоке окон, не дожидаясь: кадры канала агента и события моста приходят из других потоков, а окнами
+    /// и движком можно управлять только отсюда.
+    /// </summary>
+    public static void RunOnUiThread(Action action) => Post(_ => action(), null);
+
     public void Minimize() => OnUiThread(() => Win32.ShowWindow(Handle, Win32.SwMinimize));
 
     public void ToggleMaximize() => OnUiThread(() => Win32.ShowWindow(Handle, IsMaximized ? Win32.SwRestore : Win32.SwMaximize));
@@ -329,6 +552,12 @@ public sealed unsafe class WebHostWindow
     // Весь монитор, а не рабочая область: киоск закрывает и панель задач.
     private void CoverMonitor()
     {
+        // Полоса сама занимает свой край: на весь монитор её не растягивать.
+        if (bandDocked)
+        {
+            return;
+        }
+
         var info = new Win32.MonitorInfo { Size = sizeof(Win32.MonitorInfo) };
         Win32.GetMonitorInfo(Win32.MonitorFromWindow(Handle, Win32.MonitorDefaultToNearest), &info);
         Win32.SetWindowPos(Handle, IntPtr.Zero, info.Monitor.Left, info.Monitor.Top, info.Monitor.Right - info.Monitor.Left,
@@ -349,6 +578,12 @@ public sealed unsafe class WebHostWindow
             return;
         }
 
+        if (fallback is not null)
+        {
+            Miniblink.mbMoveWindow(view, 0, 0, 1, 1);
+            return;
+        }
+
         Win32.Rect client;
         Win32.GetClientRect(Handle, &client);
         // Без рамки края окна тянет сама Windows: оставляем ей тонкую полосу — над страницей мышь достаётся движку.
@@ -358,8 +593,18 @@ public sealed unsafe class WebHostWindow
 
     private IntPtr HandleMessage(uint message, IntPtr wParam, IntPtr lParam)
     {
+        // Панель задач переехала или сменилось разрешение — Windows просит полосу встать заново.
+        if (bandDocked && message == bandMessage && (int)wParam == Win32.AbnPosChanged)
+        {
+            PositionBand();
+            return IntPtr.Zero;
+        }
+
         switch (message)
         {
+            case Win32.WmPaint when fallback is not null:
+                PaintFallback();
+                return IntPtr.Zero;
             case Win32.WmSize:
                 LayoutView();
                 MaximizedChanged?.Invoke((int)wParam == Win32.SizeMaximized);
@@ -374,7 +619,15 @@ public sealed unsafe class WebHostWindow
                 return IntPtr.Zero;
             case Win32.WmDisplayChange when options.Kiosk:
                 // Игра сменила разрешение и вышла: без этого киоск остаётся в её размере, а угол рабочего стола открыт.
-                CoverMonitor();
+                if (bandDocked)
+                {
+                    PositionBand();
+                }
+                else
+                {
+                    CoverMonitor();
+                }
+
                 return IntPtr.Zero;
             case Win32.WmSysCommand when options.Kiosk && ((int)wParam & 0xFFF0) == Win32.ScClose:
                 // Alt+F4 приходит сюда: киоск закрывает только программа.
@@ -386,11 +639,14 @@ public sealed unsafe class WebHostWindow
                 // Минимум не больше рабочей области: на экране 800×600 и 1024×768 окно 960×640 иначе уезжает за край
                 // вместе с кнопками «свернуть» и «закрыть» (стенд Windows 7, 05.11.2026).
                 var work = WorkArea();
-                limits->MinTrackSize = new Win32.Point
-                {
-                    X = Math.Min(Scaled(options.MinWidth), work.Right - work.Left),
-                    Y = Math.Min(Scaled(options.MinHeight), work.Bottom - work.Top)
-                };
+                // Киоску минимум не нужен: полоса обслуживания ниже любого «минимального» окна (56 точек).
+                limits->MinTrackSize = options.Kiosk
+                    ? new Win32.Point { X = 1, Y = 1 }
+                    : new Win32.Point
+                    {
+                        X = Math.Min(Scaled(options.MinWidth), work.Right - work.Left),
+                        Y = Math.Min(Scaled(options.MinHeight), work.Bottom - work.Top)
+                    };
                 if (options.Frameless)
                 {
                     // Развёрнутое окно без рамки — ровно рабочая область, а не весь экран поверх панели задач.
@@ -407,6 +663,13 @@ public sealed unsafe class WebHostWindow
                 return HitTest(lParam);
             case Win32.WmDestroy:
                 Report("window destroyed");
+                if (bandDocked)
+                {
+                    var data = BandData();
+                    Win32.SHAppBarMessage(Win32.AbmRemove, &data);
+                    bandDocked = false;
+                }
+
                 ByWindow.Remove(Handle);
                 ByView.TryRemove(view, out _);
                 if (ByWindow.Count == 0)
@@ -458,18 +721,26 @@ public sealed unsafe class WebHostWindow
     // Свой «сайт» экрана: файлы из папки, в index.html — мост и настройки до скриптов страницы.
     private bool TryServe(string url, IntPtr job)
     {
+        var prefix = origin;
+        var root = contentRoot;
         if (!url.StartsWith(origin, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            var extra = extraRoots.FindIndex(candidate => url.StartsWith(candidate.Origin, StringComparison.OrdinalIgnoreCase));
+            if (extra < 0)
+            {
+                return false;
+            }
+
+            (prefix, root) = extraRoots[extra];
         }
 
-        var path = url[origin.Length..];
+        var path = url[prefix.Length..];
         var end = path.IndexOfAny(['?', '#']);
         path = Uri.UnescapeDataString(end < 0 ? path : path[..end]);
-        var file = Path.GetFullPath(Path.Combine(contentRoot, path.Length == 0 ? "index.html" : path));
+        var file = Path.GetFullPath(Path.Combine(root, path.Length == 0 ? "index.html" : path));
         byte[] body;
         string type;
-        if (!file.StartsWith(contentRoot, StringComparison.OrdinalIgnoreCase) || !File.Exists(file))
+        if (!file.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(file))
         {
             body = "Not found"u8.ToArray();
             type = "text/plain";
@@ -489,6 +760,7 @@ public sealed unsafe class WebHostWindow
         {
             Miniblink.mbNetSetData(job, data, body.Length);
         }
+
 
         // Тип — после данных и ещё заголовком ответа: до данных Miniblink его теряет, и модульный скрипт Vite
         // отвергается («MIME type of ""») — стенд 05.11.2026.
@@ -520,6 +792,7 @@ public sealed unsafe class WebHostWindow
 
     private bool IsAllowed(string url) =>
         url.StartsWith(origin, StringComparison.OrdinalIgnoreCase)
+        || extraRoots.Exists(candidate => url.StartsWith(candidate.Origin, StringComparison.OrdinalIgnoreCase))
         || url.StartsWith("about:", StringComparison.OrdinalIgnoreCase)
         || url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
         || (options.DevServerUrl is { } dev && url.StartsWith(dev.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase));
@@ -554,6 +827,12 @@ public sealed unsafe class WebHostWindow
             if (hwnd == dispatcher && message == InvokeMessage)
             {
                 RunPending();
+                return IntPtr.Zero;
+            }
+
+            if (hwnd == dispatcher && message == Win32.WmTimer && (uint)wParam == TickTimerId)
+            {
+                tick?.Invoke();
                 return IntPtr.Zero;
             }
 
@@ -644,9 +923,22 @@ public sealed unsafe class WebHostWindow
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnLoadingFinish(IntPtr view, IntPtr param, IntPtr frame, byte* url, int result, byte* reason)
     {
-        if (result != 0 && ByView.TryGetValue(view, out var window))
+        if (!ByView.TryGetValue(view, out var window))
         {
-            window.Report($"load failed ({result}): {Marshal.PtrToStringUTF8((IntPtr)url)} {Marshal.PtrToStringUTF8((IntPtr)reason)}");
+            return;
+        }
+
+        if (result == 0)
+        {
+            RunOnUiThread(() => window.PageLoaded?.Invoke());
+            return;
+        }
+
+        window.Report($"load failed ({result}): {Marshal.PtrToStringUTF8((IntPtr)url)} {Marshal.PtrToStringUTF8((IntPtr)reason)}");
+        // 1 — сбой загрузки; остальное (отмена переходом, блокировка чужого адреса) — не повод закрывать экран.
+        if (result == 1)
+        {
+            RunOnUiThread(() => window.PageLoadFailed?.Invoke());
         }
     }
 
@@ -683,7 +975,15 @@ public sealed unsafe class WebHostWindow
     {
         while (Pending.TryDequeue(out var item))
         {
-            item.Callback(item.State);
+            try
+            {
+                item.Callback(item.State);
+            }
+            catch (Exception exception)
+            {
+                // Одна упавшая работа не должна ронять остальные, но и пропадать бесследно ей нельзя.
+                UiError?.Invoke(exception);
+            }
         }
     }
 
