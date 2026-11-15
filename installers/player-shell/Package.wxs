@@ -12,39 +12,6 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="Уже установлена более новая версия оболочки игрока AFK4.NET." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- EdgeUpdate records the runtime version (pv) in three places: the 64-bit client key read
-         through the 32-bit view (WOW6432Node) for the usual per-machine install, the plain 64-bit
-         key, and HKCU for a per-user install. "0.0.0.0" means the key outlived the runtime. All
-         three are checked here, in the Burn bundle and in the update helper — one answer to
-         "is WebView2 here?" everywhere. "Installed" keeps uninstall/repair working. -->
-    <Property Id="WEBVIEW2_RUNTIME_HKLM_PV">
-      <RegistrySearch
-          Id="WebView2RuntimeHklmPv"
-          Root="HKLM"
-          Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-          Name="pv"
-          Type="raw" />
-    </Property>
-    <Property Id="WEBVIEW2_RUNTIME_HKLM64_PV">
-      <RegistrySearch
-          Id="WebView2RuntimeHklm64Pv"
-          Root="HKLM"
-          Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-          Name="pv"
-          Type="raw" />
-    </Property>
-    <Property Id="WEBVIEW2_RUNTIME_HKCU_PV">
-      <RegistrySearch
-          Id="WebView2RuntimeHkcuPv"
-          Root="HKCU"
-          Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-          Name="pv"
-          Type="raw" />
-    </Property>
-    <Launch
-        Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKLM64_PV AND WEBVIEW2_RUNTIME_HKLM64_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
-        Message="Для оболочки игрока AFK4.NET нужен Microsoft Edge WebView2 Runtime, а на этом ПК его нет. Установите AFK4.NET через afk4-client-&lt;version&gt;-&lt;channel&gt;.exe: он поставит компонент сам. Чтобы ставить этот MSI отдельно, сначала установите WebView2 Runtime: https://go.microsoft.com/fwlink/p/?LinkId=2124703" />
-
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">
         <Directory Id="PlayerShellFolder" Name="Player Shell" />

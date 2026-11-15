@@ -8,18 +8,15 @@ AFK4 uses WiX-authored MSI packages for MVP Windows client distribution.
 - `gaming-pc` is the retired coordinated Agent + Player Shell package kept
   only for legacy staging fallback work.
 - `bundle` is the WiX Burn master installer (`afk4-client-<version>-<channel>.exe`) that
-  carries Microsoft's offline WebView2 installer and chains the `agent` MSI. It is the
+  chains the setup payload and the `agent` MSI. It is the
   single deliverable; the component MSIs are build inputs moved to `intermediates/`.
 
   The installer carries everything a club PC needs; nothing is downloaded and no one is
   told to install something. Every program (agent service, setup wizard, player shell,
-  Organization Admin) is published self-contained for win-x64, so no .NET is chained or
-  checked. WebView2 is a hard prerequisite of every window a human sees, so the bundle
-  embeds the Evergreen Standalone Installer (x64, ~210 MB, verified at build time by its
-  Microsoft Authenticode signature) and runs it silently only when the runtime is absent.
-  VC++ Redistributable is not needed (WPF self-contained ships its native libraries; the
-  BAFunctions DLL is linked with /MT). Installing a component MSI on its own still needs
-  WebView2 up front, and the MSI says where to get it.
+  Organization Admin) is Native AOT (one file of machine code, Windows 7 to 11), so no .NET
+  and no browser runtime (WebView2) is chained or checked: windows are Win32 + Miniblink
+  (`AFK4.WebHost`, one DLL beside each exe). VC++ Redistributable is not needed (the
+  BAFunctions DLL is linked with /MT).
 
 Generated MSI files belong under ignored `artifacts/client-packages/`.
 Do not commit built installers, signing keys, certificates, or generated update

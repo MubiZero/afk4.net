@@ -24,26 +24,6 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void InstallUpdateMsiScript_InstallsWebView2PrerequisiteBeforeOrganizationAdminMsi()
-    {
-        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1");
-        var script = File.ReadAllText(scriptPath);
-
-        Assert.Contains("Test-WebView2RuntimeInstalled", script, StringComparison.Ordinal);
-        Assert.Contains("Install-WebView2Runtime", script, StringComparison.Ordinal);
-        Assert.Contains("$Component -eq 'organization-admin'", script, StringComparison.Ordinal);
-        Assert.Contains(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", script, StringComparison.Ordinal);
-        Assert.Contains("MicrosoftEdgeWebView2Setup.exe", script, StringComparison.Ordinal);
-        // Скачанный файл запускается с правами системы: подпись Microsoft — единственное, что
-        // стоит между подменённой загрузкой и установщиком, которому мы отдаём машину.
-        Assert.Contains("Get-AuthenticodeSignature", script, StringComparison.Ordinal);
-        Assert.Contains("O=Microsoft Corporation", script, StringComparison.Ordinal);
-        Assert.Contains("Refusing to run it.", script, StringComparison.Ordinal);
-        Assert.Contains("/silent", script, StringComparison.Ordinal);
-        Assert.Contains("/install", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void InstallUpdateMsiScript_StartsAgentServiceAfterAgentServiceSelfUpdate()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1");
@@ -295,48 +275,6 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void OrganizationAdminWixPackage_RequiresWebView2Runtime()
-    {
-        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "organization-admin", "Package.wxs");
-        var package = File.ReadAllText(packagePath);
-
-        Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV", package, StringComparison.Ordinal);
-        Assert.Contains("WEBVIEW2_RUNTIME_HKCU_PV", package, StringComparison.Ordinal);
-        Assert.Contains(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", package, StringComparison.Ordinal);
-        Assert.Contains(@"Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", package, StringComparison.Ordinal);
-        Assert.Contains("<Launch", package, StringComparison.Ordinal);
-        Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
-        Assert.Contains("WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
-        Assert.Contains("WEBVIEW2_RUNTIME_HKLM64_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
-        // Отказ называет обычный путь (установщик клуба ставит рантайм сам) и даёт ссылку тому,
-        // кто всё-таки ставит MSI в одиночку. Прежний текст говорил «поставьте рантайм» и молчал
-        // о том, где его взять и что бандл делает это без него.
-        Assert.Contains("afk4-client-&lt;version&gt;-&lt;channel&gt;.exe", package, StringComparison.Ordinal);
-        Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", package, StringComparison.Ordinal);
-    }
-
-    // Обе клиентские MSI спрашивают WebView2 одинаково: раньше оболочка игрока проверяла один
-    // ключ из трёх и не смотрела на «0.0.0.0», то есть на машине с per-user рантаймом отказывала
-    // там, где админка ставилась.
-    [Fact]
-    public void PlayerShellWixPackage_ChecksWebView2TheSameWayAsOrganizationAdmin()
-    {
-        var shell = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "installers", "player-shell", "Package.wxs"));
-
-        foreach (var marker in new[]
-                 {
-                     "WEBVIEW2_RUNTIME_HKLM_PV",
-                     "WEBVIEW2_RUNTIME_HKLM64_PV",
-                     "WEBVIEW2_RUNTIME_HKCU_PV",
-                     "WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;",
-                     "afk4-client-&lt;version&gt;-&lt;channel&gt;.exe"
-                 })
-        {
-            Assert.Contains(marker, shell, StringComparison.Ordinal);
-        }
-    }
-
-    [Fact]
     public void OrganizationAdminWixPackage_WritesAgentOrganizationAdminVersion()
     {
         var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "organization-admin", "Package.wxs");
@@ -393,7 +331,7 @@ public sealed class UpdateHelperScriptTests
 
     // Решение владельца 01.10.2026: установщик несёт всё, что нужно, — никаких отказов «скачайте
     // то-то». Каждая программа публикуется self-contained (.NET лежит в её же папке), поэтому MSI не
-    // сверяются с рантаймом, а бандл не цепляет .NET; WebView2 бандл везёт офлайн (см. Bundle.wxs).
+    // сверяются с рантаймом, а бандл не цепляет ни .NET, ни рантайм браузера (см. Bundle.wxs).
     private static readonly System.Xml.Linq.XNamespace WixNamespace = "http://wixtoolset.org/schemas/v4/wxs";
 
     [Fact]
@@ -519,23 +457,6 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotMatch(@"(?i)\bdotnet(\.exe)?\b", script);
     }
 
-    [Theory]
-    [InlineData("organization-admin")]
-    [InlineData("player-shell")]
-    public void ClientMsiWebView2RefusalIsInRussian(string package)
-    {
-        var document = LoadPackage(package);
-        var launch = document.Descendants(WixNamespace + "Launch")
-            .Single(element => ((string?)element.Attribute("Condition"))!.Contains("WEBVIEW2_RUNTIME_HKLM_PV", StringComparison.Ordinal));
-        var message = (string?)launch.Attribute("Message") ?? string.Empty;
-
-        AssertRussianRefusalPointsAtTheClientInstaller(message, package);
-        Assert.Contains("WebView2 Runtime", message, StringComparison.Ordinal);
-        // Ссылка для тех, кто всё-таки ставит MSI в одиночку.
-        Assert.Contains("https://go.microsoft.com/fwlink/p/?LinkId=2124703", message, StringComparison.Ordinal);
-        Assert.DoesNotContain("is required", message, StringComparison.Ordinal);
-    }
-
     // MSI Player Shell и Organization Admin нужны мастеру только при первой установке. Внутри MSI
     // агента они возили бы ~110 МБ с каждым его обновлением (канал обновлений публикует именно этот
     // MSI), а сами программы и так обновляются своими компонентами. Поэтому их несёт отдельный пакет,
@@ -599,13 +520,6 @@ public sealed class UpdateHelperScriptTests
 
     private static System.Xml.Linq.XDocument LoadPackage(string package) =>
         System.Xml.Linq.XDocument.Load(Path.Combine(GetRepositoryRoot(), "installers", package, "Package.wxs"));
-
-    private static void AssertRussianRefusalPointsAtTheClientInstaller(string message, string package)
-    {
-        Assert.Contains(message, character => character is >= 'Ѐ' and <= 'ӿ');
-        Assert.Contains("afk4-client-<version>-<channel>.exe", message, StringComparison.Ordinal);
-        Assert.False(string.IsNullOrWhiteSpace(message), $"{package}: пустое сообщение отказа");
-    }
 
     private static string GetRepositoryRoot()
     {
