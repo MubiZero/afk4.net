@@ -838,11 +838,11 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("WixToolset.BootstrapperApplications.wixext", script, StringComparison.Ordinal);
         Assert.DoesNotContain("WixToolset.Netfx.wixext", script, StringComparison.Ordinal);
 
-        // The bundle is built from the single Bundle.wxs and carries the offline WebView2 + agent MSI.
-        // Bundle.wxs references $(var.WebView2InstallerPath), $(var.AgentMsiPath), so the build
-        // must -d both or `wix build` fails with an undefined preprocessor variable.
+        // The bundle is built from the single Bundle.wxs and carries the setup payload + agent MSI.
+        // Bundle.wxs references $(var.AgentMsiPath), so the build must -d it or `wix build` fails with an
+        // undefined preprocessor variable. No WebView2 variable: the programs are Native AOT + Miniblink.
         Assert.Contains("installers/bundle/Bundle.wxs", script, StringComparison.Ordinal);
-        Assert.Contains("WebView2InstallerPath=", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("WebView2", script, StringComparison.Ordinal);
         Assert.Contains("AgentMsiPath=", script, StringComparison.Ordinal);
         Assert.Contains("afk4-client-$Version-$Channel.exe", script, StringComparison.Ordinal);
 
@@ -852,8 +852,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.True(agentToIntermediatesIndex > bundleIndex, "Agent MSI must be moved to intermediates only after the bundle that embeds it is built.");
     }
 
-    // Решение владельца 01.10.2026: бандл не цепляет .NET (программы self-contained), а WebView2
-    // везёт полным офлайн-установщиком внутри себя — ни скачивания, ни «установите то-то».
+    // Решение владельца 01.10.2026: бандл не цепляет .NET и ничего не просит скачать. С 15.11.2026 программы Native AOT с
+    // Miniblink: браузерного рантайма (WebView2) у бандла тоже нет.
     // Рантайм внутри пакетов — рантайм SDK, которым их собрали. global.json допускает latestFeature,
     // и setup-dotnet ставил самый свежий SDK на момент прогона: между сборками 0.1.342 и 0.1.345
     // сменился .NET, и обновление агента поменяло 613 файлов из 657. Поэтому оба workflow,
@@ -880,83 +880,45 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
-    public void BundleWxs_ChainsNoDotNetAndCarriesWebView2Offline()
+    public void BundleWxs_ChainsNoRuntimeAtAll()
     {
         var bundle = NormalizeLineEndings(File.ReadAllText(ScriptPath("installers/bundle/Bundle.wxs")));
         var chain = System.Xml.Linq.XDocument.Load(ScriptPath("installers/bundle/Bundle.wxs"))
             .Descendants(System.Xml.Linq.XName.Get("Chain", "http://wixtoolset.org/schemas/v4/wxs")).Single();
 
-        // Цепочка — ровно три пакета: WebView2, файлы установки ролей и MSI агента. Ни DotNetCoreSearch,
-        // ни пакета рантайма.
-        Assert.Equal(["ExePackage", "MsiPackage", "MsiPackage"], chain.Elements().Select(element => element.Name.LocalName).ToArray());
+        // Цепочка — ровно два пакета: файлы установки ролей и MSI агента. Ни пакета .NET, ни рантайма браузера.
+        Assert.Equal(["MsiPackage", "MsiPackage"], chain.Elements().Select(element => element.Name.LocalName).ToArray());
         Assert.DoesNotContain("netfx", bundle, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DotNetCoreSearch", bundle, StringComparison.Ordinal);
         Assert.DoesNotContain("windowsdesktop-runtime", bundle, StringComparison.Ordinal);
         Assert.DoesNotContain("RuntimeInstallerPath", bundle, StringComparison.Ordinal);
-
-        // Полный офлайн-установщик Evergreen (Standalone x64), а не загрузчик, который качает из сети:
-        // внутри бандла (он Compressed), без DownloadUrl.
-        var webView2 = chain.Elements().First();
-        var payload = webView2.Element(System.Xml.Linq.XName.Get("ExePackagePayload", "http://wixtoolset.org/schemas/v4/wxs"))!;
-        Assert.Equal("MicrosoftEdgeWebView2RuntimeInstallerX64.exe", (string?)payload.Attribute("Name"));
-        Assert.Equal("$(var.WebView2InstallerPath)", (string?)payload.Attribute("SourceFile"));
-        Assert.Null(payload.Attribute("DownloadUrl"));
+        Assert.DoesNotContain("ExePackage", bundle, StringComparison.Ordinal);
         Assert.Contains("Compressed=\"yes\"", bundle, StringComparison.Ordinal);
-        Assert.DoesNotContain("MicrosoftEdgeWebview2Setup.exe", bundle, StringComparison.Ordinal);
-        Assert.DoesNotContain("WebView2BootstrapperPath", bundle, StringComparison.Ordinal);
 
-        // VC++ Redistributable не нужен: WPF self-contained везёт свои нативные библиотеки, BAFunctions собран с /MT.
+        // VC++ Redistributable не нужен: программы без управляемого рантайма, BAFunctions собран с /MT.
         Assert.DoesNotContain("vcredist", bundle, StringComparison.OrdinalIgnoreCase);
     }
 
-    // Каждое окно, которое видит человек на клубной машине, — это WebView2: мастер установки,
-    // админка, оболочка игрока. Раньше MSI просто отказывались ставиться и отправляли кассира
-    // искать рантайм самому. Теперь его ставит установщик клуба, первым в цепочке.
+    // С 15.11.2026 каждое окно, которое видит человек на клубной машине, — Win32 + Miniblink (AFK4.WebHost): мастер установки,
+    // Панель, оболочка игрока. Рантайма WebView2 нет ни в бандле, ни в MSI, ни в скриптах: ни 210 МБ, ни отказов «поставьте
+    // рантайм», ни загрузок при установке.
     [Fact]
-    public void BundleWxs_InstallsWebView2RuntimeBeforeTheAgentMsi()
+    public void ClientInstallers_NeedNoWebView2()
     {
-        var bundle = NormalizeLineEndings(File.ReadAllText(ScriptPath("installers/bundle/Bundle.wxs")));
-
-        // Три места, где EdgeUpdate отмечает рантайм: 64-битный ключ в 32-битном виде, он же
-        // напрямую, и per-user. «0.0.0.0» = ключ пережил рантайм.
-        Assert.Contains("WebView2RuntimeHklmPv", bundle, StringComparison.Ordinal);
-        Assert.Contains("WebView2RuntimeHklm64Pv", bundle, StringComparison.Ordinal);
-        Assert.Contains("WebView2RuntimeHkcuPv", bundle, StringComparison.Ordinal);
-        Assert.Contains("&lt;&gt; &quot;0.0.0.0&quot;", bundle, StringComparison.Ordinal);
-
-        // Тихая установка офлайн-установщиком, только когда рантайма нет (DetectCondition по тем же ключам).
-        Assert.Contains("MicrosoftEdgeWebView2RuntimeInstallerX64.exe", bundle, StringComparison.Ordinal);
-        Assert.Contains("InstallArguments=\"/silent /install\"", bundle, StringComparison.Ordinal);
-        Assert.Contains("SourceFile=\"$(var.WebView2InstallerPath)\"", bundle, StringComparison.Ordinal);
-
-        // Рантайм общий для всей машины: снос AFK4 не должен уносить WebView2 у других программ.
-        var webViewIndex = bundle.IndexOf("MicrosoftEdgeWebView2RuntimeInstallerX64.exe", StringComparison.Ordinal);
-        var agentMsiIndex = bundle.IndexOf("$(var.AgentMsiPath)", StringComparison.Ordinal);
-        Assert.True(webViewIndex > 0 && agentMsiIndex > webViewIndex,
-            "WebView2 must be chained before the agent MSI: that MSI launches the setup wizard, and the wizard is a WebView2 window.");
-    }
-
-    [Fact]
-    public void BuildClientPackagesScript_CarriesWebView2StandaloneInstallerVerifiedByItsMicrosoftSignature()
-    {
-        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
-
-        // Evergreen Standalone Installer x64 — стабильная ссылка из таблицы на странице WebView2.
-        // Она вечнозелёная — за ней каждый раз новый файл, и SHA закрепить не за что. Поэтому
-        // доверие строится на подписи, и она проверяется до того, как файл уедет в бандл.
-        Assert.Contains("https://go.microsoft.com/fwlink/?linkid=2124701", script, StringComparison.Ordinal);
-        Assert.Contains("MicrosoftEdgeWebView2RuntimeInstallerX64.exe", script, StringComparison.Ordinal);
-        Assert.Contains("Get-AuthenticodeSignature", script, StringComparison.Ordinal);
-        Assert.Contains("O=Microsoft Corporation", script, StringComparison.Ordinal);
-        Assert.Contains("Refusing to ship an unverified WebView2 installer", script, StringComparison.Ordinal);
-
-        // Скачанное 210 МБ лежит в кэше между сборками.
-        Assert.Contains("$runtimeCacheDir = Join-Path $artifactRoot 'runtime-cache'", script, StringComparison.Ordinal);
-        Assert.Contains("Get-VerifiedWebView2Installer", script, StringComparison.Ordinal);
-
-        // Util-расширение нужно бандлу для RegistrySearch по ключам WebView2.
-        Assert.Contains("WixToolset.Util.wixext", script, StringComparison.Ordinal);
-        Assert.Contains("WebView2InstallerPath=", script, StringComparison.Ordinal);
+        foreach (var path in new[]
+                 {
+                     "installers/bundle/Bundle.wxs",
+                     "installers/player-shell/Package.wxs",
+                     "installers/organization-admin/Package.wxs",
+                     "installers/agent/Package.wxs",
+                     "scripts/build-client-packages.ps1",
+                     "scripts/install-afk4-update-msi.ps1"
+                 })
+        {
+            var text = File.ReadAllText(ScriptPath(path));
+            Assert.DoesNotContain("WebView2", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("EdgeUpdate", text, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -1032,7 +994,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("Name=\"1064\\thm.wxl\" SourceFile=\"$(sys.SOURCEFILEDIR)BundleUi.tg.wxl\"", bundle, StringComparison.Ordinal);
 
         // Что видно в «Processing: …»: имя пакета из самого бандла, а не из ProductName MSI.
-        Assert.Contains("DisplayName=\"Microsoft Edge WebView2 Runtime\"", bundle, StringComparison.Ordinal);
         Assert.Contains("DisplayName=\"AFK4.NET\"", bundle, StringComparison.Ordinal);
     }
 

@@ -1,7 +1,7 @@
 # Client Packaging Runbook
 
-Status: single client master installer (Burn bundle) carrying everything it needs (self-contained programs + offline WebView2); wizard installs role apps
-Last updated: 2026-10-01
+Status: single client master installer (Burn bundle) carrying everything it needs (Native AOT programs, no browser runtime); wizard installs role apps
+Last updated: 2026-11-15
 
 ## Contents
 
@@ -40,34 +40,21 @@ install time and nobody is told to go and install something (owner decision of
    `PlayerShellExecutablePath`, the wizard starts Organization Admin by its
    installed path, the service is registered with its own `AFK4.Agent.Service.exe`,
    and the update helper scripts call only `msiexec`, `sc.exe` and PowerShell.
-2. **WebView2 travels inside the bundle.** Every window a human sees is WebView2,
-   so the bundle embeds Microsoft's **Evergreen Standalone Installer (x64)**
-   (`MicrosoftEdgeWebView2RuntimeInstallerX64.exe`, about 210 MB, `Compressed`, no
-   `DownloadUrl`) and runs it silently (`/silent /install`) first, only when none of
-   the three EdgeUpdate registry keys reports a runtime.
-3. Then the bundle installs the **Agent MSI**.
+2. **No browser runtime.** Since 2026-11-15 every window a human sees is Win32 + Miniblink
+   (`AFK4.WebHost`, `mb132_x32.dll` / `mb132_x64.dll` beside each exe), so the bundle no
+   longer carries or checks WebView2 (the ~210 MB Evergreen installer, its signature
+   check, the runtime-cache folder, the EdgeUpdate registry searches and the Launch
+   conditions in the Panel and Player Shell MSIs are gone), and the update helper does not
+   install it. `scripts/fetch-miniblink.ps1` downloads the Miniblink DLL at build time and
+   checks its SHA-256.
+3. Then the bundle installs the **setup payload** and the **Agent MSI**.
 
-The build script downloads the WebView2 installer from Microsoft's stable link
-(`https://go.microsoft.com/fwlink/?linkid=2124701`, the "Evergreen Standalone
-Installer" row of the WebView2 download page) into
-`artifacts/client-packages/runtime-cache/` and reuses it while the file keeps a valid
-Microsoft Authenticode signature. The link is evergreen (a different file every
-time), so there is no SHA to pin: the signature (`O=Microsoft Corporation`) is the
-check, and a file that fails it is deleted and the build stops.
+The Visual C++ Redistributable is deliberately not carried: the programs ship no managed
+runtime and the BAFunctions DLL is linked statically (`/MT`).
 
-The Visual C++ Redistributable is deliberately not carried: WPF self-contained ships
-its own native libraries and the BAFunctions DLL is linked statically (`/MT`).
-
-Rough size: the bundle goes from about 70 MB (shared runtime) to about 450 MB: four
-self-contained programs (compressed roughly 37 MB for the service and 65 MB for each
-WPF program, measured as zip of a `win-x64` publish) plus about 210 MB for WebView2.
-Measure the real `.exe` on the build machine; the numbers above are an estimate.
-
-Standalone, the Panel and Player Shell MSIs still refuse to install when WebView2 is
-missing, in Russian, pointing at `afk4-client-<version>-<channel>.exe` and at the
-WebView2 download for people who insist on installing the MSI alone. The update helper
-(`install-afk4-update-msi.ps1`) installs WebView2 before the Panel MSI when the
-runtime is missing (it can only download, an update package cannot carry 210 MB).
+Rough size: the programs are one AOT file each (agent about 8 to 15 MB, windows 4 to 9 MB)
+plus one Miniblink DLL per program (about 24 to 27 MB zipped, 54 to 66 MB unpacked),
+against about 450 MB before. Measure the real `.exe` on the build machine.
 
 The bundle window speaks Russian (`installers/bundle/BundleUi.ru.wxl`, the default) and
 Tajik (`BundleUi.tg.wxl`, picked by WixStdBA from the Windows UI languages through the
@@ -222,8 +209,8 @@ Expected master installer (deliverable, in `artifacts/client-packages/`):
 afk4-client-<version>-<channel>.exe
 ```
 
-The bundle wraps the Agent MSI for fresh provisioning and carries the offline
-WebView2 runtime embedded inside it (the programs themselves are self-contained). The component MSIs are still produced as
+The bundle wraps the Agent MSI for fresh provisioning (the programs themselves are Native AOT, no
+runtime inside). The component MSIs are still produced as
 standalone build inputs for recovery and as the source the update pipeline
 publishes from.
 

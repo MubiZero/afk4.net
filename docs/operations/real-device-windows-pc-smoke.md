@@ -82,7 +82,7 @@ Not included:
   email/login and password; the removed Platform Control `/club` dashboard is not
   part of enrollment.
 - A `manager_workstation` enrollment must prove the role-aware update path:
-  WebView2 Runtime check/install, Organization Admin MSI install, Agent restart, and
+  Organization Admin MSI install, Agent restart, and
   an Organization Admin sign-in screen pointing at staging.
 - `WorkstationLockController` currently records lock/unlock requests through
   the enforcement adapter. If the physical Windows desktop does not actually
@@ -185,8 +185,8 @@ Use this path for the clean Windows 11 VM gate.
    - `gaming_pc` for a player PC. Expected follow-on: Agent installs Player
      Shell from the internal update channel and supervises it in the active
      desktop session.
-   - `manager_workstation` for an operator PC. Expected follow-on: Agent checks
-     or installs WebView2 Runtime, installs Organization Admin, restarts, and leaves
+   - `manager_workstation` for an operator PC. Expected follow-on: Agent
+     installs Organization Admin, restarts, and leaves
      Organization Admin ready for staff sign-in against staging.
 
 5. Confirm in Organization Admin `Управление → Залы и ПК` that the device appears
@@ -1071,7 +1071,7 @@ Overall pass requires:
 - installed apps are reported and visible in device detail;
 - `gaming_pc` role installs Player Shell through the update channel, or a
   concrete role-aware update blocker is recorded;
-- `manager_workstation` role installs or verifies WebView2 and installs
+- `manager_workstation` role installs
   Organization Admin through the update channel, or a concrete role-aware update
   blocker is recorded;
 - session start returns backend approval and creates an unlock command;

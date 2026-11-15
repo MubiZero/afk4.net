@@ -65,9 +65,8 @@ update channel according to the enrolled device role.
     `RunOnce` entry so later Agent MSI upgrades do not reopen the wizard.
 12. On its update loop the Agent requests role-compatible update packages:
     `gaming_pc` devices install `player-shell`, and `manager_workstation`
-    devices install `organization-admin`. Organization Admin installation checks for the
-    Microsoft Edge WebView2 Runtime first and runs the Evergreen bootstrapper
-    before the MSI when the runtime is missing.
+    devices install `organization-admin`. Neither needs a browser runtime: the programs are
+    Native AOT with Miniblink (docs/roadmap/windows7.md).
 13. After installing Agent Service, Player Shell, or Organization Admin components,
     the update helper schedules an Agent Service restart so new machine
     environment values, component versions, and Shell executable paths are
@@ -91,8 +90,8 @@ sign-in on each PC (plan P5f-2):
    ```
 
    Variable names are upper case. `msiexec /i afk4-agent-….msi /qn
-   AFK4_INSTALL_CODE=…` works too, but the bundle also installs the .NET
-   runtime and WebView2 the PC needs.
+   AFK4_INSTALL_CODE=…` works too, but the bundle is the one deliverable
+   (the programs are Native AOT and need neither .NET nor a browser runtime).
 3. The agent MSI hands the code to `AFK4.SetupWizard.exe --install-code … --seat …`
    without a window. The wizard enrolls the PC as a `gaming_pc` by
    `POST /api/install/code/enroll`, writes the Agent bootstrap, installs the
