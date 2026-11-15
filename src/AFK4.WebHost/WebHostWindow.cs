@@ -287,6 +287,7 @@ public sealed unsafe class WebHostWindow
         Win32.SHAppBarMessage(Win32.AbmQueryPos, &data);
         data.Rect.Bottom = data.Rect.Top + bandPixels;
         Win32.SHAppBarMessage(Win32.AbmSetPos, &data);
+        Report($"band: {data.Rect.Left},{data.Rect.Top} {data.Rect.Right},{data.Rect.Bottom} (высота {bandPixels})");
         Win32.MoveWindow(Handle, data.Rect.Left, data.Rect.Top, data.Rect.Right - data.Rect.Left, data.Rect.Bottom - data.Rect.Top, 1);
     }
 
@@ -443,6 +444,9 @@ public sealed unsafe class WebHostWindow
             + ");";
         OnUiThread(() => WithUtf8(script, text => Miniblink.mbRunJs(view, Miniblink.mbWebFrameGetMainFrame(view), text, 0, null, IntPtr.Zero, IntPtr.Zero)));
     }
+
+    /// <summary>Работа, поставленная в поток окон (<see cref="RunOnUiThread"/>, продолжения await), упала с исключением.</summary>
+    public static event Action<Exception>? UiError;
 
     /// <summary>Страница загрузилась (главный документ).</summary>
     public event Action? PageLoaded;
@@ -920,7 +924,15 @@ public sealed unsafe class WebHostWindow
     {
         while (Pending.TryDequeue(out var item))
         {
-            item.Callback(item.State);
+            try
+            {
+                item.Callback(item.State);
+            }
+            catch (Exception exception)
+            {
+                // Одна упавшая работа не должна ронять остальные, но и пропадать бесследно ей нельзя.
+                UiError?.Invoke(exception);
+            }
         }
     }
 

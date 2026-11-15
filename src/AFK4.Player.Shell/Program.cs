@@ -32,6 +32,7 @@ internal static class PlayerShellProgram
         try
         {
             LocalizationScope.Current = LocalizationService.LoadEmbedded(Locales.Default);
+            WebHostWindow.UiError += exception => PlayerShellStartupLog.Write("Player Shell UI work failed.", exception);
             WebHostWindow.Initialize();
             using var host = new PlayerShellHost();
             host.Start();
