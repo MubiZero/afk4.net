@@ -36,6 +36,12 @@ public sealed unsafe class WebHostWindow
     private static Action? tick;
     // ВРЕМЕННО: отладка падения Miniblink на Windows 7 x86 (AFK4_WEBHOST_DEBUG=notopmost,nobring,nofocus). Убрать.
     private static readonly string DebugFlags = Environment.GetEnvironmentVariable("AFK4_WEBHOST_DEBUG") ?? string.Empty;
+    private static void Trace(string text)
+    {
+        if (!Dbg("net")) { return; }
+        try { File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AFK4", "logs", "player", "net-trace.txt"), $"{DateTimeOffset.Now:HH:mm:ss.fff} t{Environment.CurrentManagedThreadId} {text}{Environment.NewLine}"); } catch { }
+    }
+
     private static bool Dbg(string flag) => DebugFlags.Contains(flag, StringComparison.Ordinal);
     private const uint TickTimerId = 2;
 
@@ -358,6 +364,7 @@ public sealed unsafe class WebHostWindow
     /// </summary>
     public void Show(bool activate = true)
     {
+        Trace("Show");
         Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString());
         Win32.ShowWindow(Handle, activate ? Win32.SwShow : Win32.SwShowNoActivate);
         if (activate)
@@ -826,6 +833,7 @@ public sealed unsafe class WebHostWindow
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnQuery(IntPtr view, IntPtr param, IntPtr state, long queryId, int customMessage, byte* request)
     {
+        Trace($"OnQuery {customMessage}");
         fixed (byte* empty = "\0"u8)
         {
             Miniblink.mbResponseQuery(view, queryId, customMessage, empty);
@@ -851,6 +859,7 @@ public sealed unsafe class WebHostWindow
     {
         try
         {
+            Trace("OnLoadBegin " + Marshal.PtrToStringUTF8((IntPtr)url));
             if (!ByView.TryGetValue(view, out var window))
             {
                 return 0;
@@ -882,6 +891,7 @@ public sealed unsafe class WebHostWindow
     private static int OnNavigation(IntPtr view, IntPtr param, int navigationType, byte* url)
     {
         var address = Marshal.PtrToStringUTF8((IntPtr)url) ?? string.Empty;
+        Trace("OnNavigation " + address);
         if (!ByView.TryGetValue(view, out var window) || window.IsAllowed(address))
         {
             return 1;
@@ -900,6 +910,7 @@ public sealed unsafe class WebHostWindow
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnLoadingFinish(IntPtr view, IntPtr param, IntPtr frame, byte* url, int result, byte* reason)
     {
+        Trace($"OnLoadingFinish {result}");
         if (!ByView.TryGetValue(view, out var window))
         {
             return;
