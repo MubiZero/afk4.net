@@ -280,22 +280,36 @@ public sealed unsafe class WebHostWindow
     public bool IsBandDocked => bandDocked;
 
     /// <summary>
-    /// Полоса должна занимать свой край, что бы ни случилось с окном: звать из опроса. Окно, которое после
-    /// <see cref="DockBand"/> оказалось другого размера (стенд Windows 7 x86, 15.11.2026), снова ставится в полосу.
+    /// Окно киоска занимает своё место, что бы ни случилось с ним после <see cref="DockBand"/> и <see cref="UndockBand"/>:
+    /// полоса — свой край, иначе весь монитор. Звать из опроса. На стенде Windows 7 x86 (15.11.2026) окно после постановки
+    /// в полосу откатывалось на весь экран, а после снятия полосы оставалось полосой — запертый ПК был бы открыт.
     /// </summary>
-    public void ReassertBand() => OnUiThread(() =>
+    public void ReassertLayout() => OnUiThread(() =>
     {
-        if (!bandDocked)
+        if (!options.Kiosk || IsMinimized)
         {
             return;
         }
 
         Win32.Rect rect;
         Win32.GetWindowRect(Handle, &rect);
-        if (rect.Bottom - rect.Top != bandPixels || rect.Top != 0)
+        if (bandDocked)
         {
-            Report($"band moved to {rect.Left},{rect.Top} {rect.Right},{rect.Bottom}; docking again");
-            PositionBand();
+            if (rect.Bottom - rect.Top != bandPixels || rect.Top != 0)
+            {
+                Report($"band moved to {rect.Left},{rect.Top} {rect.Right},{rect.Bottom}; docking again");
+                PositionBand();
+            }
+
+            return;
+        }
+
+        var info = new Win32.MonitorInfo { Size = sizeof(Win32.MonitorInfo) };
+        Win32.GetMonitorInfo(Win32.MonitorFromWindow(Handle, Win32.MonitorDefaultToNearest), &info);
+        if (rect.Left != info.Monitor.Left || rect.Top != info.Monitor.Top || rect.Right != info.Monitor.Right || rect.Bottom != info.Monitor.Bottom)
+        {
+            Report($"window moved to {rect.Left},{rect.Top} {rect.Right},{rect.Bottom}; covering the monitor again");
+            CoverMonitor();
         }
     });
 

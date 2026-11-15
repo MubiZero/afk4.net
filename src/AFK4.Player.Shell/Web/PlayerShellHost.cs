@@ -348,7 +348,7 @@ public sealed class PlayerShellHost : IDisposable
                     break;
             }
 
-            window?.ReassertBand();
+            window?.ReassertLayout();
             var now = DateTimeOffset.UtcNow;
             var shellInFront = window?.IsInFront == true;
             keyboard.SetShellInFront(shellInFront);
