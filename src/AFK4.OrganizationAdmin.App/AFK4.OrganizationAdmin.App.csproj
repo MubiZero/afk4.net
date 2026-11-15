@@ -1,11 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\AFK4.Shared.Contracts\AFK4.Shared.Contracts.csproj" />
     <ProjectReference Include="..\AFK4.Localization\AFK4.Localization.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\AFK4.WebHost\AFK4.WebHost.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -14,32 +12,27 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Светлая/тёмная иконка окна для рантайм-переключения при смене темы (см.
-         OrganizationAdminWindow.TryHandleWindowMessage "window:theme") — отдельно от
-         ApplicationIcon, который лишь статичная иконка exe/ярлыка. -->
-    <Resource Include="Assets\afk4-icon-light.png" />
-    <Resource Include="Assets\afk4-icon-dark.png" />
-  </ItemGroup>
-
+  <!--
+    Панель — один файл машинного кода без .NET на Windows 7–11, x86 и x64 (Native AOT), окно — Win32 + Miniblink
+    (AFK4.WebHost) вместо WPF и WebView2: docs/roadmap/windows7.md. DLL Miniblink своей разрядности лежит рядом с exe.
+  -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net10.0-windows;net48</TargetFrameworks>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot>true</PublishAot>
     <!-- Embeds the AFK4.NET logo into the exe so both the desktop and Start Menu shortcuts (which
          target the exe) and the window/taskbar show the brand icon instead of the generic default. -->
     <ApplicationIcon>afk4-operator.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- WebView2 SDK новее 1.0.1518 не запускается на Windows 7: сборка под .NET Framework 4.8 — для неё. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1518.46" />
-    <Reference Include="System.Security" />
+  <ItemGroup>
+    <!-- DPAPI (подключение к клубу и ключ офлайн-аренд): на Windows 7 работает так же, как на 11. -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.13" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
-  </ItemGroup>
+  <Import Project="..\AFK4.WebHost\Miniblink.targets" />
 </Project>

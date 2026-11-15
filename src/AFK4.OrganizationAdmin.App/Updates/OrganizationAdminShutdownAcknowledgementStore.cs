@@ -16,8 +16,6 @@ public interface IOrganizationAdminShutdownAcknowledgementStore
 public sealed class FileOrganizationAdminShutdownAcknowledgementStore(string path)
     : IOrganizationAdminShutdownAcknowledgementStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public async Task PersistAsync(
         OrganizationAdminShutdownAcknowledgement acknowledgement,
         CancellationToken cancellationToken)
@@ -30,7 +28,7 @@ public sealed class FileOrganizationAdminShutdownAcknowledgementStore(string pat
         {
             await File.WriteAllTextAsync(
                 temporaryPath,
-                JsonSerializer.Serialize(acknowledgement, JsonOptions),
+                JsonSerializer.Serialize(acknowledgement, OrganizationAdminStoreJson.Default.OrganizationAdminShutdownAcknowledgement),
                 cancellationToken);
             File.Move(temporaryPath, path, overwrite: true);
         }

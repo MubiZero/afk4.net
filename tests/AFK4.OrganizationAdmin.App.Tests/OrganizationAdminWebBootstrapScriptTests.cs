@@ -28,7 +28,7 @@ public sealed class OrganizationAdminWebBootstrapScriptTests
         var root = document.RootElement;
         Assert.Equal("organization-admin", root.GetProperty("product").GetString());
         Assert.Equal(2, root.GetProperty("compatibilityEpoch").GetInt32());
-        Assert.Equal("webview2", root.GetProperty("runtime").GetString());
+        Assert.Equal("miniblink", root.GetProperty("runtime").GetString());
         Assert.Equal("vite-dist", root.GetProperty("shellMode").GetString());
         Assert.Equal("https://api.afk4.net/", root.GetProperty("platformBaseUrl").GetString());
         Assert.Equal("USD", root.GetProperty("currencyCode").GetString());

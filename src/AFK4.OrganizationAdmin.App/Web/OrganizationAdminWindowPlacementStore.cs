@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using AFK4.OrganizationAdmin.App;
 
 namespace AFK4.OrganizationAdmin.Web;
 
@@ -8,8 +9,6 @@ namespace AFK4.OrganizationAdmin.Web;
 // never block startup or shutdown — the window just falls back to its default size.
 public static class OrganizationAdminWindowPlacementStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
     public static string Resolve() => Resolve(Environment.GetFolderPath);
 
     public static string Resolve(Func<Environment.SpecialFolder, string> getFolderPath)
@@ -35,7 +34,7 @@ public static class OrganizationAdminWindowPlacementStore
                 return null;
             }
 
-            return JsonSerializer.Deserialize<OrganizationAdminWindowPlacement>(File.ReadAllText(path));
+            return JsonSerializer.Deserialize(File.ReadAllText(path), OrganizationAdminPlacementJson.Default.OrganizationAdminWindowPlacement);
         }
         catch
         {
@@ -51,7 +50,7 @@ public static class OrganizationAdminWindowPlacementStore
         {
             var path = Resolve();
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, JsonSerializer.Serialize(placement, JsonOptions));
+            File.WriteAllText(path, JsonSerializer.Serialize(placement, OrganizationAdminPlacementJson.Default.OrganizationAdminWindowPlacement));
         }
         catch
         {

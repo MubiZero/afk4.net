@@ -44,6 +44,9 @@ internal static unsafe partial class Win32
     public const uint DtCenter = 0x1, DtWordBreak = 0x10, DtCalcRect = 0x400, DtNoPrefix = 0x800;
     public const int Transparent = 1;
     public const int SmCxScreen = 0;
+    public const int SmXVirtualScreen = 76, SmYVirtualScreen = 77, SmCxVirtualScreen = 78, SmCyVirtualScreen = 79;
+    public const uint SpiGetWorkArea = 0x0030;
+    public const int DwmwaWindowCornerPreference = 33, DwmwaBorderColor = 34, DwmwcpRound = 2;
 
     // Панель рабочего стола (appbar).
     public const uint AbmNew = 0, AbmRemove = 1, AbmQueryPos = 2, AbmSetPos = 3, AbeTop = 1;
@@ -75,6 +78,9 @@ internal static unsafe partial class Win32
 
     [StructLayout(LayoutKind.Sequential)]
     public struct MonitorInfo { public int Size; public Rect Monitor, Work; public uint Flags; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WindowPlacement { public int Length, Flags, ShowCmd; public Point MinPosition, MaxPosition; public Rect NormalPosition; }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct AppBarData { public int Size; public IntPtr Hwnd; public uint CallbackMessage, Edge; public Rect Rect; public IntPtr Param; }
@@ -143,6 +149,9 @@ internal static unsafe partial class Win32
     [LibraryImport("gdi32.dll")] public static partial IntPtr CreateSolidBrush(uint color);
     [LibraryImport("user32.dll")] public static partial int FillRect(IntPtr dc, Rect* rect, IntPtr brush);
     [LibraryImport("user32.dll")] public static partial int GetSystemMetrics(int index);
+    [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW")] public static partial int SystemParametersInfo(uint action, uint param, Rect* value, uint flags);
+    [LibraryImport("user32.dll")] public static partial int GetWindowPlacement(IntPtr hwnd, WindowPlacement* placement);
+    [LibraryImport("dwmapi.dll")] public static partial int DwmSetWindowAttribute(IntPtr hwnd, int attribute, int* value, int size);
     [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)] public static partial uint RegisterWindowMessage(string name);
     [LibraryImport("shell32.dll")] public static partial UIntPtr SHAppBarMessage(uint message, AppBarData* data);
     [LibraryImport("user32.dll")] public static partial IntPtr BeginPaint(IntPtr hwnd, PaintStruct* paint);

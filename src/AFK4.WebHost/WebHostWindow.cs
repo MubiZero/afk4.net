@@ -105,8 +105,10 @@ public sealed unsafe class WebHostWindow
             : options.Frameless ? Win32.WsPopup | Win32.WsThickFrame | Win32.WsSysMenu | Win32.WsMinimizeBox | Win32.WsMaximizeBox
             : Win32.WsOverlappedWindow);
         topmost = options.Kiosk;
-        Handle = Win32.CreateWindowEx(topmost ? Win32.WsExTopmost : 0, WindowClass, options.Title, style, Win32.CwUseDefault, Win32.CwUseDefault,
-            Scaled(options.Width), Scaled(options.Height), IntPtr.Zero, IntPtr.Zero, Win32.GetModuleHandle(IntPtr.Zero), IntPtr.Zero);
+        var (startX, startY, startWidth, startHeight) = options.InitialBounds
+            ?? (Win32.CwUseDefault, Win32.CwUseDefault, Scaled(options.Width), Scaled(options.Height));
+        Handle = Win32.CreateWindowEx(topmost ? Win32.WsExTopmost : 0, WindowClass, options.Title, style, startX, startY,
+            startWidth, startHeight, IntPtr.Zero, IntPtr.Zero, Win32.GetModuleHandle(IntPtr.Zero), IntPtr.Zero);
         if (Handle == IntPtr.Zero)
         {
             throw new InvalidOperationException($"CreateWindowEx failed: {Marshal.GetLastPInvokeError()}");
@@ -117,9 +119,18 @@ public sealed unsafe class WebHostWindow
         {
             CoverMonitor();
         }
-        else
+        else if (options.InitialBounds is null)
         {
             CenterInWorkArea();
+        }
+
+        if (options.BorderRgb is { } border)
+        {
+            // Windows 11: скруглённые углы и тонкий контур у окна без рамки; на старых системах вызов ничего не делает.
+            var corner = Win32.DwmwcpRound;
+            Win32.DwmSetWindowAttribute(Handle, Win32.DwmwaWindowCornerPreference, &corner, sizeof(int));
+            var color = (int)(((border & 0xFF) << 16) | (border & 0xFF00) | ((border >> 16) & 0xFF));
+            Win32.DwmSetWindowAttribute(Handle, Win32.DwmwaBorderColor, &color, sizeof(int));
         }
 
         view = Miniblink.mbCreateWebWindow(Miniblink.WindowTypeControl, Handle, 0, 0, 1, 1);
@@ -382,10 +393,14 @@ public sealed unsafe class WebHostWindow
     /// Открыть экран: свою папку или сервер разработки. <paramref name="activate"/> = false — окно появляется, но
     /// фокус остаётся у того, кто впереди: киоск перезапустился посреди игры и не должен выдёргивать игрока из неё.
     /// </summary>
-    public void Show(bool activate = true)
+    public void Show(bool activate = true, bool loadPage = true)
     {
-        Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString());
-        Win32.ShowWindow(Handle, activate ? Win32.SwShow : Win32.SwShowNoActivate);
+        if (loadPage)
+        {
+            Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString());
+        }
+
+        Win32.ShowWindow(Handle, options.StartMaximized ? Win32.SwMaximize : activate ? Win32.SwShow : Win32.SwShowNoActivate);
         if (activate)
         {
             // Запущенного службой или планировщиком Windows вперёд не пускает: запертый ПК за блокнотом не спрятать.
@@ -503,6 +518,47 @@ public sealed unsafe class WebHostWindow
     /// и движком можно управлять только отсюда.
     /// </summary>
     public static void RunOnUiThread(Action action) => Post(_ => action(), null);
+
+    /// <summary>Окно сейчас закрывают (крестик, Alt+F4, команда программы): последний случай сохранить положение.</summary>
+    public event Action? Closing;
+
+    /// <summary>Рабочая область главного экрана без панели задач, пиксели.</summary>
+    public static (int Left, int Top, int Width, int Height) PrimaryWorkArea()
+    {
+        Win32.Rect area;
+        Win32.SystemParametersInfo(Win32.SpiGetWorkArea, 0, &area, 0);
+        return (area.Left, area.Top, area.Right - area.Left, area.Bottom - area.Top);
+    }
+
+    /// <summary>Все экраны вместе, пиксели.</summary>
+    public static (int Left, int Top, int Width, int Height) VirtualScreen() => (
+        Win32.GetSystemMetrics(Win32.SmXVirtualScreen), Win32.GetSystemMetrics(Win32.SmYVirtualScreen),
+        Win32.GetSystemMetrics(Win32.SmCxVirtualScreen), Win32.GetSystemMetrics(Win32.SmCyVirtualScreen));
+
+    /// <summary>Обычное положение окна (куда оно вернётся из развёрнутого) и признак «развёрнуто»: для запоминания между запусками.</summary>
+    public ((int X, int Y, int Width, int Height) Bounds, bool Maximized) GetPlacement()
+    {
+        var placement = new Win32.WindowPlacement { Length = sizeof(Win32.WindowPlacement) };
+        Win32.GetWindowPlacement(Handle, &placement);
+        var rect = placement.NormalPosition;
+        return ((rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top), placement.ShowCmd == Win32.SwMaximize);
+    }
+
+    /// <summary>Тянуть край окна без рамки (команда экрана): <c>left</c>, <c>top-right</c> и так далее.</summary>
+    public void BeginResize(string? edge) => OnUiThread(() =>
+    {
+        var direction = edge switch
+        {
+            "left" => 1, "right" => 2, "top" => 3, "top-left" => 4, "top-right" => 5, "bottom" => 6, "bottom-left" => 7, "bottom-right" => 8, _ => 0
+        };
+        if (direction == 0)
+        {
+            return;
+        }
+
+        Win32.ReleaseCapture();
+        Win32.SendMessage(Handle, Win32.WmSysCommand, (IntPtr)(0xF000 + direction), IntPtr.Zero);
+    });
 
     public void Minimize() => OnUiThread(() => Win32.ShowWindow(Handle, Win32.SwMinimize));
 
@@ -634,6 +690,9 @@ public sealed unsafe class WebHostWindow
                 return IntPtr.Zero;
             case Win32.WmClose when options.Kiosk && !closingByProgram:
                 return IntPtr.Zero;
+            case Win32.WmClose:
+                Closing?.Invoke();
+                return Win32.DefWindowProc(Handle, message, wParam, lParam);
             case Win32.WmGetMinMaxInfo:
                 var limits = (Win32.MinMaxInfo*)lParam;
                 // Минимум не больше рабочей области: на экране 800×600 и 1024×768 окно 960×640 иначе уезжает за край
