@@ -202,7 +202,13 @@ public sealed unsafe class WebHostWindow
     /// <summary>Страница видна или спрятана: пока впереди игра, экран игрока скрыт и не рисует кадры.</summary>
     public void SetPageVisible(bool visible) => OnUiThread(() =>
     {
-        Miniblink.mbShowWindow(view, visible ? 1 : 0);
+        // Окно движка не прячем (mbShowWindow(0) на Windows 7 x86 роняло Miniblink: c0000005 в mb132_x32.dll, 15.11.2026):
+        // страница сама узнаёт, что скрыта, как в браузере, и перестаёт тикать (visibilitychange).
+        var state = visible ? "visible" : "hidden";
+        var script = "(function(){try{Object.defineProperty(document,'visibilityState',{value:'" + state + "',configurable:true});"
+            + "Object.defineProperty(document,'hidden',{value:" + (visible ? "false" : "true") + ",configurable:true});"
+            + "document.dispatchEvent(new Event('visibilitychange'));}catch(e){}})();";
+        WithUtf8(script, text => Miniblink.mbRunJs(view, Miniblink.mbWebFrameGetMainFrame(view), text, 0, null, IntPtr.Zero, IntPtr.Zero));
         if (visible && fallback is null)
         {
             FocusView();
@@ -216,7 +222,8 @@ public sealed unsafe class WebHostWindow
     public void ShowFallback(string headline, string text) => OnUiThread(() =>
     {
         fallback = (headline, text);
-        Miniblink.mbShowWindow(view, 0);
+        // Движок не прячем, а сжимаем до точки (скрытие окна движка роняло Miniblink): запасной экран рисует само окно.
+        LayoutView();
         Win32.InvalidateRect(Handle, null, 1);
     });
 
@@ -229,7 +236,7 @@ public sealed unsafe class WebHostWindow
         }
 
         fallback = null;
-        Miniblink.mbShowWindow(view, 1);
+        LayoutView();
         Win32.InvalidateRect(Handle, null, 1);
     });
 
@@ -534,6 +541,12 @@ public sealed unsafe class WebHostWindow
     {
         if (view == IntPtr.Zero)
         {
+            return;
+        }
+
+        if (fallback is not null)
+        {
+            Miniblink.mbMoveWindow(view, 0, 0, 1, 1);
             return;
         }
 
