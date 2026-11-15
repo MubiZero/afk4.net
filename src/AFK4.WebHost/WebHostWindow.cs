@@ -730,10 +730,13 @@ public sealed unsafe class WebHostWindow
             }
         }
 
+        if (Dbg("net")) { Report($"serve: {body.Length} bytes {type}"); }
         fixed (byte* data = body)
         {
             Miniblink.mbNetSetData(job, data, body.Length);
         }
+
+        if (Dbg("net")) { Report("serve: data set"); }
 
         // Тип — после данных и ещё заголовком ответа: до данных Miniblink его теряет, и модульный скрипт Vite
         // отвергается («MIME type of ""») — стенд 05.11.2026.
@@ -854,6 +857,7 @@ public sealed unsafe class WebHostWindow
             }
 
             var address = Marshal.PtrToStringUTF8((IntPtr)url)!;
+            if (Dbg("net")) { window.Report("request: " + address); }
             if (window.TryServe(address, job))
             {
                 return 1;
