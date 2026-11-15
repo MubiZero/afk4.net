@@ -116,8 +116,8 @@ affordances and starts Agent Service after successful enrollment.
 
 ### Player Shell
 
-`src/AFK4.Player.Shell` is the player-facing UI: a WPF window hosting a WebView2
-React screen, moving to `AFK4.WebHost` like the wizard. It displays locked,
+`src/AFK4.Player.Shell` is the player-facing UI: a Native AOT program (Win32 window and Miniblink
+via `AFK4.WebHost`, like the wizard) showing the React screen. It displays locked,
 active-session, warning, grace/offline, ending, and launcher states. It is not a
 trusted authority for sessions, billing, or authorization.
 

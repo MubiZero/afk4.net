@@ -1,10 +1,8 @@
+using System.Buffers;
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Windows;
-using System.Windows.Threading;
 using AFK4.Localization;
 using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Identity;
@@ -14,12 +12,19 @@ using AFK4.Player.Shell.Overlay;
 using AFK4.Player.Shell.Workstation;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Net;
 using AFK4.Shared.Contracts.Shell;
-using Microsoft.Web.WebView2.Core;
+using AFK4.WebHost;
 
 namespace AFK4.Player.Shell.Web;
 
-public partial class WebViewPlayerWindow : Window
+/// <summary>
+/// Хост экрана игрока: окно киоска на Miniblink (AFK4.WebHost, Native AOT — docs/roadmap/windows7.md), мост к странице,
+/// канал агента, перехват клавиатуры и окон, окно поверх игры. Все решения (когда «поверх всех», когда полоса, что
+/// показать поверх игры) — в чистых классах рядом; здесь только их склейка с окнами Windows. Всё, что трогает окно и
+/// движок, выполняется в потоке окон.
+/// </summary>
+public sealed class PlayerShellHost : IDisposable
 {
     private readonly PlayerShellOptions options;
     private readonly ShellPipeClient agentPipe;
@@ -33,22 +38,23 @@ public partial class WebViewPlayerWindow : Window
     private readonly LaunchFocusWatcher launchFocus = new(LaunchFocusWatcher.DefaultWatch);
     private readonly EmptyScreenGuard emptyScreen = new(EmptyScreenGuard.DefaultSettle);
     private readonly LocalizationService localization = LocalizationService.LoadEmbedded("ru");
-    private readonly DispatcherTimer tick = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
-    private PlayerShellStateDto? latestState;
-    private long stateReceivedAt;
-    private string? appSource;
     private readonly WindowsSystemControls systemControls = new();
     private readonly KioskKeyboardHook keyboard = new();
     private readonly WindowBlocker windows = new();
-    private readonly MaintenanceBand band;
+    private WebHostWindow? window;
     private OverlayWindow? overlay;
+    private PlayerShellStateDto? latestState;
+    private long stateReceivedAt;
     private ClubMessage? clubMessage;
     private ShellSystemStateDto? lastSystem;
+    private DateTimeOffset lastPresenceReported = DateTimeOffset.MinValue;
+    private bool onTop = true;
+    private bool disposed;
     private int tickCount;
-    private int webViewRestartCount;
-    private const int MaxWebViewRestarts = 5;
+    private int loadRestartCount;
+    private const int MaxLoadRestarts = 5;
 
-    public WebViewPlayerWindow()
+    public PlayerShellHost()
         : this(
             new PlayerShellOptions
             {
@@ -57,82 +63,60 @@ public partial class WebViewPlayerWindow : Window
     {
     }
 
-    internal WebViewPlayerWindow(PlayerShellOptions options)
+    internal PlayerShellHost(PlayerShellOptions options)
     {
         this.options = options;
-        band = new MaintenanceBand(this);
         agentPipe = new ShellPipeClient(options);
-        apiHttp = new HttpClient();
+        apiHttp = new HttpClient(ClubTls.Apply(new SocketsHttpHandler()));
         session = new DevicePlayerSession(apiHttp, ApiBaseUrl, TimeProvider.System);
         bridge = new ShellBridgeHost(agentPipe, session, () => latestState, systemControls, appWindows);
         bridge.AuthChanged += auth => PostToPage(ShellBridgeEventTypeNames.AuthChanged, auth);
-        bridge.AppLaunched += () => _ = Dispatcher.InvokeAsync(BeginLaunchFocus);
-        keyboard.AppsHotkeyPressed += () => _ = Dispatcher.InvokeAsync(ShowAppsPanelAsync);
-        InitializeComponent();
-        Loaded += OnLoaded;
-        Closed += OnClosed;
+        bridge.AppLaunched += () => WebHostWindow.RunOnUiThread(BeginLaunchFocus);
+        keyboard.AppsHotkeyPressed += () => WebHostWindow.RunOnUiThread(() => _ = ShowAppsPanelAsync());
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
+    /// <summary>Поднять киоск: перехват, окно с экраном, канал агента, опрос. В потоке окон, после <see cref="WebHostWindow.Initialize"/>.</summary>
+    public void Start()
     {
+        // Пока агент молчит, ПК заперт: перехват стоит с первой секунды — и до движка. Раньше он ставился после, и сбой
+        // движка (битая установка, нет файлов) оставлял киоск без перехвата: Alt+Tab и Win уводили гостя на рабочий стол.
+        // Правила закрытия окон приезжают с состоянием, поэтому блокировщик окон до тех пор ничего не трогает — в том
+        // числе окна самого движка.
+        keyboard.Start();
+        windows.Start();
+
         try
         {
-            // Пока агент молчит, ПК заперт: перехват стоит с первой секунды — и до WebView2. Раньше
-            // он ставился после, и сбой WebView2 (битая установка, нет рантайма, упавший процесс
-            // браузера) оставлял киоск без перехвата: Alt+Tab и Win уводили гостя на рабочий стол.
-            // Правила закрытия окон приезжают с состоянием, поэтому блокировщик окон до тех пор
-            // ничего не трогает — в том числе окна самого WebView2.
-            keyboard.Start();
-            windows.Start();
-
-            var userDataFolder = PlayerWebView2UserDataFolder.EnsureExists();
-            var webViewEnvironment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
-            await Browser.EnsureCoreWebView2Async(webViewEnvironment);
-            HardenForKiosk(Browser.CoreWebView2);
-
-            var apiBase = options.ApiBaseUrl.TrimEnd('/');
-            // Адрес API назовёт агент в состоянии — он может отличаться от адреса из конфига хоста.
-            // Поэтому смотрим все запросы страницы к серверу, а решает политика по текущему адресу.
-            Browser.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.Fetch);
-            Browser.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.XmlHttpRequest);
-            Browser.CoreWebView2.WebResourceRequested += OnApiResourceRequested;
-            Browser.CoreWebView2.NavigationStarting += OnNavigationStarting;
-            Browser.CoreWebView2.NewWindowRequested += (_, windowArgs) => windowArgs.Handled = true;
-
-            // Hand the web layer the SAME origin the host signs tokens for, at runtime. Otherwise the
-            // web's build-time VITE_PLATFORM_API_BASE_URL can point at a different API than the host
-            // injects the bearer for (e.g. shipped staging build pointed at a prod host) -> every
-            // /api/me/* call loses its token and 401s.
-            await Browser.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
-                $"window.__AFK4_PLAYER_CONFIG__ = {{ \"platformBaseUrl\": {JsonSerializer.Serialize(apiBase)} }};");
-            Browser.CoreWebView2.NavigationCompleted += (_, navArgs) =>
-            {
-                // A successful load means the renderer is healthy again; reset the watchdog budget.
-                if (navArgs.IsSuccess)
-                {
-                    webViewRestartCount = 0;
-                }
-            };
-
             var target = PlayerWebAssetResolver.Resolve(
                 devServerUrl: Environment.GetEnvironmentVariable("AFK4_PLAYER_WEB_DEV_SERVER_URL"),
                 distIndexHtmlPath: ResolveDistIndexHtml());
+            var showcase = ShellShowcaseAssets.Directory();
 
-            if (target.Kind == PlayerWebLaunchKind.LocalFolder)
+            window = new WebHostWindow(new WebHostOptions
             {
-                Browser.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    PlayerWebAssetResolver.LocalVirtualHost,
-                    target.LocalFolderPath!,
-                    CoreWebView2HostResourceAccessKind.Allow);
-            }
+                Title = "AFK4.NET Player Shell",
+                ContentRoot = target.LocalFolderPath ?? AppContext.BaseDirectory,
+                VirtualHost = PlayerWebAssetResolver.LocalVirtualHost,
+                DevServerUrl = target.Kind == PlayerWebLaunchKind.DevServer ? new Uri(target.Source) : null,
+                // Адрес API — тот же, для которого хост подписывает токены. Иначе адрес, вшитый в сборку страницы, мог
+                // бы указывать на другой API (рабочая сборка с адресом боевого): все /api/me/* без токена получили бы 401.
+                InitScript = $"window.__AFK4_PLAYER_CONFIG__ = {{ \"platformBaseUrl\": {JsonString(options.ApiBaseUrl.TrimEnd('/'))} }};",
+                // Обложки игр и витрина — из общей папки ПК, которую пополняет агент. Только на чтение; папки ещё нет —
+                // плитки рисуются по названию.
+                ExtraHosts = new Dictionary<string, string> { [ShellShowcaseAssets.VirtualHost] = showcase },
+                DataFolder = PlayerShellDataFolder.Resolve(),
+                // Токен знает только хост: страница к серверу ходит сама, а заголовок ей ставит окно (токен она не видит).
+                RequestAuthorization = AuthorizationFor,
+                // Ссылки с экрана киоска никуда не ведут: на запертом ПК браузеру делать нечего.
+                OpenExternalLinks = false,
+                Kiosk = true
+            });
+            window.MessageReceived += json => WebHostWindow.RunOnUiThread(() => _ = HandleMessageAsync(json));
+            window.Diagnostic += text => PlayerShellStartupLog.Write("Player Shell window: " + text);
+            window.PageLoaded += OnPageLoaded;
+            window.PageLoadFailed += OnPageLoadFailed;
+            window.Show();
 
-            MapShowcaseAssets();
-
-            Browser.CoreWebView2.ProcessFailed += OnProcessFailed;
-            appSource = target.Source;
-            Browser.Source = new Uri(target.Source);
-
-            Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
             _ = agentPipe.RunAsync(lifetime.Token);
             _ = ListenForStateAsync(lifetime.Token);
             _ = ListenForPushesAsync(lifetime.Token);
@@ -140,100 +124,133 @@ public partial class WebViewPlayerWindow : Window
 
             overlay = new OverlayWindow(localization);
             overlay.ExtendRequested += BringShellForward;
-            tick.Tick += OnTick;
-            tick.Start();
+            WebHostWindow.SetTick(250, OnTick);
         }
         catch (Exception exception)
         {
-            // A throw from this async-void handler would crash the kiosk window, and the agent
-            // would relaunch it in a tight loop with no record of why. Log and keep the window up.
-            PlayerShellStartupLog.Write("WebView startup failed in OnLoaded.", exception);
-            // Перезагружать нечего: CoreWebView2 не поднялся, и Reload() сам бросил бы исключение.
-            ApplyWatchdog(new WebViewWatchdogAction(ShowFallback: true, RestartWebView: false));
+            // Сбой отсюда уронил бы киоск, а агент перезапускал бы его по кругу без следа. Пишем в журнал и держим окно.
+            PlayerShellStartupLog.Write("Player Shell startup failed.", exception);
+            if (window is not null)
+            {
+                ApplyWatchdog(new WebViewWatchdogAction(ShowFallback: true, RestartWebView: false));
+            }
         }
     }
 
-    private static void HardenForKiosk(CoreWebView2 core)
+    public void Dispose()
     {
-        core.Settings.AreDevToolsEnabled = false;
-        core.Settings.AreDefaultContextMenusEnabled = false;
-        core.Settings.IsZoomControlEnabled = false;
-        core.Settings.IsStatusBarEnabled = false;
-        core.Settings.AreBrowserAcceleratorKeysEnabled = false;
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
+        keyboard.Dispose();
+        windows.Dispose();
+        overlay?.Close();
+        lifetime.Cancel();
+        lifetime.Dispose();
+        apiHttp.Dispose();
     }
 
-    private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
+    private string? AuthorizationFor(string url)
+    {
+        var decision = AuthorizationHeaderPolicy.Decide(url, ApiBaseUrl(), session.AccessToken);
+        return decision.ShouldInject ? decision.HeaderValue : null;
+    }
+
+    private static string JsonString(string value)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStringValue(value);
+        }
+
+        return Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    private void OnPageLoaded()
+    {
+        // Страница загрузилась — значит, движок здоров: запас повторов возвращается.
+        loadRestartCount = 0;
+        window?.HideFallback();
+    }
+
+    private void OnPageLoadFailed()
     {
         try
         {
-            // A renderer/GPU crash is recoverable by reload; a browser-process exit invalidates
-            // CoreWebView2 so a plain Reload() would itself throw. Cap restarts so a persistently
-            // broken renderer (bad driver/OOM on cheap club PCs) shows a stable fallback instead of
-            // a tight reload storm. The counter is reset on any successful navigation.
-            var recoverable = e.ProcessFailedKind is
-                CoreWebView2ProcessFailedKind.RenderProcessExited or
-                CoreWebView2ProcessFailedKind.RenderProcessUnresponsive or
-                CoreWebView2ProcessFailedKind.FrameRenderProcessExited;
-
-            if (!recoverable || webViewRestartCount >= MaxWebViewRestarts)
+            // Сбой загрузки лечится повтором; но упрямый сбой (нет файлов, битая установка) не должен превращаться в
+            // шторм перезагрузок — после предела остаётся устойчивый запасной экран.
+            if (loadRestartCount >= MaxLoadRestarts)
             {
-                PlayerShellStartupLog.Write(
-                    $"WebView process failed ({e.ProcessFailedKind}); restart {webViewRestartCount}/{MaxWebViewRestarts}. Showing fallback.");
+                PlayerShellStartupLog.Write($"The screen failed to load; restart {loadRestartCount}/{MaxLoadRestarts}. Showing fallback.");
                 ApplyWatchdog(new WebViewWatchdogAction(ShowFallback: true, RestartWebView: false));
                 return;
             }
 
-            webViewRestartCount++;
+            loadRestartCount++;
             ApplyWatchdog(new WebViewWatchdogAction(ShowFallback: true, RestartWebView: true));
         }
         catch (Exception exception)
         {
-            // The handler is a void event; an escape would crash the kiosk and trigger an
-            // agent-supervised relaunch loop. Log and leave the fallback panel up.
-            PlayerShellStartupLog.Write("WebView watchdog failed handling ProcessFailed.", exception);
+            PlayerShellStartupLog.Write("Watchdog failed handling a load failure.", exception);
         }
     }
 
     private void ApplyWatchdog(WebViewWatchdogAction action)
     {
-        FallbackPanel.Visibility = action.ShowFallback ? Visibility.Visible : Visibility.Collapsed;
-        FallbackTimer.Text = RemainingTimeFormatterText();
-        // Перезапуск — короткая заминка; без него плашка остаётся, и гостю нужен человек, а не
-        // обещание «восстанавливаем», которое не сбудется.
-        FallbackMessage.Text = localization.T(action.RestartWebView
-            ? "playerShell.fallback.reconnecting"
-            : "playerShell.fallback.broken");
+        if (window is null)
+        {
+            return;
+        }
+
+        if (action.ShowFallback)
+        {
+            // Перезапуск — короткая заминка; без него плашка остаётся, и гостю нужен человек, а не обещание
+            // «восстанавливаем», которое не сбудется.
+            window.ShowFallback(
+                Shell.RemainingTimeFormatter.Format(latestState?.RemainingSeconds),
+                localization.T(action.RestartWebView ? "playerShell.fallback.reconnecting" : "playerShell.fallback.broken"));
+        }
+        else
+        {
+            window.HideFallback();
+        }
 
         if (action.RestartWebView)
         {
-            Browser.Reload();
-            FallbackPanel.Visibility = Visibility.Collapsed;
+            _ = ReloadSoonAsync();
         }
     }
 
-    private string RemainingTimeFormatterText() =>
-        Shell.RemainingTimeFormatter.Format(latestState?.RemainingSeconds);
+    private async Task ReloadSoonAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        window?.Reload();
+    }
 
     private static string? ResolveDistIndexHtml() =>
         // Where the packaged build lands. The resolver prefers a dev-server URL when one is set
-        // (checked first), otherwise serves this path via the virtual host; in production the file
+        // (checked first), otherwise serves this path from the content root; in production the file
         // is always present, and a failed load is covered by the watchdog/native fallback.
         Path.Combine(AppContext.BaseDirectory, "WebAssets", "index.html");
 
-    private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    private async Task HandleMessageAsync(string json)
     {
         try
         {
-            var responseJson = await bridge.HandleAsync(e.WebMessageAsJson, lifetime.Token);
-            Browser.CoreWebView2?.PostWebMessageAsJson(responseJson);
+            var responseJson = await bridge.HandleAsync(json, lifetime.Token);
+            window?.PostMessageAsJson(responseJson);
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
-            // Обработчик async void без общей страховки: исключение отсюда уронило бы киоск, и агент
-            // перезапускал бы его по кругу. Пишем в журнал и живём дальше.
+            // Без общей страховки исключение отсюда уронило бы киоск, и агент перезапускал бы его по кругу. Пишем в
+            // журнал и живём дальше.
             PlayerShellStartupLog.Write("Player Shell host bridge message failed.", exception);
         }
     }
@@ -254,40 +271,8 @@ public partial class WebViewPlayerWindow : Window
         _ = agentPipe.RequestAsync(ShellPipeRequestTypeNames.Activity, new Dictionary<string, string>(), lifetime.Token);
     }
 
-    private DateTimeOffset lastPresenceReported = DateTimeOffset.MinValue;
-
-    /// <summary>
-    /// Обложки игр (и витрина P7) — из общей папки ПК, которую пополняет агент. Только на чтение:
-    /// страница показывает картинки, но ничего туда не пишет. Папки ещё нет — агент её не завёл, и
-    /// плитки рисуются по названию.
-    /// </summary>
-    private void MapShowcaseAssets()
-    {
-        var folder = AFK4.Shared.Contracts.Shell.ShellShowcaseAssets.Directory();
-        if (!System.IO.Directory.Exists(folder))
-        {
-            return;
-        }
-
-        Browser.CoreWebView2.SetVirtualHostNameToFolderMapping(
-            AFK4.Shared.Contracts.Shell.ShellShowcaseAssets.VirtualHost,
-            folder,
-            CoreWebView2HostResourceAccessKind.Allow);
-    }
-
-    private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
-    {
-        if (!ShellNavigationPolicy.IsAllowed(e.Uri, appSource))
-        {
-            e.Cancel = true;
-        }
-    }
-
-    private void PostToPage(string eventType, object? payload)
-    {
-        var message = ShellBridgeHost.Event(eventType, payload);
-        Dispatcher.InvokeAsync(() => Browser.CoreWebView2?.PostWebMessageAsJson(message));
-    }
+    private void PostToPage(string eventType, object? payload) =>
+        window?.PostMessageAsJson(ShellBridgeHost.Event(eventType, payload));
 
     /// <summary>
     /// Кадры агента без запроса: вход игрока (ПИН-код или QR) и команды клуба. Сообщение клуба
@@ -314,7 +299,7 @@ public partial class WebViewPlayerWindow : Window
                     else if (command.Type == DeviceCommandTypeNames.Message && !string.IsNullOrWhiteSpace(command.Text))
                     {
                         var message = new ClubMessage(command.Text, DateTimeOffset.UtcNow);
-                        await Dispatcher.InvokeAsync(() => clubMessage = message);
+                        WebHostWindow.RunOnUiThread(() => clubMessage = message);
                     }
                 }
             }
@@ -331,7 +316,7 @@ public partial class WebViewPlayerWindow : Window
             await foreach (var state in agentPipe.ReadStatesAsync(cancellationToken))
             {
                 PostToPage(ShellBridgeEventTypeNames.StateChanged, state);
-                await Dispatcher.InvokeAsync(() =>
+                WebHostWindow.RunOnUiThread(() =>
                 {
                     latestState = state;
                     stateReceivedAt = Stopwatch.GetTimestamp();
@@ -348,7 +333,7 @@ public partial class WebViewPlayerWindow : Window
     /// Четыре раза в секунду: ввод, переднее окно и окно поверх игры; раз в секунду — звук и раскладка. Опрос дешевле хука и не
     /// зависит от того, в каком потоке Windows решит его вызвать; решения — в чистых классах.
     /// </summary>
-    private async void OnTick(object? sender, EventArgs e)
+    private void OnTick()
     {
         try
         {
@@ -364,7 +349,7 @@ public partial class WebViewPlayerWindow : Window
             }
 
             var now = DateTimeOffset.UtcNow;
-            var shellInFront = NativeInput.ShellInFront();
+            var shellInFront = window?.IsInFront == true;
             keyboard.SetShellInFront(shellInFront);
 
             // Окна приложений — только в сессии: на запертом экране чужое окно впереди не игра, и
@@ -382,7 +367,7 @@ public partial class WebViewPlayerWindow : Window
 
             if (game.Observe(shellInFront || (sessionRuns && !appVisible), latestState, now) is { } gameActive)
             {
-                await SetPageAsleepAsync(gameActive);
+                SetPageAsleep(gameActive);
             }
 
             // Звук, микрофон и раскладку игрок мог поменять клавишами — раз в секунду сверяемся.
@@ -401,7 +386,7 @@ public partial class WebViewPlayerWindow : Window
         }
         catch (Exception exception)
         {
-            // Таймер — async void: сбой одного круга не должен уронить киоск.
+            // Таймер вызывается окном: сбой одного круга не должен уронить киоск.
             PlayerShellStartupLog.Write("Player Shell tick failed.", exception);
         }
     }
@@ -412,6 +397,12 @@ public partial class WebViewPlayerWindow : Window
             ? remaining - (int)Stopwatch.GetElapsedTime(stateReceivedAt).TotalSeconds
             : null;
 
+    private void SetOnTop(bool value)
+    {
+        onTop = value;
+        window?.SetTopmost(value);
+    }
+
     /// <summary>
     /// «Поверх всех» только на запертом экране; при блокировке окно возвращается наверх. В
     /// обслуживании — полоса сверху, под ней рабочий стол техника.
@@ -420,35 +411,40 @@ public partial class WebViewPlayerWindow : Window
     {
         keyboard.SetMode(KeyboardBlockPolicy.ModeFor(state));
         windows.SetRules(state.BlockedWindows);
+        if (window is null)
+        {
+            return;
+        }
+
         var layout = ShellWindowPolicy.Layout(state);
         if (layout == ShellWindowLayout.Band)
         {
-            if (!band.IsDocked)
+            if (!window.IsBandDocked)
             {
                 // Полоса — не заслон: поверх окон техника она стоит как панель задач, а не как киоск.
-                Topmost = true;
-                band.Dock(ShellWindowPolicy.BandHeight);
+                SetOnTop(true);
+                window.DockBand((int)ShellWindowPolicy.BandHeight);
             }
 
             return;
         }
 
-        if (band.IsDocked)
+        if (window.IsBandDocked)
         {
-            band.Undock();
-            WindowState = WindowState.Maximized;
+            // Окно снова на весь монитор.
+            window.UndockBand();
         }
 
-        var onTop = layout == ShellWindowLayout.Cover;
-        if (Topmost == onTop)
+        var wantOnTop = layout == ShellWindowLayout.Cover;
+        if (onTop == wantOnTop)
         {
             return;
         }
 
-        Topmost = onTop;
-        if (onTop)
+        SetOnTop(wantOnTop);
+        if (wantOnTop)
         {
-            Activate();
+            window.BringToFront();
         }
     }
 
@@ -457,103 +453,51 @@ public partial class WebViewPlayerWindow : Window
     /// отступит. Наблюдатель помнит окна, что были до запуска, — они не новые.
     /// </summary>
     private void BeginLaunchFocus() =>
-        launchFocus.Begin(DateTimeOffset.UtcNow, NativeWindows.VisibleAppWindows().Select(window => window.Handle).ToList());
+        launchFocus.Begin(DateTimeOffset.UtcNow, NativeWindows.VisibleAppWindows().Select(candidate => candidate.Handle).ToList());
 
     private void StepBackForLaunchedApp(DateTimeOffset now, IReadOnlyList<WindowInfo> visibleApps)
     {
-        var handles = visibleApps.Select(window => window.Handle).ToList();
-        if (launchFocus.Observe(now, handles) is not { } window)
+        var handles = visibleApps.Select(candidate => candidate.Handle).ToList();
+        if (launchFocus.Observe(now, handles) is not { } appWindow)
         {
             return;
         }
 
-        if (!NativeWindows.BringToFront(window))
+        if (!NativeWindows.BringToFront(appWindow))
         {
             // Windows не отдала передний план: оболочка сворачивается сама, и окно игры открыто. Если
             // оно закроется, страж пустого экрана вернёт оболочку.
-            WindowState = WindowState.Minimized;
+            window?.Minimize();
         }
     }
 
     /// <summary>Сочетание «Мои приложения»: оболочка выходит вперёд, и страница открывает панель.</summary>
-    private async Task ShowAppsPanelAsync()
+    private Task ShowAppsPanelAsync()
     {
         if (!ShellWindowPolicy.SessionRuns(latestState))
         {
-            return;
+            return Task.CompletedTask;
         }
 
         BringShellForward();
-        await SetPageAsleepAsync(false);
+        SetPageAsleep(false);
         PostToPage(ShellBridgeEventTypeNames.AppsPanelRequested, null);
+        return Task.CompletedTask;
     }
 
     /// <summary>«Продлить» в окне поверх игры: оболочка выходит вперёд, продление подтверждают там.</summary>
     private void BringShellForward()
     {
-        if (WindowState == WindowState.Minimized)
-        {
-            WindowState = WindowState.Maximized;
-        }
-
-        Topmost = true;
-        Activate();
-        Topmost = ShellWindowPolicy.ShouldStayOnTop(latestState);
+        // Окно выходит вперёд и остаётся «поверх всех» только на запертом экране — в сессии игра должна выйти за ним.
+        SetOnTop(ShellWindowPolicy.ShouldStayOnTop(latestState));
+        window?.BringToFront();
     }
 
     /// <summary>
-    /// Игра впереди — страница засыпает (спека оболочки, §8): невидима, приостановлена, память —
-    /// на минимуме. Вернулись — просыпается до того, как игрок её увидит.
+    /// Игра впереди — страница засыпает (спека оболочки, §8): невидима и не рисует кадры. Вернулись — видна до того,
+    /// как игрок её увидит.
     /// </summary>
-    private async Task SetPageAsleepAsync(bool asleep)
-    {
-        var core = Browser.CoreWebView2;
-        if (asleep)
-        {
-            Browser.Visibility = Visibility.Hidden;
-            if (core is not null)
-            {
-#if !NETFRAMEWORK
-                // Уровень памяти — WebView2 SDK 1.0.1661+; сборка для Windows 7 стоит на 1.0.1518.
-                core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
-#endif
-                await core.TrySuspendAsync();
-            }
-
-            return;
-        }
-
-        if (core is not null)
-        {
-            core.Resume();
-#if !NETFRAMEWORK
-            core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Normal;
-#endif
-        }
-
-        Browser.Visibility = Visibility.Visible;
-    }
-
-    private void OnClosed(object? sender, EventArgs e)
-    {
-        tick.Stop();
-        keyboard.Dispose();
-        windows.Dispose();
-        band.Dispose();
-        overlay?.Close();
-        lifetime.Cancel();
-        lifetime.Dispose();
-        apiHttp.Dispose();
-    }
-
-    private void OnApiResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
-    {
-        var decision = AuthorizationHeaderPolicy.Decide(e.Request.Uri, ApiBaseUrl(), session.AccessToken);
-        if (decision.ShouldInject)
-        {
-            e.Request.Headers.SetHeader("Authorization", decision.HeaderValue!);
-        }
-    }
+    private void SetPageAsleep(bool asleep) => window?.SetPageVisible(!asleep);
 
     /// <summary>Адрес API — тот, что назвал агент; до первого состояния — из конфига хоста.</summary>
     private string ApiBaseUrl() =>

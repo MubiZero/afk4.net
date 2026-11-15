@@ -1,5 +1,5 @@
+using System.Buffers;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Player.Shell.Workstation;
@@ -19,11 +19,6 @@ public sealed class ShellBridgeHost(
     ISystemControls? system = null,
     IAppWindowControl? appWindows = null)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     /// <summary>Язык, выбранный на экране; живёт до выхода игрока.</summary>
     public string? Locale { get; private set; }
 
@@ -74,7 +69,11 @@ public sealed class ShellBridgeHost(
 
     /// <summary>Событие для страницы: {type, payload}.</summary>
     public static string Event(string type, object? payload) =>
-        JsonSerializer.Serialize(new { type, payload }, JsonOptions);
+        Envelope(writer =>
+        {
+            writer.WriteString("type", type);
+            WritePayload(writer, payload);
+        });
 
     private async Task<string> SignInAsync(string requestId, JsonElement payload, CancellationToken cancellationToken)
     {
@@ -264,8 +263,64 @@ public sealed class ShellBridgeHost(
             : null;
 
     private static string Ok(string requestId, object? payload) =>
-        JsonSerializer.Serialize(new { type = "host:response", requestId, ok = true, payload }, JsonOptions);
+        Envelope(writer =>
+        {
+            writer.WriteString("type", "host:response");
+            writer.WriteString("requestId", requestId);
+            writer.WriteBoolean("ok", true);
+            WritePayload(writer, payload);
+        });
 
     private static string Error(string requestId, string code, string message) =>
-        JsonSerializer.Serialize(new { type = "host:response", requestId, ok = false, error = new { code, message } }, JsonOptions);
+        Envelope(writer =>
+        {
+            writer.WriteString("type", "host:response");
+            writer.WriteString("requestId", requestId);
+            writer.WriteBoolean("ok", false);
+            writer.WriteStartObject("error");
+            writer.WriteString("code", code);
+            writer.WriteString("message", message);
+            writer.WriteEndObject();
+        });
+
+    private static string Envelope(Action<Utf8JsonWriter> body)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            body(writer);
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    // Без отражения: тела — только записи из ShellBridgeJson. Пустое тело в конверт не попадает.
+    private static void WritePayload(Utf8JsonWriter writer, object? payload)
+    {
+        switch (payload)
+        {
+            case null:
+                return;
+            case ShellSnapshotDto snapshot:
+                writer.WritePropertyName("payload");
+                JsonSerializer.Serialize(writer, snapshot, ShellBridgeJson.Default.ShellSnapshotDto);
+                return;
+            case ShellAuthStateDto auth:
+                writer.WritePropertyName("payload");
+                JsonSerializer.Serialize(writer, auth, ShellBridgeJson.Default.ShellAuthStateDto);
+                return;
+            case ShellSystemStateDto system:
+                writer.WritePropertyName("payload");
+                JsonSerializer.Serialize(writer, system, ShellBridgeJson.Default.ShellSystemStateDto);
+                return;
+            case PlayerShellStateDto state:
+                writer.WritePropertyName("payload");
+                JsonSerializer.Serialize(writer, state, ShellBridgeJson.Default.PlayerShellStateDto);
+                return;
+            default:
+                throw new InvalidOperationException($"{payload.GetType().Name} has no JSON contract for the shell bridge.");
+        }
+    }
 }
