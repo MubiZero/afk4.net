@@ -34,15 +34,6 @@ public sealed unsafe class WebHostWindow
     private static double scale = 1;
     private static bool lastWindowClosed;
     private static Action? tick;
-    // ВРЕМЕННО: отладка падения Miniblink на Windows 7 x86 (AFK4_WEBHOST_DEBUG=notopmost,nobring,nofocus). Убрать.
-    private static readonly string DebugFlags = Environment.GetEnvironmentVariable("AFK4_WEBHOST_DEBUG") ?? string.Empty;
-    private static void Trace(string text)
-    {
-        if (!Dbg("net")) { return; }
-        try { File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AFK4", "logs", "player", "net-trace.txt"), $"{DateTimeOffset.Now:HH:mm:ss.fff} t{Environment.CurrentManagedThreadId} {text}{Environment.NewLine}"); } catch { }
-    }
-
-    private static bool Dbg(string flag) => DebugFlags.Contains(flag, StringComparison.Ordinal);
     private const uint TickTimerId = 2;
 
     private readonly WebHostOptions options;
@@ -160,10 +151,6 @@ public sealed unsafe class WebHostWindow
 
         uiThreadId = Environment.CurrentManagedThreadId;
         nativeUiThreadId = Win32.GetCurrentThreadId();
-        if (Dbg("trace"))
-        {
-            CrashTrace.Install(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AFK4", "logs", "player", "crash-trace.txt"));
-        }
 
         Win32.SetProcessDPIAware();
         scale = Win32.SystemScale();
@@ -308,7 +295,6 @@ public sealed unsafe class WebHostWindow
         Win32.SHAppBarMessage(Win32.AbmQueryPos, &data);
         data.Rect.Bottom = data.Rect.Top + bandPixels;
         Win32.SHAppBarMessage(Win32.AbmSetPos, &data);
-        Report($"band: {data.Rect.Left},{data.Rect.Top} {data.Rect.Right},{data.Rect.Bottom} (высота {bandPixels})");
         Win32.MoveWindow(Handle, data.Rect.Left, data.Rect.Top, data.Rect.Right - data.Rect.Left, data.Rect.Bottom - data.Rect.Top, 1);
     }
 
@@ -364,7 +350,6 @@ public sealed unsafe class WebHostWindow
     /// </summary>
     public void Show(bool activate = true)
     {
-        Trace("Show");
         Load((options.DevServerUrl ?? new Uri(origin + "index.html")).ToString());
         Win32.ShowWindow(Handle, activate ? Win32.SwShow : Win32.SwShowNoActivate);
         if (activate)
@@ -383,7 +368,6 @@ public sealed unsafe class WebHostWindow
     public void SetTopmost(bool onTop) => OnUiThread(() =>
     {
         topmost = onTop;
-        if (Dbg("notopmost")) { return; }
         Win32.SetWindowPos(Handle, onTop ? Win32.HwndTopmost : Win32.HwndNoTopmost, 0, 0, 0, 0,
             Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
     });
@@ -395,7 +379,6 @@ public sealed unsafe class WebHostWindow
     /// </summary>
     public void BringToFront() => OnUiThread(() =>
     {
-        if (Dbg("nobring")) { return; }
         if (IsMinimized)
         {
             Win32.ShowWindow(Handle, Win32.SwRestore);
@@ -439,7 +422,6 @@ public sealed unsafe class WebHostWindow
     // странице не щёлкнут мышью (стенд Windows 7, 05.11.2026).
     private void FocusView()
     {
-        if (Dbg("nofocus")) { return; }
         Win32.SetFocus(Miniblink.mbGetHostHWND(view));
         Miniblink.mbSetFocus(view);
     }
@@ -623,11 +605,14 @@ public sealed unsafe class WebHostWindow
                 // Минимум не больше рабочей области: на экране 800×600 и 1024×768 окно 960×640 иначе уезжает за край
                 // вместе с кнопками «свернуть» и «закрыть» (стенд Windows 7, 05.11.2026).
                 var work = WorkArea();
-                limits->MinTrackSize = new Win32.Point
-                {
-                    X = Math.Min(Scaled(options.MinWidth), work.Right - work.Left),
-                    Y = Math.Min(Scaled(options.MinHeight), work.Bottom - work.Top)
-                };
+                // Киоску минимум не нужен: полоса обслуживания ниже любого «минимального» окна (56 точек).
+                limits->MinTrackSize = options.Kiosk
+                    ? new Win32.Point { X = 1, Y = 1 }
+                    : new Win32.Point
+                    {
+                        X = Math.Min(Scaled(options.MinWidth), work.Right - work.Left),
+                        Y = Math.Min(Scaled(options.MinHeight), work.Bottom - work.Top)
+                    };
                 if (options.Frameless)
                 {
                     // Развёрнутое окно без рамки — ровно рабочая область, а не весь экран поверх панели задач.
@@ -737,13 +722,11 @@ public sealed unsafe class WebHostWindow
             }
         }
 
-        if (Dbg("net")) { Report($"serve: {body.Length} bytes {type}"); }
         fixed (byte* data = body)
         {
             Miniblink.mbNetSetData(job, data, body.Length);
         }
 
-        if (Dbg("net")) { Report("serve: data set"); }
 
         // Тип — после данных и ещё заголовком ответа: до данных Miniblink его теряет, и модульный скрипт Vite
         // отвергается («MIME type of ""») — стенд 05.11.2026.
@@ -833,7 +816,6 @@ public sealed unsafe class WebHostWindow
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnQuery(IntPtr view, IntPtr param, IntPtr state, long queryId, int customMessage, byte* request)
     {
-        Trace($"OnQuery {customMessage}");
         fixed (byte* empty = "\0"u8)
         {
             Miniblink.mbResponseQuery(view, queryId, customMessage, empty);
@@ -859,14 +841,12 @@ public sealed unsafe class WebHostWindow
     {
         try
         {
-            Trace("OnLoadBegin " + Marshal.PtrToStringUTF8((IntPtr)url));
             if (!ByView.TryGetValue(view, out var window))
             {
                 return 0;
             }
 
             var address = Marshal.PtrToStringUTF8((IntPtr)url)!;
-            if (Dbg("net")) { window.Report("request: " + address); }
             if (window.TryServe(address, job))
             {
                 return 1;
@@ -891,7 +871,6 @@ public sealed unsafe class WebHostWindow
     private static int OnNavigation(IntPtr view, IntPtr param, int navigationType, byte* url)
     {
         var address = Marshal.PtrToStringUTF8((IntPtr)url) ?? string.Empty;
-        Trace("OnNavigation " + address);
         if (!ByView.TryGetValue(view, out var window) || window.IsAllowed(address))
         {
             return 1;
@@ -910,7 +889,6 @@ public sealed unsafe class WebHostWindow
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static void OnLoadingFinish(IntPtr view, IntPtr param, IntPtr frame, byte* url, int result, byte* reason)
     {
-        Trace($"OnLoadingFinish {result}");
         if (!ByView.TryGetValue(view, out var window))
         {
             return;
