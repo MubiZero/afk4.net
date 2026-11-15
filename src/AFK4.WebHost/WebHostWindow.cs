@@ -154,6 +154,11 @@ public sealed unsafe class WebHostWindow
 
         uiThreadId = Environment.CurrentManagedThreadId;
         nativeUiThreadId = Win32.GetCurrentThreadId();
+        if (Dbg("trace"))
+        {
+            CrashTrace.Install(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AFK4", "logs", "player", "crash-trace.txt"));
+        }
+
         Win32.SetProcessDPIAware();
         scale = Win32.SystemScale();
         Miniblink.UseBundledLibrary();
